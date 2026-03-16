@@ -1,19 +1,38 @@
 using UnityEngine;
+using UnityEngine.UI; // We need this to talk to the UI STANIMA Bar!
 
 [RequireComponent(typeof(Rigidbody))]
 public class IsometricPlayer : MonoBehaviour
 {
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float walkSpeed = 5f;
+    [SerializeField] private float sprintSpeed = 10f;
+
+    [Header("Jumping")]
+    [SerializeField] private float jumpForce = 15f;
+    [SerializeField] private float groundCheckDistance = 0.6f;
+
+    [Header("Stanima System")]
+    [SerializeField] private float maxStanima = 100f;
+    [SerializeField] private float stanimaDrainRate = 20f;
+    [SerializeField] private float stanimaRegenRate = 15f;
+    [SerializeField] private Image stanimaBarFill; // The UI bar we will link in Unity
 
     private Rigidbody rb;
     private Vector3 inputVector;
+    private bool isGrounded;
+    private bool jumpRequested;
+    
+    private float currentSpeed;
+    private float currentStanima;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        // Stop the cube from rolling around like a dice
         rb.freezeRotation = true; 
+        
+        currentSpeed = walkSpeed;
+        currentStanima = maxStanima; // Start with a full tank
     }
 
     void Update()
@@ -22,22 +41,68 @@ public class IsometricPlayer : MonoBehaviour
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         inputVector = new Vector3(h, 0f, v).normalized;
+
+        // 2. Check for Jump Input
+        if (Input.GetButtonDown("Jump") && isGrounded)
+        {
+            jumpRequested = true;
+        }
+
+        // 3. Process the Sprint and STANIMA math
+        HandleStanima();
+    }
+
+    void HandleStanima()
+    {
+        // If holding Left Shift, actually moving, AND we have Stanima left...
+        if (Input.GetKey(KeyCode.LeftShift) && inputVector.magnitude > 0.1f && currentStanima > 0)
+        {
+            currentSpeed = sprintSpeed;
+            currentStanima -= stanimaDrainRate * Time.deltaTime; // Drain the bar
+        }
+        else
+        {
+            currentSpeed = walkSpeed;
+            // Regenerate Stanima if we are not sprinting
+            if (currentStanima < maxStanima)
+            {
+                currentStanima += stanimaRegenRate * Time.deltaTime; // Fill the bar
+            }
+        }
+
+        // Clamp Stanima so it never drops below 0 or goes above the maximum
+        currentStanima = Mathf.Clamp(currentStanima, 0f, maxStanima);
+
+        // If we linked a UI bar in the Inspector, update its visual fill amount
+        if (stanimaBarFill != null)
+        {
+            stanimaBarFill.fillAmount = currentStanima / maxStanima;
+        }
     }
 
     void FixedUpdate()
     {
-        // 2. Adjust movement to match the Isometric Camera angle
+        isGrounded = Physics.Raycast(transform.position, Vector3.down, groundCheckDistance);
+
         Vector3 forward = Camera.main.transform.forward;
         Vector3 right = Camera.main.transform.right;
 
-        // Flatten the camera vectors so we don't accidentally walk into the sky/ground
         forward.y = 0f;
         right.y = 0f;
         forward.Normalize();
         right.Normalize();
 
-        // 3. Calculate final direction and move the Rigidbody
         Vector3 moveDir = forward * inputVector.z + right * inputVector.x;
-        rb.MovePosition(rb.position + moveDir * moveSpeed * Time.fixedDeltaTime);
+        
+        // Notice we are using currentSpeed here now, not moveSpeed!
+        Vector3 targetVelocity = moveDir * currentSpeed; 
+        
+        rb.linearVelocity = new Vector3(targetVelocity.x, rb.linearVelocity.y, targetVelocity.z);
+
+        if (jumpRequested)
+        {
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            jumpRequested = false;
+        }
     }
 }
