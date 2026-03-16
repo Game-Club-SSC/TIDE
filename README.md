@@ -12,7 +12,7 @@ The game is set in a world of five elemental forces: Fire, Water, Earth, Air, an
 
 ## 👥 The Team
 * **Lead:** Ryan N
-* **Programming:** Andrian, Clinton, Yassin, Ryan P
+* **Programming:** Andrian, Clinton, Ryan P
 * **Art:** Ryan P, Tilly, Tully
-* **Writing & World Building:** Hannah, Tilly, Tully
+* **Writing & World Design:** Hannah, Tilly, Tully
 * **Music:** Cho, Enzo
