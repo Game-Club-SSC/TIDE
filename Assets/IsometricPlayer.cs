@@ -8,10 +8,6 @@ public class IsometricPlayer : MonoBehaviour
     [SerializeField] private float walkSpeed = 5f;
     [SerializeField] private float sprintSpeed = 10f;
 
-    [Header("Jumping")]
-    [SerializeField] private float jumpForce = 15f;
-    [SerializeField] private float groundCheckDistance = 0.6f;
-
     [Header("Stanima System")]
     [SerializeField] private float maxStanima = 100f;
     [SerializeField] private float stanimaDrainRate = 20f;
@@ -20,8 +16,6 @@ public class IsometricPlayer : MonoBehaviour
 
     private Rigidbody rb;
     private Vector3 inputVector;
-    private bool isGrounded;
-    private bool jumpRequested;
     
     private float currentSpeed;
     private float currentStanima;
@@ -42,13 +36,7 @@ public class IsometricPlayer : MonoBehaviour
         float v = Input.GetAxisRaw("Vertical");
         inputVector = new Vector3(h, 0f, v).normalized;
 
-        // 2. Check for Jump Input
-        if (Input.GetButtonDown("Jump") && isGrounded)
-        {
-            jumpRequested = true;
-        }
-
-        // 3. Process the Sprint and STANIMA math
+        // 2. Process the Sprint and STANIMA math
         HandleStanima();
     }
 
@@ -82,8 +70,6 @@ public class IsometricPlayer : MonoBehaviour
 
     void FixedUpdate()
     {
-        isGrounded = Physics.Raycast(transform.position, Vector3.down, groundCheckDistance);
-
         Vector3 forward = Camera.main.transform.forward;
         Vector3 right = Camera.main.transform.right;
 
@@ -98,11 +84,5 @@ public class IsometricPlayer : MonoBehaviour
         Vector3 targetVelocity = moveDir * currentSpeed; 
         
         rb.linearVelocity = new Vector3(targetVelocity.x, rb.linearVelocity.y, targetVelocity.z);
-
-        if (jumpRequested)
-        {
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-            jumpRequested = false;
-        }
     }
 }
