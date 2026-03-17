@@ -6,6 +6,7 @@ public class IsometricPlayer : MonoBehaviour
     [Header("Movement")]
     [SerializeField] private float walkSpeed = 5f;
     [SerializeField] private float sprintSpeed = 10f;
+    public bool canMove = true;
 
     private Rigidbody rb;
     private Vector3 inputVector;
@@ -20,6 +21,13 @@ public class IsometricPlayer : MonoBehaviour
 
     void Update()
     {
+        if (!canMove)
+        {
+            inputVector = Vector3.zero;
+            currentSpeed = 0f;
+            return;
+        }
+
         // 1. Gather WASD Input
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
