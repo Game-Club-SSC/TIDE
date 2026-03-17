@@ -29,12 +29,7 @@ public class GameStateManager : MonoBehaviour
     public void EnterCombat()
     {
         currentState = GameState.Combat;
-
-        CachePlayer();
-        if (player != null)
-        {
-            player.canMove = false;
-        }
+        SetPlayerMovementLocked(true);
 
         Debug.Log("Combat Started! Player movement locked.");
     }
@@ -42,12 +37,20 @@ public class GameStateManager : MonoBehaviour
     public void EndCombat()
     {
         currentState = GameState.Exploration;
+        SetPlayerMovementLocked(false);
+    }
 
-        CachePlayer();
-        if (player != null)
-        {
-            player.canMove = true;
-        }
+    public void EnterPuzzle()
+    {
+        currentState = GameState.Puzzle;
+        SetPlayerMovementLocked(true);
+        Debug.Log("Puzzle Started! Player movement locked.");
+    }
+
+    public void ExitPuzzle()
+    {
+        currentState = GameState.Exploration;
+        SetPlayerMovementLocked(false);
     }
 
     private void CachePlayer()
@@ -55,6 +58,15 @@ public class GameStateManager : MonoBehaviour
         if (player == null)
         {
             player = FindFirstObjectByType<IsometricPlayer>();
+        }
+    }
+
+    private void SetPlayerMovementLocked(bool isLocked)
+    {
+        CachePlayer();
+        if (player != null)
+        {
+            player.canMove = !isLocked;
         }
     }
 }
