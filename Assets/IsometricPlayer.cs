@@ -15,7 +15,8 @@ public class IsometricPlayer : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        rb.freezeRotation = true; 
+        rb.freezeRotation = true;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
         currentSpeed = walkSpeed;
     }
 
