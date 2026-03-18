@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Linq;
 
 public enum BattlePhase
 {
@@ -27,6 +28,47 @@ public class BattleManager : MonoBehaviour
     [SerializeField] private BattlePhase currentPhase;
 
     public BattlePhase CurrentPhase => currentPhase;
+
+    private List<CombatUnit> allyUnits = new List<CombatUnit>();
+    private List<CombatUnit> enemyUnits = new List<CombatUnit>();
+
+    public IReadOnlyList<CombatUnit> AllyUnits => allyUnits;
+    public IReadOnlyList<CombatUnit> EnemyUnits => enemyUnits;
+
+    public IReadOnlyList<CombatUnit> GetAllUnits()
+    {
+        List<CombatUnit> all = new List<CombatUnit>(allyUnits);
+        all.AddRange(enemyUnits);
+        return all;
+    }
+
+    public IReadOnlyList<CombatUnit> GetAliveUnits(CombatUnit.UnitType unitType)
+    {
+        List<CombatUnit> units = unitType == CombatUnit.UnitType.Ally ? allyUnits : enemyUnits;
+        return units.Where(u => u.IsAlive).ToList();
+    }
+
+    public void RegisterUnit(CombatUnit unit)
+    {
+        if (unit == null) return;
+
+        if (unit.Type == CombatUnit.UnitType.Ally)
+        {
+            if (!allyUnits.Contains(unit))
+            {
+                allyUnits.Add(unit);
+                Debug.Log($"[BattleManager] Registered ally unit: {unit.UnitName} (Total: {allyUnits.Count})");
+            }
+        }
+        else
+        {
+            if (!enemyUnits.Contains(unit))
+            {
+                enemyUnits.Add(unit);
+                Debug.Log($"[BattleManager] Registered enemy unit: {unit.UnitName} (Total: {enemyUnits.Count})");
+            }
+        }
+    }
 
     private const string DebugCanvasName = "BattleDebugCanvas";
     private const string DebugLabelName = "BattlePhaseLabel";
@@ -217,11 +259,13 @@ public class BattleManager : MonoBehaviour
 
         string phaseName = hasActivePhase ? currentPhase.ToString() : "Waiting";
         string autoAdvanceState = autoAdvancePhases ? "On" : "Off";
+        int alliesAlive = GetAliveUnits(CombatUnit.UnitType.Ally).Count;
+        int enemiesAlive = GetAliveUnits(CombatUnit.UnitType.Enemy).Count;
         phaseLabel.text =
             $"Battle Phase: {phaseName}\n" +
-            $"Next Phase: {advancePhaseKey}\n" +
-            $"Victory: {victoryKey} | Defeat: {defeatKey}\n" +
-            $"Auto Advance: {autoAdvanceState}";
+            $"Allies: {allyUnits.Count} ({alliesAlive} alive)\n" +
+            $"Enemies: {enemyUnits.Count} ({enemiesAlive} alive)\n" +
+            $"Next: {advancePhaseKey} | Victory: {victoryKey} | Defeat: {defeatKey}";
     }
 
     private static Font LoadDebugFont()

@@ -7,6 +7,8 @@ public class CombatSceneBootstrap : MonoBehaviour
     [SerializeField] private Color cameraBackground = new Color(0.1f, 0.12f, 0.16f);
     [SerializeField] private Color playerMarkerColor = new Color(0.21f, 0.73f, 0.84f);
     [SerializeField] private Color enemyMarkerColor = new Color(0.89f, 0.38f, 0.25f);
+    [SerializeField] private Color allyUnitColor = new Color(0.21f, 0.73f, 0.84f);
+    [SerializeField] private Color enemyUnitColor = new Color(0.89f, 0.38f, 0.25f);
     [SerializeField] private float lightIntensity = 1.15f;
 
     [Header("Layout")]
@@ -23,6 +25,10 @@ public class CombatSceneBootstrap : MonoBehaviour
     [Header("Markers")]
     [SerializeField] private Vector3 markerScale = new Vector3(0.75f, 0.08f, 0.75f);
     [SerializeField] private float markerYOffset = 0.08f;
+
+    [Header("Unit Prefabs")]
+    [SerializeField] private GameObject playerUnitPrefab;
+    [SerializeField] private GameObject enemyUnitPrefab;
 
     private void Awake()
     {
@@ -243,7 +249,10 @@ public class CombatSceneBootstrap : MonoBehaviour
 
     private void SpawnCombatUnits()
     {
-        // Spawn player units
+        BattleManager battleManager = GetComponent<BattleManager>();
+        string[] allyNames = { "Warrior", "Mage", "Ranger" };
+        string[] enemyNames = { "Imp", "Orc", "Troll" };
+
         if (playerUnitPrefab != null && playerSpawnPoints != null)
         {
             for (int i = 0; i < playerSpawnPoints.Length; i++)
@@ -251,23 +260,27 @@ public class CombatSceneBootstrap : MonoBehaviour
                 if (playerSpawnPoints[i] != null)
                 {
                     GameObject unitObject = Instantiate(playerUnitPrefab, playerSpawnPoints[i].position, Quaternion.identity);
-                    unitObject.transform.SetDefaultParent(playerSpawnPoints[i]); // Makes it a child but keeps world position
+                    unitObject.transform.SetParent(playerSpawnPoints[i], false);
                     unitObject.name = $"PlayerUnit_{i + 1}";
                     
-                    // Customize unit based on index
                     CombatUnit unit = unitObject.GetComponent<CombatUnit>();
                     if (unit != null)
                     {
-                        unit.unitName = $"Player {i + 1}";
-                        // Give each player slightly different stats for variety
-                        unit.attack += i * 2;
-                        unit.speed += i;
+                        unit.Type = CombatUnit.UnitType.Ally;
+                        unit.UnitName = allyNames[i];
+                        unit.Attack += i * 2;
+                        unit.Speed += i;
+                        SetUnitColor(unitObject, allyUnitColor);
+                        
+                        if (battleManager != null)
+                        {
+                            battleManager.RegisterUnit(unit);
+                        }
                     }
                 }
             }
         }
 
-        // Spawn enemy units
         if (enemyUnitPrefab != null && enemySpawnPoints != null)
         {
             for (int i = 0; i < enemySpawnPoints.Length; i++)
@@ -275,35 +288,49 @@ public class CombatSceneBootstrap : MonoBehaviour
                 if (enemySpawnPoints[i] != null)
                 {
                     GameObject unitObject = Instantiate(enemyUnitPrefab, enemySpawnPoints[i].position, Quaternion.identity);
-                    unitObject.transform.SetDefaultParent(enemySpawnPoints[i]); // Makes it a child but keeps world position
+                    unitObject.transform.SetParent(enemySpawnPoints[i], false);
                     unitObject.name = $"EnemyUnit_{i + 1}";
                     
-                    // Customize unit based on index
                     CombatUnit unit = unitObject.GetComponent<CombatUnit>();
                     if (unit != null)
                     {
-                        unit.unitName = $"Enemy {i + 1}";
-                        // Give enemies different elemental affinities
+                        unit.Type = CombatUnit.UnitType.Enemy;
+                        unit.UnitName = enemyNames[i];
                         switch (i)
                         {
                             case 0:
-                                unit.element = CombatUnit.Element.Fire;
+                                unit.ElementType = CombatUnit.Element.Fire;
                                 break;
                             case 1:
-                                unit.element = CombatUnit.Element.Water;
+                                unit.ElementType = CombatUnit.Element.Water;
                                 break;
                             case 2:
-                                unit.element = CombatUnit.Element.Earth;
+                                unit.ElementType = CombatUnit.Element.Earth;
                                 break;
                         }
+                        unit.Defense += i;
+                        unit.MaxHP += i * 10;
+                        unit.HP = unit.MaxHP;
+                        SetUnitColor(unitObject, enemyUnitColor);
                         
-                        // Give enemies slightly different stats
-                        unit.defense += i;
-                        unit.maxHp += i * 10;
-                        unit.hp = unit.maxHp; // Full health
+                        if (battleManager != null)
+                        {
+                            battleManager.RegisterUnit(unit);
+                        }
                     }
                 }
             }
+        }
+    }
+
+    private void SetUnitColor(GameObject unitObject, Color color)
+    {
+        Renderer renderer = unitObject.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            Material mat = new Material(renderer.sharedMaterial);
+            mat.color = color;
+            renderer.material = mat;
         }
     }
 }

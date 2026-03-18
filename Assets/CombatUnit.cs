@@ -21,7 +21,17 @@ public class CombatUnit : MonoBehaviour
     // Unit state
     [Header("Unit State")]
     [SerializeField] protected string unitName = "Combat Unit";
+    [SerializeField] protected UnitType unitType = UnitType.Ally;
     [SerializeField] protected bool isAlive = true;
+
+    /// <summary>
+    /// Type of combat unit (ally or enemy).
+    /// </summary>
+    public enum UnitType
+    {
+        Ally,
+        Enemy
+    }
 
     /// <summary>
     /// Elements that units can possess, affecting interactions.
@@ -38,16 +48,17 @@ public class CombatUnit : MonoBehaviour
     }
 
     #region Properties
-    public int HP => hp;
-    public int MaxHP => maxHp;
+    public int HP { get => hp; set => hp = value; }
+    public int MaxHP { get => maxHp; set => maxHp = value; }
     public int MP => mp;
     public int MaxMP => maxMp;
-    public int Attack => attack;
-    public int Defense => defense;
-    public int Speed => speed;
-    public Element ElementType => element;
+    public int Attack { get => attack; set => attack = value; }
+    public int Defense { get => defense; set => defense = value; }
+    public int Speed { get => speed; set => speed = value; }
+    public Element ElementType { get; set; } = Element.None;
     public bool IsAlive => isAlive;
-    public string UnitName => unitName;
+    public string UnitName { get => unitName; set => unitName = value; }
+    public UnitType Type { get; set; } = UnitType.Ally;
     #endregion
 
     #region Core Functions
