@@ -32,6 +32,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         EnsureCombatCamera();
         EnsureSpawnPoints();
         EnsureBattleManager();
+        SpawnCombatUnits();
     }
 
     private void EnsureGameManager()
@@ -157,16 +158,23 @@ public class CombatSceneBootstrap : MonoBehaviour
         combatCamera.backgroundColor = cameraBackground;
     }
 
+    // Store references to spawn points for unit spawning
+    private Transform[] playerSpawnPoints;
+    private Transform[] enemySpawnPoints;
+
     private void EnsureSpawnPoints()
     {
         Transform playerRoot = GetOrCreateChild(transform, "PlayerSpawnPoints");
         Transform enemyRoot = GetOrCreateChild(transform, "EnemySpawnPoints");
 
+        playerSpawnPoints = new Transform[3];
+        enemySpawnPoints = new Transform[3];
+
         for (int slotIndex = 0; slotIndex < 3; slotIndex++)
         {
             float zOffset = (slotIndex - 1) * slotSpacing;
-            EnsureSlot(playerRoot, $"PlayerSlot_{slotIndex + 1}", new Vector3(playerSideX, 0f, zOffset), playerMarkerColor);
-            EnsureSlot(enemyRoot, $"EnemySlot_{slotIndex + 1}", new Vector3(enemySideX, 0f, zOffset), enemyMarkerColor);
+            playerSpawnPoints[slotIndex] = EnsureSlot(playerRoot, $"PlayerSlot_{slotIndex + 1}", new Vector3(playerSideX, 0f, zOffset), playerMarkerColor);
+            enemySpawnPoints[slotIndex] = EnsureSlot(enemyRoot, $"EnemySlot_{slotIndex + 1}", new Vector3(enemySideX, 0f, zOffset), enemyMarkerColor);
         }
     }
 
@@ -178,7 +186,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         }
     }
 
-    private void EnsureSlot(Transform parent, string slotName, Vector3 localPosition, Color markerColor)
+    private Transform EnsureSlot(Transform parent, string slotName, Vector3 localPosition, Color markerColor)
     {
         Transform slotTransform = parent.Find(slotName);
         if (slotTransform == null)
@@ -193,6 +201,8 @@ public class CombatSceneBootstrap : MonoBehaviour
         slotTransform.localScale = Vector3.one;
 
         EnsureSlotMarker(slotTransform, markerColor);
+        
+        return slotTransform;
     }
 
     private void EnsureSlotMarker(Transform slotTransform, Color markerColor)
@@ -229,5 +239,71 @@ public class CombatSceneBootstrap : MonoBehaviour
         childTransform = childObject.transform;
         childTransform.SetParent(parent, false);
         return childTransform;
+    }
+
+    private void SpawnCombatUnits()
+    {
+        // Spawn player units
+        if (playerUnitPrefab != null && playerSpawnPoints != null)
+        {
+            for (int i = 0; i < playerSpawnPoints.Length; i++)
+            {
+                if (playerSpawnPoints[i] != null)
+                {
+                    GameObject unitObject = Instantiate(playerUnitPrefab, playerSpawnPoints[i].position, Quaternion.identity);
+                    unitObject.transform.SetDefaultParent(playerSpawnPoints[i]); // Makes it a child but keeps world position
+                    unitObject.name = $"PlayerUnit_{i + 1}";
+                    
+                    // Customize unit based on index
+                    CombatUnit unit = unitObject.GetComponent<CombatUnit>();
+                    if (unit != null)
+                    {
+                        unit.unitName = $"Player {i + 1}";
+                        // Give each player slightly different stats for variety
+                        unit.attack += i * 2;
+                        unit.speed += i;
+                    }
+                }
+            }
+        }
+
+        // Spawn enemy units
+        if (enemyUnitPrefab != null && enemySpawnPoints != null)
+        {
+            for (int i = 0; i < enemySpawnPoints.Length; i++)
+            {
+                if (enemySpawnPoints[i] != null)
+                {
+                    GameObject unitObject = Instantiate(enemyUnitPrefab, enemySpawnPoints[i].position, Quaternion.identity);
+                    unitObject.transform.SetDefaultParent(enemySpawnPoints[i]); // Makes it a child but keeps world position
+                    unitObject.name = $"EnemyUnit_{i + 1}";
+                    
+                    // Customize unit based on index
+                    CombatUnit unit = unitObject.GetComponent<CombatUnit>();
+                    if (unit != null)
+                    {
+                        unit.unitName = $"Enemy {i + 1}";
+                        // Give enemies different elemental affinities
+                        switch (i)
+                        {
+                            case 0:
+                                unit.element = CombatUnit.Element.Fire;
+                                break;
+                            case 1:
+                                unit.element = CombatUnit.Element.Water;
+                                break;
+                            case 2:
+                                unit.element = CombatUnit.Element.Earth;
+                                break;
+                        }
+                        
+                        // Give enemies slightly different stats
+                        unit.defense += i;
+                        unit.maxHp += i * 10;
+                        unit.hp = unit.maxHp; // Full health
+                    }
+                }
+            }
+        }
     }
 }
