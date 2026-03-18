@@ -22,9 +22,15 @@ public class TideManager : MonoBehaviour
     private readonly TideTile[,] activeTiles = new TideTile[3, 3];
     private readonly int[,] puzzleValues =
     {
-        { 7, 5, 3 },
-        { 5, 5, 5 },
-        { 5, 5, 5 }
+        { 9, 1, 10 },
+        { 7, 5, 2 },
+        { 5, 3, 3 }
+    };
+    private readonly bool[,] sealedTiles =
+    {
+        { false, false, false },
+        { false, true, false },
+        { false, false, false }
     };
 
     private Transform runtimeBoardRoot;
@@ -98,7 +104,7 @@ public class TideManager : MonoBehaviour
                 tileObject.layer = gameObject.layer;
 
                 TideTile tile = tileObject.AddComponent<TideTile>();
-                tile.Configure(new Vector2Int(col, row), puzzleValues[row, col], false);
+                tile.Configure(new Vector2Int(col, row), puzzleValues[row, col], sealedTiles[row, col]);
                 activeTiles[row, col] = tile;
             }
         }

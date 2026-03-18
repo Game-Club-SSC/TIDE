@@ -1,4 +1,3 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -6,9 +5,14 @@ using UnityEngine.Rendering;
 [RequireComponent(typeof(Renderer))]
 public class PuzzleBoxInteractable : MonoBehaviour
 {
+    private const string DefaultPromptResourceName = "PuzzlePrompt";
+    private const float DefaultPromptPixelsPerUnit = 360f;
+
     [Header("Prompt Layout")]
     [SerializeField] private Vector3 promptLocalOffset = new Vector3(1.45f, 1.15f, 0f);
-    [SerializeField] private Vector3 promptScale = new Vector3(1.8f, 0.85f, 1f);
+    [SerializeField] private Vector3 promptScale = new Vector3(0.72f, 0.72f, 1f);
+    [SerializeField] private Sprite promptSprite;
+    [SerializeField] private Color promptTint = Color.white;
 
     [Header("Interaction")]
     [SerializeField] private Vector3 triggerSize = new Vector3(3.25f, 2.25f, 3.25f);
@@ -18,6 +22,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
     private Renderer cachedRenderer;
     private GameObject promptRoot;
     private bool playerInRange;
+    private Sprite runtimePromptSprite;
 
     private void Awake()
     {
@@ -127,45 +132,23 @@ public class PuzzleBoxInteractable : MonoBehaviour
         promptRoot.transform.SetParent(transform, false);
         promptRoot.transform.localPosition = promptLocalOffset;
 
-        GameObject accentObject = CreatePromptQuad("Accent", new Color(0.16f, 0.32f, 0.95f), new Vector3(0.1f, -0.05f, 0.03f), new Vector3(promptScale.x * 1.1f, promptScale.y, 1f));
-        accentObject.transform.SetParent(promptRoot.transform, false);
-        accentObject.transform.localRotation = Quaternion.Euler(0f, 0f, -9f);
+        GameObject spriteObject = new GameObject("PromptImage");
+        spriteObject.transform.SetParent(promptRoot.transform, false);
+        spriteObject.transform.localPosition = Vector3.zero;
+        spriteObject.transform.localRotation = Quaternion.identity;
+        spriteObject.transform.localScale = promptScale;
 
-        GameObject panelObject = CreatePromptQuad("Panel", Color.white, Vector3.zero, promptScale);
-        panelObject.transform.SetParent(promptRoot.transform, false);
+        SpriteRenderer spriteRenderer = spriteObject.AddComponent<SpriteRenderer>();
+        spriteRenderer.sprite = GetPromptSprite();
+        spriteRenderer.color = promptTint;
+        spriteRenderer.shadowCastingMode = ShadowCastingMode.Off;
+        spriteRenderer.receiveShadows = false;
+        spriteRenderer.sortingOrder = 10;
 
-        GameObject textObject = new GameObject("PromptText");
-        textObject.transform.SetParent(promptRoot.transform, false);
-        textObject.transform.localPosition = new Vector3(0f, 0f, 0.01f);
-        textObject.transform.localScale = Vector3.one * 0.28f;
-
-        TextMeshPro text = textObject.AddComponent<TextMeshPro>();
-        text.text = "examine";
-        text.fontSize = 12f;
-        text.fontStyle = FontStyles.Bold;
-        text.alignment = TextAlignmentOptions.Center;
-        text.textWrappingMode = TextWrappingModes.NoWrap;
-        text.color = Color.black;
-    }
-
-    private GameObject CreatePromptQuad(string objectName, Color color, Vector3 localPosition, Vector3 localScale)
-    {
-        GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        quad.name = objectName;
-        quad.transform.localPosition = localPosition;
-        quad.transform.localScale = localScale;
-
-        Collider quadCollider = quad.GetComponent<Collider>();
-        if (quadCollider != null)
+        if (spriteRenderer.sprite == null)
         {
-            Destroy(quadCollider);
+            Debug.LogWarning($"{nameof(PuzzleBoxInteractable)} on {name} could not find a prompt sprite. Assign one in the inspector or add a PNG named {DefaultPromptResourceName} under Assets/Resources.", this);
         }
-
-        Renderer quadRenderer = quad.GetComponent<Renderer>();
-        quadRenderer.material.color = color;
-        quadRenderer.shadowCastingMode = ShadowCastingMode.Off;
-        quadRenderer.receiveShadows = false;
-        return quad;
     }
 
     private void UpdatePromptFacing()
@@ -174,8 +157,40 @@ public class PuzzleBoxInteractable : MonoBehaviour
         {
             return;
         }
+        Vector3 facingDirection = promptRoot.transform.position - Camera.main.transform.position;
+        if (facingDirection.sqrMagnitude <= Mathf.Epsilon)
+        {
+            return;
+        }
 
-        promptRoot.transform.rotation = Quaternion.LookRotation(-Camera.main.transform.forward, Camera.main.transform.up);
+        promptRoot.transform.rotation = Quaternion.LookRotation(facingDirection.normalized, Camera.main.transform.up);
+    }
+
+    private Sprite GetPromptSprite()
+    {
+        if (promptSprite != null)
+        {
+            return promptSprite;
+        }
+
+        if (runtimePromptSprite != null)
+        {
+            return runtimePromptSprite;
+        }
+
+        Texture2D promptTexture = Resources.Load<Texture2D>(DefaultPromptResourceName);
+        if (promptTexture == null)
+        {
+            return null;
+        }
+
+        runtimePromptSprite = Sprite.Create(
+            promptTexture,
+            new Rect(0f, 0f, promptTexture.width, promptTexture.height),
+            new Vector2(0.5f, 0.5f),
+            DefaultPromptPixelsPerUnit);
+        runtimePromptSprite.name = $"{DefaultPromptResourceName}_Runtime";
+        return runtimePromptSprite;
     }
 
     private void SetPromptVisible(bool isVisible)
@@ -183,6 +198,15 @@ public class PuzzleBoxInteractable : MonoBehaviour
         if (promptRoot != null && promptRoot.activeSelf != isVisible)
         {
             promptRoot.SetActive(isVisible);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (runtimePromptSprite != null)
+        {
+            Destroy(runtimePromptSprite);
+            runtimePromptSprite = null;
         }
     }
 }

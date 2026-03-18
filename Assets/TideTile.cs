@@ -18,6 +18,7 @@ public class TideTile : MonoBehaviour
     private Renderer cachedRenderer;
     private TextMeshPro valueLabel;
     private Vector3 baseScale;
+    private static readonly Quaternion LabelTopDownRotation = Quaternion.Euler(90f, 0f, 0f);
 
     public Vector2Int GridPosition => gridPosition;
     public int CurrentTideValue => currentTideValue;
@@ -29,16 +30,6 @@ public class TideTile : MonoBehaviour
         baseScale = transform.localScale;
         EnsureLabel();
         RefreshVisuals();
-    }
-
-    private void LateUpdate()
-    {
-        if (valueLabel == null || Camera.main == null)
-        {
-            return;
-        }
-
-        valueLabel.transform.rotation = Quaternion.LookRotation(-Camera.main.transform.forward, Camera.main.transform.up);
     }
 
     public void Configure(Vector2Int newGridPosition, int tideValue, bool sealedTile)
@@ -173,6 +164,7 @@ public class TideTile : MonoBehaviour
         if (existingLabel != null)
         {
             valueLabel = existingLabel.GetComponent<TextMeshPro>();
+            existingLabel.localRotation = LabelTopDownRotation;
             return;
         }
 
@@ -180,6 +172,7 @@ public class TideTile : MonoBehaviour
         labelObject.transform.SetParent(transform, false);
         labelObject.transform.localPosition = new Vector3(0f, 0.65f, 0f);
         labelObject.transform.localScale = Vector3.one * 0.3f;
+        labelObject.transform.localRotation = LabelTopDownRotation;
 
         valueLabel = labelObject.AddComponent<TextMeshPro>();
         valueLabel.alignment = TextAlignmentOptions.Center;
@@ -209,5 +202,13 @@ public class TideTile : MonoBehaviour
 
         float deficit = Mathf.InverseLerp(4f, 1f, currentTideValue);
         return Color.Lerp(new Color(0.45f, 0.62f, 0.8f), new Color(0.2f, 0.32f, 0.55f), deficit);
+    }
+
+    private void OnValidate()
+    {
+        if (valueLabel != null)
+        {
+            valueLabel.transform.localRotation = LabelTopDownRotation;
+        }
     }
 }
