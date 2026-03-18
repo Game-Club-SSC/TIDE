@@ -15,6 +15,7 @@ public class GameStateManager : MonoBehaviour
 
     public const string MainSceneName = "level_1";
     public const string PuzzleSceneName = "PuzzleScene";
+    public const string CombatSceneName = "CombatScene";
 
     public static GameStateManager Instance { get; private set; }
 
@@ -65,10 +66,25 @@ public class GameStateManager : MonoBehaviour
         return !PuzzleSolved && !isTransitioning;
     }
 
+    public bool CanEnterCombatScene()
+    {
+        return !isTransitioning && currentState == GameState.Exploration;
+    }
+
     public void EnterCombat()
     {
         currentState = GameState.Combat;
         SetPlayerMovementLocked(true);
+    }
+
+    public void EnterCombatScene()
+    {
+        if (!CanEnterCombatScene())
+        {
+            return;
+        }
+
+        StartCoroutine(TransitionToScene(CombatSceneName, GameState.Combat));
     }
 
     public void EndCombat()
@@ -172,6 +188,15 @@ public class GameStateManager : MonoBehaviour
             if (!isTransitioning)
             {
                 currentState = GameState.Puzzle;
+            }
+        }
+        else if (scene.name == CombatSceneName)
+        {
+            player = null;
+
+            if (!isTransitioning)
+            {
+                currentState = GameState.Combat;
             }
         }
     }

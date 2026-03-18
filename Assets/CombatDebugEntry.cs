@@ -1,11 +1,13 @@
 using UnityEngine;
 
-[RequireComponent(typeof(Collider))]
-public class EnemyTrigger : MonoBehaviour
+[DisallowMultipleComponent]
+public class CombatDebugEntry : MonoBehaviour
 {
-    private void OnTriggerEnter(Collider other)
+    [SerializeField] private KeyCode debugCombatKey = KeyCode.C;
+
+    private void Update()
     {
-        if (!other.CompareTag("Player"))
+        if (!Input.GetKeyDown(debugCombatKey))
         {
             return;
         }
@@ -16,6 +18,5 @@ public class EnemyTrigger : MonoBehaviour
         }
 
         GameStateManager.Instance.EnterCombatScene();
-        Destroy(gameObject);
     }
 }

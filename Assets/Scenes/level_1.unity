@@ -364,6 +364,7 @@ GameObject:
   m_Component:
   - component: {fileID: 600000002}
   - component: {fileID: 600000003}
+  - component: {fileID: 600000004}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -399,6 +400,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   currentState: 0
+--- !u!114 &600000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 600000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4db6b4e4d344c90b8270f473a6f0d25, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &600000101
 GameObject:
   m_ObjectHideFlags: 0
@@ -524,6 +537,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 23d8cc2154e5493cbca9c3323e15f7aa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  promptLocalOffset: {x: 1.45, y: 1.15, z: 0}
+  promptScale: {x: 0.72, y: 0.72, z: 1}
+  promptSprite: {fileID: 0}
+  promptTint: {r: 1, g: 1, b: 1, a: 1}
+  triggerSize: {x: 3.25, y: 2.25, z: 3.25}
+  boxColor: {r: 1, g: 0.45, b: 0.12, a: 1}
 --- !u!1 &661358599
 GameObject:
   m_ObjectHideFlags: 0
@@ -758,7 +777,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 13.11924, y: 14.97713, z: 0}
-  m_LocalScale: {x: 20, y: 1, z: 20}
+  m_LocalScale: {x: 50, y: 1, z: 50}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -827,32 +846,6 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
---- !u!114 &1710447047
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1710447042}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c7c6f7b351f449b9b4d15b8f5ea8df56, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TopDownFollowCamera
-  target: {fileID: 9731507}
-  autoFindTarget: 1
-  targetTag: Player
-  targetSearchInterval: 0.5
-  followPlane: 1
-  preserveInitialOffset: 1
-  followOffset: {x: 0, y: 0}
-  snapOnStart: 1
-  smoothTime: 0.18
-  maxFollowSpeed: 100
-  snapDistance: 8
-  constrainToBounds: 0
-  minBounds: {x: 0, y: 0}
-  maxBounds: {x: 0, y: 0}
 --- !u!81 &1710447044
 AudioListener:
   m_ObjectHideFlags: 0
@@ -927,6 +920,32 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 45, y: 0, z: 0}
+--- !u!114 &1710447047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1710447042}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7c6f7b351f449b9b4d15b8f5ea8df56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TopDownFollowCamera
+  target: {fileID: 9731507}
+  autoFindTarget: 1
+  targetTag: Player
+  targetSearchInterval: 0.5
+  followPlane: 1
+  preserveInitialOffset: 1
+  followOffset: {x: 0, y: 0}
+  snapOnStart: 1
+  smoothTime: 0.18
+  maxFollowSpeed: 100
+  snapDistance: 8
+  constrainToBounds: 0
+  minBounds: {x: 0, y: 0}
+  maxBounds: {x: 0, y: 0}
 --- !u!1 &5000000001
 GameObject:
   m_ObjectHideFlags: 0
@@ -978,8 +997,9 @@ MonoBehaviour:
   boardCenter: {x: 20.56, y: 19.86, z: 4.35}
   tileSpacing: 2.25
   tileScale: {x: 1.9, y: 0.35, z: 1.9}
-  anchorToExistingSceneTile: 1
-  replaceExistingSceneTiles: 1
+  completionReturnDelay: 1
+  completionCubeOffset: {x: 0, y: 2.5, z: 0}
+  completionCubeScale: {x: 1.25, y: 1.25, z: 1.25}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
