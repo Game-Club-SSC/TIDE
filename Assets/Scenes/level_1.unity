@@ -413,7 +413,7 @@ GameObject:
   - component: {fileID: 600000102}
   - component: {fileID: 600000106}
   m_Layer: 0
-  m_Name: Enemy_Test
+  m_Name: PuzzleBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -521,7 +521,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 600000101}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9c9cf0b7f84446c69f796351760f20f5, type: 3}
+  m_Script: {fileID: 11500000, guid: 23d8cc2154e5493cbca9c3323e15f7aa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &661358599
@@ -916,7 +916,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &5000000002
 Transform:
   m_ObjectHideFlags: 0

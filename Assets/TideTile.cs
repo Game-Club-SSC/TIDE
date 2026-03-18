@@ -38,11 +38,7 @@ public class TideTile : MonoBehaviour
             return;
         }
 
-        Vector3 lookDirection = valueLabel.transform.position - Camera.main.transform.position;
-        if (lookDirection.sqrMagnitude > 0.0001f)
-        {
-            valueLabel.transform.rotation = Quaternion.LookRotation(lookDirection.normalized, Vector3.up);
-        }
+        valueLabel.transform.rotation = Quaternion.LookRotation(-Camera.main.transform.forward, Camera.main.transform.up);
     }
 
     public void Configure(Vector2Int newGridPosition, int tideValue, bool sealedTile)
