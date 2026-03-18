@@ -31,6 +31,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         EnsureBattlefield();
         EnsureCombatCamera();
         EnsureSpawnPoints();
+        EnsureBattleManager();
     }
 
     private void EnsureGameManager()
@@ -166,6 +167,14 @@ public class CombatSceneBootstrap : MonoBehaviour
             float zOffset = (slotIndex - 1) * slotSpacing;
             EnsureSlot(playerRoot, $"PlayerSlot_{slotIndex + 1}", new Vector3(playerSideX, 0f, zOffset), playerMarkerColor);
             EnsureSlot(enemyRoot, $"EnemySlot_{slotIndex + 1}", new Vector3(enemySideX, 0f, zOffset), enemyMarkerColor);
+        }
+    }
+
+    private void EnsureBattleManager()
+    {
+        if (GetComponent<BattleManager>() == null)
+        {
+            gameObject.AddComponent<BattleManager>();
         }
     }
 
