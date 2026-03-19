@@ -13,6 +13,8 @@ public class IslandConfig : ScriptableObject
     public string viceName = "Greed";
     public Color vicePrimaryColor = new Color(1f, 0.84f, 0f);
     public Color viceSecondaryColor = new Color(0.55f, 0.41f, 0.08f);
+
+    [Tooltip("Ordered list of encounters. For 5 subsections, provide 10 entries: Combat, Puzzle, Combat, Puzzle, ...")]
     public EncounterDefinition[] encounters;
 }
 
@@ -56,8 +58,18 @@ public class PuzzleLayout
 {
     [Tooltip("3x3 grid of Tide values (row-major order). Must contain exactly 9 values.")]
     public int[] values = { 9, 1, 10, 7, 5, 2, 5, 3, 3 };
+
+    [Tooltip("Row of the sealed (impassable) tile.")]
     public int sealedRow = 1;
+
+    [Tooltip("Column of the sealed (impassable) tile.")]
     public int sealedCol = 1;
+
+    [Tooltip("Row of the locked tile. Set to -1 if no locked tile. Locked tiles become normal after combat.")]
+    public int lockedRow = -1;
+
+    [Tooltip("Column of the locked tile. Set to -1 if no locked tile.")]
+    public int lockedCol = -1;
 
     public int[,] GetGrid()
     {
@@ -78,13 +90,22 @@ public class PuzzleLayout
         return new Vector2Int(sealedCol, sealedRow);
     }
 
-    public static PuzzleLayout Create(int[] values, int sealedRow, int sealedCol)
+    public Vector2Int GetLockedPosition()
+    {
+        return new Vector2Int(lockedCol, lockedRow);
+    }
+
+    public bool HasLockedTile => lockedRow >= 0 && lockedCol >= 0;
+
+    public static PuzzleLayout Create(int[] values, int sealedRow, int sealedCol, int lockedRow = -1, int lockedCol = -1)
     {
         return new PuzzleLayout
         {
             values = values,
             sealedRow = sealedRow,
-            sealedCol = sealedCol
+            sealedCol = sealedCol,
+            lockedRow = lockedRow,
+            lockedCol = lockedCol
         };
     }
 }

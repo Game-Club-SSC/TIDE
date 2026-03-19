@@ -10,6 +10,7 @@ public class IslandFlowController : MonoBehaviour
 
     public bool IsActive => isActive;
     public int CurrentEncounterIndex => currentEncounterIndex;
+    public int CurrentSubsection => currentEncounterIndex / 2;
 
     private void Awake()
     {
@@ -54,7 +55,7 @@ public class IslandFlowController : MonoBehaviour
             GameStateManager.Instance.FlowController = this;
         }
 
-        Debug.Log($"[IslandFlowController] Starting island: {islandConfig.viceName}");
+        Debug.Log($"[IslandFlowController] Starting island: {islandConfig.viceName} ({islandConfig.encounters.Length} encounters)");
         LoadCurrentEncounter();
     }
 
@@ -73,6 +74,11 @@ public class IslandFlowController : MonoBehaviour
 
         EncounterDefinition encounter = islandConfig.encounters[currentEncounterIndex];
         tracker.CompleteEncounter(encounter.restorationValue);
+
+        int subsection = currentEncounterIndex / 2;
+        bool isPuzzle = encounter.type == EncounterType.Puzzle;
+        Debug.Log($"[IslandFlowController] Subsection {subsection + 1} {encounter.type} complete. Restoration: {tracker.RestorationProgress * 100:F0}%");
+
         currentEncounterIndex++;
 
         if (currentEncounterIndex >= islandConfig.encounters.Length)
@@ -113,7 +119,10 @@ public class IslandFlowController : MonoBehaviour
         }
 
         EncounterDefinition encounter = islandConfig.encounters[currentEncounterIndex];
-        Debug.Log($"[IslandFlowController] Loading encounter {currentEncounterIndex + 1}/{islandConfig.encounters.Length}: {encounter.type}");
+        int subsection = currentEncounterIndex / 2;
+        int totalSubsections = islandConfig.encounters.Length / 2;
+
+        Debug.Log($"[IslandFlowController] Loading Subsection {subsection + 1}/{totalSubsections} — {encounter.type}");
 
         if (encounter.type == EncounterType.Combat)
         {
@@ -157,6 +166,6 @@ public class IslandFlowController : MonoBehaviour
     private void OnIslandComplete()
     {
         isActive = false;
-        Debug.Log($"[IslandFlowController] Island {islandConfig.viceName} fully restored!");
+        Debug.Log($"[IslandFlowController] Island {islandConfig.viceName} fully restored! ({tracker.RestorationProgress * 100:F0}%)");
     }
 }
