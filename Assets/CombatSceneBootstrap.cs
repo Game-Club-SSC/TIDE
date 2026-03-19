@@ -253,84 +253,115 @@ public class CombatSceneBootstrap : MonoBehaviour
         string[] allyNames = { "Warrior", "Mage", "Ranger" };
         string[] enemyNames = { "Imp", "Orc", "Troll" };
 
-        if (playerUnitPrefab != null && playerSpawnPoints != null)
+        if (playerSpawnPoints != null)
         {
             for (int i = 0; i < playerSpawnPoints.Length; i++)
             {
                 if (playerSpawnPoints[i] != null)
                 {
-                    GameObject unitObject = Instantiate(playerUnitPrefab, playerSpawnPoints[i].position, Quaternion.identity);
-                    unitObject.transform.SetParent(playerSpawnPoints[i], false);
-                    unitObject.name = $"PlayerUnit_{i + 1}";
-                    
-                    CombatUnit unit = unitObject.GetComponent<CombatUnit>();
-                    if (unit != null)
+                    GameObject unitObject = SpawnOrCreateUnit(playerUnitPrefab, playerSpawnPoints[i], $"PlayerUnit_{i + 1}", allyUnitColor);
+                    CombatUnit unit = GetOrAddCombatUnit(unitObject);
+                    unit.Type = CombatUnit.UnitType.Ally;
+                    unit.UnitName = allyNames[i];
+                    unit.Attack += i * 2;
+                    unit.Speed += i;
+                    SetUnitColor(unitObject, allyUnitColor);
+
+                    if (battleManager != null)
                     {
-                        unit.Type = CombatUnit.UnitType.Ally;
-                        unit.UnitName = allyNames[i];
-                        unit.Attack += i * 2;
-                        unit.Speed += i;
-                        SetUnitColor(unitObject, allyUnitColor);
-                        
-                        if (battleManager != null)
-                        {
-                            battleManager.RegisterUnit(unit);
-                        }
+                        battleManager.RegisterUnit(unit);
                     }
                 }
             }
         }
 
-        if (enemyUnitPrefab != null && enemySpawnPoints != null)
+        if (enemySpawnPoints != null)
         {
             for (int i = 0; i < enemySpawnPoints.Length; i++)
             {
                 if (enemySpawnPoints[i] != null)
                 {
-                    GameObject unitObject = Instantiate(enemyUnitPrefab, enemySpawnPoints[i].position, Quaternion.identity);
-                    unitObject.transform.SetParent(enemySpawnPoints[i], false);
-                    unitObject.name = $"EnemyUnit_{i + 1}";
-                    
-                    CombatUnit unit = unitObject.GetComponent<CombatUnit>();
-                    if (unit != null)
+                    GameObject unitObject = SpawnOrCreateUnit(enemyUnitPrefab, enemySpawnPoints[i], $"EnemyUnit_{i + 1}", enemyUnitColor);
+                    CombatUnit unit = GetOrAddCombatUnit(unitObject);
+                    unit.Type = CombatUnit.UnitType.Enemy;
+                    unit.UnitName = enemyNames[i];
+                    switch (i)
                     {
-                        unit.Type = CombatUnit.UnitType.Enemy;
-                        unit.UnitName = enemyNames[i];
-                        switch (i)
-                        {
-                            case 0:
-                                unit.ElementType = CombatUnit.Element.Fire;
-                                break;
-                            case 1:
-                                unit.ElementType = CombatUnit.Element.Water;
-                                break;
-                            case 2:
-                                unit.ElementType = CombatUnit.Element.Earth;
-                                break;
-                        }
-                        unit.Defense += i;
-                        unit.MaxHP += i * 10;
-                        unit.HP = unit.MaxHP;
-                        SetUnitColor(unitObject, enemyUnitColor);
-                        
-                        if (battleManager != null)
-                        {
-                            battleManager.RegisterUnit(unit);
-                        }
+                        case 0:
+                            unit.ElementType = CombatUnit.Element.Fire;
+                            break;
+                        case 1:
+                            unit.ElementType = CombatUnit.Element.Water;
+                            break;
+                        case 2:
+                            unit.ElementType = CombatUnit.Element.Earth;
+                            break;
+                    }
+
+                    unit.Defense += i;
+                    unit.MaxHP += i * 10;
+                    unit.HP = unit.MaxHP;
+                    SetUnitColor(unitObject, enemyUnitColor);
+
+                    if (battleManager != null)
+                    {
+                        battleManager.RegisterUnit(unit);
                     }
                 }
             }
         }
     }
 
+    private static CombatUnit GetOrAddCombatUnit(GameObject unitObject)
+    {
+        CombatUnit unit = unitObject.GetComponent<CombatUnit>();
+        if (unit == null)
+        {
+            unit = unitObject.AddComponent<CombatUnit>();
+        }
+
+        return unit;
+    }
+
+    private GameObject SpawnOrCreateUnit(GameObject unitPrefab, Transform spawnPoint, string runtimeName, Color fallbackColor)
+    {
+        GameObject unitObject = null;
+
+        if (unitPrefab != null)
+        {
+            unitObject = Instantiate(unitPrefab, spawnPoint.position, Quaternion.identity);
+            unitObject.transform.SetParent(spawnPoint, false);
+            unitObject.transform.localPosition = Vector3.zero;
+            unitObject.transform.localRotation = Quaternion.identity;
+        }
+        else
+        {
+            unitObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            unitObject.transform.SetParent(spawnPoint, false);
+            unitObject.transform.localPosition = Vector3.zero;
+            unitObject.transform.localRotation = Quaternion.identity;
+            unitObject.transform.localScale = new Vector3(0.9f, 1.1f, 0.9f);
+            SetUnitColor(unitObject, fallbackColor);
+        }
+
+        unitObject.name = runtimeName;
+        return unitObject;
+    }
+
     private void SetUnitColor(GameObject unitObject, Color color)
     {
         Renderer renderer = unitObject.GetComponent<Renderer>();
-        if (renderer != null)
+        if (renderer != null && renderer.sharedMaterial != null)
         {
             Material mat = new Material(renderer.sharedMaterial);
             mat.color = color;
             renderer.material = mat;
+            return;
+        }
+
+        if (renderer != null)
+        {
+            renderer.material.color = color;
         }
     }
 }

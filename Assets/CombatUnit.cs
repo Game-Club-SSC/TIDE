@@ -24,6 +24,13 @@ public class CombatUnit : MonoBehaviour
     [SerializeField] protected UnitType unitType = UnitType.Ally;
     [SerializeField] protected bool isAlive = true;
 
+    internal int DebugHP { set => hp = value; }
+    internal int DebugMaxHP { set => maxHp = value; }
+    internal int DebugMP { set => mp = value; }
+    internal int DebugMaxMP { set => maxMp = value; }
+    internal int DebugDefense { set => defense = value; }
+    internal bool DebugIsAlive { set => isAlive = value; }
+
     /// <summary>
     /// Type of combat unit (ally or enemy).
     /// </summary>
@@ -55,10 +62,18 @@ public class CombatUnit : MonoBehaviour
     public int Attack { get => attack; set => attack = value; }
     public int Defense { get => defense; set => defense = value; }
     public int Speed { get => speed; set => speed = value; }
-    public Element ElementType { get; set; } = Element.None;
+    public Element ElementType
+    {
+        get => element;
+        set => element = value;
+    }
     public bool IsAlive => isAlive;
     public string UnitName { get => unitName; set => unitName = value; }
-    public UnitType Type { get; set; } = UnitType.Ally;
+    public UnitType Type
+    {
+        get => unitType;
+        set => unitType = value;
+    }
     #endregion
 
     #region Core Functions
@@ -92,6 +107,11 @@ public class CombatUnit : MonoBehaviour
     {
         if (!isAlive) return;
 
+        if (amount <= 0)
+        {
+            return;
+        }
+
         int healedAmount = Mathf.Min(amount, maxHp - hp);
         hp += healedAmount;
 
@@ -106,6 +126,11 @@ public class CombatUnit : MonoBehaviour
     public virtual bool SpendMp(int amount)
     {
         if (!isAlive) return false;
+
+        if (amount <= 0)
+        {
+            return true;
+        }
 
         if (mp >= amount)
         {
@@ -128,10 +153,15 @@ public class CombatUnit : MonoBehaviour
     {
         if (!isAlive) return;
 
+        if (amount <= 0)
+        {
+            return;
+        }
+
         int restoredAmount = Mathf.Min(amount, maxMp - mp);
         mp += restoredAmount;
 
-        Debug.Log($"{unitName} restored {restored_amount} MP. MP: {mp}/{maxMp}");
+        Debug.Log($"{unitName} restored {restoredAmount} MP. MP: {mp}/{maxMp}");
     }
 
     /// <summary>

@@ -56,8 +56,8 @@ public class CombatUnitVerificationTest : MonoBehaviour
         Debug.Log("Testing damage taking...");
         
         // Reset to known state
-        testUnit.hp = 100;
-        testUnit.isAlive = true;
+        testUnit.DebugHP = 100;
+        testUnit.DebugIsAlive = true;
         
         // Test basic damage
         testUnit.TakeDamage(15);
@@ -68,7 +68,7 @@ public class CombatUnitVerificationTest : MonoBehaviour
         Assert.AreEqual(75, testUnit.HP, "HP should be 75 after taking 20 damage with 5 defense");
         
         // Test minimum damage (should always do at least 1)
-        testUnit.defense = 100; // Very high defense
+        testUnit.DebugDefense = 100; // Very high defense
         testUnit.TakeDamage(5); // Should still do 1 damage due to Mathf.Max(1, damage - defense)
         Assert.AreEqual(74, testUnit.HP, "HP should be 74 after taking 5 damage with 100 defense (minimum 1)");
         
@@ -85,9 +85,9 @@ public class CombatUnitVerificationTest : MonoBehaviour
         Debug.Log("Testing healing...");
         
         // Set up damaged unit
-        testUnit.hp = 50;
-        testUnit.maxHp = 100;
-        testUnit.isAlive = true;
+        testUnit.DebugHP = 50;
+        testUnit.DebugMaxHP = 100;
+        testUnit.DebugIsAlive = true;
         
         // Test basic healing
         testUnit.Heal(30);
@@ -98,8 +98,8 @@ public class CombatUnitVerificationTest : MonoBehaviour
         Assert.AreEqual(100, testUnit.HP, "HP should be 100 (max) after over-healing");
         
         // Test healing when dead (should not work)
-        testUnit.isAlive = false;
-        testUnit.hp = 0;
+        testUnit.DebugIsAlive = false;
+        testUnit.DebugHP = 0;
         testUnit.Heal(50);
         Assert.AreEqual(0, testUnit.HP, "HP should remain 0 when healing dead unit");
         
@@ -111,9 +111,9 @@ public class CombatUnitVerificationTest : MonoBehaviour
         Debug.Log("Testing MP management...");
         
         // Reset to known state
-        testUnit.mp = 50;
-        testUnit.maxMp = 50;
-        testUnit.isAlive = true;
+        testUnit.DebugMP = 50;
+        testUnit.DebugMaxMP = 50;
+        testUnit.DebugIsAlive = true;
         
         // Test spending MP
         bool spent = testUnit.SpendMp(20);
@@ -134,7 +134,7 @@ public class CombatUnitVerificationTest : MonoBehaviour
         Assert.AreEqual(50, testUnit.MP, "MP should remain 50 (max) after over-restoring");
         
         // Test MP actions when dead (should not work)
-        testUnit.isAlive = false;
+        testUnit.DebugIsAlive = false;
         spent = testUnit.SpendMp(10);
         Assert.IsFalse(spent, "Should not be able to spend MP when dead");
         Assert.AreEqual(50, testUnit.MP, "MP should remain unchanged when trying to spend while dead");
@@ -150,21 +150,21 @@ public class CombatUnitVerificationTest : MonoBehaviour
         Debug.Log("Testing death state...");
         
         // Test explicit death check
-        testUnit.hp = 0;
-        testUnit.isAlive = true; // Manually set to alive to test CheckDeathState
+        testUnit.DebugHP = 0;
+        testUnit.DebugIsAlive = true; // Manually set to alive to test CheckDeathState
         testUnit.CheckDeathState();
         Assert.IsFalse(testUnit.IsAlive, "Unit should be dead after CheckDeathState with 0 HP");
         
         // Test death check with negative HP
-        testUnit.hp = -10;
-        testUnit.isAlive = true; // Manually set to alive
+        testUnit.DebugHP = -10;
+        testUnit.DebugIsAlive = true; // Manually set to alive
         testUnit.CheckDeathState();
         Assert.IsFalse(testUnit.IsAlive, "Unit should be dead after CheckDeathState with negative HP");
         Assert.AreEqual(0, testUnit.HP, "HP should be clamped to 0 after death");
         
         // Test that alive units with HP > 0 stay alive
-        testUnit.hp = 50;
-        testUnit.isAlive = true;
+        testUnit.DebugHP = 50;
+        testUnit.DebugIsAlive = true;
         testUnit.CheckDeathState();
         Assert.IsTrue(testUnit.IsAlive, "Unit with 50 HP should remain alive");
         
@@ -176,13 +176,13 @@ public class CombatUnitVerificationTest : MonoBehaviour
         Debug.Log("Testing revive logic...");
         
         // Dead unit with 0 HP
-        testUnit.hp = 0;
-        testUnit.isAlive = false;
+        testUnit.DebugHP = 0;
+        testUnit.DebugIsAlive = false;
         testUnit.CheckDeathState(); // Should remain dead
         Assert.IsFalse(testUnit.IsAlive, "Dead unit with 0 HP should remain dead after CheckDeathState");
         
         // Now manually set HP to positive value (simulating revive)
-        testUnit.hp = 25;
+        testUnit.DebugHP = 25;
         testUnit.CheckDeathState(); // Should revive
         Assert.IsTrue(testUnit.IsAlive, "Unit should revive when HP > 0 and CheckDeathState is called");
         Assert.AreEqual(25, testUnit.HP, "HP should remain 25 after revive");
