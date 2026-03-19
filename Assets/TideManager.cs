@@ -30,6 +30,8 @@ public class TideManager : MonoBehaviour
         { false, true, false },
         { false, false, false }
     };
+    private Vector2Int sealedPosition = new Vector2Int(1, 1);
+    private PuzzleWinCondition winCondition = new PuzzleWinCondition();
 
     private Transform runtimeBoardRoot;
     private TideTile hoveredTile;
@@ -53,8 +55,30 @@ public class TideManager : MonoBehaviour
             for (int col = 0; col < 3; col++)
             {
                 puzzleValues[row, col] = layout[row, col];
-                sealedTiles[row, col] = (row == sealedTile.y && col == sealedTile.x);
+                sealedTiles[row, col] = sealedTile.x >= 0 && sealedTile.y >= 0
+                    && row == sealedTile.y && col == sealedTile.x;
             }
+        }
+
+        sealedPosition = sealedTile;
+    }
+
+    public void InitializePuzzle(PuzzleData data)
+    {
+        if (data == null)
+        {
+            Debug.LogWarning("[TideManager] Null PuzzleData provided. Using default.");
+            return;
+        }
+
+        puzzleValues = data.GetGrid();
+        sealedPosition = data.sealedPosition;
+        winCondition = data.winCondition ?? new PuzzleWinCondition();
+
+        sealedTiles = new bool[3, 3];
+        if (data.HasSealedTile)
+        {
+            sealedTiles[data.sealedPosition.y, data.sealedPosition.x] = true;
         }
     }
 
@@ -66,7 +90,12 @@ public class TideManager : MonoBehaviour
             return;
         }
 
-        if (GameStateManager.Instance != null && GameStateManager.Instance.PendingPuzzleLayout != null)
+        if (GameStateManager.Instance != null && GameStateManager.Instance.PendingPuzzleData != null)
+        {
+            InitializePuzzle(GameStateManager.Instance.PendingPuzzleData);
+            GameStateManager.Instance.PendingPuzzleData = null;
+        }
+        else if (GameStateManager.Instance != null && GameStateManager.Instance.PendingPuzzleLayout != null)
         {
             InitializePuzzle(GameStateManager.Instance.PendingPuzzleLayout, GameStateManager.Instance.PendingPuzzleSealedTile);
             GameStateManager.Instance.PendingPuzzleLayout = null;
@@ -202,15 +231,18 @@ public class TideManager : MonoBehaviour
 
     private void EvaluatePuzzleCompletion()
     {
+        int[,] grid = new int[3, 3];
         for (int row = 0; row < 3; row++)
         {
             for (int col = 0; col < 3; col++)
             {
-                if (activeTiles[row, col].CurrentTideValue != 5)
-                {
-                    return;
-                }
+                grid[row, col] = activeTiles[row, col].CurrentTideValue;
             }
+        }
+
+        if (!winCondition.IsMet(grid, sealedPosition))
+        {
+            return;
         }
 
         puzzleSolved = true;
@@ -233,6 +265,7 @@ public class TideManager : MonoBehaviour
         if (GameStateManager.Instance.HasActiveFlowController)
         {
             GameStateManager.Instance.PendingPuzzleLayout = null;
+            GameStateManager.Instance.PendingPuzzleData = null;
             GameStateManager.Instance.ReturnToMainScene();
         }
         else

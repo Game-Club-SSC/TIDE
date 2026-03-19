@@ -21,6 +21,12 @@ public class TideMovementTest : MonoBehaviour
             TestSealedAsDestination();
             TestMaxCarryStepsLimitsRange();
             TestDiagonalEdgeCornerToCorner();
+            TestWinConditionAllEqualToTargetMet();
+            TestWinConditionAllEqualToTargetNotMet();
+            TestWinConditionPercentageMet();
+            TestWinConditionPercentageNotMet();
+            TestWinConditionSkipsSealedTile();
+            TestPuzzleDataInitializePuzzle();
 
             Debug.Log("=== Tide movement tests passed ===");
         }
@@ -185,5 +191,127 @@ public class TideMovementTest : MonoBehaviour
         Assert.IsTrue(CanReach(source, dest), "Corner-to-corner diagonal should be reachable within 2 steps.");
 
         Debug.Log("  [PASS] TestDiagonalEdgeCornerToCorner");
+    }
+
+    private void TestWinConditionAllEqualToTargetMet()
+    {
+        int[,] grid = {
+            { 5, 5, 5 },
+            { 5, 5, 5 },
+            { 5, 5, 5 }
+        };
+        PuzzleWinCondition wc = new PuzzleWinCondition();
+        wc.type = WinConditionType.AllEqualToTarget;
+        wc.targetValue = 5;
+
+        Assert.IsTrue(wc.IsMet(grid, new Vector2Int(-1, -1)), "All tiles at 5 should satisfy AllEqualToTarget.");
+
+        Debug.Log("  [PASS] TestWinConditionAllEqualToTargetMet");
+    }
+
+    private void TestWinConditionAllEqualToTargetNotMet()
+    {
+        int[,] grid = {
+            { 5, 5, 5 },
+            { 5, 3, 5 },
+            { 5, 5, 5 }
+        };
+        PuzzleWinCondition wc = new PuzzleWinCondition();
+        wc.type = WinConditionType.AllEqualToTarget;
+        wc.targetValue = 5;
+
+        Assert.IsFalse(wc.IsMet(grid, new Vector2Int(-1, -1)), "One tile not at 5 should fail AllEqualToTarget.");
+
+        Debug.Log("  [PASS] TestWinConditionAllEqualToTargetNotMet");
+    }
+
+    private void TestWinConditionPercentageMet()
+    {
+        int[,] grid = {
+            { 5, 5, 5 },
+            { 5, 3, 5 },
+            { 5, 5, 5 }
+        };
+        PuzzleWinCondition wc = new PuzzleWinCondition();
+        wc.type = WinConditionType.PercentageAtTarget;
+        wc.targetValue = 5;
+        wc.requiredPercent = 0.75f;
+
+        Assert.IsTrue(wc.IsMet(grid, new Vector2Int(-1, -1)), "8/9 tiles at 5 (89%) should satisfy 75% threshold.");
+
+        Debug.Log("  [PASS] TestWinConditionPercentageMet");
+    }
+
+    private void TestWinConditionPercentageNotMet()
+    {
+        int[,] grid = {
+            { 5, 5, 3 },
+            { 5, 3, 5 },
+            { 3, 5, 5 }
+        };
+        PuzzleWinCondition wc = new PuzzleWinCondition();
+        wc.type = WinConditionType.PercentageAtTarget;
+        wc.targetValue = 5;
+        wc.requiredPercent = 0.75f;
+
+        Assert.IsFalse(wc.IsMet(grid, new Vector2Int(-1, -1)), "6/9 tiles at 5 (67%) should fail 75% threshold.");
+
+        Debug.Log("  [PASS] TestWinConditionPercentageNotMet");
+    }
+
+    private void TestWinConditionSkipsSealedTile()
+    {
+        int[,] grid = {
+            { 5, 5, 5 },
+            { 5, 2, 5 },
+            { 5, 5, 5 }
+        };
+        PuzzleWinCondition wc = new PuzzleWinCondition();
+        wc.type = WinConditionType.AllEqualToTarget;
+        wc.targetValue = 5;
+
+        Assert.IsTrue(wc.IsMet(grid, new Vector2Int(1, 1)),
+            "Sealed tile at (1,1) should be excluded from win condition check.");
+
+        Debug.Log("  [PASS] TestWinConditionSkipsSealedTile");
+    }
+
+    private void TestPuzzleDataInitializePuzzle()
+    {
+        Setup();
+
+        PuzzleData data = ScriptableObject.CreateInstance<PuzzleData>();
+        data.tileValues = new int[] { 8, 5, 3, 6, 5, 4, 5, 5, 5 };
+        data.sealedPosition = new Vector2Int(2, 0);
+        data.winCondition = new PuzzleWinCondition
+        {
+            type = WinConditionType.PercentageAtTarget,
+            targetValue = 5,
+            requiredPercent = 0.6f
+        };
+
+        manager.InitializePuzzle(data);
+
+        FieldInfo valuesField = typeof(TideManager).GetField("puzzleValues", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(valuesField, "puzzleValues field should exist.");
+        int[,] values = (int[,])valuesField.GetValue(manager);
+        Assert.AreEqual(8, values[0, 0], "Tile (0,0) should be 8.");
+        Assert.AreEqual(5, values[0, 1], "Tile (0,1) should be 5.");
+        Assert.AreEqual(3, values[0, 2], "Tile (0,2) should be 3.");
+
+        FieldInfo sealedField = typeof(TideManager).GetField("sealedTiles", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(sealedField, "sealedTiles field should exist.");
+        bool[,] sealedArr = (bool[,])sealedField.GetValue(manager);
+        Assert.IsTrue(sealedArr[0, 2], "Tile at row 0 col 2 should be sealed.");
+        Assert.IsFalse(sealedArr[1, 1], "Tile at row 1 col 1 should not be sealed.");
+
+        FieldInfo condField = typeof(TideManager).GetField("winCondition", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(condField, "winCondition field should exist.");
+        PuzzleWinCondition cond = (PuzzleWinCondition)condField.GetValue(manager);
+        Assert.AreEqual(WinConditionType.PercentageAtTarget, cond.type, "Win condition type should be PercentageAtTarget.");
+        Assert.AreEqual(0.6f, cond.requiredPercent, "Required percent should be 0.6.");
+
+        Object.DestroyImmediate(data);
+        Debug.Log("  [PASS] TestPuzzleDataInitializePuzzle");
     }
 }

@@ -19,7 +19,10 @@ public class PuzzleBoxInteractable : MonoBehaviour
     [SerializeField] private Color boxColor = new Color(1f, 0.45f, 0.12f);
 
     [Header("Puzzle Layout")]
-    [Tooltip("3x3 grid of Tide values in row-major order. Leave empty for default layout.")]
+    [Tooltip("Puzzle data asset. Preferred over raw values.")]
+    [SerializeField] private PuzzleData puzzleData;
+
+    [Tooltip("Legacy: 3x3 grid of Tide values in row-major order. Used if Puzzle Data is not assigned.")]
     [SerializeField] private int[] puzzleValues;
     [SerializeField] private int sealedRow = 1;
     [SerializeField] private int sealedCol = 1;
@@ -98,7 +101,11 @@ public class PuzzleBoxInteractable : MonoBehaviour
         IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
         Vector3 returnPosition = player != null ? player.transform.position : transform.position + Vector3.back * 2f;
 
-        if (puzzleValues != null && puzzleValues.Length == 9 && GameStateManager.Instance != null)
+        if (puzzleData != null && GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.PendingPuzzleData = puzzleData;
+        }
+        else if (puzzleValues != null && puzzleValues.Length == 9 && GameStateManager.Instance != null)
         {
             int[,] grid = new int[3, 3];
             for (int r = 0; r < 3; r++)

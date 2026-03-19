@@ -31,6 +31,7 @@ public class GameStateManager : MonoBehaviour
     private bool hasPendingReturnPosition;
     private bool isTransitioning;
 
+    public PuzzleData PendingPuzzleData { get; set; }
     public int[,] PendingPuzzleLayout { get; set; }
     public Vector2Int PendingPuzzleSealedTile { get; set; }
     public EnemyComposition PendingEnemyComposition { get; set; }

@@ -149,10 +149,9 @@ public class IslandFlowController : MonoBehaviour
 
     private void LoadPuzzleEncounter(EncounterDefinition encounter)
     {
-        if (encounter.puzzleLayout != null && GameStateManager.Instance != null)
+        if (encounter.puzzleData != null && GameStateManager.Instance != null)
         {
-            GameStateManager.Instance.PendingPuzzleLayout = encounter.puzzleLayout.GetGrid();
-            GameStateManager.Instance.PendingPuzzleSealedTile = encounter.puzzleLayout.GetSealedPosition();
+            GameStateManager.Instance.PendingPuzzleData = encounter.puzzleData;
         }
 
         if (GameStateManager.Instance != null)

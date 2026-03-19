@@ -27,7 +27,7 @@ public class EncounterDefinition
     [Range(0f, 1f)]
     public float restorationValue;
     public EnemyComposition enemyComposition;
-    public PuzzleLayout puzzleLayout;
+    public PuzzleData puzzleData;
 }
 
 [Serializable]
@@ -55,59 +55,3 @@ public class EnemyComposition
     }
 }
 
-[Serializable]
-public class PuzzleLayout
-{
-    [Tooltip("3x3 grid of Tide values (row-major order). Must contain exactly 9 values.")]
-    public int[] values = { 9, 1, 10, 7, 5, 2, 5, 3, 3 };
-
-    [Tooltip("Row of the sealed (impassable) tile.")]
-    public int sealedRow = 1;
-
-    [Tooltip("Column of the sealed (impassable) tile.")]
-    public int sealedCol = 1;
-
-    [Tooltip("Row of the locked tile. Set to -1 if no locked tile. Locked tiles become normal after combat.")]
-    public int lockedRow = -1;
-
-    [Tooltip("Column of the locked tile. Set to -1 if no locked tile.")]
-    public int lockedCol = -1;
-
-    public int[,] GetGrid()
-    {
-        int[,] grid = new int[3, 3];
-        for (int row = 0; row < 3; row++)
-        {
-            for (int col = 0; col < 3; col++)
-            {
-                grid[row, col] = values[row * 3 + col];
-            }
-        }
-
-        return grid;
-    }
-
-    public Vector2Int GetSealedPosition()
-    {
-        return new Vector2Int(sealedCol, sealedRow);
-    }
-
-    public Vector2Int GetLockedPosition()
-    {
-        return new Vector2Int(lockedCol, lockedRow);
-    }
-
-    public bool HasLockedTile => lockedRow >= 0 && lockedCol >= 0;
-
-    public static PuzzleLayout Create(int[] values, int sealedRow, int sealedCol, int lockedRow = -1, int lockedCol = -1)
-    {
-        return new PuzzleLayout
-        {
-            values = values,
-            sealedRow = sealedRow,
-            sealedCol = sealedCol,
-            lockedRow = lockedRow,
-            lockedCol = lockedCol
-        };
-    }
-}
