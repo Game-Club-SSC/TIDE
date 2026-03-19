@@ -18,7 +18,8 @@ public enum CombatActionType
 {
     Attack,
     Defend,
-    Pass
+    Pass,
+    TideBreak
 }
 
 public struct PlannedAction
@@ -386,6 +387,10 @@ public class BattleManager : MonoBehaviour
         {
             ResolveAttack(actor, plannedAction.Target);
         }
+        else if (plannedAction.ActionType == CombatActionType.TideBreak)
+        {
+            ResolveTideBreak(actor, plannedAction.Target);
+        }
         else if (plannedAction.ActionType == CombatActionType.Defend)
         {
             Debug.Log($"[BattleManager] {actor.UnitName} defends.", this);
@@ -409,6 +414,15 @@ public class BattleManager : MonoBehaviour
             }
 
             return new PlannedAction(CombatActionType.Pass, actor, null);
+        }
+
+        if (momentumState.IsEnemyTideBreakReady)
+        {
+            CombatUnit tbTarget = GetFirstLivingOpponent(actor);
+            if (tbTarget != null)
+            {
+                return new PlannedAction(CombatActionType.TideBreak, actor, tbTarget);
+            }
         }
 
         CombatUnit target = GetFirstLivingOpponent(actor);
@@ -459,6 +473,53 @@ public class BattleManager : MonoBehaviour
         Debug.Log(
             $"[BattleManager] {actor.UnitName} attacks {target.UnitName} for {modifiedDamage} (base {baseDamage} x{multiplier:F2}). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
             this);
+    }
+
+    private void ResolveTideBreak(CombatUnit actor, CombatUnit requestedTarget)
+    {
+        TideBreakAbility tb = actor.Type == CombatUnit.UnitType.Ally
+            ? TideBreakAbility.PlayerDefault
+            : TideBreakAbility.EnemyDefault;
+
+        Debug.Log($"[BattleManager] *** TIDE BREAK! {actor.UnitName} unleashes {tb.AbilityName}! ***", this);
+
+        if (tb.IsPlayerAbility)
+        {
+            List<CombatUnit> enemies = GetAliveUnits(CombatUnit.UnitType.Enemy);
+            int totalDamage = 0;
+            foreach (CombatUnit enemy in enemies)
+            {
+                int baseDmg = Mathf.Max(1, actor.Attack);
+                int modifiedDmg = Mathf.Max(1, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier));
+                int hpBefore = enemy.HP;
+                enemy.TakeDamage(modifiedDmg);
+                totalDamage += modifiedDmg;
+                Debug.Log($"  -> {enemy.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {enemy.HP}", this);
+            }
+            Debug.Log($"[BattleManager] {tb.AbilityName} hits {enemies.Count} enemies for {totalDamage} total.", this);
+        }
+        else
+        {
+            CombatUnit target = requestedTarget;
+            if (!IsValidTarget(actor, target))
+            {
+                target = GetFirstLivingOpponent(actor);
+            }
+
+            if (target == null)
+            {
+                return;
+            }
+
+            int baseDmg = Mathf.Max(1, actor.Attack);
+            int modifiedDmg = Mathf.Max(1, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier));
+            int hpBefore = target.HP;
+            target.TakeDamage(modifiedDmg);
+            Debug.Log($"  -> {target.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {target.HP}", this);
+        }
+
+        momentumState.Reset();
+        Debug.Log("[BattleManager] Momentum reset after Tide Break.", this);
     }
 
     private CombatUnit GetFirstLivingOpponent(CombatUnit actor)
