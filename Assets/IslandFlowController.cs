@@ -48,7 +48,7 @@ public class IslandFlowController : MonoBehaviour
         islandConfig = config;
         currentEncounterIndex = 0;
         isActive = true;
-        tracker.ResetTracker();
+        tracker.ResetIsland(islandConfig.islandId);
 
         if (GameStateManager.Instance != null)
         {
@@ -73,11 +73,11 @@ public class IslandFlowController : MonoBehaviour
         }
 
         EncounterDefinition encounter = islandConfig.encounters[currentEncounterIndex];
-        tracker.CompleteEncounter(encounter.restorationValue);
+        string encounterId = GetEncounterId(encounter, currentEncounterIndex);
+        tracker.RecordEncounterCompletion(islandConfig.islandId, encounterId, encounter.type, encounter.restorationValue);
 
         int subsection = currentEncounterIndex / 2;
-        bool isPuzzle = encounter.type == EncounterType.Puzzle;
-        Debug.Log($"[IslandFlowController] Subsection {subsection + 1} {encounter.type} complete. Restoration: {tracker.RestorationProgress * 100:F0}%");
+        Debug.Log($"[IslandFlowController] Subsection {subsection + 1} {encounter.type} complete. Restoration: {tracker.GetRestorationPercent(islandConfig.islandId):F1}%");
 
         currentEncounterIndex++;
 
@@ -166,6 +166,18 @@ public class IslandFlowController : MonoBehaviour
     private void OnIslandComplete()
     {
         isActive = false;
-        Debug.Log($"[IslandFlowController] Island {islandConfig.viceName} fully restored! ({tracker.RestorationProgress * 100:F0}%)");
+        Debug.Log($"[IslandFlowController] Island {islandConfig.viceName} fully restored! ({tracker.GetRestorationPercent(islandConfig.islandId):F1}%)");
+    }
+
+    private static string GetEncounterId(EncounterDefinition encounter, int index)
+    {
+        if (!string.IsNullOrEmpty(encounter.encounterId))
+        {
+            return encounter.encounterId;
+        }
+
+        return encounter.type == EncounterType.Combat
+            ? $"combat_{index / 2 + 1}"
+            : $"puzzle_{index / 2 + 1}";
     }
 }

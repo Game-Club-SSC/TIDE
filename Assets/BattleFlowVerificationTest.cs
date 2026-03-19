@@ -49,9 +49,11 @@ public class BattleFlowVerificationTest : MonoBehaviour
             enemySlow.DebugHP = 0;
             enemySlow.DebugIsAlive = false;
 
+            int enemySlowHpAfterKill = enemySlow.HP;
             int enemyMidBefore = enemyMid.HP;
             InvokePrivate(manager, "ResolveAttack", allySlow, enemySlow);
-            Assert.Less(enemyMid.HP, enemyMidBefore, "Dead targets should not be hit; attack should retarget a living opponent.");
+            Assert.AreEqual(0, enemySlowHpAfterKill, "Dead target should not take damage.");
+            Assert.Less(enemyMid.HP, enemyMidBefore, "Attack should retarget to living enemyMid.");
 
             Debug.Log("=== Battle flow verification passed ===");
         }

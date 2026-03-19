@@ -203,21 +203,15 @@ public class CombatUnit : MonoBehaviour
 
     protected virtual void Awake()
     {
-        // Initialize stats if not set
         if (maxHp <= 0) maxHp = 100;
-        if (hp <= 0) hp = maxHp;
         if (maxMp <= 0) maxMp = 50;
-        if (mp < 0) mp = 0;
-        else if (mp > maxMp) mp = maxMp;
         if (attack < 0) attack = 0;
         if (defense < 0) defense = 0;
         if (speed < 0) speed = 0;
 
-        // Ensure HP and MP are within bounds
         hp = Mathf.Clamp(hp, 0, maxHp);
         mp = Mathf.Clamp(mp, 0, maxMp);
 
-        // Initialize alive state based on HP
         isAlive = hp > 0;
     }
 

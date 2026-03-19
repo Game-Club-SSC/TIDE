@@ -10,6 +10,7 @@ public enum EncounterType
 [CreateAssetMenu(fileName = "IslandConfig", menuName = "TIDE/Island Config")]
 public class IslandConfig : ScriptableObject
 {
+    public string islandId = "island_1";
     public string viceName = "Greed";
     public Color vicePrimaryColor = new Color(1f, 0.84f, 0f);
     public Color viceSecondaryColor = new Color(0.55f, 0.41f, 0.08f);
@@ -21,6 +22,7 @@ public class IslandConfig : ScriptableObject
 [Serializable]
 public class EncounterDefinition
 {
+    public string encounterId = "";
     public EncounterType type;
     [Range(0f, 1f)]
     public float restorationValue;

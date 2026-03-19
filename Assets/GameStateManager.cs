@@ -36,9 +36,30 @@ public class GameStateManager : MonoBehaviour
     public EnemyComposition PendingEnemyComposition { get; set; }
     public IslandFlowController FlowController { get; set; }
     public bool HasActiveFlowController => FlowController != null && FlowController.IsActive;
+    public IslandRestorationTracker RestorationTracker => IslandRestorationTracker.Instance;
     private bool isFlowControlledCombat;
     private bool deferredFlowFromCombat;
     private bool deferredFlowFromPuzzle;
+
+    public float GetIslandRestorationPercent(string islandId)
+    {
+        if (IslandRestorationTracker.Instance == null)
+        {
+            return 0f;
+        }
+
+        return IslandRestorationTracker.Instance.GetRestorationPercent(islandId);
+    }
+
+    public IslandRestorationState GetIslandRestorationState(string islandId)
+    {
+        if (IslandRestorationTracker.Instance == null)
+        {
+            return new IslandRestorationState(islandId);
+        }
+
+        return IslandRestorationTracker.Instance.GetRestorationState(islandId);
+    }
 
     private void Awake()
     {
