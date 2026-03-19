@@ -61,10 +61,12 @@ public class BattleManager : MonoBehaviour
     private Dictionary<CombatUnit, int> unitRegistrationOrder = new Dictionary<CombatUnit, int>();
     private Dictionary<CombatUnit, PlannedAction> selectedPlayerActions = new Dictionary<CombatUnit, PlannedAction>();
     private List<CombatUnit> playerInputUnits = new List<CombatUnit>();
+    private MomentumState momentumState = new MomentumState();
 
     public IReadOnlyList<CombatUnit> AllyUnits => allyUnits;
     public IReadOnlyList<CombatUnit> EnemyUnits => enemyUnits;
     public IReadOnlyList<CombatUnit> TurnQueue => turnQueue;
+    public MomentumState Momentum => momentumState;
 
     public IReadOnlyList<CombatUnit> GetAllUnits()
     {
@@ -234,6 +236,7 @@ public class BattleManager : MonoBehaviour
             case BattlePhase.StartBattle:
                 BuildTurnQueueFromLivingUnits();
                 selectedPlayerActions.Clear();
+                momentumState.Reset();
                 break;
             case BattlePhase.PlayerInput:
                 BeginPlayerInputPhase();
@@ -393,6 +396,7 @@ public class BattleManager : MonoBehaviour
         }
 
         CheckBattleOutcome();
+        UpdatePhaseLabel();
     }
 
     private PlannedAction GetPlannedAction(CombatUnit actor)
@@ -449,6 +453,8 @@ public class BattleManager : MonoBehaviour
                 matchupFeedback = " Not very effective...";
                 break;
         }
+
+        momentumState.ShiftForAction(actor, matchup);
 
         Debug.Log(
             $"[BattleManager] {actor.UnitName} attacks {target.UnitName} for {modifiedDamage} (base {baseDamage} x{multiplier:F2}). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
@@ -607,13 +613,37 @@ public class BattleManager : MonoBehaviour
         int enemiesAlive = CountAliveUnits(enemyUnits);
         string queuePreview = BuildQueuePreview();
 
+        string momentumBar = BuildMomentumBar();
+
         phaseLabel.text =
             $"Battle Phase: {phaseName}\n" +
             $"Allies: {allyUnits.Count} ({alliesAlive} alive)\n" +
             $"Enemies: {enemyUnits.Count} ({enemiesAlive} alive)\n" +
+            $"Momentum: {momentumBar}\n" +
             $"Queue: {queuePreview}\n" +
             $"Acting: {(currentActingUnit != null ? currentActingUnit.UnitName : "None")}\n" +
             $"Next: {advancePhaseKey} | Victory: {victoryKey} | Defeat: {defeatKey}";
+    }
+
+    private string BuildMomentumBar()
+    {
+        float value = momentumState.Value;
+        int barLength = 20;
+        int filled = Mathf.RoundToInt(Mathf.Abs(value) * barLength);
+        string direction = value >= 0 ? "Player" : "Enemy";
+        string bar = new string('█', filled).PadRight(barLength, '░');
+
+        if (momentumState.IsPlayerTideBreakReady)
+        {
+            return $"[PLAYER TB READY] {bar}";
+        }
+
+        if (momentumState.IsEnemyTideBreakReady)
+        {
+            return $"[ENEMY TB READY] {bar}";
+        }
+
+        return $"[{direction} +{Mathf.Abs(value):F2}] {bar}";
     }
 
     private string BuildQueuePreview()
