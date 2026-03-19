@@ -1,6 +1,7 @@
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Linq;
 
 public enum BattlePhase
 {
@@ -45,7 +46,7 @@ public class BattleManager : MonoBehaviour
     public IReadOnlyList<CombatUnit> GetAliveUnits(CombatUnit.UnitType unitType)
     {
         List<CombatUnit> units = unitType == CombatUnit.UnitType.Ally ? allyUnits : enemyUnits;
-        return units.Where(u => u.IsAlive).ToList();
+        return units.Where(u => u != null && u.IsAlive).ToList();
     }
 
     public void RegisterUnit(CombatUnit unit)
@@ -92,6 +93,7 @@ public class BattleManager : MonoBehaviour
     {
         HandleDebugInput();
         HandleAutoAdvance();
+        UpdatePhaseLabel();
     }
 
     public void StartBattle()
