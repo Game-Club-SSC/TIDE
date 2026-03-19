@@ -279,6 +279,25 @@ public class CombatSceneBootstrap : MonoBehaviour
                     unit.Speed += i;
                     SetUnitColor(unitObject, allyUnitColor);
 
+                    SkillData[] allySkills;
+                    switch (i)
+                    {
+                        case 0:
+                            unit.ElementType = CombatUnit.Element.Fire;
+                            allySkills = new[] { SkillData.PowerStrike };
+                            break;
+                        case 1:
+                            unit.ElementType = CombatUnit.Element.Water;
+                            allySkills = new[] { SkillData.ArcaneBlast };
+                            break;
+                        default:
+                            unit.ElementType = CombatUnit.Element.Air;
+                            allySkills = new[] { SkillData.QuickShot };
+                            break;
+                    }
+
+                    unit.SetSkills(allySkills);
+
                     if (battleManager != null)
                     {
                         battleManager.RegisterUnit(unit);

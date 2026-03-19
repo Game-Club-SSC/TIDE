@@ -18,7 +18,7 @@ public enum CombatActionType
 {
     Attack,
     Defend,
-    Pass,
+    Skill,
     TideBreak
 }
 
@@ -27,12 +27,22 @@ public struct PlannedAction
     public CombatActionType ActionType;
     public CombatUnit Actor;
     public CombatUnit Target;
+    public SkillData SelectedSkill;
 
     public PlannedAction(CombatActionType actionType, CombatUnit actor, CombatUnit target)
     {
         ActionType = actionType;
         Actor = actor;
         Target = target;
+        SelectedSkill = null;
+    }
+
+    public PlannedAction(CombatActionType actionType, CombatUnit actor, CombatUnit target, SkillData skill)
+    {
+        ActionType = actionType;
+        Actor = actor;
+        Target = target;
+        SelectedSkill = skill;
     }
 }
 
@@ -481,6 +491,10 @@ public class BattleManager : MonoBehaviour
         {
             ResolveAttack(actor, plannedAction.Target);
         }
+        else if (plannedAction.ActionType == CombatActionType.Skill)
+        {
+            ResolveSkill(actor, plannedAction.Target, plannedAction.SelectedSkill);
+        }
         else if (plannedAction.ActionType == CombatActionType.TideBreak)
         {
             ResolveTideBreak(actor, plannedAction.Target);
@@ -507,7 +521,7 @@ public class BattleManager : MonoBehaviour
                 return plannedAction;
             }
 
-            return new PlannedAction(CombatActionType.Pass, actor, null);
+            return new PlannedAction(CombatActionType.Attack, actor, GetFirstLivingOpponent(actor));
         }
 
         if (momentumState.IsEnemyTideBreakReady)
@@ -522,7 +536,16 @@ public class BattleManager : MonoBehaviour
         CombatUnit target = GetFirstLivingOpponent(actor);
         if (target == null)
         {
-            return new PlannedAction(CombatActionType.Pass, actor, null);
+            return new PlannedAction(CombatActionType.Attack, actor, null);
+        }
+
+        if (actor.Skills != null && actor.Skills.Length > 0)
+        {
+            SkillData skill = actor.Skills[0];
+            if (actor.CanUseSkill(skill))
+            {
+                return new PlannedAction(CombatActionType.Skill, actor, target, skill);
+            }
         }
 
         return new PlannedAction(CombatActionType.Attack, actor, target);
@@ -566,6 +589,64 @@ public class BattleManager : MonoBehaviour
 
         Debug.Log(
             $"[BattleManager] {actor.UnitName} attacks {target.UnitName} for {modifiedDamage} (base {baseDamage} x{multiplier:F2}). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
+            this);
+    }
+
+    private void ResolveSkill(CombatUnit actor, CombatUnit requestedTarget, SkillData skill)
+    {
+        if (skill == null)
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} has no skill selected. Attacking instead.", this);
+            ResolveAttack(actor, requestedTarget);
+            return;
+        }
+
+        if (!actor.CanUseSkill(skill))
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} lacks MP for {skill.skillName}. Attacking instead.", this);
+            ResolveAttack(actor, requestedTarget);
+            return;
+        }
+
+        actor.SpendMp(skill.mpCost);
+
+        CombatUnit target = requestedTarget;
+        if (!IsValidTarget(actor, target))
+        {
+            target = GetFirstLivingOpponent(actor);
+        }
+
+        if (!IsValidTarget(actor, target))
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} but has no valid target.", this);
+            return;
+        }
+
+        int baseDamage = Mathf.Max(1, actor.Attack);
+        float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+        float skillMultiplier = multiplier * skill.damageMultiplier;
+        int modifiedDamage = Mathf.Max(1, Mathf.RoundToInt(baseDamage * skillMultiplier));
+
+        MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+        int hpBefore = target.HP;
+        target.TakeDamage(modifiedDamage);
+        int hpAfter = target.HP;
+
+        string matchupFeedback = "";
+        switch (matchup)
+        {
+            case MatchupResult.Strong:
+                matchupFeedback = " Super effective!";
+                break;
+            case MatchupResult.Weak:
+                matchupFeedback = " Not very effective...";
+                break;
+        }
+
+        momentumState.ShiftForAction(actor, matchup);
+
+        Debug.Log(
+            $"[BattleManager] {actor.UnitName} uses {skill.skillName} on {target.UnitName} for {modifiedDamage} (base {baseDamage} x{skillMultiplier:F2}, -{skill.mpCost} MP). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
             this);
     }
 
@@ -870,9 +951,15 @@ public class BattleManager : MonoBehaviour
                     AssignPlayerAction(currentInputUnit, CombatActionType.Defend, null);
                 }
 
-                if (GUI.Button(new Rect(panelRect.x + 276f, y, 120f, 28f), "Pass"))
+                if (GUI.Button(new Rect(panelRect.x + 276f, y, 120f, 28f), GetSkillButtonLabel(currentInputUnit)))
                 {
-                    AssignPlayerAction(currentInputUnit, CombatActionType.Pass, null);
+                    SkillData skill = currentInputUnit.Skills != null && currentInputUnit.Skills.Length > 0
+                        ? currentInputUnit.Skills[0]
+                        : null;
+                    if (skill != null && currentInputUnit.CanUseSkill(skill))
+                    {
+                        AssignPlayerAction(currentInputUnit, CombatActionType.Skill, currentInputActionTarget, skill);
+                    }
                 }
             }
             else
@@ -967,6 +1054,38 @@ public class BattleManager : MonoBehaviour
         {
             playerInputIndex++;
         }
+    }
+
+    private void AssignPlayerAction(CombatUnit actor, CombatActionType actionType, CombatUnit target, SkillData skill)
+    {
+        if (actor == null || !actor.IsAlive)
+        {
+            return;
+        }
+
+        selectedPlayerActions[actor] = new PlannedAction(actionType, actor, target, skill);
+        Debug.Log($"[BattleManager] Action assigned: {actor.UnitName} => {actionType} ({skill?.skillName})", this);
+
+        if (playerInputIndex < playerInputUnits.Count && playerInputUnits[playerInputIndex] == actor)
+        {
+            playerInputIndex++;
+        }
+    }
+
+    private string GetSkillButtonLabel(CombatUnit unit)
+    {
+        if (unit.Skills == null || unit.Skills.Length == 0)
+        {
+            return "No Skill";
+        }
+
+        SkillData skill = unit.Skills[0];
+        if (!unit.CanUseSkill(skill))
+        {
+            return $"No MP ({skill.mpCost})";
+        }
+
+        return $"{skill.skillName} ({skill.mpCost} MP)";
     }
 
     private bool AreAllPlayerActionsAssigned()

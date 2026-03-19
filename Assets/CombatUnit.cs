@@ -18,6 +18,9 @@ public class CombatUnit : MonoBehaviour
     [SerializeField] protected int speed = 10;
     [SerializeField] protected Element element = Element.None;
 
+    [Header("Skills")]
+    [SerializeField] protected SkillData[] skills = System.Array.Empty<SkillData>();
+
     // Unit state
     [Header("Unit State")]
     [SerializeField] protected string unitName = "Combat Unit";
@@ -72,6 +75,17 @@ public class CombatUnit : MonoBehaviour
     {
         get => unitType;
         set => unitType = value;
+    }
+    public SkillData[] Skills => skills;
+
+    public bool CanUseSkill(SkillData skill)
+    {
+        return isAlive && skill != null && mp >= skill.mpCost;
+    }
+
+    public void SetSkills(SkillData[] newSkills)
+    {
+        skills = newSkills;
     }
     #endregion
 
