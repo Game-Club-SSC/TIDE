@@ -47,9 +47,15 @@ public class IsometricPlayer : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (rb == null)
+        {
+            return;
+        }
+
         // 3. Camera-relative movement math
-        Vector3 forward = Camera.main.transform.forward;
-        Vector3 right = Camera.main.transform.right;
+        Camera activeCamera = Camera.main;
+        Vector3 forward = activeCamera != null ? activeCamera.transform.forward : Vector3.forward;
+        Vector3 right = activeCamera != null ? activeCamera.transform.right : Vector3.right;
 
         // Flatten the camera vectors
         forward.y = 0f;
