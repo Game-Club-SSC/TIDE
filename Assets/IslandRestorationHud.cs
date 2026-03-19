@@ -8,9 +8,10 @@ public class IslandRestorationHud : MonoBehaviour
 
     [Header("Display")]
     [SerializeField] private string islandId = "";
+    [SerializeField] private string islandName = "Island";
+    [SerializeField] private string viceName = "";
     [SerializeField] private Vector2 labelPosition = new Vector2(-24f, -24f);
     [SerializeField] private int fontSize = 22;
-    [SerializeField] private bool showDetailedBreakdown;
 
     private Text restorationLabel;
     private IslandRestorationTracker tracker;
@@ -95,17 +96,17 @@ public class IslandRestorationHud : MonoBehaviour
         IslandRestorationState state = tracker.GetRestorationState(targetIsland);
         float percent = state.RestorationPercent;
 
-        if (showDetailedBreakdown)
+        string header = islandName;
+        if (!string.IsNullOrEmpty(viceName))
         {
-            restorationLabel.text =
-                $"Island Restoration: {percent:F1}%\n" +
-                $"Combat: {state.CombatContribution * 100:F0}% ({state.CombatEncountersCompleted} cleared)\n" +
-                $"Puzzle: {state.PuzzleContribution * 100:F0}% ({state.PuzzleEncountersCompleted} solved)";
+            header += $" — Vice: {viceName}";
         }
-        else
-        {
-            restorationLabel.text = $"Restoration: {percent:F1}%";
-        }
+
+        restorationLabel.text =
+            $"{header}\n" +
+            $"Restoration: {percent:F1}%\n" +
+            $"Combat: {state.CombatContribution * 100:F0}% ({state.CombatEncountersCompleted} cleared)\n" +
+            $"Puzzle: {state.PuzzleContribution * 100:F0}% ({state.PuzzleEncountersCompleted} solved)";
 
         if (state.IsIslandRestored)
         {
@@ -152,7 +153,7 @@ public class IslandRestorationHud : MonoBehaviour
         labelRect.anchorMax = new Vector2(1f, 1f);
         labelRect.pivot = new Vector2(1f, 1f);
         labelRect.anchoredPosition = labelPosition;
-        labelRect.sizeDelta = new Vector2(400f, 100f);
+        labelRect.sizeDelta = new Vector2(400f, 140f);
 
         restorationLabel.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
         restorationLabel.fontSize = fontSize;
