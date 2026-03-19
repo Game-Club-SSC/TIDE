@@ -290,6 +290,14 @@ public class TideManager : MonoBehaviour
                         continue;
                     }
 
+                    if (rowOffset != 0 && colOffset != 0)
+                    {
+                        if (sealedTiles[current.Position.y, nextCol] || sealedTiles[nextRow, current.Position.x])
+                        {
+                            continue;
+                        }
+                    }
+
                     Vector2Int nextPosition = new Vector2Int(nextCol, nextRow);
                     if (visited.Contains(nextPosition))
                     {

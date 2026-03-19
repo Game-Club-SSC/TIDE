@@ -124,7 +124,7 @@ public class TideMovementTest : MonoBehaviour
 
         // Sealed: (0,1) and (1,0) - the two cardinal neighbors between center and (0,0)
         // Source: center(1,1), Dest: (0,0) diagonal
-        // Diagonal should still work (no corner-cutting restriction)
+        // Diagonal is blocked because corner-cutting requires both cardinal neighbors open
         bool[,] sealedArr = new bool[3, 3];
         sealedArr[0, 1] = true;
         sealedArr[1, 0] = true;
@@ -133,7 +133,7 @@ public class TideMovementTest : MonoBehaviour
         TideTile source = CreateTile(1, 1, false);
         TideTile dest = CreateTile(0, 0, false);
 
-        Assert.IsTrue(CanReach(source, dest), "Diagonal movement should work even when adjacent cardinal tiles are sealed.");
+        Assert.IsFalse(CanReach(source, dest), "Diagonal movement should be blocked when adjacent cardinal tiles are sealed.");
 
         Debug.Log("  [PASS] TestDiagonalWithAdjacentSealed");
     }
