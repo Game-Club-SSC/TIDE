@@ -323,7 +323,7 @@ public class BattleManager : MonoBehaviour
 
     private void BeginPlayerInputPhase()
     {
-        playerInputUnits = GetAliveUnits(CombatUnit.UnitType.Ally);
+        playerInputUnits = GetAliveUnits(CombatUnit.UnitType.Ally).ToList();
         playerInputIndex = 0;
         isAwaitingTargetSelection = false;
         pendingInputActionType = CombatActionType.Attack;
@@ -658,7 +658,7 @@ public class BattleManager : MonoBehaviour
 
         if (tb.IsPlayerAbility)
         {
-            List<CombatUnit> enemies = GetAliveUnits(CombatUnit.UnitType.Enemy);
+            List<CombatUnit> enemies = GetAliveUnits(CombatUnit.UnitType.Enemy).ToList();
             int totalDamage = 0;
             foreach (CombatUnit enemy in enemies)
             {
