@@ -337,11 +337,99 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        ResolveClashes();
+
         actionExecutionActive = true;
         actionStepTimer = 0f;
         currentActingUnit = null;
 
         Debug.Log("[BattleManager] Action execution started.", this);
+    }
+
+    private HashSet<CombatUnit> clashedUnits = new HashSet<CombatUnit>();
+
+    private void ResolveClashes()
+    {
+        clashedUnits.Clear();
+
+        List<CombatUnit> allUnits = new List<CombatUnit>(allyUnits);
+        allUnits.AddRange(enemyUnits);
+
+        for (int i = 0; i < allUnits.Count; i++)
+        {
+            CombatUnit unitA = allUnits[i];
+            if (unitA == null || !unitA.IsAlive)
+            {
+                continue;
+            }
+
+            PlannedAction actionA = GetPlannedAction(unitA);
+            if (actionA.ActionType != CombatActionType.Attack && actionA.ActionType != CombatActionType.TideBreak)
+            {
+                continue;
+            }
+
+            for (int j = i + 1; j < allUnits.Count; j++)
+            {
+                CombatUnit unitB = allUnits[j];
+                if (unitB == null || !unitB.IsAlive)
+                {
+                    continue;
+                }
+
+                PlannedAction actionB = GetPlannedAction(unitB);
+                if (actionB.ActionType != CombatActionType.Attack && actionB.ActionType != CombatActionType.TideBreak)
+                {
+                    continue;
+                }
+
+                bool mutualTarget = (actionA.Target == unitB && actionB.Target == unitA);
+                if (!mutualTarget)
+                {
+                    continue;
+                }
+
+                MatchupResult matchupA = ElementMatchup.GetResult(unitA.ElementType, unitB.ElementType);
+                MatchupResult matchupB = ElementMatchup.GetResult(unitB.ElementType, unitA.ElementType);
+
+                Debug.Log($"[BattleManager] *** CLASH! {unitA.UnitName} vs {unitB.UnitName}! ***", this);
+
+                if (matchupA == MatchupResult.Strong)
+                {
+                    ExecuteClash(unitA, unitB);
+                }
+                else if (matchupB == MatchupResult.Strong)
+                {
+                    ExecuteClash(unitB, unitA);
+                }
+                else
+                {
+                    Debug.Log($"[BattleManager] Clash is neutral. Both attack normally.", this);
+                    continue;
+                }
+
+                clashedUnits.Add(unitA);
+                clashedUnits.Add(unitB);
+            }
+        }
+    }
+
+    private void ExecuteClash(CombatUnit winner, CombatUnit loser)
+    {
+        Debug.Log($"[BattleManager] {winner.UnitName} wins the clash! (element advantage)", this);
+
+        int winnerDmg = Mathf.Max(1, Mathf.RoundToInt(winner.Attack * 1.5f));
+        int loserDmg = Mathf.Max(1, Mathf.RoundToInt(loser.Attack * 0.5f));
+
+        int loserHpBefore = loser.HP;
+        loser.TakeDamage(winnerDmg);
+        Debug.Log($"  -> {winner.UnitName} deals {winnerDmg} to {loser.UnitName}. HP {loserHpBefore} -> {loser.HP}", this);
+
+        int winnerHpBefore = winner.HP;
+        winner.TakeDamage(loserDmg);
+        Debug.Log($"  -> {loser.UnitName} deals {loserDmg} to {winner.UnitName}. HP {winnerHpBefore} -> {winner.HP}", this);
+
+        momentumState.ShiftForAction(winner, MatchupResult.Strong);
     }
 
     private void BeginEndTurnPhase()
@@ -379,6 +467,12 @@ public class BattleManager : MonoBehaviour
     {
         if (actor == null || !actor.IsAlive)
         {
+            return;
+        }
+
+        if (clashedUnits.Contains(actor))
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} already resolved via clash.", this);
             return;
         }
 
