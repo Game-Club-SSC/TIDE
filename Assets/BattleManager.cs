@@ -920,6 +920,11 @@ public class BattleManager : MonoBehaviour
 
     private void OnGUI()
     {
+        if (FindFirstObjectByType<BattleHud>() != null)
+        {
+            return;
+        }
+
         if (!hasActivePhase || currentPhase != BattlePhase.PlayerInput || IsTerminalPhase(currentPhase))
         {
             return;

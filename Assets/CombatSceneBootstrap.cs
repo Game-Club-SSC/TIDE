@@ -46,6 +46,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         EnsureSpawnPoints();
         EnsureBattleManager();
         SpawnCombatUnits();
+        EnsureBattleHud();
     }
 
     private void EnsureGameManager()
@@ -430,5 +431,16 @@ public class CombatSceneBootstrap : MonoBehaviour
 
         runtimeUnitMaterial.color = color;
         renderer.material = runtimeUnitMaterial;
+    }
+
+    private void EnsureBattleHud()
+    {
+        if (FindFirstObjectByType<BattleHud>() != null)
+        {
+            return;
+        }
+
+        GameObject hudObject = new GameObject("BattleHud");
+        hudObject.AddComponent<BattleHud>();
     }
 }
