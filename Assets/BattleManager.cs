@@ -431,12 +431,27 @@ public class BattleManager : MonoBehaviour
         }
 
         int baseDamage = Mathf.Max(1, actor.Attack);
+        float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+        int modifiedDamage = Mathf.Max(1, Mathf.RoundToInt(baseDamage * multiplier));
+
+        MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
         int hpBefore = target.HP;
-        target.TakeDamage(baseDamage);
+        target.TakeDamage(modifiedDamage);
         int hpAfter = target.HP;
 
+        string matchupFeedback = "";
+        switch (matchup)
+        {
+            case MatchupResult.Strong:
+                matchupFeedback = " It's super effective!";
+                break;
+            case MatchupResult.Weak:
+                matchupFeedback = " Not very effective...";
+                break;
+        }
+
         Debug.Log(
-            $"[BattleManager] {actor.UnitName} attacks {target.UnitName} for base {baseDamage}. HP {hpBefore} -> {hpAfter}",
+            $"[BattleManager] {actor.UnitName} attacks {target.UnitName} for {modifiedDamage} (base {baseDamage} x{multiplier:F2}). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
             this);
     }
 

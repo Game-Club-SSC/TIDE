@@ -50,8 +50,7 @@ public class CombatUnit : MonoBehaviour
         Water,
         Earth,
         Air,
-        Light,
-        Dark
+        Space
     }
 
     #region Properties

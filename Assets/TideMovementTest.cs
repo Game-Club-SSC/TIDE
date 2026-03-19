@@ -30,6 +30,11 @@ public class TideMovementTest : MonoBehaviour
             TestDecayTriggersAboveThreshold();
             TestDecayDoesNotTriggerAtThreshold();
             TestDecayClampsToMinimum5();
+            TestElementAdvantageAllPairs();
+            TestElementNeutralSameElement();
+            TestElementNeutralNone();
+            TestDamageMultiplierStrong();
+            TestDamageMultiplierWeak();
 
             Debug.Log("=== Tide movement tests passed ===");
         }
@@ -445,5 +450,77 @@ public class TideMovementTest : MonoBehaviour
         }
 
         Debug.Log("  [PASS] TestDecayClampsToMinimum5");
+    }
+
+    private void TestElementAdvantageAllPairs()
+    {
+        // Fire beats Earth, Air
+        Assert.AreEqual(MatchupResult.Strong, ElementMatchup.GetResult(CombatUnit.Element.Fire, CombatUnit.Element.Earth));
+        Assert.AreEqual(MatchupResult.Strong, ElementMatchup.GetResult(CombatUnit.Element.Fire, CombatUnit.Element.Air));
+        // Water beats Fire, Space
+        Assert.AreEqual(MatchupResult.Strong, ElementMatchup.GetResult(CombatUnit.Element.Water, CombatUnit.Element.Fire));
+        Assert.AreEqual(MatchupResult.Strong, ElementMatchup.GetResult(CombatUnit.Element.Water, CombatUnit.Element.Space));
+        // Earth beats Water, Space
+        Assert.AreEqual(MatchupResult.Strong, ElementMatchup.GetResult(CombatUnit.Element.Earth, CombatUnit.Element.Water));
+        Assert.AreEqual(MatchupResult.Strong, ElementMatchup.GetResult(CombatUnit.Element.Earth, CombatUnit.Element.Space));
+        // Air beats Earth, Water
+        Assert.AreEqual(MatchupResult.Strong, ElementMatchup.GetResult(CombatUnit.Element.Air, CombatUnit.Element.Earth));
+        Assert.AreEqual(MatchupResult.Strong, ElementMatchup.GetResult(CombatUnit.Element.Air, CombatUnit.Element.Water));
+        // Space beats Fire, Air
+        Assert.AreEqual(MatchupResult.Strong, ElementMatchup.GetResult(CombatUnit.Element.Space, CombatUnit.Element.Fire));
+        Assert.AreEqual(MatchupResult.Strong, ElementMatchup.GetResult(CombatUnit.Element.Space, CombatUnit.Element.Air));
+
+        // Reverse pairs should be Weak
+        Assert.AreEqual(MatchupResult.Weak, ElementMatchup.GetResult(CombatUnit.Element.Earth, CombatUnit.Element.Fire));
+        Assert.AreEqual(MatchupResult.Weak, ElementMatchup.GetResult(CombatUnit.Element.Fire, CombatUnit.Element.Water));
+        Assert.AreEqual(MatchupResult.Weak, ElementMatchup.GetResult(CombatUnit.Element.Water, CombatUnit.Element.Earth));
+        Assert.AreEqual(MatchupResult.Weak, ElementMatchup.GetResult(CombatUnit.Element.Water, CombatUnit.Element.Air));
+        Assert.AreEqual(MatchupResult.Weak, ElementMatchup.GetResult(CombatUnit.Element.Fire, CombatUnit.Element.Space));
+
+        Debug.Log("  [PASS] TestElementAdvantageAllPairs");
+    }
+
+    private void TestElementNeutralSameElement()
+    {
+        Assert.AreEqual(MatchupResult.Neutral, ElementMatchup.GetResult(CombatUnit.Element.Fire, CombatUnit.Element.Fire));
+        Assert.AreEqual(MatchupResult.Neutral, ElementMatchup.GetResult(CombatUnit.Element.Water, CombatUnit.Element.Water));
+        Assert.AreEqual(MatchupResult.Neutral, ElementMatchup.GetResult(CombatUnit.Element.Earth, CombatUnit.Element.Earth));
+        Assert.AreEqual(MatchupResult.Neutral, ElementMatchup.GetResult(CombatUnit.Element.Air, CombatUnit.Element.Air));
+        Assert.AreEqual(MatchupResult.Neutral, ElementMatchup.GetResult(CombatUnit.Element.Space, CombatUnit.Element.Space));
+
+        Debug.Log("  [PASS] TestElementNeutralSameElement");
+    }
+
+    private void TestElementNeutralNone()
+    {
+        Assert.AreEqual(MatchupResult.Neutral, ElementMatchup.GetResult(CombatUnit.Element.None, CombatUnit.Element.Fire));
+        Assert.AreEqual(MatchupResult.Neutral, ElementMatchup.GetResult(CombatUnit.Element.Fire, CombatUnit.Element.None));
+        Assert.AreEqual(MatchupResult.Neutral, ElementMatchup.GetResult(CombatUnit.Element.None, CombatUnit.Element.None));
+
+        Debug.Log("  [PASS] TestElementNeutralNone");
+    }
+
+    private void TestDamageMultiplierStrong()
+    {
+        float multiplier = ElementMatchup.GetDamageMultiplier(CombatUnit.Element.Fire, CombatUnit.Element.Earth);
+        Assert.AreEqual(1.5f, multiplier, 0.01f, "Strong matchup should give 1.5x multiplier.");
+
+        int baseDamage = 10;
+        int modified = Mathf.RoundToInt(baseDamage * multiplier);
+        Assert.AreEqual(15, modified, "10 damage at 1.5x should be 15.");
+
+        Debug.Log("  [PASS] TestDamageMultiplierStrong");
+    }
+
+    private void TestDamageMultiplierWeak()
+    {
+        float multiplier = ElementMatchup.GetDamageMultiplier(CombatUnit.Element.Earth, CombatUnit.Element.Fire);
+        Assert.AreEqual(0.67f, multiplier, 0.01f, "Weak matchup should give 0.67x multiplier.");
+
+        int baseDamage = 10;
+        int modified = Mathf.Max(1, Mathf.RoundToInt(baseDamage * multiplier));
+        Assert.AreEqual(7, modified, "10 damage at 0.67x should be 7.");
+
+        Debug.Log("  [PASS] TestDamageMultiplierWeak");
     }
 }
