@@ -36,21 +36,7 @@ public class RestorationThresholdGate : MonoBehaviour
         if (tracker != null)
         {
             tracker.OnRestorationChanged -= HandleRestorationChanged;
-        }
-
-        tracker = null;
-    }
-
-    private void Update()
-    {
-        if (tracker == null)
-        {
-            tracker = IslandRestorationTracker.Instance;
-            if (tracker != null)
-            {
-                tracker.OnRestorationChanged += HandleRestorationChanged;
-                EvaluateState();
-            }
+            tracker = null;
         }
     }
 

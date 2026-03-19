@@ -47,18 +47,10 @@ public class PuzzleBoxInteractable : MonoBehaviour
         SetPromptVisible(false);
     }
 
-    private bool isBeingDestroyed;
-
     private void Update()
     {
-        if (isBeingDestroyed)
-        {
-            return;
-        }
-
         if (thisBoxSolved)
         {
-            isBeingDestroyed = true;
             Destroy(gameObject);
             return;
         }

@@ -34,6 +34,11 @@ public class IslandRestorationTracker : MonoBehaviour
         }
     }
 
+    private void OnApplicationQuit()
+    {
+        Instance = null;
+    }
+
     public void CompleteEncounter(float contribution)
     {
         RecordEncounterCompletion(DefaultIslandId, string.Empty, EncounterType.Combat, contribution);

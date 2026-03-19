@@ -250,6 +250,7 @@ public class BattleManager : MonoBehaviour
                 BuildTurnQueueFromLivingUnits();
                 selectedPlayerActions.Clear();
                 momentumState.Reset();
+                clashedUnits.Clear();
                 break;
             case BattlePhase.PlayerInput:
                 BeginPlayerInputPhase();
@@ -425,8 +426,8 @@ public class BattleManager : MonoBehaviour
     {
         Debug.Log($"[BattleManager] {winner.UnitName} wins the clash! (element advantage)", this);
 
-        int winnerDmg = Mathf.Max(1, Mathf.RoundToInt(winner.Attack * 1.5f));
-        int loserDmg = Mathf.Max(1, Mathf.RoundToInt(loser.Attack * 0.5f));
+        int winnerDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(winner.Attack * GameConstants.ClashWinnerMultiplier));
+        int loserDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(loser.Attack * GameConstants.ClashLoserMultiplier));
 
         int loserHpBefore = loser.HP;
         loser.TakeDamage(winnerDmg);
@@ -562,9 +563,9 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        int baseDamage = Mathf.Max(1, actor.Attack);
+        int baseDamage = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
-        int modifiedDamage = Mathf.Max(1, Mathf.RoundToInt(baseDamage * multiplier));
+        int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDamage * multiplier));
 
         MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
         int hpBefore = target.HP;
@@ -619,10 +620,10 @@ public class BattleManager : MonoBehaviour
 
         actor.SpendMp(skill.mpCost);
 
-        int baseDamage = Mathf.Max(1, actor.Attack);
+        int baseDamage = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
         float skillMultiplier = multiplier * skill.damageMultiplier;
-        int modifiedDamage = Mathf.Max(1, Mathf.RoundToInt(baseDamage * skillMultiplier));
+        int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDamage * skillMultiplier));
 
         MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
         int hpBefore = target.HP;
@@ -661,8 +662,8 @@ public class BattleManager : MonoBehaviour
             int totalDamage = 0;
             foreach (CombatUnit enemy in enemies)
             {
-                int baseDmg = Mathf.Max(1, actor.Attack);
-                int modifiedDmg = Mathf.Max(1, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier));
+                int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
+                int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier));
                 int hpBefore = enemy.HP;
                 enemy.TakeDamage(modifiedDmg);
                 totalDamage += modifiedDmg;
@@ -685,8 +686,8 @@ public class BattleManager : MonoBehaviour
                 return;
             }
 
-            int baseDmg = Mathf.Max(1, actor.Attack);
-            int modifiedDmg = Mathf.Max(1, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier));
+            int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
+            int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier));
             int hpBefore = target.HP;
             target.TakeDamage(modifiedDmg);
             Debug.Log($"  -> {target.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {target.HP}", this);

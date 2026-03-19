@@ -17,6 +17,7 @@ public class TideTile : MonoBehaviour
     [SerializeField] private Vector2Int gridPosition;
 
     private Renderer cachedRenderer;
+    private Material cachedMaterial;
     private TextMeshPro valueLabel;
     private Vector3 baseScale;
     private Coroutine activeFlashCoroutine;
@@ -29,6 +30,10 @@ public class TideTile : MonoBehaviour
     private void Awake()
     {
         cachedRenderer = GetComponent<Renderer>();
+        if (cachedRenderer != null)
+        {
+            cachedMaterial = cachedRenderer.material;
+        }
         baseScale = transform.localScale;
         EnsureLabel();
         RefreshVisuals();
@@ -144,9 +149,9 @@ public class TideTile : MonoBehaviour
         {
             float t = elapsed / duration;
             float pingPong = Mathf.PingPong(t * 4f, 1f);
-            if (cachedRenderer != null)
+            if (cachedMaterial != null)
             {
-                cachedRenderer.material.color = Color.Lerp(original, flash, pingPong);
+                cachedMaterial.color = Color.Lerp(original, flash, pingPong);
             }
             transform.localScale = Vector3.Lerp(originalScale, originalScale * 0.85f, pingPong);
             elapsed += Time.deltaTime;
@@ -166,9 +171,9 @@ public class TideTile : MonoBehaviour
         {
             float t = elapsed / duration;
             float pingPong = Mathf.PingPong(t * 3f, 1f);
-            if (cachedRenderer != null)
+            if (cachedMaterial != null)
             {
-                cachedRenderer.material.color = Color.Lerp(original, flashColor, pingPong);
+                cachedMaterial.color = Color.Lerp(original, flashColor, pingPong);
             }
             elapsed += Time.deltaTime;
             yield return null;
@@ -206,7 +211,10 @@ public class TideTile : MonoBehaviour
             displayColor = Color.Lerp(displayColor, new Color(1f, 0.95f, 0.4f), 0.7f);
         }
 
-        cachedRenderer.material.color = displayColor;
+        if (cachedMaterial != null)
+        {
+            cachedMaterial.color = displayColor;
+        }
 
         float scaleBoost = 1f;
 
@@ -231,7 +239,10 @@ public class TideTile : MonoBehaviour
         }
 
         EnsureLabel();
-        cachedRenderer.material.color = GetBaseColor();
+        if (cachedMaterial != null)
+        {
+            cachedMaterial.color = GetBaseColor();
+        }
 
         if (valueLabel != null)
         {

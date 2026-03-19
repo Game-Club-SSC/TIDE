@@ -92,6 +92,11 @@ public class GameStateManager : MonoBehaviour
         Instance = null;
     }
 
+    private void OnApplicationQuit()
+    {
+        Instance = null;
+    }
+
     public bool CanEnterPuzzle()
     {
         return !isTransitioning && currentState == GameState.Exploration;
@@ -200,6 +205,12 @@ public class GameStateManager : MonoBehaviour
     {
         if (isTransitioning)
         {
+            yield break;
+        }
+
+        if (!SceneManager.GetSceneByName(sceneName).IsValid())
+        {
+            Debug.LogError($"[GameStateManager] Scene '{sceneName}' not found!");
             yield break;
         }
 

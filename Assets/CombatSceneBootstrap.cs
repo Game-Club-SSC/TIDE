@@ -172,7 +172,6 @@ public class CombatSceneBootstrap : MonoBehaviour
         combatCamera.backgroundColor = cameraBackground;
     }
 
-    // Store references to spawn points for unit spawning
     private Transform[] playerSpawnPoints;
     private Transform[] enemySpawnPoints;
     private EnemyComposition enemyComposition;

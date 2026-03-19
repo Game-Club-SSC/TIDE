@@ -37,11 +37,6 @@ public class PuzzleSceneBootstrap : MonoBehaviour
             }
         }
 
-        if (FindFirstObjectByType<Light>() != null)
-        {
-            // Other light types exist but no directional key light; continue and add one.
-        }
-
         GameObject lightObject = new GameObject("Directional Light");
         Light directionalLight = lightObject.AddComponent<Light>();
         directionalLight.type = LightType.Directional;

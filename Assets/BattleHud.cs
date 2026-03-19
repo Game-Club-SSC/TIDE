@@ -44,22 +44,28 @@ public class BattleHud : MonoBehaviour
     private void Awake()
     {
         EnsureCanvas();
+        TryFindBattleManager();
     }
 
     private void Update()
     {
         if (battleManager == null)
         {
-            battleManager = FindFirstObjectByType<BattleManager>();
-            if (battleManager != null)
-            {
-                battleManager.Momentum.OnMomentumChanged += OnMomentumChanged;
-            }
+            TryFindBattleManager();
         }
 
         if (battleManager != null)
         {
             RefreshDisplay();
+        }
+    }
+
+    private void TryFindBattleManager()
+    {
+        battleManager = FindFirstObjectByType<BattleManager>();
+        if (battleManager != null)
+        {
+            battleManager.Momentum.OnMomentumChanged += OnMomentumChanged;
         }
     }
 
