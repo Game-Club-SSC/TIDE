@@ -393,12 +393,9 @@ public class TideManager : MonoBehaviour
         {
             GameStateManager.Instance.PendingPuzzleLayout = null;
             GameStateManager.Instance.PendingPuzzleData = null;
-            GameStateManager.Instance.ReturnToMainScene();
         }
-        else
-        {
-            GameStateManager.Instance.ReturnToMainScene();
-        }
+
+        GameStateManager.Instance.ReturnToMainScene();
     }
 
     private bool CanReachWithinCarrySteps(TideTile startTile, TideTile endTile)

@@ -39,7 +39,17 @@ public class EnemyComposition
     public int[] defenseModifiers = Array.Empty<int>();
     public int[] maxHpModifiers = Array.Empty<int>();
 
-    public int Count => names.Length;
+    public int Count => Math.Min(Math.Min(Math.Min(Math.Min(names.Length, elements.Length), attackModifiers.Length), defenseModifiers.Length), maxHpModifiers.Length);
+
+    public bool IsValidIndex(int index)
+    {
+        return index >= 0
+            && index < names.Length
+            && index < elements.Length
+            && index < attackModifiers.Length
+            && index < defenseModifiers.Length
+            && index < maxHpModifiers.Length;
+    }
 
     public static EnemyComposition Create(string[] names, CombatUnit.Element[] elements,
         int[] atkMods, int[] defMods, int[] hpMods)
@@ -54,4 +64,3 @@ public class EnemyComposition
         };
     }
 }
-

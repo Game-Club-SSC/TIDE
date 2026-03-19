@@ -94,7 +94,7 @@ public class GameStateManager : MonoBehaviour
 
     public bool CanEnterPuzzle()
     {
-        return !PuzzleSolved && !isTransitioning;
+        return !isTransitioning && currentState == GameState.Exploration;
     }
 
     public bool CanEnterCombatScene()
@@ -243,6 +243,8 @@ public class GameStateManager : MonoBehaviour
 
         if (scene.name == MainSceneName)
         {
+            PuzzleSolved = false;
+
             if (hasPendingReturnPosition && player != null)
             {
                 player.transform.position = pendingReturnPosition;

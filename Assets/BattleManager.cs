@@ -135,8 +135,10 @@ public class BattleManager : MonoBehaviour
     private bool isAwaitingTargetSelection;
     private CombatUnit currentActingUnit;
     private CombatActionType pendingInputActionType = CombatActionType.Attack;
+    private SkillData pendingSkillData;
     private float actionStepTimer;
     private bool actionExecutionActive;
+    private BattleHud cachedBattleHud;
 
     private void Awake()
     {
@@ -320,16 +322,11 @@ public class BattleManager : MonoBehaviour
 
     private void BeginPlayerInputPhase()
     {
-        if (CheckBattleOutcome())
-        {
-            return;
-        }
-
-        selectedPlayerActions.Clear();
-        playerInputUnits = GetAliveUnits(CombatUnit.UnitType.Ally).ToList();
+        playerInputUnits = GetAliveUnits(CombatUnit.UnitType.Ally);
         playerInputIndex = 0;
         isAwaitingTargetSelection = false;
         pendingInputActionType = CombatActionType.Attack;
+        pendingSkillData = null;
 
         if (playerInputUnits.Count == 0)
         {
@@ -608,8 +605,6 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        actor.SpendMp(skill.mpCost);
-
         CombatUnit target = requestedTarget;
         if (!IsValidTarget(actor, target))
         {
@@ -621,6 +616,8 @@ public class BattleManager : MonoBehaviour
             Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} but has no valid target.", this);
             return;
         }
+
+        actor.SpendMp(skill.mpCost);
 
         int baseDamage = Mathf.Max(1, actor.Attack);
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
@@ -683,6 +680,8 @@ public class BattleManager : MonoBehaviour
 
             if (target == null)
             {
+                momentumState.Reset();
+                Debug.Log("[BattleManager] Momentum reset after Tide Break.", this);
                 return;
             }
 
@@ -879,7 +878,8 @@ public class BattleManager : MonoBehaviour
             return $"[ENEMY TB READY] {bar}";
         }
 
-        return $"[{direction} +{Mathf.Abs(value):F2}] {bar}";
+        string sign = value >= 0f ? "+" : "-";
+        return $"[{direction} {sign}{Mathf.Abs(value):F2}] {bar}";
     }
 
     private string BuildQueuePreview()
@@ -920,7 +920,12 @@ public class BattleManager : MonoBehaviour
 
     private void OnGUI()
     {
-        if (FindFirstObjectByType<BattleHud>() != null)
+        if (cachedBattleHud == null)
+        {
+            cachedBattleHud = FindFirstObjectByType<BattleHud>();
+        }
+
+        if (cachedBattleHud != null)
         {
             return;
         }
@@ -963,13 +968,20 @@ public class BattleManager : MonoBehaviour
                         : null;
                     if (skill != null && currentInputUnit.CanUseSkill(skill))
                     {
-                        AssignPlayerAction(currentInputUnit, CombatActionType.Skill, currentInputActionTarget, skill);
+                        pendingInputActionType = CombatActionType.Skill;
+                        pendingSkillData = skill;
+                        isAwaitingTargetSelection = true;
                     }
                 }
             }
             else
             {
-                GUI.Label(new Rect(panelRect.x + 12f, y, panelRect.width - 24f, 22f), "Select Attack Target:");
+                string targetPrompt = pendingInputActionType == CombatActionType.Skill
+                    ? "Select Skill Target:"
+                    : pendingInputActionType == CombatActionType.TideBreak
+                        ? "Select Tide Break Target:"
+                        : "Select Attack Target:";
+                GUI.Label(new Rect(panelRect.x + 12f, y, panelRect.width - 24f, 22f), targetPrompt);
                 y += 26f;
 
                 IReadOnlyList<CombatUnit> targets = GetAliveUnits(CombatUnit.UnitType.Enemy);
@@ -978,7 +990,15 @@ public class BattleManager : MonoBehaviour
                     CombatUnit target = targets[i];
                     if (GUI.Button(new Rect(panelRect.x + 12f, y, panelRect.width - 24f, 24f), $"{target.UnitName} (HP {target.HP}/{target.MaxHP})"))
                     {
-                        AssignPlayerAction(currentInputUnit, pendingInputActionType, target);
+                        if (pendingInputActionType == CombatActionType.Skill && pendingSkillData != null)
+                        {
+                            AssignPlayerAction(currentInputUnit, pendingInputActionType, target, pendingSkillData);
+                            pendingSkillData = null;
+                        }
+                        else
+                        {
+                            AssignPlayerAction(currentInputUnit, pendingInputActionType, target);
+                        }
                         isAwaitingTargetSelection = false;
                     }
 
@@ -988,6 +1008,7 @@ public class BattleManager : MonoBehaviour
                 if (GUI.Button(new Rect(panelRect.x + 12f, y, 120f, 26f), "Cancel"))
                 {
                     isAwaitingTargetSelection = false;
+                    pendingSkillData = null;
                 }
             }
         }
@@ -1038,6 +1059,79 @@ public class BattleManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    public CombatUnit GetCurrentInputUnit()
+    {
+        return GetCurrentPlayerInputUnit();
+    }
+
+    public bool TryAssignActionFromHud(CombatActionType actionType, CombatUnit target)
+    {
+        if (!hasActivePhase || currentPhase != BattlePhase.PlayerInput || IsTerminalPhase(currentPhase))
+        {
+            return false;
+        }
+
+        CombatUnit actor = GetCurrentPlayerInputUnit();
+        if (actor == null)
+        {
+            return false;
+        }
+
+        switch (actionType)
+        {
+            case CombatActionType.Defend:
+                AssignPlayerAction(actor, CombatActionType.Defend, null);
+                TryAutoConfirmPlayerActions();
+                return true;
+
+            case CombatActionType.Attack:
+                if (!IsValidTarget(actor, target))
+                {
+                    return false;
+                }
+
+                AssignPlayerAction(actor, CombatActionType.Attack, target);
+                TryAutoConfirmPlayerActions();
+                return true;
+
+            case CombatActionType.Skill:
+                if (!IsValidTarget(actor, target) || actor.Skills == null || actor.Skills.Length == 0)
+                {
+                    return false;
+                }
+
+                SkillData skill = actor.Skills[0];
+                if (!actor.CanUseSkill(skill))
+                {
+                    return false;
+                }
+
+                AssignPlayerAction(actor, CombatActionType.Skill, target, skill);
+                TryAutoConfirmPlayerActions();
+                return true;
+
+            case CombatActionType.TideBreak:
+                if (!momentumState.IsPlayerTideBreakReady || !IsValidTarget(actor, target))
+                {
+                    return false;
+                }
+
+                AssignPlayerAction(actor, CombatActionType.TideBreak, target);
+                TryAutoConfirmPlayerActions();
+                return true;
+        }
+
+        return false;
+    }
+
+    private void TryAutoConfirmPlayerActions()
+    {
+        if (AreAllPlayerActionsAssigned() && currentPhase == BattlePhase.PlayerInput)
+        {
+            TransitionToPhase(BattlePhase.ActionExecution, "HudAssignedAllActions");
+        }
     }
 
     private void AssignPlayerAction(CombatUnit actor, CombatActionType actionType, CombatUnit target)

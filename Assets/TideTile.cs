@@ -19,6 +19,7 @@ public class TideTile : MonoBehaviour
     private Renderer cachedRenderer;
     private TextMeshPro valueLabel;
     private Vector3 baseScale;
+    private Coroutine activeFlashCoroutine;
     private static readonly Quaternion LabelTopDownRotation = Quaternion.Euler(90f, 0f, 0f);
 
     public Vector2Int GridPosition => gridPosition;
@@ -102,17 +103,33 @@ public class TideTile : MonoBehaviour
         currentTideValue -= decay;
         currentTideValue = Mathf.Max(currentTideValue, 5);
         RefreshVisuals();
-        StartCoroutine(FlashDecay());
+        StartFlash(FlashDecay());
     }
 
     public void FlashInvalid()
     {
-        StartCoroutine(FlashColor(new Color(1f, 0.25f, 0.25f), 0.3f));
+        StartFlash(FlashColor(new Color(1f, 0.25f, 0.25f), 0.3f));
     }
 
     public void FlashComplete()
     {
-        StartCoroutine(FlashColor(new Color(0.2f, 1f, 0.4f), 0.5f));
+        StartFlash(FlashColor(new Color(0.2f, 1f, 0.4f), 0.5f));
+    }
+
+    private void StartFlash(IEnumerator routine)
+    {
+        if (activeFlashCoroutine != null)
+        {
+            StopCoroutine(activeFlashCoroutine);
+            RefreshVisuals();
+        }
+        activeFlashCoroutine = StartCoroutine(RunFlash(routine));
+    }
+
+    private IEnumerator RunFlash(IEnumerator routine)
+    {
+        yield return StartCoroutine(routine);
+        activeFlashCoroutine = null;
     }
 
     private IEnumerator FlashDecay()

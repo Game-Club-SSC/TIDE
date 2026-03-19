@@ -40,7 +40,6 @@ public class BattleHud : MonoBehaviour
 
     // State display
     private Text phaseLabel;
-    private Text actionLog;
 
     private void Awake()
     {
@@ -139,24 +138,34 @@ public class BattleHud : MonoBehaviour
         bool isPlayerInput = battleManager.CurrentPhase == BattlePhase.PlayerInput;
         actionPanel.SetActive(isPlayerInput);
 
-        if (!isPlayerInput) return;
-
-        // Skill button
-        IReadOnlyList<CombatUnit> allies = battleManager.AllyUnits;
-        foreach (CombatUnit ally in allies)
+        if (!isPlayerInput)
         {
-            if (ally.IsAlive && ally.Skills != null && ally.Skills.Length > 0)
+            if (targetPanel != null)
             {
-                SkillData skill = ally.Skills[0];
-                if (skillButtonText != null)
-                {
-                    skillButtonText.text = ally.CanUseSkill(skill)
-                        ? $"{skill.skillName} ({skill.mpCost} MP)"
-                        : "No MP";
-                }
-                skillButton.interactable = ally.CanUseSkill(skill);
-                break;
+                targetPanel.SetActive(false);
             }
+            return;
+        }
+
+        CombatUnit currentInput = battleManager.GetCurrentInputUnit();
+        if (currentInput != null && currentInput.Skills != null && currentInput.Skills.Length > 0)
+        {
+            SkillData skill = currentInput.Skills[0];
+            if (skillButtonText != null)
+            {
+                skillButtonText.text = currentInput.CanUseSkill(skill)
+                    ? $"{skill.skillName} ({skill.mpCost} MP)"
+                    : $"No MP ({skill.mpCost})";
+            }
+            skillButton.interactable = currentInput.CanUseSkill(skill);
+        }
+        else
+        {
+            if (skillButtonText != null)
+            {
+                skillButtonText.text = "No Skill";
+            }
+            skillButton.interactable = false;
         }
 
         // Tide Break button
@@ -179,11 +188,13 @@ public class BattleHud : MonoBehaviour
 
         if (value >= 0)
         {
-            momentumFill.color = Color.Lerp(new Color(0.2f, 0.5f, 1f), new Color(0.1f, 1f, 0.3f), normalized * 2f);
+            float t = Mathf.InverseLerp(0f, 1f, value);
+            momentumFill.color = Color.Lerp(new Color(0.2f, 0.5f, 1f), new Color(0.1f, 1f, 0.3f), t);
         }
         else
         {
-            momentumFill.color = Color.Lerp(new Color(0.2f, 0.5f, 1f), new Color(1f, 0.2f, 0.2f), -normalized * 2f);
+            float t = Mathf.InverseLerp(0f, -1f, value);
+            momentumFill.color = Color.Lerp(new Color(0.2f, 0.5f, 1f), new Color(1f, 0.2f, 0.2f), t);
         }
 
         if (momentumLabel != null)
@@ -208,7 +219,7 @@ public class BattleHud : MonoBehaviour
     private string BuildBar(int current, int max, int length)
     {
         if (max <= 0) return new string('.', length);
-        int filled = Mathf.RoundToInt((float)current / max * length);
+        int filled = Mathf.Clamp(Mathf.RoundToInt((float)current / max * length), 0, length);
         return new string('█', filled) + new string('░', length - filled);
     }
 
@@ -220,11 +231,12 @@ public class BattleHud : MonoBehaviour
 
     private void OnDefendClicked()
     {
-        CombatUnit unit = GetCurrentInputUnit();
-        if (unit != null)
+        if (battleManager == null)
         {
-            battleManager.SendMessage("AssignPlayerAction", new object[] { unit, CombatActionType.Defend, (CombatUnit)null });
+            return;
         }
+
+        battleManager.TryAssignActionFromHud(CombatActionType.Defend, null);
     }
 
     private void OnSkillClicked()
@@ -239,6 +251,11 @@ public class BattleHud : MonoBehaviour
 
     private void ShowTargetSelection(CombatActionType actionType)
     {
+        if (battleManager == null)
+        {
+            return;
+        }
+
         targetPanel.SetActive(true);
         IReadOnlyList<CombatUnit> enemies = battleManager.GetAliveUnits(CombatUnit.UnitType.Enemy);
 
@@ -262,31 +279,12 @@ public class BattleHud : MonoBehaviour
     private void OnTargetSelected(CombatActionType actionType, CombatUnit target)
     {
         targetPanel.SetActive(false);
-        CombatUnit unit = GetCurrentInputUnit();
-        if (unit == null) return;
-
-        if (actionType == CombatActionType.Skill && unit.Skills != null && unit.Skills.Length > 0)
+        if (battleManager == null)
         {
-            battleManager.SendMessage("AssignPlayerAction", new object[] { unit, actionType, target, unit.Skills[0] });
-        }
-        else
-        {
-            battleManager.SendMessage("AssignPlayerAction", new object[] { unit, actionType, target });
-        }
-    }
-
-    private CombatUnit GetCurrentInputUnit()
-    {
-        IReadOnlyList<CombatUnit> allies = battleManager.AllyUnits;
-        foreach (CombatUnit ally in allies)
-        {
-            if (ally.IsAlive)
-            {
-                return ally;
-            }
+            return;
         }
 
-        return null;
+        battleManager.TryAssignActionFromHud(actionType, target);
     }
 
     // --- Canvas construction ---

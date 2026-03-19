@@ -9,12 +9,14 @@ public class IsometricPlayer : MonoBehaviour
     public bool canMove = true;
 
     private Rigidbody rb;
+    private Camera cachedMainCamera;
     private Vector3 inputVector;
     private float currentSpeed;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        cachedMainCamera = Camera.main;
         rb.freezeRotation = true;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         currentSpeed = walkSpeed;
@@ -53,7 +55,12 @@ public class IsometricPlayer : MonoBehaviour
         }
 
         // 3. Camera-relative movement math
-        Camera activeCamera = Camera.main;
+        if (cachedMainCamera == null)
+        {
+            cachedMainCamera = Camera.main;
+        }
+
+        Camera activeCamera = cachedMainCamera;
         Vector3 forward = activeCamera != null ? activeCamera.transform.forward : Vector3.forward;
         Vector3 right = activeCamera != null ? activeCamera.transform.right : Vector3.right;
 

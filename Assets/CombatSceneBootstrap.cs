@@ -275,7 +275,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                     GameObject unitObject = SpawnOrCreateUnit(playerUnitPrefab, playerSpawnPoints[i], $"PlayerUnit_{i + 1}", allyUnitColor);
                     CombatUnit unit = GetOrAddCombatUnit(unitObject);
                     unit.Type = CombatUnit.UnitType.Ally;
-                    unit.UnitName = allyNames[i];
+                    unit.UnitName = i < allyNames.Length ? allyNames[i] : $"Ally_{i + 1}";
                     unit.Attack += i * 2;
                     unit.Speed += i;
                     SetUnitColor(unitObject, allyUnitColor);
@@ -309,6 +309,7 @@ public class CombatSceneBootstrap : MonoBehaviour
 
         if (enemySpawnPoints != null)
         {
+            string[] defaultEnemyNames = { "Imp", "Orc", "Troll" };
             for (int i = 0; i < enemySpawnPoints.Length; i++)
             {
                 if (enemySpawnPoints[i] != null)
@@ -317,7 +318,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                     CombatUnit unit = GetOrAddCombatUnit(unitObject);
                     unit.Type = CombatUnit.UnitType.Enemy;
 
-                    if (enemyComposition != null && i < enemyComposition.Count)
+                    if (enemyComposition != null && enemyComposition.IsValidIndex(i))
                     {
                         unit.UnitName = enemyComposition.names[i];
                         unit.ElementType = enemyComposition.elements[i];
@@ -328,8 +329,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                     }
                     else
                     {
-                        string[] defaultEnemyNames = { "Imp", "Orc", "Troll" };
-                        unit.UnitName = defaultEnemyNames[i];
+                        unit.UnitName = i < defaultEnemyNames.Length ? defaultEnemyNames[i] : $"Enemy_{i + 1}";
                         switch (i)
                         {
                             case 0:
@@ -395,17 +395,6 @@ public class CombatSceneBootstrap : MonoBehaviour
         return unitObject;
     }
 
-    private Material runtimeUnitMaterial;
-
-    private void OnDestroy()
-    {
-        if (runtimeUnitMaterial != null)
-        {
-            Destroy(runtimeUnitMaterial);
-            runtimeUnitMaterial = null;
-        }
-    }
-
     private void SetUnitColor(GameObject unitObject, Color color)
     {
         Renderer renderer = unitObject.GetComponent<Renderer>();
@@ -414,23 +403,7 @@ public class CombatSceneBootstrap : MonoBehaviour
             return;
         }
 
-        if (runtimeUnitMaterial != null)
-        {
-            Destroy(runtimeUnitMaterial);
-        }
-
-        Material sourceMaterial = renderer.sharedMaterial;
-        if (sourceMaterial != null)
-        {
-            runtimeUnitMaterial = new Material(sourceMaterial);
-        }
-        else
-        {
-            runtimeUnitMaterial = new Material(Shader.Find("Standard"));
-        }
-
-        runtimeUnitMaterial.color = color;
-        renderer.material = runtimeUnitMaterial;
+        renderer.material.color = color;
     }
 
     private void EnsureBattleHud()

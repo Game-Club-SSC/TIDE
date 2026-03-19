@@ -28,9 +28,18 @@ public class PuzzleSceneBootstrap : MonoBehaviour
 
     private void EnsureDirectionalLight()
     {
+        Light[] lights = FindObjectsByType<Light>(FindObjectsSortMode.None);
+        for (int i = 0; i < lights.Length; i++)
+        {
+            if (lights[i] != null && lights[i].type == LightType.Directional)
+            {
+                return;
+            }
+        }
+
         if (FindFirstObjectByType<Light>() != null)
         {
-            return;
+            // Other light types exist but no directional key light; continue and add one.
         }
 
         GameObject lightObject = new GameObject("Directional Light");

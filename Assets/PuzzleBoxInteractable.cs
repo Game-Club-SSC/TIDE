@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
-[RequireComponent(typeof(Collider))]
+[RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Renderer))]
 public class PuzzleBoxInteractable : MonoBehaviour
 {
@@ -27,7 +27,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
     [SerializeField] private int sealedRow = 1;
     [SerializeField] private int sealedCol = 1;
 
-    private Collider interactionTrigger;
+    private BoxCollider interactionTrigger;
     private Renderer cachedRenderer;
     private GameObject promptRoot;
     private bool playerInRange;
@@ -37,28 +37,14 @@ public class PuzzleBoxInteractable : MonoBehaviour
     private void Awake()
     {
         cachedRenderer = GetComponent<Renderer>();
-        interactionTrigger = GetComponent<Collider>();
-
-        if (interactionTrigger is BoxCollider triggerBox)
-        {
-            triggerBox.isTrigger = true;
-            triggerBox.size = triggerSize;
-        }
+        interactionTrigger = GetComponent<BoxCollider>();
+        interactionTrigger.isTrigger = true;
+        interactionTrigger.size = triggerSize;
 
         EnsureSolidCollider();
         CreatePromptVisual();
         ApplyBoxColor();
         SetPromptVisible(false);
-    }
-
-    private void Start()
-    {
-        bool globalSolved = GameStateManager.Instance != null && GameStateManager.Instance.PuzzleSolved;
-        bool flowControlled = GameStateManager.Instance != null && GameStateManager.Instance.HasActiveFlowController;
-        if (globalSolved && !flowControlled)
-        {
-            Destroy(gameObject);
-        }
     }
 
     private bool isBeingDestroyed;
@@ -70,10 +56,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
             return;
         }
 
-        bool globalSolved = GameStateManager.Instance != null && GameStateManager.Instance.PuzzleSolved;
-        bool flowControlled = GameStateManager.Instance != null && GameStateManager.Instance.HasActiveFlowController;
-
-        if (thisBoxSolved || (globalSolved && !flowControlled))
+        if (thisBoxSolved)
         {
             isBeingDestroyed = true;
             Destroy(gameObject);
@@ -82,9 +65,11 @@ public class PuzzleBoxInteractable : MonoBehaviour
 
         UpdatePromptFacing();
 
+        GameStateManager gsm = GameStateManager.Instance;
+
         bool canInteract = playerInRange &&
-                           GameStateManager.Instance != null &&
-                           GameStateManager.Instance.CanEnterPuzzle();
+                           gsm != null &&
+                           gsm.CanEnterPuzzle();
 
         SetPromptVisible(canInteract);
 
@@ -101,11 +86,11 @@ public class PuzzleBoxInteractable : MonoBehaviour
         IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
         Vector3 returnPosition = player != null ? player.transform.position : transform.position + Vector3.back * 2f;
 
-        if (puzzleData != null && GameStateManager.Instance != null)
+        if (puzzleData != null && gsm != null)
         {
-            GameStateManager.Instance.PendingPuzzleData = puzzleData;
+            gsm.PendingPuzzleData = puzzleData;
         }
-        else if (puzzleValues != null && puzzleValues.Length == 9 && GameStateManager.Instance != null)
+        else if (puzzleValues != null && puzzleValues.Length == 9 && gsm != null)
         {
             int[,] grid = new int[3, 3];
             for (int r = 0; r < 3; r++)
@@ -116,11 +101,11 @@ public class PuzzleBoxInteractable : MonoBehaviour
                 }
             }
 
-            GameStateManager.Instance.PendingPuzzleLayout = grid;
-            GameStateManager.Instance.PendingPuzzleSealedTile = new Vector2Int(sealedCol, sealedRow);
+            gsm.PendingPuzzleLayout = grid;
+            gsm.PendingPuzzleSealedTile = new Vector2Int(sealedCol, sealedRow);
         }
 
-        GameStateManager.Instance.EnterPuzzleScene(returnPosition);
+        gsm?.EnterPuzzleScene(returnPosition);
     }
 
     public void MarkSolved()
@@ -170,7 +155,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
 
         BoxCollider solidCollider = gameObject.AddComponent<BoxCollider>();
         solidCollider.isTrigger = false;
-        solidCollider.size = Vector3.one;
+        solidCollider.size = triggerSize;
         solidCollider.center = Vector3.zero;
     }
 

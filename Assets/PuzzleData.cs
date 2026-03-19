@@ -79,12 +79,24 @@ public class PuzzleData : ScriptableObject
 
     public int[,] GetGrid()
     {
-        int[,] grid = new int[3, 3];
+        int[,] grid =
+        {
+            { 5, 5, 5 },
+            { 5, 5, 5 },
+            { 5, 5, 5 }
+        };
+
+        if (tileValues == null || tileValues.Length < 9)
+        {
+            Debug.LogWarning("[PuzzleData] tileValues has fewer than 9 entries. Using default 5s.");
+            return grid;
+        }
+
         for (int row = 0; row < 3; row++)
         {
             for (int col = 0; col < 3; col++)
             {
-                grid[row, col] = tileValues[row * 3 + col];
+                grid[row, col] = Mathf.Clamp(tileValues[row * 3 + col], 1, 10);
             }
         }
 

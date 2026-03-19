@@ -7,6 +7,7 @@ public class IslandFlowController : MonoBehaviour
 
     private int currentEncounterIndex;
     private bool isActive;
+    private bool awaitingEncounterResolution;
 
     public bool IsActive => isActive;
     public int CurrentEncounterIndex => currentEncounterIndex;
@@ -48,6 +49,7 @@ public class IslandFlowController : MonoBehaviour
         islandConfig = config;
         currentEncounterIndex = 0;
         isActive = true;
+        awaitingEncounterResolution = false;
         tracker.ResetIsland(islandConfig.islandId);
 
         if (GameStateManager.Instance != null)
@@ -61,10 +63,12 @@ public class IslandFlowController : MonoBehaviour
 
     public void OnEncounterComplete()
     {
-        if (!isActive || islandConfig == null)
+        if (!isActive || islandConfig == null || !awaitingEncounterResolution)
         {
             return;
         }
+
+        awaitingEncounterResolution = false;
 
         if (currentEncounterIndex >= islandConfig.encounters.Length)
         {
@@ -92,7 +96,7 @@ public class IslandFlowController : MonoBehaviour
 
     public void OnReturnFromPuzzle()
     {
-        if (!isActive)
+        if (!isActive || !awaitingEncounterResolution)
         {
             return;
         }
@@ -102,7 +106,7 @@ public class IslandFlowController : MonoBehaviour
 
     public void OnReturnFromCombat()
     {
-        if (!isActive)
+        if (!isActive || !awaitingEncounterResolution)
         {
             return;
         }
@@ -120,7 +124,7 @@ public class IslandFlowController : MonoBehaviour
 
         EncounterDefinition encounter = islandConfig.encounters[currentEncounterIndex];
         int subsection = currentEncounterIndex / 2;
-        int totalSubsections = islandConfig.encounters.Length / 2;
+        int totalSubsections = Mathf.Max(1, (islandConfig.encounters.Length + 1) / 2);
 
         Debug.Log($"[IslandFlowController] Loading Subsection {subsection + 1}/{totalSubsections} — {encounter.type}");
 
@@ -136,6 +140,8 @@ public class IslandFlowController : MonoBehaviour
 
     private void LoadCombatEncounter(EncounterDefinition encounter)
     {
+        awaitingEncounterResolution = true;
+
         if (encounter.enemyComposition != null && GameStateManager.Instance != null)
         {
             GameStateManager.Instance.PendingEnemyComposition = encounter.enemyComposition;
@@ -149,6 +155,8 @@ public class IslandFlowController : MonoBehaviour
 
     private void LoadPuzzleEncounter(EncounterDefinition encounter)
     {
+        awaitingEncounterResolution = true;
+
         if (encounter.puzzleData != null && GameStateManager.Instance != null)
         {
             GameStateManager.Instance.PendingPuzzleData = encounter.puzzleData;

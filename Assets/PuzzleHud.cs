@@ -54,7 +54,7 @@ public class PuzzleHud : MonoBehaviour
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.R))
+        if (Input.GetKeyDown(KeyCode.T))
         {
             OnResetPressed();
         }
@@ -189,7 +189,7 @@ public class PuzzleHud : MonoBehaviour
         resetText.fontSize = 16;
         resetText.alignment = TextAnchor.MiddleCenter;
         resetText.color = Color.white;
-        resetText.text = "Reset [R]";
+        resetText.text = "Reset [T]";
         resetText.raycastTarget = false;
     }
 
