@@ -31,6 +31,15 @@ public class GameStateManager : MonoBehaviour
     private bool hasPendingReturnPosition;
     private bool isTransitioning;
 
+    public int[,] PendingPuzzleLayout { get; set; }
+    public Vector2Int PendingPuzzleSealedTile { get; set; }
+    public EnemyComposition PendingEnemyComposition { get; set; }
+    public IslandFlowController FlowController { get; set; }
+    public bool HasActiveFlowController => FlowController != null && FlowController.IsActive;
+    private bool isFlowControlledCombat;
+    private bool deferredFlowFromCombat;
+    private bool deferredFlowFromPuzzle;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -84,6 +93,7 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
+        isFlowControlledCombat = HasActiveFlowController;
         StartCoroutine(TransitionToScene(CombatSceneName, GameState.Combat));
     }
 
@@ -117,9 +127,41 @@ public class GameStateManager : MonoBehaviour
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
     }
 
+    public void EnterPuzzleSceneForced(Vector3 returnPosition)
+    {
+        if (isTransitioning)
+        {
+            return;
+        }
+
+        pendingReturnPosition = returnPosition;
+        hasPendingReturnPosition = true;
+        StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
+    }
+
     public void MarkPuzzleSolved()
     {
         PuzzleSolved = true;
+    }
+
+    public void OnCombatEnded()
+    {
+        if (HasActiveFlowController)
+        {
+            StartCoroutine(ReturnFromCombatAfterDelay(1.5f));
+        }
+    }
+
+    private IEnumerator ReturnFromCombatAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        if (isTransitioning)
+        {
+            yield break;
+        }
+
+        ReturnToMainScene();
     }
 
     public void ReturnToMainScene()
@@ -154,6 +196,23 @@ public class GameStateManager : MonoBehaviour
         yield return FadeCanvas(0f, FadeDuration);
 
         isTransitioning = false;
+
+        if (deferredFlowFromCombat)
+        {
+            deferredFlowFromCombat = false;
+            if (HasActiveFlowController)
+            {
+                FlowController.OnReturnFromCombat();
+            }
+        }
+        else if (deferredFlowFromPuzzle)
+        {
+            deferredFlowFromPuzzle = false;
+            if (HasActiveFlowController)
+            {
+                FlowController.OnReturnFromPuzzle();
+            }
+        }
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode loadMode)
@@ -179,6 +238,16 @@ public class GameStateManager : MonoBehaviour
             {
                 currentState = GameState.Exploration;
                 SetPlayerMovementLocked(false);
+            }
+
+            if (isFlowControlledCombat)
+            {
+                deferredFlowFromCombat = true;
+                isFlowControlledCombat = false;
+            }
+            else if (HasActiveFlowController)
+            {
+                deferredFlowFromPuzzle = true;
             }
         }
         else if (scene.name == PuzzleSceneName)

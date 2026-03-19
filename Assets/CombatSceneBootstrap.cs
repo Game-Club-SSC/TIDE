@@ -33,6 +33,13 @@ public class CombatSceneBootstrap : MonoBehaviour
     private void Awake()
     {
         EnsureGameManager();
+
+        if (GameStateManager.Instance != null && GameStateManager.Instance.PendingEnemyComposition != null)
+        {
+            enemyComposition = GameStateManager.Instance.PendingEnemyComposition;
+            GameStateManager.Instance.PendingEnemyComposition = null;
+        }
+
         EnsureDirectionalLight();
         EnsureBattlefield();
         EnsureCombatCamera();
@@ -167,6 +174,7 @@ public class CombatSceneBootstrap : MonoBehaviour
     // Store references to spawn points for unit spawning
     private Transform[] playerSpawnPoints;
     private Transform[] enemySpawnPoints;
+    private EnemyComposition enemyComposition;
 
     private void EnsureSpawnPoints()
     {
@@ -190,6 +198,11 @@ public class CombatSceneBootstrap : MonoBehaviour
         {
             gameObject.AddComponent<BattleManager>();
         }
+    }
+
+    public void SetEnemyComposition(EnemyComposition composition)
+    {
+        enemyComposition = composition;
     }
 
     private Transform EnsureSlot(Transform parent, string slotName, Vector3 localPosition, Color markerColor)
@@ -251,7 +264,6 @@ public class CombatSceneBootstrap : MonoBehaviour
     {
         BattleManager battleManager = GetComponent<BattleManager>();
         string[] allyNames = { "Warrior", "Mage", "Ranger" };
-        string[] enemyNames = { "Imp", "Orc", "Troll" };
 
         if (playerSpawnPoints != null)
         {
@@ -284,23 +296,38 @@ public class CombatSceneBootstrap : MonoBehaviour
                     GameObject unitObject = SpawnOrCreateUnit(enemyUnitPrefab, enemySpawnPoints[i], $"EnemyUnit_{i + 1}", enemyUnitColor);
                     CombatUnit unit = GetOrAddCombatUnit(unitObject);
                     unit.Type = CombatUnit.UnitType.Enemy;
-                    unit.UnitName = enemyNames[i];
-                    switch (i)
+
+                    if (enemyComposition != null && i < enemyComposition.Count)
                     {
-                        case 0:
-                            unit.ElementType = CombatUnit.Element.Fire;
-                            break;
-                        case 1:
-                            unit.ElementType = CombatUnit.Element.Water;
-                            break;
-                        case 2:
-                            unit.ElementType = CombatUnit.Element.Earth;
-                            break;
+                        unit.UnitName = enemyComposition.names[i];
+                        unit.ElementType = enemyComposition.elements[i];
+                        unit.Attack += enemyComposition.attackModifiers[i];
+                        unit.Defense += enemyComposition.defenseModifiers[i];
+                        unit.MaxHP += enemyComposition.maxHpModifiers[i];
+                        unit.HP = unit.MaxHP;
+                    }
+                    else
+                    {
+                        string[] defaultEnemyNames = { "Imp", "Orc", "Troll" };
+                        unit.UnitName = defaultEnemyNames[i];
+                        switch (i)
+                        {
+                            case 0:
+                                unit.ElementType = CombatUnit.Element.Fire;
+                                break;
+                            case 1:
+                                unit.ElementType = CombatUnit.Element.Water;
+                                break;
+                            case 2:
+                                unit.ElementType = CombatUnit.Element.Earth;
+                                break;
+                        }
+
+                        unit.Defense += i;
+                        unit.MaxHP += i * 10;
+                        unit.HP = unit.MaxHP;
                     }
 
-                    unit.Defense += i;
-                    unit.MaxHP += i * 10;
-                    unit.HP = unit.MaxHP;
                     SetUnitColor(unitObject, enemyUnitColor);
 
                     if (battleManager != null)

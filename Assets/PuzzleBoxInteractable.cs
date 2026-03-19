@@ -18,11 +18,18 @@ public class PuzzleBoxInteractable : MonoBehaviour
     [SerializeField] private Vector3 triggerSize = new Vector3(3.25f, 2.25f, 3.25f);
     [SerializeField] private Color boxColor = new Color(1f, 0.45f, 0.12f);
 
+    [Header("Puzzle Layout")]
+    [Tooltip("3x3 grid of Tide values in row-major order. Leave empty for default layout.")]
+    [SerializeField] private int[] puzzleValues;
+    [SerializeField] private int sealedRow = 1;
+    [SerializeField] private int sealedCol = 1;
+
     private Collider interactionTrigger;
     private Renderer cachedRenderer;
     private GameObject promptRoot;
     private bool playerInRange;
     private Sprite runtimePromptSprite;
+    private bool thisBoxSolved;
 
     private void Awake()
     {
@@ -43,7 +50,9 @@ public class PuzzleBoxInteractable : MonoBehaviour
 
     private void Start()
     {
-        if (GameStateManager.Instance != null && GameStateManager.Instance.PuzzleSolved)
+        bool globalSolved = GameStateManager.Instance != null && GameStateManager.Instance.PuzzleSolved;
+        bool flowControlled = GameStateManager.Instance != null && GameStateManager.Instance.HasActiveFlowController;
+        if (globalSolved && !flowControlled)
         {
             Destroy(gameObject);
         }
@@ -58,7 +67,10 @@ public class PuzzleBoxInteractable : MonoBehaviour
             return;
         }
 
-        if (GameStateManager.Instance != null && GameStateManager.Instance.PuzzleSolved)
+        bool globalSolved = GameStateManager.Instance != null && GameStateManager.Instance.PuzzleSolved;
+        bool flowControlled = GameStateManager.Instance != null && GameStateManager.Instance.HasActiveFlowController;
+
+        if (thisBoxSolved || (globalSolved && !flowControlled))
         {
             isBeingDestroyed = true;
             Destroy(gameObject);
@@ -85,7 +97,28 @@ public class PuzzleBoxInteractable : MonoBehaviour
 
         IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
         Vector3 returnPosition = player != null ? player.transform.position : transform.position + Vector3.back * 2f;
+
+        if (puzzleValues != null && puzzleValues.Length == 9 && GameStateManager.Instance != null)
+        {
+            int[,] grid = new int[3, 3];
+            for (int r = 0; r < 3; r++)
+            {
+                for (int c = 0; c < 3; c++)
+                {
+                    grid[r, c] = puzzleValues[r * 3 + c];
+                }
+            }
+
+            GameStateManager.Instance.PendingPuzzleLayout = grid;
+            GameStateManager.Instance.PendingPuzzleSealedTile = new Vector2Int(sealedCol, sealedRow);
+        }
+
         GameStateManager.Instance.EnterPuzzleScene(returnPosition);
+    }
+
+    public void MarkSolved()
+    {
+        thisBoxSolved = true;
     }
 
     private void OnTriggerEnter(Collider other)

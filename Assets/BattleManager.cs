@@ -244,6 +244,13 @@ public class BattleManager : MonoBehaviour
             case BattlePhase.EndTurn:
                 BeginEndTurnPhase();
                 break;
+            case BattlePhase.Victory:
+            case BattlePhase.Defeat:
+                if (GameStateManager.Instance != null)
+                {
+                    GameStateManager.Instance.OnCombatEnded();
+                }
+                break;
         }
     }
 

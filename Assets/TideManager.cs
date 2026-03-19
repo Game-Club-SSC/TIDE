@@ -18,13 +18,13 @@ public class TideManager : MonoBehaviour
     [SerializeField] private float completionReturnDelay = 1f;
 
     private readonly TideTile[,] activeTiles = new TideTile[3, 3];
-    private readonly int[,] puzzleValues =
+    private int[,] puzzleValues =
     {
         { 9, 1, 10 },
         { 7, 5, 2 },
         { 5, 3, 3 }
     };
-    private readonly bool[,] sealedTiles =
+    private bool[,] sealedTiles =
     {
         { false, false, false },
         { false, true, false },
@@ -37,12 +37,39 @@ public class TideManager : MonoBehaviour
     private int carriedAmount;
     private bool puzzleSolved;
 
+    public void InitializePuzzle(int[,] layout, Vector2Int sealedTile)
+    {
+        if (layout == null || layout.GetLength(0) != 3 || layout.GetLength(1) != 3)
+        {
+            Debug.LogWarning("[TideManager] Invalid layout provided. Using default.");
+            return;
+        }
+
+        puzzleValues = new int[3, 3];
+        sealedTiles = new bool[3, 3];
+
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                puzzleValues[row, col] = layout[row, col];
+                sealedTiles[row, col] = (row == sealedTile.y && col == sealedTile.x);
+            }
+        }
+    }
+
     private void Start()
     {
         if (SceneManager.GetActiveScene().name != GameStateManager.PuzzleSceneName)
         {
             enabled = false;
             return;
+        }
+
+        if (GameStateManager.Instance != null && GameStateManager.Instance.PendingPuzzleLayout != null)
+        {
+            InitializePuzzle(GameStateManager.Instance.PendingPuzzleLayout, GameStateManager.Instance.PendingPuzzleSealedTile);
+            GameStateManager.Instance.PendingPuzzleLayout = null;
         }
 
         GenerateBoard();
@@ -198,7 +225,17 @@ public class TideManager : MonoBehaviour
     {
         yield return new WaitForSeconds(completionReturnDelay);
 
-        if (GameStateManager.Instance != null)
+        if (GameStateManager.Instance == null)
+        {
+            yield break;
+        }
+
+        if (GameStateManager.Instance.HasActiveFlowController)
+        {
+            GameStateManager.Instance.PendingPuzzleLayout = null;
+            GameStateManager.Instance.ReturnToMainScene();
+        }
+        else
         {
             GameStateManager.Instance.ReturnToMainScene();
         }
