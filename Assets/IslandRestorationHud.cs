@@ -23,17 +23,39 @@ public class IslandRestorationHud : MonoBehaviour
 
     private void OnEnable()
     {
+        TryFindTracker();
+        RefreshDisplay();
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeFromTracker();
+    }
+
+    private void Update()
+    {
+        if (tracker == null)
+        {
+            TryFindTracker();
+        }
+    }
+
+    private void TryFindTracker()
+    {
+        if (tracker != null)
+        {
+            return;
+        }
+
         tracker = IslandRestorationTracker.Instance;
         if (tracker != null)
         {
             tracker.OnRestorationChanged += HandleRestorationChanged;
             tracker.OnIslandRestored += HandleIslandRestored;
         }
-
-        RefreshDisplay();
     }
 
-    private void OnDisable()
+    private void UnsubscribeFromTracker()
     {
         if (tracker != null)
         {
@@ -42,20 +64,6 @@ public class IslandRestorationHud : MonoBehaviour
         }
 
         tracker = null;
-    }
-
-    private void Update()
-    {
-        if (tracker == null)
-        {
-            tracker = IslandRestorationTracker.Instance;
-            if (tracker != null)
-            {
-                tracker.OnRestorationChanged += HandleRestorationChanged;
-                tracker.OnIslandRestored += HandleIslandRestored;
-                RefreshDisplay();
-            }
-        }
     }
 
     private void HandleRestorationChanged(string changedIslandId, float progress)

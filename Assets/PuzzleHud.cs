@@ -22,41 +22,49 @@ public class PuzzleHud : MonoBehaviour
 
     private void OnEnable()
     {
-        tideManager = FindFirstObjectByType<TideManager>();
-        if (tideManager != null)
-        {
-            tideManager.OnCarriedAmountChanged += RefreshDisplay;
-            tideManager.OnPuzzleReset += RefreshDisplay;
-        }
-
+        TryFindTideManager();
         RefreshDisplay();
     }
 
     private void OnDisable()
     {
-        if (tideManager != null)
-        {
-            tideManager.OnCarriedAmountChanged -= RefreshDisplay;
-            tideManager.OnPuzzleReset -= RefreshDisplay;
-        }
+        UnsubscribeFromTideManager();
     }
 
     private void Update()
     {
         if (tideManager == null)
         {
-            tideManager = FindFirstObjectByType<TideManager>();
-            if (tideManager != null)
-            {
-                tideManager.OnCarriedAmountChanged += RefreshDisplay;
-                tideManager.OnPuzzleReset += RefreshDisplay;
-                RefreshDisplay();
-            }
+            TryFindTideManager();
         }
 
         if (Input.GetKeyDown(KeyCode.T))
         {
             OnResetPressed();
+        }
+    }
+
+    private void TryFindTideManager()
+    {
+        if (tideManager != null)
+        {
+            return;
+        }
+
+        tideManager = FindFirstObjectByType<TideManager>();
+        if (tideManager != null)
+        {
+            tideManager.OnCarriedAmountChanged += RefreshDisplay;
+            tideManager.OnPuzzleReset += RefreshDisplay;
+        }
+    }
+
+    private void UnsubscribeFromTideManager()
+    {
+        if (tideManager != null)
+        {
+            tideManager.OnCarriedAmountChanged -= RefreshDisplay;
+            tideManager.OnPuzzleReset -= RefreshDisplay;
         }
     }
 

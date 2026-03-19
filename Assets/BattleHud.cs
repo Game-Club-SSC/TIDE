@@ -142,7 +142,10 @@ public class BattleHud : MonoBehaviour
     private void UpdateActionButtons()
     {
         bool isPlayerInput = battleManager.CurrentPhase == BattlePhase.PlayerInput;
-        actionPanel.SetActive(isPlayerInput);
+        if (actionPanel != null)
+        {
+            actionPanel.SetActive(isPlayerInput);
+        }
 
         if (!isPlayerInput)
         {
@@ -257,7 +260,7 @@ public class BattleHud : MonoBehaviour
 
     private void ShowTargetSelection(CombatActionType actionType)
     {
-        if (battleManager == null)
+        if (battleManager == null || targetPanel == null)
         {
             return;
         }
