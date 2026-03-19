@@ -279,7 +279,7 @@ public class TideManager : MonoBehaviour
                     isReachable = CanReachWithinCarrySteps(carryingSource, tile);
                 }
 
-                tile.SetVisualState(isSelected, false, isReachable, isHovered);
+                tile.SetVisualState(isSelected, isReachable, isHovered);
             }
         }
     }

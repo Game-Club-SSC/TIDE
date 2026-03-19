@@ -49,10 +49,18 @@ public class PuzzleBoxInteractable : MonoBehaviour
         }
     }
 
+    private bool isBeingDestroyed;
+
     private void Update()
     {
+        if (isBeingDestroyed)
+        {
+            return;
+        }
+
         if (GameStateManager.Instance != null && GameStateManager.Instance.PuzzleSolved)
         {
+            isBeingDestroyed = true;
             Destroy(gameObject);
             return;
         }

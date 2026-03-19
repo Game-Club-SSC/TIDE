@@ -348,20 +348,41 @@ public class CombatSceneBootstrap : MonoBehaviour
         return unitObject;
     }
 
+    private Material runtimeUnitMaterial;
+
+    private void OnDestroy()
+    {
+        if (runtimeUnitMaterial != null)
+        {
+            Destroy(runtimeUnitMaterial);
+            runtimeUnitMaterial = null;
+        }
+    }
+
     private void SetUnitColor(GameObject unitObject, Color color)
     {
         Renderer renderer = unitObject.GetComponent<Renderer>();
-        if (renderer != null && renderer.sharedMaterial != null)
+        if (renderer == null)
         {
-            Material mat = new Material(renderer.sharedMaterial);
-            mat.color = color;
-            renderer.material = mat;
             return;
         }
 
-        if (renderer != null)
+        if (runtimeUnitMaterial != null)
         {
-            renderer.material.color = color;
+            Destroy(runtimeUnitMaterial);
         }
+
+        Material sourceMaterial = renderer.sharedMaterial;
+        if (sourceMaterial != null)
+        {
+            runtimeUnitMaterial = new Material(sourceMaterial);
+        }
+        else
+        {
+            runtimeUnitMaterial = new Material(Shader.Find("Standard"));
+        }
+
+        runtimeUnitMaterial.color = color;
+        renderer.material = runtimeUnitMaterial;
     }
 }

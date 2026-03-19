@@ -16,6 +16,13 @@ public class EnemyTrigger : MonoBehaviour
         }
 
         GameStateManager.Instance.EnterCombatScene();
-        Destroy(gameObject);
+
+        Collider triggerCollider = GetComponent<Collider>();
+        if (triggerCollider != null)
+        {
+            triggerCollider.enabled = false;
+        }
+
+        Destroy(gameObject, 0.1f);
     }
 }

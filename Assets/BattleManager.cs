@@ -347,12 +347,6 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        if (IsTerminalPhase(currentPhase))
-        {
-            actionExecutionActive = false;
-            return;
-        }
-
         actionStepTimer -= Time.deltaTime;
         if (actionStepTimer > 0f)
         {
@@ -587,8 +581,8 @@ public class BattleManager : MonoBehaviour
         }
 
         string phaseName = hasActivePhase ? currentPhase.ToString() : "Waiting";
-        int alliesAlive = GetAliveUnits(CombatUnit.UnitType.Ally).Count;
-        int enemiesAlive = GetAliveUnits(CombatUnit.UnitType.Enemy).Count;
+        int alliesAlive = CountAliveUnits(allyUnits);
+        int enemiesAlive = CountAliveUnits(enemyUnits);
         string queuePreview = BuildQueuePreview();
 
         phaseLabel.text =
@@ -785,6 +779,20 @@ public class BattleManager : MonoBehaviour
         }
 
         return true;
+    }
+
+    private static int CountAliveUnits(List<CombatUnit> units)
+    {
+        int count = 0;
+        for (int i = 0; i < units.Count; i++)
+        {
+            if (units[i] != null && units[i].IsAlive)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private static Font LoadDebugFont()

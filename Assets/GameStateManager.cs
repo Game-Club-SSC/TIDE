@@ -267,6 +267,11 @@ public class GameStateManager : MonoBehaviour
             yield return null;
         }
 
+        if (fadeCanvasGroup == null)
+        {
+            yield break;
+        }
+
         fadeCanvasGroup.alpha = targetAlpha;
     }
 }

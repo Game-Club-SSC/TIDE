@@ -91,7 +91,7 @@ public class TideTile : MonoBehaviour
         RefreshVisuals();
     }
 
-    public void SetVisualState(bool isSelected, bool isSuggested, bool isReachable, bool isHovered)
+    public void SetVisualState(bool isSelected, bool isReachable, bool isHovered)
     {
         if (cachedRenderer == null)
         {
@@ -99,10 +99,6 @@ public class TideTile : MonoBehaviour
         }
 
         Color displayColor = GetBaseColor();
-        if (isSuggested)
-        {
-            displayColor = Color.Lerp(displayColor, new Color(0.35f, 0.95f, 0.95f), 0.55f);
-        }
 
         if (isReachable)
         {
@@ -122,10 +118,6 @@ public class TideTile : MonoBehaviour
         cachedRenderer.material.color = displayColor;
 
         float scaleBoost = 1f;
-        if (isSuggested)
-        {
-            scaleBoost += 0.04f;
-        }
 
         if (isHovered)
         {
