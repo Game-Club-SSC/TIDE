@@ -16,8 +16,6 @@ public class TideManager : MonoBehaviour
 
     [Header("Completion Flow")]
     [SerializeField] private float completionReturnDelay = 1f;
-    [SerializeField] private Vector3 completionCubeOffset = new Vector3(0f, 2.5f, 0f);
-    [SerializeField] private Vector3 completionCubeScale = new Vector3(1.25f, 1.25f, 1.25f);
 
     private readonly TideTile[,] activeTiles = new TideTile[3, 3];
     private readonly int[,] puzzleValues =
@@ -35,12 +33,9 @@ public class TideManager : MonoBehaviour
 
     private Transform runtimeBoardRoot;
     private TideTile hoveredTile;
-    private TideTile selectedSource;
     private TideTile carryingSource;
-    private int selectedTakeAmount;
     private int carriedAmount;
     private bool puzzleSolved;
-    private GameObject completionCube;
 
     private void Start()
     {
@@ -51,7 +46,6 @@ public class TideManager : MonoBehaviour
         }
 
         GenerateBoard();
-        CreateCompletionCube();
         UpdateTileVisuals();
 
         if (GameStateManager.Instance != null)
@@ -110,21 +104,6 @@ public class TideManager : MonoBehaviour
         }
     }
 
-    private void CreateCompletionCube()
-    {
-        completionCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        completionCube.name = "PuzzleCompletionCube";
-        completionCube.transform.SetParent(transform, false);
-        completionCube.transform.position = boardCenter + completionCubeOffset;
-        completionCube.transform.localScale = completionCubeScale;
-
-        Renderer cubeRenderer = completionCube.GetComponent<Renderer>();
-        if (cubeRenderer != null)
-        {
-            cubeRenderer.material.color = new Color(1f, 0.45f, 0.12f);
-        }
-    }
-
     private Vector3 GetWorldPosition(int row, int col)
     {
         float xOffset = (col - 1) * tileSpacing;
@@ -150,67 +129,20 @@ public class TideManager : MonoBehaviour
 
     private void HandleSourceSelection()
     {
-        if (selectedSource == null)
-        {
-            if (!Input.GetMouseButtonDown(0) || hoveredTile == null || hoveredTile.GetMaxTake() <= 0)
-            {
-                return;
-            }
-
-            selectedSource = hoveredTile;
-            selectedTakeAmount = Mathf.Clamp(selectedSource.GetMaxTake(), 1, selectedSource.GetMaxTake());
-            return;
-        }
-
-        int maxTake = selectedSource.GetMaxTake();
-        if (maxTake <= 0)
-        {
-            selectedSource = null;
-            selectedTakeAmount = 0;
-            return;
-        }
-
-        float scrollDelta = Input.mouseScrollDelta.y;
-        if (scrollDelta > 0.05f || Input.GetKeyDown(KeyCode.E))
-        {
-            selectedTakeAmount = Mathf.Clamp(selectedTakeAmount + 1, 1, maxTake);
-        }
-        else if (scrollDelta < -0.05f || Input.GetKeyDown(KeyCode.Q))
-        {
-            selectedTakeAmount = Mathf.Clamp(selectedTakeAmount - 1, 1, maxTake);
-        }
-
-        if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
-        {
-            selectedSource = null;
-            selectedTakeAmount = 0;
-            return;
-        }
-
-        if (Input.GetMouseButtonDown(0) && hoveredTile != null && hoveredTile != selectedSource)
-        {
-            if (hoveredTile.GetMaxTake() <= 0)
-            {
-                return;
-            }
-
-            selectedSource = hoveredTile;
-            selectedTakeAmount = Mathf.Clamp(selectedSource.GetMaxTake(), 1, selectedSource.GetMaxTake());
-            return;
-        }
-
-        bool confirmedByClick = Input.GetMouseButtonDown(0) && hoveredTile == selectedSource;
-        bool confirmedByKey = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
-        if (!confirmedByClick && !confirmedByKey)
+        if (!Input.GetMouseButtonDown(0) || hoveredTile == null)
         {
             return;
         }
 
-        selectedTakeAmount = Mathf.Clamp(selectedTakeAmount, 1, maxTake);
-        carryingSource = selectedSource;
-        carriedAmount = selectedTakeAmount;
+        int takeAmount = hoveredTile.GetMaxTake();
+        if (takeAmount <= 0)
+        {
+            return;
+        }
+
+        carryingSource = hoveredTile;
+        carriedAmount = takeAmount;
         carryingSource.ApplyTake(carriedAmount);
-        selectedSource = null;
     }
 
     private void HandleDestinationSelection()
@@ -255,11 +187,6 @@ public class TideManager : MonoBehaviour
         }
 
         puzzleSolved = true;
-        if (completionCube != null)
-        {
-            Destroy(completionCube);
-        }
-
         if (GameStateManager.Instance != null)
         {
             GameStateManager.Instance.MarkPuzzleSolved();
@@ -343,15 +270,11 @@ public class TideManager : MonoBehaviour
             for (int col = 0; col < 3; col++)
             {
                 TideTile tile = activeTiles[row, col];
-                bool isSelected = tile == selectedSource || tile == carryingSource;
+                bool isSelected = tile == carryingSource;
                 bool isHovered = tile == hoveredTile;
                 bool isReachable = false;
 
-                if (selectedSource != null && tile != selectedSource && tile.CanReceive(selectedTakeAmount))
-                {
-                    isReachable = CanReachWithinCarrySteps(selectedSource, tile);
-                }
-                else if (carriedAmount > 0 && tile != carryingSource && tile.CanReceive(carriedAmount))
+                if (carriedAmount > 0 && tile != carryingSource && tile.CanReceive(carriedAmount))
                 {
                     isReachable = CanReachWithinCarrySteps(carryingSource, tile);
                 }
