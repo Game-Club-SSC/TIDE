@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -17,6 +18,9 @@ public class TideManager : MonoBehaviour
     [Header("Completion Flow")]
     [SerializeField] private float completionReturnDelay = 1f;
 
+    [Header("Instability Decay")]
+    [SerializeField] private int instabilityThreshold = 3;
+
     private readonly TideTile[,] activeTiles = new TideTile[3, 3];
     private int[,] puzzleValues =
     {
@@ -24,6 +28,7 @@ public class TideManager : MonoBehaviour
         { 7, 5, 2 },
         { 5, 3, 3 }
     };
+    private int[,] initialPuzzleValues;
     private bool[,] sealedTiles =
     {
         { false, false, false },
@@ -31,6 +36,8 @@ public class TideManager : MonoBehaviour
         { false, false, false }
     };
     private Vector2Int sealedPosition = new Vector2Int(1, 1);
+    private Vector2Int lockedPosition = new Vector2Int(-1, -1);
+    private string lockedEncounterId = "";
     private PuzzleWinCondition winCondition = new PuzzleWinCondition();
 
     private Transform runtimeBoardRoot;
@@ -38,6 +45,12 @@ public class TideManager : MonoBehaviour
     private TideTile carryingSource;
     private int carriedAmount;
     private bool puzzleSolved;
+
+    public int CarriedAmount => carriedAmount;
+    public bool IsCarrying => carriedAmount > 0;
+
+    public event Action OnCarriedAmountChanged;
+    public event Action OnPuzzleReset;
 
     public void InitializePuzzle(int[,] layout, Vector2Int sealedTile)
     {
@@ -74,11 +87,25 @@ public class TideManager : MonoBehaviour
         puzzleValues = data.GetGrid();
         sealedPosition = data.sealedPosition;
         winCondition = data.winCondition ?? new PuzzleWinCondition();
+        instabilityThreshold = data.instabilityThreshold;
+        lockedPosition = data.lockedPosition;
+        lockedEncounterId = data.lockedTileEncounterId;
 
         sealedTiles = new bool[3, 3];
         if (data.HasSealedTile)
         {
             sealedTiles[data.sealedPosition.y, data.sealedPosition.x] = true;
+        }
+
+        if (data.HasLockedTile)
+        {
+            bool lockedCleared = IslandRestorationTracker.Instance != null
+                && IslandRestorationTracker.Instance.HasClearedEncounter(lockedEncounterId);
+
+            if (!lockedCleared)
+            {
+                sealedTiles[data.lockedPosition.y, data.lockedPosition.x] = true;
+            }
         }
     }
 
@@ -102,6 +129,7 @@ public class TideManager : MonoBehaviour
         }
 
         GenerateBoard();
+        StoreInitialValues();
         UpdateTileVisuals();
 
         if (GameStateManager.Instance != null)
@@ -160,6 +188,49 @@ public class TideManager : MonoBehaviour
         }
     }
 
+    private void StoreInitialValues()
+    {
+        initialPuzzleValues = new int[3, 3];
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                initialPuzzleValues[row, col] = puzzleValues[row, col];
+            }
+        }
+    }
+
+    public void ResetPuzzle()
+    {
+        if (puzzleSolved || initialPuzzleValues == null)
+        {
+            return;
+        }
+
+        if (carryingSource != null)
+        {
+            carryingSource.ApplyPlace(carriedAmount);
+        }
+
+        carryingSource = null;
+        carriedAmount = 0;
+        OnCarriedAmountChanged?.Invoke();
+
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                if (!activeTiles[row, col].IsSealed)
+                {
+                    activeTiles[row, col].currentTideValue = initialPuzzleValues[row, col];
+                    activeTiles[row, col].RefreshVisuals();
+                }
+            }
+        }
+
+        OnPuzzleReset?.Invoke();
+    }
+
     private Vector3 GetWorldPosition(int row, int col)
     {
         float xOffset = (col - 1) * tileSpacing;
@@ -193,12 +264,17 @@ public class TideManager : MonoBehaviour
         int takeAmount = hoveredTile.GetMaxTake();
         if (takeAmount <= 0)
         {
+            if (!hoveredTile.IsSealed)
+            {
+                hoveredTile.FlashInvalid();
+            }
             return;
         }
 
         carryingSource = hoveredTile;
         carriedAmount = takeAmount;
         carryingSource.ApplyTake(carriedAmount);
+        OnCarriedAmountChanged?.Invoke();
     }
 
     private void HandleDestinationSelection()
@@ -215,18 +291,52 @@ public class TideManager : MonoBehaviour
 
         if (!hoveredTile.CanReceive(carriedAmount))
         {
+            hoveredTile.FlashInvalid();
             return;
         }
 
         if (!CanReachWithinCarrySteps(carryingSource, hoveredTile))
         {
+            hoveredTile.FlashInvalid();
             return;
         }
 
         hoveredTile.ApplyPlace(carriedAmount);
         carriedAmount = 0;
         carryingSource = null;
+        OnCarriedAmountChanged?.Invoke();
+        ApplyInstabilityDecay();
         EvaluatePuzzleCompletion();
+    }
+
+    private void ApplyInstabilityDecay()
+    {
+        int countAbove5 = 0;
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                TideTile tile = activeTiles[row, col];
+                if (!tile.IsSealed && tile.CurrentTideValue > 5)
+                {
+                    countAbove5++;
+                }
+            }
+        }
+
+        if (countAbove5 <= instabilityThreshold)
+        {
+            return;
+        }
+
+        int decay = countAbove5 - instabilityThreshold;
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                activeTiles[row, col].ApplyDecay(decay);
+            }
+        }
     }
 
     private void EvaluatePuzzleCompletion()
@@ -249,8 +359,25 @@ public class TideManager : MonoBehaviour
         if (GameStateManager.Instance != null)
         {
             GameStateManager.Instance.MarkPuzzleSolved();
+            StartCoroutine(FlashAllTilesComplete());
             StartCoroutine(ReturnToMainSceneAfterDelay());
         }
+    }
+
+    private IEnumerator FlashAllTilesComplete()
+    {
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                if (!activeTiles[row, col].IsSealed)
+                {
+                    activeTiles[row, col].FlashComplete();
+                }
+            }
+        }
+
+        yield return null;
     }
 
     private IEnumerator ReturnToMainSceneAfterDelay()
@@ -348,6 +475,8 @@ public class TideManager : MonoBehaviour
 
     private void UpdateTileVisuals()
     {
+        bool carrying = carriedAmount > 0;
+
         for (int row = 0; row < 3; row++)
         {
             for (int col = 0; col < 3; col++)
@@ -356,13 +485,21 @@ public class TideManager : MonoBehaviour
                 bool isSelected = tile == carryingSource;
                 bool isHovered = tile == hoveredTile;
                 bool isReachable = false;
+                bool isUnavailable = false;
 
-                if (carriedAmount > 0 && tile != carryingSource && tile.CanReceive(carriedAmount))
+                if (carrying && tile != carryingSource)
                 {
-                    isReachable = CanReachWithinCarrySteps(carryingSource, tile);
+                    if (tile.CanReceive(carriedAmount))
+                    {
+                        isReachable = CanReachWithinCarrySteps(carryingSource, tile);
+                    }
+                    else
+                    {
+                        isUnavailable = !tile.IsSealed;
+                    }
                 }
 
-                tile.SetVisualState(isSelected, isReachable, isHovered);
+                tile.SetVisualState(isSelected, isReachable, isHovered, isUnavailable);
             }
         }
     }

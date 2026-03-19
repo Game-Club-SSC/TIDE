@@ -68,8 +68,14 @@ public class PuzzleData : ScriptableObject
     [Tooltip("Position of the locked tile (sealed until combat cleared). Set to (-1,-1) if none.")]
     public Vector2Int lockedPosition = new Vector2Int(-1, -1);
 
+    [Tooltip("Encounter ID that must be cleared to unlock the locked tile. Leave empty if no locked tile.")]
+    public string lockedTileEncounterId = "";
+
     [Tooltip("Win condition for this puzzle.")]
     public PuzzleWinCondition winCondition = new PuzzleWinCondition();
+
+    [Tooltip("Number of tiles above 5 allowed before instability decay kicks in.")]
+    public int instabilityThreshold = 3;
 
     public int[,] GetGrid()
     {

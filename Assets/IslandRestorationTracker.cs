@@ -18,10 +18,12 @@ public class IslandRestorationTracker : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
+            Destroy(gameObject);
             return;
         }
 
         Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
 
     private void OnDisable()
@@ -139,6 +141,24 @@ public class IslandRestorationTracker : MonoBehaviour
         }
 
         return state.IsIslandRestored;
+    }
+
+    public bool HasClearedEncounter(string encounterId)
+    {
+        if (string.IsNullOrEmpty(encounterId))
+        {
+            return false;
+        }
+
+        foreach (IslandRestorationState state in islandStates.Values)
+        {
+            if (state.HasCompleted(encounterId))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private IslandRestorationState GetOrCreateState(string islandId)

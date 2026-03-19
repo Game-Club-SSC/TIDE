@@ -27,6 +27,9 @@ public class TideMovementTest : MonoBehaviour
             TestWinConditionPercentageNotMet();
             TestWinConditionSkipsSealedTile();
             TestPuzzleDataInitializePuzzle();
+            TestDecayTriggersAboveThreshold();
+            TestDecayDoesNotTriggerAtThreshold();
+            TestDecayClampsToMinimum5();
 
             Debug.Log("=== Tide movement tests passed ===");
         }
@@ -313,5 +316,134 @@ public class TideMovementTest : MonoBehaviour
 
         Object.DestroyImmediate(data);
         Debug.Log("  [PASS] TestPuzzleDataInitializePuzzle");
+    }
+
+    private void TestDecayTriggersAboveThreshold()
+    {
+        Setup();
+
+        // 4 tiles above 5, threshold=3, so decay = 4-3 = 1
+        // Create tiles at values: 8, 7, 6, 6 (all > 5), rest at 5
+        TideTile[,] tiles = new TideTile[3, 3];
+        int[,] values = {
+            { 8, 5, 5 },
+            { 7, 5, 5 },
+            { 6, 6, 5 }
+        };
+
+        for (int r = 0; r < 3; r++)
+        {
+            for (int c = 0; c < 3; c++)
+            {
+                tiles[r, c] = CreateTile(c, r, false);
+                tiles[r, c].currentTideValue = values[r, c];
+            }
+        }
+
+        SetSealedTiles(new bool[3, 3]);
+
+        FieldInfo thresholdField = typeof(TideManager).GetField("instabilityThreshold", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(thresholdField, "instabilityThreshold field should exist.");
+        thresholdField.SetValue(manager, 3);
+
+        FieldInfo tilesField = typeof(TideManager).GetField("activeTiles", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(tilesField, "activeTiles field should exist.");
+        tilesField.SetValue(manager, tiles);
+
+        MethodInfo decayMethod = typeof(TideManager).GetMethod("ApplyInstabilityDecay", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(decayMethod, "ApplyInstabilityDecay should exist.");
+        decayMethod.Invoke(manager, null);
+
+        // After decay=1: 8->7, 7->6, 6->5, 6->5
+        Assert.AreEqual(7, tiles[0, 0].CurrentTideValue, "Tile (0,0) should decay from 8 to 7.");
+        Assert.AreEqual(6, tiles[1, 0].CurrentTideValue, "Tile (1,0) should decay from 7 to 6.");
+        Assert.AreEqual(5, tiles[2, 0].CurrentTideValue, "Tile (2,0) should decay from 6 to 5.");
+        Assert.AreEqual(5, tiles[2, 1].CurrentTideValue, "Tile (2,1) should decay from 6 to 5.");
+
+        Debug.Log("  [PASS] TestDecayTriggersAboveThreshold");
+    }
+
+    private void TestDecayDoesNotTriggerAtThreshold()
+    {
+        Setup();
+
+        // Exactly 3 tiles above 5, threshold=3, no decay
+        TideTile[,] tiles = new TideTile[3, 3];
+        int[,] values = {
+            { 8, 5, 5 },
+            { 7, 5, 5 },
+            { 6, 5, 5 }
+        };
+
+        for (int r = 0; r < 3; r++)
+        {
+            for (int c = 0; c < 3; c++)
+            {
+                tiles[r, c] = CreateTile(c, r, false);
+                tiles[r, c].currentTideValue = values[r, c];
+            }
+        }
+
+        SetSealedTiles(new bool[3, 3]);
+
+        FieldInfo thresholdField = typeof(TideManager).GetField("instabilityThreshold", BindingFlags.Instance | BindingFlags.NonPublic);
+        thresholdField.SetValue(manager, 3);
+
+        FieldInfo tilesField = typeof(TideManager).GetField("activeTiles", BindingFlags.Instance | BindingFlags.NonPublic);
+        tilesField.SetValue(manager, tiles);
+
+        MethodInfo decayMethod = typeof(TideManager).GetMethod("ApplyInstabilityDecay", BindingFlags.Instance | BindingFlags.NonPublic);
+        decayMethod.Invoke(manager, null);
+
+        Assert.AreEqual(8, tiles[0, 0].CurrentTideValue, "Tile (0,0) should remain 8.");
+        Assert.AreEqual(7, tiles[1, 0].CurrentTideValue, "Tile (1,0) should remain 7.");
+        Assert.AreEqual(6, tiles[2, 0].CurrentTideValue, "Tile (2,0) should remain 6.");
+
+        Debug.Log("  [PASS] TestDecayDoesNotTriggerAtThreshold");
+    }
+
+    private void TestDecayClampsToMinimum5()
+    {
+        Setup();
+
+        // 6 tiles above 5, threshold=3, decay = 6-3 = 3
+        // A tile at 6 would go to 3 but must clamp to 5
+        TideTile[,] tiles = new TideTile[3, 3];
+        int[,] values = {
+            { 6, 6, 6 },
+            { 6, 5, 5 },
+            { 6, 5, 5 }
+        };
+
+        for (int r = 0; r < 3; r++)
+        {
+            for (int c = 0; c < 3; c++)
+            {
+                tiles[r, c] = CreateTile(c, r, false);
+                tiles[r, c].currentTideValue = values[r, c];
+            }
+        }
+
+        SetSealedTiles(new bool[3, 3]);
+
+        FieldInfo thresholdField = typeof(TideManager).GetField("instabilityThreshold", BindingFlags.Instance | BindingFlags.NonPublic);
+        thresholdField.SetValue(manager, 3);
+
+        FieldInfo tilesField = typeof(TideManager).GetField("activeTiles", BindingFlags.Instance | BindingFlags.NonPublic);
+        tilesField.SetValue(manager, tiles);
+
+        MethodInfo decayMethod = typeof(TideManager).GetMethod("ApplyInstabilityDecay", BindingFlags.Instance | BindingFlags.NonPublic);
+        decayMethod.Invoke(manager, null);
+
+        for (int r = 0; r < 3; r++)
+        {
+            for (int c = 0; c < 3; c++)
+            {
+                Assert.IsTrue(tiles[r, c].CurrentTideValue >= 5,
+                    $"Tile ({r},{c}) should not drop below 5. Got {tiles[r, c].CurrentTideValue}.");
+            }
+        }
+
+        Debug.Log("  [PASS] TestDecayClampsToMinimum5");
     }
 }

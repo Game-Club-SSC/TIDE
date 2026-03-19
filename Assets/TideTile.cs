@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 
@@ -91,7 +92,75 @@ public class TideTile : MonoBehaviour
         RefreshVisuals();
     }
 
-    public void SetVisualState(bool isSelected, bool isReachable, bool isHovered)
+    public void ApplyDecay(int decay)
+    {
+        if (decay <= 0 || isSealed || currentTideValue <= 5)
+        {
+            return;
+        }
+
+        currentTideValue -= decay;
+        currentTideValue = Mathf.Max(currentTideValue, 5);
+        RefreshVisuals();
+        StartCoroutine(FlashDecay());
+    }
+
+    public void FlashInvalid()
+    {
+        StartCoroutine(FlashColor(new Color(1f, 0.25f, 0.25f), 0.3f));
+    }
+
+    public void FlashComplete()
+    {
+        StartCoroutine(FlashColor(new Color(0.2f, 1f, 0.4f), 0.5f));
+    }
+
+    private IEnumerator FlashDecay()
+    {
+        Color original = GetBaseColor();
+        Color flash = new Color(0.55f, 0.2f, 0.65f);
+        float duration = 0.35f;
+        float elapsed = 0f;
+        Vector3 originalScale = baseScale;
+
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            float pingPong = Mathf.PingPong(t * 4f, 1f);
+            if (cachedRenderer != null)
+            {
+                cachedRenderer.material.color = Color.Lerp(original, flash, pingPong);
+            }
+            transform.localScale = Vector3.Lerp(originalScale, originalScale * 0.85f, pingPong);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        transform.localScale = originalScale;
+        RefreshVisuals();
+    }
+
+    private IEnumerator FlashColor(Color flashColor, float duration)
+    {
+        Color original = GetBaseColor();
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            float pingPong = Mathf.PingPong(t * 3f, 1f);
+            if (cachedRenderer != null)
+            {
+                cachedRenderer.material.color = Color.Lerp(original, flashColor, pingPong);
+            }
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        RefreshVisuals();
+    }
+
+    public void SetVisualState(bool isSelected, bool isReachable, bool isHovered, bool isUnavailable = false)
     {
         if (cachedRenderer == null)
         {
@@ -99,6 +168,11 @@ public class TideTile : MonoBehaviour
         }
 
         Color displayColor = GetBaseColor();
+
+        if (isUnavailable)
+        {
+            displayColor = Color.Lerp(displayColor, Color.black, 0.25f);
+        }
 
         if (isReachable)
         {

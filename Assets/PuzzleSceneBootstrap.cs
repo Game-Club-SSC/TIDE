@@ -12,6 +12,7 @@ public class PuzzleSceneBootstrap : MonoBehaviour
         EnsureGround();
         EnsurePuzzleCamera();
         EnsurePuzzleManager();
+        EnsurePuzzleHud();
     }
 
     private void EnsureGameManager()
@@ -92,5 +93,16 @@ public class PuzzleSceneBootstrap : MonoBehaviour
         {
             gameObject.AddComponent<TideManager>();
         }
+    }
+
+    private void EnsurePuzzleHud()
+    {
+        if (FindFirstObjectByType<PuzzleHud>() != null)
+        {
+            return;
+        }
+
+        GameObject hudObject = new GameObject("PuzzleHud");
+        hudObject.AddComponent<PuzzleHud>();
     }
 }
