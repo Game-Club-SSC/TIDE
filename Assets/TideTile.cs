@@ -141,8 +141,12 @@ public class TideTile : MonoBehaviour
 
         EnsureLabel();
         cachedRenderer.material.color = GetBaseColor();
-        valueLabel.text = isSealed ? "X" : currentTideValue.ToString();
-        valueLabel.color = isSealed ? new Color(0.9f, 0.9f, 0.9f) : new Color(0.1f, 0.1f, 0.1f);
+
+        if (valueLabel != null)
+        {
+            valueLabel.text = isSealed ? "X" : currentTideValue.ToString();
+            valueLabel.color = isSealed ? new Color(0.9f, 0.9f, 0.9f) : new Color(0.1f, 0.1f, 0.1f);
+        }
     }
 
     private void EnsureLabel()

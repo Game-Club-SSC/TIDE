@@ -285,6 +285,11 @@ public class TideManager : MonoBehaviour
                         continue;
                     }
 
+                    if (sealedTiles[nextRow, nextCol])
+                    {
+                        continue;
+                    }
+
                     Vector2Int nextPosition = new Vector2Int(nextCol, nextRow);
                     if (visited.Contains(nextPosition))
                     {
