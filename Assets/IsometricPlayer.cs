@@ -74,6 +74,6 @@ public class IsometricPlayer : MonoBehaviour
         Vector3 moveDir = forward * inputVector.z + right * inputVector.x;
         Vector3 targetVelocity = moveDir * currentSpeed; 
         
-        rb.velocity = new Vector3(targetVelocity.x, rb.velocity.y, targetVelocity.z);
+        rb.linearVelocity = new Vector3(targetVelocity.x, rb.linearVelocity.y, targetVelocity.z);
     }
 }

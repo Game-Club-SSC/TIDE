@@ -340,7 +340,7 @@ public class BattleHud : MonoBehaviour
             rect.offsetMin = new Vector2(10f, 2f);
             rect.offsetMax = new Vector2(-10f, -2f);
 
-            label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.fontSize = 16;
             label.alignment = TextAnchor.UpperLeft;
             label.color = Color.white;
@@ -367,7 +367,7 @@ public class BattleHud : MonoBehaviour
             rect.offsetMin = new Vector2(10f, 2f);
             rect.offsetMax = new Vector2(-10f, -2f);
 
-            label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.fontSize = 16;
             label.alignment = TextAnchor.UpperLeft;
             label.color = new Color(1f, 0.7f, 0.7f);
@@ -421,7 +421,7 @@ public class BattleHud : MonoBehaviour
         textRect.offsetMax = Vector2.zero;
 
         Text text = textObj.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         text.fontSize = 18;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = Color.white;
@@ -446,7 +446,7 @@ public class BattleHud : MonoBehaviour
         titleRect.anchorMax = new Vector2(1f, 1f);
         titleRect.offsetMin = Vector2.zero;
         titleRect.offsetMax = Vector2.zero;
-        title.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         title.fontSize = 18;
         title.alignment = TextAnchor.MiddleCenter;
         title.color = Color.white;
@@ -476,7 +476,7 @@ public class BattleHud : MonoBehaviour
             tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one;
             tr.offsetMin = Vector2.zero; tr.offsetMax = Vector2.zero;
             Text text = textObj.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = 16;
             text.alignment = TextAnchor.MiddleCenter;
             text.color = Color.white;
@@ -526,7 +526,7 @@ public class BattleHud : MonoBehaviour
         labelRect.offsetMin = Vector2.zero;
         labelRect.offsetMax = Vector2.zero;
         momentumLabel = labelObj.AddComponent<Text>();
-        momentumLabel.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        momentumLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         momentumLabel.fontSize = 14;
         momentumLabel.alignment = TextAnchor.MiddleCenter;
         momentumLabel.color = Color.white;
@@ -547,7 +547,7 @@ public class BattleHud : MonoBehaviour
         rect.anchoredPosition = new Vector2(0f, -10f);
         rect.sizeDelta = new Vector2(300f, 30f);
 
-        phaseLabel.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        phaseLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         phaseLabel.fontSize = 20;
         phaseLabel.alignment = TextAnchor.MiddleCenter;
         phaseLabel.color = Color.yellow;
@@ -568,7 +568,7 @@ public class BattleHud : MonoBehaviour
         rect.anchorMax = new Vector2(0.8f, 0.7f);
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
-        text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         text.fontSize = 72;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = new Color(0.3f, 1f, 0.3f);
@@ -592,7 +592,7 @@ public class BattleHud : MonoBehaviour
         rect.anchorMax = new Vector2(0.8f, 0.7f);
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
-        text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         text.fontSize = 72;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = new Color(1f, 0.3f, 0.3f);

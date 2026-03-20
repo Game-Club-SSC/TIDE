@@ -137,7 +137,7 @@ public class PuzzleHud : MonoBehaviour
         rect.anchoredPosition = new Vector2(24f, -24f);
         rect.sizeDelta = new Vector2(350f, 40f);
 
-        carriedLabel.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        carriedLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         carriedLabel.fontSize = fontSize;
         carriedLabel.alignment = TextAnchor.UpperLeft;
         carriedLabel.color = Color.white;
@@ -157,7 +157,7 @@ public class PuzzleHud : MonoBehaviour
         rect.anchoredPosition = new Vector2(0f, 24f);
         rect.sizeDelta = new Vector2(500f, 30f);
 
-        hintLabel.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        hintLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         hintLabel.fontSize = 16;
         hintLabel.alignment = TextAnchor.MiddleCenter;
         hintLabel.color = hintColor;
@@ -193,7 +193,7 @@ public class PuzzleHud : MonoBehaviour
         textRect.offsetMax = Vector2.zero;
 
         Text resetText = textObject.AddComponent<Text>();
-        resetText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        resetText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         resetText.fontSize = 16;
         resetText.alignment = TextAnchor.MiddleCenter;
         resetText.color = Color.white;

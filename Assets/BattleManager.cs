@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public enum BattlePhase
 {
@@ -128,7 +129,6 @@ public class BattleManager : MonoBehaviour
 
     private bool hasActivePhase;
     private float phaseTimer;
-    private Text phaseLabel;
     private int nextRegistrationOrder;
     private int turnQueueIndex;
     private int playerInputIndex;
@@ -139,11 +139,27 @@ public class BattleManager : MonoBehaviour
     private float actionStepTimer;
     private bool actionExecutionActive;
     private BattleHud cachedBattleHud;
+    private string debugText = "";
 
     private void Awake()
     {
-        EnsureDebugLabel();
-        UpdatePhaseLabel();
+        UpdateDebugText();
+    }
+
+    private void UpdateDebugText()
+    {
+        string phaseName = hasActivePhase ? currentPhase.ToString() : "Waiting";
+        int alliesAlive = CountAliveUnits(allyUnits);
+        int enemiesAlive = CountAliveUnits(enemyUnits);
+
+        debugText = $"Phase: {phaseName}\n";
+        debugText += $"Allies: {alliesAlive} | Enemies: {enemiesAlive}\n";
+
+        if (currentPhase == BattlePhase.PlayerInput && currentActingUnit != null)
+        {
+            debugText += $"Unit: {currentActingUnit.UnitName}\n";
+            debugText += $"Action: {pendingInputActionType}";
+        }
     }
 
     private void Start()
@@ -156,7 +172,7 @@ public class BattleManager : MonoBehaviour
         HandleDebugInput();
         HandleActionExecution();
         HandleAutoAdvance();
-        UpdatePhaseLabel();
+        UpdateDebugText();
     }
 
     public void StartBattle()
@@ -239,7 +255,7 @@ public class BattleManager : MonoBehaviour
 
         Debug.Log($"[BattleManager] Phase transition {transitionDescription} via {transitionSource}.", this);
         OnPhaseEntered(nextPhase);
-        UpdatePhaseLabel();
+        UpdateDebugText();
     }
 
     private void OnPhaseEntered(BattlePhase phase)
@@ -507,7 +523,7 @@ public class BattleManager : MonoBehaviour
         }
 
         CheckBattleOutcome();
-        UpdatePhaseLabel();
+        UpdateDebugText();
     }
 
     private PlannedAction GetPlannedAction(CombatUnit actor)
@@ -787,79 +803,9 @@ public class BattleManager : MonoBehaviour
         return phase == BattlePhase.Victory || phase == BattlePhase.Defeat;
     }
 
-    private void EnsureDebugLabel()
-    {
-        Transform canvasTransform = transform.Find(DebugCanvasName);
-        if (canvasTransform == null)
-        {
-            GameObject canvasObject = new GameObject(DebugCanvasName, typeof(RectTransform));
-            canvasTransform = canvasObject.transform;
-            canvasTransform.SetParent(transform, false);
-
-            Canvas canvas = canvasObject.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 100;
-
-            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-
-            canvasObject.AddComponent<GraphicRaycaster>();
-        }
-
-        Transform labelTransform = canvasTransform.Find(DebugLabelName);
-        if (labelTransform == null)
-        {
-            GameObject labelObject = new GameObject(DebugLabelName, typeof(RectTransform));
-            labelTransform = labelObject.transform;
-            labelTransform.SetParent(canvasTransform, false);
-        }
-
-        phaseLabel = labelTransform.GetComponent<Text>();
-        if (phaseLabel == null)
-        {
-            phaseLabel = labelTransform.gameObject.AddComponent<Text>();
-        }
-
-        RectTransform labelRect = phaseLabel.rectTransform;
-        labelRect.anchorMin = new Vector2(0f, 1f);
-        labelRect.anchorMax = new Vector2(0f, 1f);
-        labelRect.pivot = new Vector2(0f, 1f);
-        labelRect.anchoredPosition = debugLabelPosition;
-        labelRect.sizeDelta = new Vector2(640f, 220f);
-
-        phaseLabel.font = LoadDebugFont();
-        phaseLabel.fontSize = 20;
-        phaseLabel.alignment = TextAnchor.UpperLeft;
-        phaseLabel.color = Color.white;
-        phaseLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-        phaseLabel.verticalOverflow = VerticalWrapMode.Overflow;
-        phaseLabel.raycastTarget = false;
-    }
-
-    private void UpdatePhaseLabel()
-    {
-        if (phaseLabel == null)
-        {
-            return;
-        }
-
-        string phaseName = hasActivePhase ? currentPhase.ToString() : "Waiting";
-        int alliesAlive = CountAliveUnits(allyUnits);
-        int enemiesAlive = CountAliveUnits(enemyUnits);
-        string queuePreview = BuildQueuePreview();
-
-        string momentumBar = BuildMomentumBar();
-
-        phaseLabel.text =
-            $"Battle Phase: {phaseName}\n" +
-            $"Allies: {allyUnits.Count} ({alliesAlive} alive)\n" +
-            $"Enemies: {enemyUnits.Count} ({enemiesAlive} alive)\n" +
-            $"Momentum: {momentumBar}\n" +
-            $"Queue: {queuePreview}\n" +
-            $"Acting: {(currentActingUnit != null ? currentActingUnit.UnitName : "None")}\n" +
-            $"Next: {advancePhaseKey} | Victory: {victoryKey} | Defeat: {defeatKey}";
-    }
+    private void EnsureDebugLabel() { }
+    
+    private void UpdatePhaseLabel() { }
 
     private string BuildMomentumBar()
     {
@@ -925,6 +871,9 @@ public class BattleManager : MonoBehaviour
         {
             cachedBattleHud = FindFirstObjectByType<BattleHud>();
         }
+
+        Rect debugRect = new Rect(24f, 24f, 400f, 100f);
+        GUI.Box(debugRect, debugText);
 
         if (cachedBattleHud != null)
         {
@@ -1219,10 +1168,5 @@ public class BattleManager : MonoBehaviour
         }
 
         return count;
-    }
-
-    private static Font LoadDebugFont()
-    {
-        return Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 }

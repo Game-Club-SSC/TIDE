@@ -263,7 +263,7 @@ public class GameStateManager : MonoBehaviour
                 Rigidbody playerBody = player.GetComponent<Rigidbody>();
                 if (playerBody != null)
                 {
-                    playerBody.velocity = Vector3.zero;
+                    playerBody.linearVelocity = Vector3.zero;
                     playerBody.angularVelocity = Vector3.zero;
                 }
             }

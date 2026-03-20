@@ -163,7 +163,7 @@ public class IslandRestorationHud : MonoBehaviour
         labelRect.anchoredPosition = labelPosition;
         labelRect.sizeDelta = new Vector2(400f, 140f);
 
-        restorationLabel.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        restorationLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         restorationLabel.fontSize = fontSize;
         restorationLabel.alignment = TextAnchor.UpperRight;
         restorationLabel.color = Color.white;
