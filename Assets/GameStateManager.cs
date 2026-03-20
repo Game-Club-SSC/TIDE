@@ -191,8 +191,6 @@ public class GameStateManager : MonoBehaviour
         {
             hasDeferredFlowFromCombatResult = true;
             deferredFlowFromCombatResult = playerWon;
-            StartCoroutine(ReturnFromCombatAfterDelay(1.5f));
-            return;
         }
 
         StartCoroutine(ReturnFromCombatAfterDelay(1.5f));

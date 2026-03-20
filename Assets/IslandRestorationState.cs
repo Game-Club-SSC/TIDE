@@ -45,7 +45,7 @@ public class IslandRestorationState
             return;
         }
 
-        if (!string.IsNullOrEmpty(encounterId) && completedEncounterIds.Contains(encounterId))
+        if (HasCompleted(encounterId))
         {
             return;
         }
