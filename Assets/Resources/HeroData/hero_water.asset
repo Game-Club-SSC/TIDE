@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2160858f6422ab87bd7a26d1f83ecd99, type: 3}
+  m_Name: hero_water
+  m_EditorClassIdentifier: 
+  heroId: hero_water
+  displayName: Ryan
+  isMainCharacter: 0
+  element: 2
+  baseMaxHP: 90
+  baseMaxMP: 60
+  baseAttack: 10
+  baseDefense: 8
+  baseSpeed: 10
+  starterSkills:
+  - {fileID: 11400000, guid: skill00000000000000000000000000000002, type: 2}

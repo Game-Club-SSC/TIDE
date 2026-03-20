@@ -30,6 +30,10 @@ public class CombatSceneBootstrap : MonoBehaviour
     [SerializeField] private GameObject playerUnitPrefab;
     [SerializeField] private GameObject enemyUnitPrefab;
 
+    [Header("Party")]
+    [Tooltip("Fallback party data used when no PartyManager is present (e.g. standalone combat testing).")]
+    [SerializeField] private PartyData partyData;
+
     private void Awake()
     {
         EnsureGameManager();
@@ -263,7 +267,7 @@ public class CombatSceneBootstrap : MonoBehaviour
     private void SpawnCombatUnits()
     {
         BattleManager battleManager = GetComponent<BattleManager>();
-        string[] allyNames = { "Warrior", "Mage", "Ranger" };
+        HeroData[] activeHeroes = GetActiveHeroes();
 
         if (playerSpawnPoints != null)
         {
@@ -274,29 +278,17 @@ public class CombatSceneBootstrap : MonoBehaviour
                     GameObject unitObject = SpawnOrCreateUnit(playerUnitPrefab, playerSpawnPoints[i], $"PlayerUnit_{i + 1}", allyUnitColor);
                     CombatUnit unit = GetOrAddCombatUnit(unitObject);
                     unit.Type = CombatUnit.UnitType.Ally;
-                    unit.UnitName = i < allyNames.Length ? allyNames[i] : $"Ally_{i + 1}";
-                    unit.Attack += i * 2;
-                    unit.Speed += i;
                     SetUnitColor(unitObject, allyUnitColor);
 
-                    SkillData[] allySkills;
-                    switch (i)
+                    if (i < activeHeroes.Length && activeHeroes[i] != null)
                     {
-                        case 0:
-                            unit.ElementType = CombatUnit.Element.Fire;
-                            allySkills = new[] { SkillData.PowerStrike };
-                            break;
-                        case 1:
-                            unit.ElementType = CombatUnit.Element.Water;
-                            allySkills = new[] { SkillData.ArcaneBlast };
-                            break;
-                        default:
-                            unit.ElementType = CombatUnit.Element.Air;
-                            allySkills = new[] { SkillData.QuickShot };
-                            break;
+                        ApplyHeroToUnit(unit, activeHeroes[i]);
                     }
-
-                    unit.SetSkills(allySkills);
+                    else
+                    {
+                        unit.UnitName = $"Ally_{i + 1}";
+                        Debug.LogWarning($"[CombatSceneBootstrap] No hero data for active slot {i}. Using fallback.");
+                    }
 
                     if (battleManager != null)
                     {
@@ -403,6 +395,43 @@ public class CombatSceneBootstrap : MonoBehaviour
         }
 
         renderer.sharedMaterial.color = color;
+    }
+
+    private HeroData[] GetActiveHeroes()
+    {
+        if (PartyManager.Instance != null && PartyManager.Instance.PartyData != null)
+        {
+            return PartyManager.Instance.GetActiveParty();
+        }
+
+        if (partyData != null)
+        {
+            return partyData.activeSlots;
+        }
+
+        return System.Array.Empty<HeroData>();
+    }
+
+    private void ApplyHeroToUnit(CombatUnit unit, HeroData hero)
+    {
+        if (PartyManager.Instance != null)
+        {
+            PartyManager.Instance.ApplyHeroToUnit(unit, hero);
+            return;
+        }
+
+        unit.UnitName = hero.displayName;
+        unit.ElementType = hero.element;
+        unit.MaxHP = hero.baseMaxHP;
+        unit.HP = hero.baseMaxHP;
+        unit.Attack = hero.baseAttack;
+        unit.Defense = hero.baseDefense;
+        unit.Speed = hero.baseSpeed;
+
+        if (hero.starterSkills != null)
+        {
+            unit.SetSkills(hero.starterSkills);
+        }
     }
 
     private void EnsureBattleHud()
