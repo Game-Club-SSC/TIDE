@@ -15,21 +15,26 @@ public class CombatUnitVerificationTest : MonoBehaviour
     {
         // Create a test GameObject with CombatUnit component
         GameObject testObject = new GameObject("TestCombatUnit");
-        testUnit = testObject.AddComponent<CombatUnit>();
-        
-        Debug.Log("=== Starting Combat Unit Verification Tests ===");
-        
-        TestInitialState();
-        TestTakingDamage();
-        TestHealing();
-        TestMpManagement();
-        TestDeathState();
-        TestReviveLogic();
-        
-        Debug.Log("=== Combat Unit Verification Tests Complete ===");
-        
-        // Clean up
-        DestroyImmediate(testObject);
+        try
+        {
+            testUnit = testObject.AddComponent<CombatUnit>();
+
+            Debug.Log("=== Starting Combat Unit Verification Tests ===");
+
+            TestInitialState();
+            TestTakingDamage();
+            TestHealing();
+            TestMpManagement();
+            TestDeathState();
+            TestReviveLogic();
+
+            Debug.Log("=== Combat Unit Verification Tests Complete ===");
+        }
+        finally
+        {
+            DestroyImmediate(testObject);
+            testUnit = null;
+        }
     }
     
     private void TestInitialState()

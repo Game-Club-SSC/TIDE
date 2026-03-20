@@ -38,6 +38,8 @@ public class TideManager : MonoBehaviour
     private Vector2Int sealedPosition = new Vector2Int(1, 1);
     private Vector2Int lockedPosition = new Vector2Int(-1, -1);
     private string lockedEncounterId = "";
+    private string lockedEncounterIslandId = "";
+    private string puzzleIslandId = "";
     private PuzzleWinCondition winCondition = new PuzzleWinCondition();
 
     private Transform runtimeBoardRoot;
@@ -64,6 +66,8 @@ public class TideManager : MonoBehaviour
         sealedTiles = new bool[3, 3];
         lockedPosition = new Vector2Int(-1, -1);
         lockedEncounterId = string.Empty;
+        lockedEncounterIslandId = string.Empty;
+        puzzleIslandId = string.Empty;
         winCondition = new PuzzleWinCondition();
 
         for (int row = 0; row < 3; row++)
@@ -93,6 +97,12 @@ public class TideManager : MonoBehaviour
         instabilityThreshold = data.instabilityThreshold;
         lockedPosition = data.lockedPosition;
         lockedEncounterId = data.lockedTileEncounterId;
+        lockedEncounterIslandId = data.lockedTileIslandId;
+
+        if (string.IsNullOrEmpty(puzzleIslandId))
+        {
+            puzzleIslandId = lockedEncounterIslandId;
+        }
 
         sealedTiles = new bool[3, 3];
         if (data.HasSealedTile)
@@ -102,14 +112,44 @@ public class TideManager : MonoBehaviour
 
         if (data.HasLockedTile)
         {
-            bool lockedCleared = IslandRestorationTracker.Instance != null
-                && IslandRestorationTracker.Instance.HasClearedEncounter(lockedEncounterId);
+            bool lockedCleared = IsLockedEncounterCleared();
 
             if (!lockedCleared)
             {
                 TrySetSealedTile(data.lockedPosition, true);
             }
         }
+    }
+
+    private bool IsLockedEncounterCleared()
+    {
+        if (IslandRestorationTracker.Instance == null || string.IsNullOrEmpty(lockedEncounterId))
+        {
+            return false;
+        }
+
+        string islandScope = GetPuzzleIslandIdForLookup();
+        if (!string.IsNullOrEmpty(islandScope))
+        {
+            return IslandRestorationTracker.Instance.HasClearedEncounter(islandScope, lockedEncounterId);
+        }
+
+        return IslandRestorationTracker.Instance.HasClearedEncounter(lockedEncounterId);
+    }
+
+    private string GetPuzzleIslandIdForLookup()
+    {
+        if (!string.IsNullOrEmpty(lockedEncounterIslandId))
+        {
+            return lockedEncounterIslandId;
+        }
+
+        if (!string.IsNullOrEmpty(puzzleIslandId))
+        {
+            return puzzleIslandId;
+        }
+
+        return string.Empty;
     }
 
     private void Start()
@@ -122,13 +162,17 @@ public class TideManager : MonoBehaviour
 
         if (GameStateManager.Instance != null && GameStateManager.Instance.PendingPuzzleData != null)
         {
+            puzzleIslandId = GameStateManager.Instance.PendingPuzzleIslandId;
             InitializePuzzle(GameStateManager.Instance.PendingPuzzleData);
             GameStateManager.Instance.PendingPuzzleData = null;
+            GameStateManager.Instance.PendingPuzzleIslandId = string.Empty;
         }
         else if (GameStateManager.Instance != null && GameStateManager.Instance.PendingPuzzleLayout != null)
         {
+            puzzleIslandId = string.Empty;
             InitializePuzzle(GameStateManager.Instance.PendingPuzzleLayout, GameStateManager.Instance.PendingPuzzleSealedTile);
             GameStateManager.Instance.PendingPuzzleLayout = null;
+            GameStateManager.Instance.PendingPuzzleIslandId = string.Empty;
         }
 
         GenerateBoard();

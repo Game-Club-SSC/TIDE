@@ -22,12 +22,26 @@ public class BossEncounterGateTest : MonoBehaviour
         Debug.Log("=== All Boss Encounter Gate Tests Passed ===");
     }
 
+    private static IslandRestorationTracker CreateIsolatedTracker(string trackerName)
+    {
+        if (IslandRestorationTracker.Instance != null)
+        {
+            Object.DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
+        }
+
+        GameObject trackerObject = new GameObject(trackerName);
+        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        Assert.AreSame(tracker, IslandRestorationTracker.Instance,
+            "Tracker singleton should reference the isolated test tracker instance.");
+        return tracker;
+    }
+
     private void TestBossLockedBelowThreshold()
     {
         Debug.Log("Testing boss locked below threshold...");
 
-        GameObject trackerObject = new GameObject("TestTracker_BossLock");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossLock");
+        GameObject trackerObject = tracker.gameObject;
 
         GameObject gateObject = new GameObject("TestGate_BossLock");
         BossEncounterGate gate = gateObject.AddComponent<BossEncounterGate>();
@@ -64,8 +78,8 @@ public class BossEncounterGateTest : MonoBehaviour
     {
         Debug.Log("Testing boss unlocked at threshold...");
 
-        GameObject trackerObject = new GameObject("TestTracker_BossUnlockAt");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossUnlockAt");
+        GameObject trackerObject = tracker.gameObject;
 
         GameObject gateObject = new GameObject("TestGate_BossUnlockAt");
         BossEncounterGate gate = gateObject.AddComponent<BossEncounterGate>();
@@ -102,8 +116,8 @@ public class BossEncounterGateTest : MonoBehaviour
     {
         Debug.Log("Testing boss unlocked above threshold...");
 
-        GameObject trackerObject = new GameObject("TestTracker_BossUnlockAbove");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossUnlockAbove");
+        GameObject trackerObject = tracker.gameObject;
 
         GameObject gateObject = new GameObject("TestGate_BossUnlockAbove");
         BossEncounterGate gate = gateObject.AddComponent<BossEncounterGate>();
@@ -141,8 +155,8 @@ public class BossEncounterGateTest : MonoBehaviour
     {
         Debug.Log("Testing boss state on re-enable (reload consistency)...");
 
-        GameObject trackerObject = new GameObject("TestTracker_BossReenable");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossReenable");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.RecordEncounterCompletion("island_reload", "c1", EncounterType.Combat, 0.4f);
         tracker.RecordEncounterCompletion("island_reload", "p1", EncounterType.Puzzle, 0.4f);
@@ -193,8 +207,8 @@ public class BossEncounterGateTest : MonoBehaviour
     {
         Debug.Log("Testing boss unlock/lock events...");
 
-        GameObject trackerObject = new GameObject("TestTracker_BossEvents");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossEvents");
+        GameObject trackerObject = tracker.gameObject;
 
         GameObject gateObject = new GameObject("TestGate_BossEvents");
         BossEncounterGate gate = gateObject.AddComponent<BossEncounterGate>();
@@ -237,8 +251,8 @@ public class BossEncounterGateTest : MonoBehaviour
     {
         Debug.Log("Testing boss events not re-fired when already unlocked...");
 
-        GameObject trackerObject = new GameObject("TestTracker_BossNoRepeat");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossNoRepeat");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.RecordEncounterCompletion("island_norepeat", "c1", EncounterType.Combat, 0.8f);
 
@@ -278,8 +292,8 @@ public class BossEncounterGateTest : MonoBehaviour
     {
         Debug.Log("Testing island ID filtering...");
 
-        GameObject trackerObject = new GameObject("TestTracker_BossFilter");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossFilter");
+        GameObject trackerObject = tracker.gameObject;
 
         GameObject gateObject = new GameObject("TestGate_BossFilter");
         BossEncounterGate gate = gateObject.AddComponent<BossEncounterGate>();
@@ -318,8 +332,8 @@ public class BossEncounterGateTest : MonoBehaviour
     {
         Debug.Log("Testing threshold tuning...");
 
-        GameObject trackerObject = new GameObject("TestTracker_BossTune");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossTune");
+        GameObject trackerObject = tracker.gameObject;
 
         GameObject gateObject = new GameObject("TestGate_BossTune");
         BossEncounterGate gate = gateObject.AddComponent<BossEncounterGate>();

@@ -278,12 +278,19 @@ public class BattleManager : MonoBehaviour
                 BeginEndTurnPhase();
                 break;
             case BattlePhase.Victory:
-            case BattlePhase.Defeat:
-                if (GameStateManager.Instance != null)
-                {
-                    GameStateManager.Instance.OnCombatEnded();
-                }
+                NotifyCombatEnded(true);
                 break;
+            case BattlePhase.Defeat:
+                NotifyCombatEnded(false);
+                break;
+        }
+    }
+
+    private static void NotifyCombatEnded(bool playerWon)
+    {
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.OnCombatEnded(playerWon);
         }
     }
 

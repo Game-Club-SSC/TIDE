@@ -27,12 +27,26 @@ public class RestorationTrackerTest : MonoBehaviour
         Debug.Log("=== All Restoration Tracker Tests Passed ===");
     }
 
+    private static IslandRestorationTracker CreateIsolatedTracker(string trackerName)
+    {
+        if (IslandRestorationTracker.Instance != null)
+        {
+            Object.DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
+        }
+
+        GameObject trackerObject = new GameObject(trackerName);
+        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        Assert.AreSame(tracker, IslandRestorationTracker.Instance,
+            "Tracker singleton should reference the isolated test tracker instance.");
+        return tracker;
+    }
+
     private void TestCombatContribution()
     {
         Debug.Log("Testing combat contribution...");
 
-        GameObject trackerObject = new GameObject("TestTracker_Combat");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Combat");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.RecordEncounterCompletion("island_test", "combat_1", EncounterType.Combat, 0.2f);
 
@@ -52,8 +66,8 @@ public class RestorationTrackerTest : MonoBehaviour
     {
         Debug.Log("Testing puzzle contribution...");
 
-        GameObject trackerObject = new GameObject("TestTracker_Puzzle");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Puzzle");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
 
@@ -73,8 +87,8 @@ public class RestorationTrackerTest : MonoBehaviour
     {
         Debug.Log("Testing duplicate encounter prevention...");
 
-        GameObject trackerObject = new GameObject("TestTracker_Dupe");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Dupe");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.RecordEncounterCompletion("island_test", "combat_1", EncounterType.Combat, 0.2f);
         tracker.RecordEncounterCompletion("island_test", "combat_1", EncounterType.Combat, 0.2f);
@@ -93,8 +107,8 @@ public class RestorationTrackerTest : MonoBehaviour
     {
         Debug.Log("Testing duplicate puzzle encounter prevention...");
 
-        GameObject trackerObject = new GameObject("TestTracker_PuzzleDupe");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_PuzzleDupe");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
         tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
@@ -113,8 +127,8 @@ public class RestorationTrackerTest : MonoBehaviour
     {
         Debug.Log("Testing legacy CompleteEncounter duplicate protection...");
 
-        GameObject trackerObject = new GameObject("TestTracker_Legacy");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Legacy");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.CompleteEncounter(0.2f);
         tracker.CompleteEncounter(0.4f);
@@ -135,8 +149,8 @@ public class RestorationTrackerTest : MonoBehaviour
         Debug.Log("Testing typed buckets (combat + puzzle)...");
         // Simulates Island 1: Combat A (20%) + Puzzle A (30%) + Combat B (20%) + Puzzle B (30%) = 100%
 
-        GameObject trackerObject = new GameObject("TestTracker_Buckets");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Buckets");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.RecordEncounterCompletion("island_1", "combat_a", EncounterType.Combat, 0.2f);
         tracker.RecordEncounterCompletion("island_1", "puzzle_a", EncounterType.Puzzle, 0.3f);
@@ -159,8 +173,8 @@ public class RestorationTrackerTest : MonoBehaviour
     {
         Debug.Log("Testing restoration percent calculation...");
 
-        GameObject trackerObject = new GameObject("TestTracker_Percent");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Percent");
+        GameObject trackerObject = tracker.gameObject;
 
         // Empty island should be 0%
         Assert.AreEqual(0f, tracker.GetRestorationPercent("empty_island"), "Empty island should be 0%.");
@@ -183,8 +197,8 @@ public class RestorationTrackerTest : MonoBehaviour
     {
         Debug.Log("Testing threshold query...");
 
-        GameObject trackerObject = new GameObject("TestTracker_Threshold");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Threshold");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.RecordEncounterCompletion("island_thresh", "c1", EncounterType.Combat, 0.4f);
 
@@ -205,8 +219,8 @@ public class RestorationTrackerTest : MonoBehaviour
     {
         Debug.Log("Testing full restoration event...");
 
-        GameObject trackerObject = new GameObject("TestTracker_Event");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Event");
+        GameObject trackerObject = tracker.gameObject;
 
         string restoredIsland = null;
         List<string> changedIslands = new List<string>();
@@ -231,8 +245,8 @@ public class RestorationTrackerTest : MonoBehaviour
     {
         Debug.Log("Testing reset island...");
 
-        GameObject trackerObject = new GameObject("TestTracker_Reset");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Reset");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.RecordEncounterCompletion("island_reset", "c1", EncounterType.Combat, 0.5f);
         Assert.AreEqual(50f, tracker.GetRestorationPercent("island_reset"), 0.01f, "Should be 50% before reset.");
@@ -253,8 +267,8 @@ public class RestorationTrackerTest : MonoBehaviour
     {
         Debug.Log("Testing multi-island isolation...");
 
-        GameObject trackerObject = new GameObject("TestTracker_Multi");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Multi");
+        GameObject trackerObject = tracker.gameObject;
 
         tracker.RecordEncounterCompletion("island_a", "c1", EncounterType.Combat, 0.5f);
         tracker.RecordEncounterCompletion("island_b", "c1", EncounterType.Combat, 0.3f);

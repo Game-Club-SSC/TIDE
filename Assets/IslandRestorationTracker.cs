@@ -52,6 +52,12 @@ public class IslandRestorationTracker : MonoBehaviour
             islandId = DefaultIslandId;
         }
 
+        if (string.IsNullOrEmpty(encounterId))
+        {
+            Debug.LogWarning($"[IslandRestorationTracker] Encounter id is required for island '{islandId}'. Skipping completion.");
+            return;
+        }
+
         if (value <= 0f)
         {
             return;
@@ -165,6 +171,26 @@ public class IslandRestorationTracker : MonoBehaviour
         }
 
         return false;
+    }
+
+    public bool HasClearedEncounter(string islandId, string encounterId)
+    {
+        if (string.IsNullOrEmpty(encounterId))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(islandId))
+        {
+            islandId = DefaultIslandId;
+        }
+
+        if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
+        {
+            return false;
+        }
+
+        return state.HasCompleted(encounterId);
     }
 
     private IslandRestorationState GetOrCreateState(string islandId)

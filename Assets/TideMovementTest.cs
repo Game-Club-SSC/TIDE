@@ -134,6 +134,20 @@ public class TideMovementTest : MonoBehaviour
         return data;
     }
 
+    private static IslandRestorationTracker CreateIsolatedTracker(string trackerName)
+    {
+        if (IslandRestorationTracker.Instance != null)
+        {
+            Object.DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
+        }
+
+        GameObject trackerObject = new GameObject(trackerName);
+        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        Assert.AreSame(tracker, IslandRestorationTracker.Instance,
+            "Tracker singleton should reference the isolated test tracker instance.");
+        return tracker;
+    }
+
     private void TestAdjacentCardinalOpen()
     {
         Setup();
@@ -339,6 +353,8 @@ public class TideMovementTest : MonoBehaviour
 
     private void TestCompletionIgnoresPermanentAndLockedSealedTiles()
     {
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TideManager_LockedTileTracker_Default");
+        GameObject trackerObject = tracker.gameObject;
         Setup();
 
         PuzzleData data = CreateLockedTilePuzzleData();
@@ -361,13 +377,14 @@ public class TideMovementTest : MonoBehaviour
         finally
         {
             Object.DestroyImmediate(data);
+            Object.DestroyImmediate(trackerObject);
         }
     }
 
     private void TestLockedTileCountsAfterEncounterCleared()
     {
-        GameObject trackerObject = new GameObject("TideManager_LockedTileTracker");
-        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TideManager_LockedTileTracker");
+        GameObject trackerObject = tracker.gameObject;
         tracker.RecordEncounterCompletion("island_lock", "guard_1", EncounterType.Combat, 0.2f);
 
         Setup();

@@ -100,6 +100,9 @@ public class PuzzleData : ScriptableObject
     [Tooltip("Encounter ID that must be cleared to unlock the locked tile. Leave empty if no locked tile.")]
     public string lockedTileEncounterId = "";
 
+    [Tooltip("Optional island ID scope for locked-tile encounter checks. Leave empty to use active island context.")]
+    public string lockedTileIslandId = "";
+
     [Tooltip("Win condition for this puzzle.")]
     public PuzzleWinCondition winCondition = new PuzzleWinCondition();
 

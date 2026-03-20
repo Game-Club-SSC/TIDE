@@ -40,15 +40,17 @@ public class IslandRestorationState
 
     public void RecordCompletion(string encounterId, EncounterType type, float value)
     {
+        if (string.IsNullOrEmpty(encounterId))
+        {
+            return;
+        }
+
         if (!string.IsNullOrEmpty(encounterId) && completedEncounterIds.Contains(encounterId))
         {
             return;
         }
 
-        if (!string.IsNullOrEmpty(encounterId))
-        {
-            completedEncounterIds.Add(encounterId);
-        }
+        completedEncounterIds.Add(encounterId);
 
         if (type == EncounterType.Combat)
         {

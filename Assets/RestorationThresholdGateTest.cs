@@ -15,18 +15,33 @@ public class RestorationThresholdGateTest : MonoBehaviour
         Debug.Log("=== All Restoration Threshold Gate Tests Passed ===");
     }
 
+    private static IslandRestorationTracker CreateIsolatedTracker(string trackerName)
+    {
+        if (IslandRestorationTracker.Instance != null)
+        {
+            Object.DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
+        }
+
+        GameObject trackerObject = new GameObject(trackerName);
+        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        Assert.AreSame(tracker, IslandRestorationTracker.Instance,
+            "Tracker singleton should reference the isolated test tracker instance.");
+        return tracker;
+    }
+
     private void TestStartupSyncBelowThreshold()
     {
         Debug.Log("Testing threshold gate startup sync below threshold...");
 
-        GameObject trackerObject = new GameObject("TestTracker_ThresholdLow");
+        GameObject trackerObject = null;
         GameObject gateObject = new GameObject("TestGate_ThresholdLow");
         GameObject objectToEnable = new GameObject("Enable_Low");
         GameObject objectToDisable = new GameObject("Disable_Low");
 
         try
         {
-            IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+            IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_ThresholdLow");
+            trackerObject = tracker.gameObject;
             tracker.RecordEncounterCompletion("island_low", "c1", EncounterType.Combat, 0.3f);
 
             gateObject.SetActive(false);
@@ -75,14 +90,15 @@ public class RestorationThresholdGateTest : MonoBehaviour
     {
         Debug.Log("Testing threshold gate startup sync above threshold...");
 
-        GameObject trackerObject = new GameObject("TestTracker_ThresholdHigh");
+        GameObject trackerObject = null;
         GameObject gateObject = new GameObject("TestGate_ThresholdHigh");
         GameObject objectToEnable = new GameObject("Enable_High");
         GameObject objectToDisable = new GameObject("Disable_High");
 
         try
         {
-            IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+            IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_ThresholdHigh");
+            trackerObject = tracker.gameObject;
             tracker.RecordEncounterCompletion("island_high", "c1", EncounterType.Combat, 0.8f);
 
             gateObject.SetActive(false);

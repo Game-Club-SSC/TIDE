@@ -128,6 +128,8 @@ public class PartyManager : MonoBehaviour
         unit.ElementType = ResolveElement(hero);
         unit.MaxHP = hero.baseMaxHP;
         unit.HP = hero.baseMaxHP;
+        unit.MaxMP = hero.baseMaxMP;
+        unit.MP = hero.baseMaxMP;
         unit.Attack = hero.baseAttack;
         unit.Defense = hero.baseDefense;
         unit.Speed = hero.baseSpeed;
@@ -151,6 +153,8 @@ public class PartyManager : MonoBehaviour
         unit.ElementType = hero.element;
         unit.MaxHP = hero.baseMaxHP;
         unit.HP = hero.baseMaxHP;
+        unit.MaxMP = hero.baseMaxMP;
+        unit.MP = hero.baseMaxMP;
         unit.Attack = hero.baseAttack;
         unit.Defense = hero.baseDefense;
         unit.Speed = hero.baseSpeed;
@@ -172,6 +176,8 @@ public class PartyManager : MonoBehaviour
         unit.ElementType = element;
         unit.MaxHP = hero.baseMaxHP;
         unit.HP = hero.baseMaxHP;
+        unit.MaxMP = hero.baseMaxMP;
+        unit.MP = hero.baseMaxMP;
         unit.Attack = hero.baseAttack;
         unit.Defense = hero.baseDefense;
         unit.Speed = hero.baseSpeed;

@@ -9,17 +9,37 @@ public class IslandFlowController : MonoBehaviour
     private bool isActive;
     private bool awaitingEncounterResolution;
 
+    public string IslandId => islandConfig != null ? islandConfig.islandId : string.Empty;
+
     public bool IsActive => isActive;
     public int CurrentEncounterIndex => currentEncounterIndex;
     public int CurrentSubsection => currentEncounterIndex / 2;
 
     private void Awake()
     {
-        if (tracker == null)
+        ResolveTrackerReference();
+    }
+
+    private void ResolveTrackerReference()
+    {
+        if (tracker != null)
         {
-            tracker = GetComponent<IslandRestorationTracker>();
+            return;
         }
 
+        if (IslandRestorationTracker.Instance != null)
+        {
+            tracker = IslandRestorationTracker.Instance;
+            return;
+        }
+
+        tracker = GetComponent<IslandRestorationTracker>();
+        if (tracker != null)
+        {
+            return;
+        }
+
+        tracker = FindFirstObjectByType<IslandRestorationTracker>();
         if (tracker == null)
         {
             tracker = gameObject.AddComponent<IslandRestorationTracker>();
@@ -46,7 +66,28 @@ public class IslandFlowController : MonoBehaviour
 
     public void StartIsland(IslandConfig config)
     {
+        if (config == null)
+        {
+            Debug.LogError("[IslandFlowController] Cannot start island flow with null config.");
+            return;
+        }
+
+        ResolveTrackerReference();
+        if (tracker == null)
+        {
+            Debug.LogError("[IslandFlowController] Missing IslandRestorationTracker; cannot start island flow.");
+            return;
+        }
+
         islandConfig = config;
+        if (islandConfig.encounters == null || islandConfig.encounters.Length == 0)
+        {
+            Debug.LogError($"[IslandFlowController] Island '{islandConfig.viceName}' has no encounters configured.");
+            isActive = false;
+            awaitingEncounterResolution = false;
+            return;
+        }
+
         currentEncounterIndex = 0;
         isActive = true;
         awaitingEncounterResolution = false;
@@ -104,10 +145,17 @@ public class IslandFlowController : MonoBehaviour
         OnEncounterComplete();
     }
 
-    public void OnReturnFromCombat()
+    public void OnReturnFromCombat(bool playerWon)
     {
         if (!isActive || !awaitingEncounterResolution)
         {
+            return;
+        }
+
+        if (!playerWon)
+        {
+            Debug.Log("[IslandFlowController] Combat encounter failed. Flow remains on current encounter.");
+            LoadCurrentEncounter();
             return;
         }
 
@@ -116,6 +164,14 @@ public class IslandFlowController : MonoBehaviour
 
     private void LoadCurrentEncounter()
     {
+        if (islandConfig == null || islandConfig.encounters == null || islandConfig.encounters.Length == 0)
+        {
+            Debug.LogWarning("[IslandFlowController] No encounters available to load.");
+            isActive = false;
+            awaitingEncounterResolution = false;
+            return;
+        }
+
         if (currentEncounterIndex >= islandConfig.encounters.Length)
         {
             OnIslandComplete();
@@ -160,6 +216,7 @@ public class IslandFlowController : MonoBehaviour
         if (encounter.puzzleData != null && GameStateManager.Instance != null)
         {
             GameStateManager.Instance.PendingPuzzleData = encounter.puzzleData;
+            GameStateManager.Instance.PendingPuzzleIslandId = IslandId;
         }
 
         if (GameStateManager.Instance != null)

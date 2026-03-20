@@ -23,13 +23,18 @@ public class BossEncounterGate : MonoBehaviour
 
     private void OnEnable()
     {
-        tracker = IslandRestorationTracker.Instance;
-        if (tracker != null)
-        {
-            tracker.OnRestorationChanged += HandleRestorationChanged;
-        }
+        TryBindTracker();
 
         EvaluateState(false);
+    }
+
+    private void Update()
+    {
+        if (tracker == null)
+        {
+            TryBindTracker();
+            EvaluateState(false);
+        }
     }
 
     private void OnDisable()
@@ -80,6 +85,20 @@ public class BossEncounterGate : MonoBehaviour
         {
             Debug.Log($"[BossEncounterGate] Boss locked on '{targetIsland}' at {percent:F1}% (threshold: {bossUnlockThresholdPercent}%).");
             OnBossLocked?.Invoke();
+        }
+    }
+
+    private void TryBindTracker()
+    {
+        if (tracker != null)
+        {
+            return;
+        }
+
+        tracker = IslandRestorationTracker.Instance;
+        if (tracker != null)
+        {
+            tracker.OnRestorationChanged += HandleRestorationChanged;
         }
     }
 

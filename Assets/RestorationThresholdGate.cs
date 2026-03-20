@@ -22,13 +22,18 @@ public class RestorationThresholdGate : MonoBehaviour
 
     private void OnEnable()
     {
-        tracker = IslandRestorationTracker.Instance;
-        if (tracker != null)
-        {
-            tracker.OnRestorationChanged += HandleRestorationChanged;
-        }
+        TryBindTracker();
 
         EvaluateState(false);
+    }
+
+    private void Update()
+    {
+        if (tracker == null)
+        {
+            TryBindTracker();
+            EvaluateState(false);
+        }
     }
 
     private void OnDisable()
@@ -92,6 +97,20 @@ public class RestorationThresholdGate : MonoBehaviour
         if (objectToDisable != null)
         {
             objectToDisable.SetActive(!thresholdMet);
+        }
+    }
+
+    private void TryBindTracker()
+    {
+        if (tracker != null)
+        {
+            return;
+        }
+
+        tracker = IslandRestorationTracker.Instance;
+        if (tracker != null)
+        {
+            tracker.OnRestorationChanged += HandleRestorationChanged;
         }
     }
 }

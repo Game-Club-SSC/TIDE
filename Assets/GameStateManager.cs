@@ -30,16 +30,20 @@ public class GameStateManager : MonoBehaviour
     private Vector3 pendingReturnPosition;
     private bool hasPendingReturnPosition;
     private bool isTransitioning;
+    private bool hasHandledSceneLoad;
 
     public PuzzleData PendingPuzzleData { get; set; }
     public int[,] PendingPuzzleLayout { get; set; }
     public Vector2Int PendingPuzzleSealedTile { get; set; }
     public EnemyComposition PendingEnemyComposition { get; set; }
+    public string PendingPuzzleIslandId { get; set; }
     public IslandFlowController FlowController { get; set; }
     public bool HasActiveFlowController => FlowController != null && FlowController.IsActive;
     public IslandRestorationTracker RestorationTracker => IslandRestorationTracker.Instance;
     private bool isFlowControlledCombat;
     private bool deferredFlowFromCombat;
+    private bool hasDeferredFlowFromCombatResult;
+    private bool deferredFlowFromCombatResult;
     private bool deferredFlowFromPuzzle;
 
     public float GetIslandRestorationPercent(string islandId)
@@ -78,7 +82,10 @@ public class GameStateManager : MonoBehaviour
 
     private void Start()
     {
-        HandleSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+        if (!hasHandledSceneLoad)
+        {
+            HandleSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+        }
     }
 
     private void OnDestroy()
@@ -121,6 +128,8 @@ public class GameStateManager : MonoBehaviour
         }
 
         isFlowControlledCombat = HasActiveFlowController;
+        hasDeferredFlowFromCombatResult = false;
+        deferredFlowFromCombatResult = false;
         StartCoroutine(TransitionToScene(CombatSceneName, GameState.Combat));
     }
 
@@ -151,6 +160,7 @@ public class GameStateManager : MonoBehaviour
 
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
+        PendingPuzzleIslandId = string.Empty;
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
     }
 
@@ -163,6 +173,10 @@ public class GameStateManager : MonoBehaviour
 
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
+        if (PendingPuzzleData == null)
+        {
+            PendingPuzzleIslandId = string.Empty;
+        }
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
     }
 
@@ -171,12 +185,17 @@ public class GameStateManager : MonoBehaviour
         PuzzleSolved = true;
     }
 
-    public void OnCombatEnded()
+    public void OnCombatEnded(bool playerWon)
     {
         if (HasActiveFlowController)
         {
+            hasDeferredFlowFromCombatResult = true;
+            deferredFlowFromCombatResult = playerWon;
             StartCoroutine(ReturnFromCombatAfterDelay(1.5f));
+            return;
         }
+
+        StartCoroutine(ReturnFromCombatAfterDelay(1.5f));
     }
 
     private IEnumerator ReturnFromCombatAfterDelay(float delay)
@@ -234,10 +253,13 @@ public class GameStateManager : MonoBehaviour
         if (deferredFlowFromCombat)
         {
             deferredFlowFromCombat = false;
-            if (HasActiveFlowController)
+            if (HasActiveFlowController && hasDeferredFlowFromCombatResult)
             {
-                FlowController.OnReturnFromCombat();
+                FlowController.OnReturnFromCombat(deferredFlowFromCombatResult);
             }
+
+            hasDeferredFlowFromCombatResult = false;
+            deferredFlowFromCombatResult = false;
         }
         else if (deferredFlowFromPuzzle)
         {
@@ -251,6 +273,7 @@ public class GameStateManager : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode loadMode)
     {
+        hasHandledSceneLoad = true;
         CachePlayer();
 
         if (scene.name == MainSceneName)
