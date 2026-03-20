@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: hero_fire
   m_EditorClassIdentifier: 
   heroId: hero_fire
-  displayName: Adrian
+  displayName: Andrian
   isMainCharacter: 0
   element: 1
   baseMaxHP: 100
