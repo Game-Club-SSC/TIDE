@@ -138,7 +138,7 @@ public class TideMovementTest : MonoBehaviour
     {
         if (IslandRestorationTracker.Instance != null)
         {
-            Object.DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
+            DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
         }
 
         GameObject trackerObject = new GameObject(trackerName);
@@ -376,8 +376,8 @@ public class TideMovementTest : MonoBehaviour
         }
         finally
         {
-            Object.DestroyImmediate(data);
-            Object.DestroyImmediate(trackerObject);
+            DestroyImmediate(data);
+            DestroyImmediate(trackerObject);
         }
     }
 
@@ -415,8 +415,8 @@ public class TideMovementTest : MonoBehaviour
         }
         finally
         {
-            Object.DestroyImmediate(data);
-            Object.DestroyImmediate(trackerObject);
+            DestroyImmediate(data);
+            DestroyImmediate(trackerObject);
         }
     }
 
@@ -449,7 +449,7 @@ public class TideMovementTest : MonoBehaviour
         Assert.AreEqual(WinConditionType.PercentageAtTarget, cond.type, "Win condition type should be PercentageAtTarget.");
         Assert.AreEqual(0.6f, cond.requiredPercent, "Required percent should be 0.6.");
 
-        Object.DestroyImmediate(data);
+        DestroyImmediate(data);
         Debug.Log("  [PASS] TestPuzzleDataInitializePuzzle");
     }
 

@@ -31,7 +31,7 @@ public class RestorationTrackerTest : MonoBehaviour
     {
         if (IslandRestorationTracker.Instance != null)
         {
-            Object.DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
+            DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
         }
 
         GameObject trackerObject = new GameObject(trackerName);

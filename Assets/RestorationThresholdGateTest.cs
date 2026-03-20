@@ -19,7 +19,7 @@ public class RestorationThresholdGateTest : MonoBehaviour
     {
         if (IslandRestorationTracker.Instance != null)
         {
-            Object.DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
+            DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
         }
 
         GameObject trackerObject = new GameObject(trackerName);
@@ -79,10 +79,10 @@ public class RestorationThresholdGateTest : MonoBehaviour
         }
         finally
         {
-            Object.DestroyImmediate(gateObject);
-            Object.DestroyImmediate(objectToEnable);
-            Object.DestroyImmediate(objectToDisable);
-            Object.DestroyImmediate(trackerObject);
+            DestroyImmediate(gateObject);
+            DestroyImmediate(objectToEnable);
+            DestroyImmediate(objectToDisable);
+            DestroyImmediate(trackerObject);
         }
     }
 
@@ -136,10 +136,10 @@ public class RestorationThresholdGateTest : MonoBehaviour
         }
         finally
         {
-            Object.DestroyImmediate(gateObject);
-            Object.DestroyImmediate(objectToEnable);
-            Object.DestroyImmediate(objectToDisable);
-            Object.DestroyImmediate(trackerObject);
+            DestroyImmediate(gateObject);
+            DestroyImmediate(objectToEnable);
+            DestroyImmediate(objectToDisable);
+            DestroyImmediate(trackerObject);
         }
     }
 
