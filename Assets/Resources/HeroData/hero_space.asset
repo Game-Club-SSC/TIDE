@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   heroId: hero_space
   displayName: Ethan
-  isMainCharacter: 1
+  isMainCharacter: 0
   element: 5
   baseMaxHP: 95
   baseMaxMP: 55

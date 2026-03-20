@@ -97,7 +97,7 @@ public class HeroDataVerificationTest : MonoBehaviour
             }
         }
 
-        Assert.AreEqual(1, mainCharCount, "Exactly 1 hero must be marked as main character.");
+        Assert.AreEqual(0, mainCharCount, "No heroes should be marked as main character with fixed elements.");
 
         Debug.Log("  [PASS] Main character flag correct");
     }
