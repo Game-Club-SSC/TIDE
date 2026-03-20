@@ -208,7 +208,7 @@ public class GameStateManager : MonoBehaviour
             yield break;
         }
 
-        if (!SceneManager.GetSceneByName(sceneName).IsValid())
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
         {
             Debug.LogError($"[GameStateManager] Scene '{sceneName}' not found!");
             yield break;
@@ -262,7 +262,7 @@ public class GameStateManager : MonoBehaviour
                 Rigidbody playerBody = player.GetComponent<Rigidbody>();
                 if (playerBody != null)
                 {
-                    playerBody.linearVelocity = Vector3.zero;
+                    playerBody.velocity = Vector3.zero;
                     playerBody.angularVelocity = Vector3.zero;
                 }
             }
