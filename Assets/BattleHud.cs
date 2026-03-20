@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class BattleHud : MonoBehaviour
@@ -299,6 +300,8 @@ public class BattleHud : MonoBehaviour
     // --- Canvas construction ---
     private void EnsureCanvas()
     {
+        EnsureEventSystem();
+
         GameObject canvasObject = new GameObject(CanvasName, typeof(RectTransform));
         canvasObject.transform.SetParent(transform, false);
 
@@ -320,6 +323,19 @@ public class BattleHud : MonoBehaviour
         CreatePhaseLabel(canvasObject.transform);
         CreateVictoryOverlay(canvasObject.transform);
         CreateDefeatOverlay(canvasObject.transform);
+    }
+
+    private void EnsureEventSystem()
+    {
+        if (FindFirstObjectByType<EventSystem>() != null)
+        {
+            return;
+        }
+
+        GameObject eventSystemObj = new GameObject("EventSystem");
+        eventSystemObj.AddComponent<EventSystem>();
+        eventSystemObj.AddComponent<StandaloneInputModule>();
+        Debug.Log("[BattleHud] Created EventSystem for combat scene.");
     }
 
     private void CreateAllyPanel(Transform parent)
