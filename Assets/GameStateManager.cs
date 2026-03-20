@@ -208,7 +208,8 @@ public class GameStateManager : MonoBehaviour
             yield break;
         }
 
-        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        string scenePath = $"Assets/Scenes/{sceneName}.unity";
+        if (SceneUtility.GetBuildIndexByScenePath(scenePath) < 0)
         {
             Debug.LogError($"[GameStateManager] Scene '{sceneName}' not found!");
             yield break;
