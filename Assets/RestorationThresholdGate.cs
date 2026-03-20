@@ -28,7 +28,7 @@ public class RestorationThresholdGate : MonoBehaviour
             tracker.OnRestorationChanged += HandleRestorationChanged;
         }
 
-        EvaluateState();
+        EvaluateState(false);
     }
 
     private void OnDisable()
@@ -47,10 +47,10 @@ public class RestorationThresholdGate : MonoBehaviour
             return;
         }
 
-        EvaluateState();
+        EvaluateState(true);
     }
 
-    private void EvaluateState()
+    private void EvaluateState(bool invokeEvents)
     {
         if (tracker == null)
         {
@@ -60,22 +60,14 @@ public class RestorationThresholdGate : MonoBehaviour
         string targetIsland = string.IsNullOrEmpty(islandId) ? "default" : islandId;
         float percent = tracker.GetRestorationPercent(targetIsland);
         bool nowMet = percent >= thresholdPercent;
-
-        if (nowMet == thresholdMet)
-        {
-            return;
-        }
+        bool stateChanged = nowMet != thresholdMet;
 
         thresholdMet = nowMet;
+        ApplyThresholdState();
 
-        if (objectToEnable != null)
+        if (!invokeEvents || !stateChanged)
         {
-            objectToEnable.SetActive(thresholdMet);
-        }
-
-        if (objectToDisable != null)
-        {
-            objectToDisable.SetActive(!thresholdMet);
+            return;
         }
 
         if (thresholdMet)
@@ -87,6 +79,19 @@ public class RestorationThresholdGate : MonoBehaviour
         {
             Debug.Log($"[RestorationThresholdGate] Threshold {thresholdPercent}% lost on '{targetIsland}'. Gate deactivated.");
             OnThresholdLost?.Invoke();
+        }
+    }
+
+    private void ApplyThresholdState()
+    {
+        if (objectToEnable != null)
+        {
+            objectToEnable.SetActive(thresholdMet);
+        }
+
+        if (objectToDisable != null)
+        {
+            objectToDisable.SetActive(!thresholdMet);
         }
     }
 }

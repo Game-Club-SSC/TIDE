@@ -62,6 +62,9 @@ public class TideManager : MonoBehaviour
 
         puzzleValues = new int[3, 3];
         sealedTiles = new bool[3, 3];
+        lockedPosition = new Vector2Int(-1, -1);
+        lockedEncounterId = string.Empty;
+        winCondition = new PuzzleWinCondition();
 
         for (int row = 0; row < 3; row++)
         {
@@ -94,7 +97,7 @@ public class TideManager : MonoBehaviour
         sealedTiles = new bool[3, 3];
         if (data.HasSealedTile)
         {
-            sealedTiles[data.sealedPosition.y, data.sealedPosition.x] = true;
+            TrySetSealedTile(data.sealedPosition, true);
         }
 
         if (data.HasLockedTile)
@@ -104,7 +107,7 @@ public class TideManager : MonoBehaviour
 
             if (!lockedCleared)
             {
-                sealedTiles[data.lockedPosition.y, data.lockedPosition.x] = true;
+                TrySetSealedTile(data.lockedPosition, true);
             }
         }
     }
@@ -350,7 +353,7 @@ public class TideManager : MonoBehaviour
             }
         }
 
-        if (!winCondition.IsMet(grid, sealedPosition))
+        if (!winCondition.IsMet(grid, sealedTiles))
         {
             return;
         }
@@ -499,6 +502,16 @@ public class TideManager : MonoBehaviour
                 tile.SetVisualState(isSelected, isReachable, isHovered, isUnavailable);
             }
         }
+    }
+
+    private void TrySetSealedTile(Vector2Int position, bool isSealed)
+    {
+        if (position.x < 0 || position.x >= 3 || position.y < 0 || position.y >= 3)
+        {
+            return;
+        }
+
+        sealedTiles[position.y, position.x] = isSealed;
     }
 
     private readonly struct PathNode

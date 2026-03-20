@@ -13,6 +13,7 @@ public class IslandRestorationTracker : MonoBehaviour
         new Dictionary<string, IslandRestorationState>();
 
     private const string DefaultIslandId = "default";
+    private const string LegacyEncounterId = "__legacy_complete_encounter__";
 
     private void OnEnable()
     {
@@ -41,7 +42,7 @@ public class IslandRestorationTracker : MonoBehaviour
 
     public void CompleteEncounter(float contribution)
     {
-        RecordEncounterCompletion(DefaultIslandId, string.Empty, EncounterType.Combat, contribution);
+        RecordEncounterCompletion(DefaultIslandId, LegacyEncounterId, EncounterType.Combat, contribution);
     }
 
     public void RecordEncounterCompletion(string islandId, string encounterId, EncounterType type, float value)

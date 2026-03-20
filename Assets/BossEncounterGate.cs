@@ -29,7 +29,7 @@ public class BossEncounterGate : MonoBehaviour
             tracker.OnRestorationChanged += HandleRestorationChanged;
         }
 
-        EvaluateState();
+        EvaluateState(false);
     }
 
     private void OnDisable()
@@ -48,10 +48,10 @@ public class BossEncounterGate : MonoBehaviour
             return;
         }
 
-        EvaluateState();
+        EvaluateState(true);
     }
 
-    private void EvaluateState()
+    private void EvaluateState(bool invokeEvents)
     {
         if (tracker == null)
         {
@@ -61,14 +61,15 @@ public class BossEncounterGate : MonoBehaviour
         string targetIsland = string.IsNullOrEmpty(islandId) ? "default" : islandId;
         float percent = tracker.GetRestorationPercent(targetIsland);
         bool nowUnlocked = percent >= bossUnlockThresholdPercent;
-
-        if (nowUnlocked == isBossUnlocked)
-        {
-            return;
-        }
+        bool stateChanged = nowUnlocked != isBossUnlocked;
 
         isBossUnlocked = nowUnlocked;
         ApplyBossState();
+
+        if (!invokeEvents || !stateChanged)
+        {
+            return;
+        }
 
         if (isBossUnlocked)
         {

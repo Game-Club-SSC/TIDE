@@ -16,17 +16,40 @@ public class PuzzleWinCondition
 
     public bool IsMet(int[,] grid, Vector2Int sealedPosition)
     {
+        if (grid == null)
+        {
+            return false;
+        }
+
+        bool[,] sealedTiles = new bool[grid.GetLength(0), grid.GetLength(1)];
+        if (IsWithinGrid(sealedPosition, grid.GetLength(0), grid.GetLength(1)))
+        {
+            sealedTiles[sealedPosition.y, sealedPosition.x] = true;
+        }
+
+        return IsMet(grid, sealedTiles);
+    }
+
+    public bool IsMet(int[,] grid, bool[,] sealedTiles)
+    {
+        if (grid == null)
+        {
+            return false;
+        }
+
         int rows = grid.GetLength(0);
         int cols = grid.GetLength(1);
         int total = 0;
         int met = 0;
+        bool useSealedMap = sealedTiles != null
+            && sealedTiles.GetLength(0) == rows
+            && sealedTiles.GetLength(1) == cols;
 
         for (int row = 0; row < rows; row++)
         {
             for (int col = 0; col < cols; col++)
             {
-                if (sealedPosition.x >= 0 && sealedPosition.y >= 0
-                    && col == sealedPosition.x && row == sealedPosition.y)
+                if (useSealedMap && sealedTiles[row, col])
                 {
                     continue;
                 }
@@ -53,6 +76,12 @@ public class PuzzleWinCondition
             default:
                 return false;
         }
+    }
+
+    private static bool IsWithinGrid(Vector2Int position, int rows, int cols)
+    {
+        return position.x >= 0 && position.x < cols
+            && position.y >= 0 && position.y < rows;
     }
 }
 

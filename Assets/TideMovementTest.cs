@@ -26,6 +26,8 @@ public class TideMovementTest : MonoBehaviour
             TestWinConditionPercentageMet();
             TestWinConditionPercentageNotMet();
             TestWinConditionSkipsSealedTile();
+            TestCompletionIgnoresPermanentAndLockedSealedTiles();
+            TestLockedTileCountsAfterEncounterCleared();
             TestPuzzleDataInitializePuzzle();
             TestDecayTriggersAboveThreshold();
             TestDecayDoesNotTriggerAtThreshold();
@@ -46,6 +48,7 @@ public class TideMovementTest : MonoBehaviour
 
     private void Setup()
     {
+        Cleanup();
         managerObject = new GameObject("TideManager_Test");
         manager = managerObject.AddComponent<TideManager>();
         tilesRoot = new GameObject("TestTiles");
@@ -69,9 +72,7 @@ public class TideMovementTest : MonoBehaviour
 
     private void SetSealedTiles(bool[,] sealedArr)
     {
-        FieldInfo field = typeof(TideManager).GetField("sealedTiles", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.IsNotNull(field, "sealedTiles field should exist on TideManager.");
-        field.SetValue(manager, sealedArr);
+        SetPrivateFieldValue("sealedTiles", sealedArr);
     }
 
     private bool CanReach(TideTile source, TideTile destination)
@@ -79,6 +80,58 @@ public class TideMovementTest : MonoBehaviour
         MethodInfo method = typeof(TideManager).GetMethod("CanReachWithinCarrySteps", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.IsNotNull(method, "CanReachWithinCarrySteps should exist on TideManager.");
         return (bool)method.Invoke(manager, new object[] { source, destination });
+    }
+
+    private object GetPrivateFieldValue(string fieldName)
+    {
+        FieldInfo field = typeof(TideManager).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"Field '{fieldName}' should exist on TideManager.");
+        return field.GetValue(manager);
+    }
+
+    private void SetPrivateFieldValue(string fieldName, object value)
+    {
+        FieldInfo field = typeof(TideManager).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"Field '{fieldName}' should exist on TideManager.");
+        field.SetValue(manager, value);
+    }
+
+    private void InvokePrivateMethod(string methodName)
+    {
+        MethodInfo method = typeof(TideManager).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(method, $"Method '{methodName}' should exist on TideManager.");
+        method.Invoke(manager, null);
+    }
+
+    private TideTile[,] CreateActiveTiles(int[,] values, bool[,] sealedArr)
+    {
+        TideTile[,] tiles = new TideTile[3, 3];
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                bool isSealed = sealedArr != null && sealedArr[row, col];
+                tiles[row, col] = CreateTile(col, row, isSealed);
+                tiles[row, col].currentTideValue = values[row, col];
+            }
+        }
+
+        return tiles;
+    }
+
+    private static PuzzleData CreateLockedTilePuzzleData()
+    {
+        PuzzleData data = ScriptableObject.CreateInstance<PuzzleData>();
+        data.tileValues = new[] { 5, 5, 2, 5, 1, 5, 5, 5, 5 };
+        data.sealedPosition = new Vector2Int(1, 1);
+        data.lockedPosition = new Vector2Int(2, 0);
+        data.lockedTileEncounterId = "guard_1";
+        data.winCondition = new PuzzleWinCondition
+        {
+            type = WinConditionType.AllEqualToTarget,
+            targetValue = 5
+        };
+        return data;
     }
 
     private void TestAdjacentCardinalOpen()
@@ -284,6 +337,72 @@ public class TideMovementTest : MonoBehaviour
         Debug.Log("  [PASS] TestWinConditionSkipsSealedTile");
     }
 
+    private void TestCompletionIgnoresPermanentAndLockedSealedTiles()
+    {
+        Setup();
+
+        PuzzleData data = CreateLockedTilePuzzleData();
+        try
+        {
+            manager.InitializePuzzle(data);
+
+            bool[,] sealedArr = (bool[,])GetPrivateFieldValue("sealedTiles");
+            Assert.IsTrue(sealedArr[1, 1], "Permanent sealed tile should remain sealed.");
+            Assert.IsTrue(sealedArr[0, 2], "Locked tile should stay sealed until its combat encounter is cleared.");
+
+            SetPrivateFieldValue("activeTiles", CreateActiveTiles(data.GetGrid(), sealedArr));
+            InvokePrivateMethod("EvaluatePuzzleCompletion");
+
+            Assert.IsTrue((bool)GetPrivateFieldValue("puzzleSolved"),
+                "Puzzle should complete when only the currently sealed tiles are off-target.");
+
+            Debug.Log("  [PASS] TestCompletionIgnoresPermanentAndLockedSealedTiles");
+        }
+        finally
+        {
+            Object.DestroyImmediate(data);
+        }
+    }
+
+    private void TestLockedTileCountsAfterEncounterCleared()
+    {
+        GameObject trackerObject = new GameObject("TideManager_LockedTileTracker");
+        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        tracker.RecordEncounterCompletion("island_lock", "guard_1", EncounterType.Combat, 0.2f);
+
+        Setup();
+
+        PuzzleData data = CreateLockedTilePuzzleData();
+        try
+        {
+            manager.InitializePuzzle(data);
+
+            bool[,] sealedArr = (bool[,])GetPrivateFieldValue("sealedTiles");
+            Assert.IsTrue(sealedArr[1, 1], "Permanent sealed tile should still be sealed.");
+            Assert.IsFalse(sealedArr[0, 2], "Locked tile should open once its guarding encounter is cleared.");
+
+            TideTile[,] tiles = CreateActiveTiles(data.GetGrid(), sealedArr);
+            SetPrivateFieldValue("activeTiles", tiles);
+
+            InvokePrivateMethod("EvaluatePuzzleCompletion");
+            Assert.IsFalse((bool)GetPrivateFieldValue("puzzleSolved"),
+                "Unlocked locked tiles should count toward completion while off-target.");
+
+            tiles[0, 2].currentTideValue = 5;
+            InvokePrivateMethod("EvaluatePuzzleCompletion");
+
+            Assert.IsTrue((bool)GetPrivateFieldValue("puzzleSolved"),
+                "Puzzle should complete once the unlocked tile reaches the target value.");
+
+            Debug.Log("  [PASS] TestLockedTileCountsAfterEncounterCleared");
+        }
+        finally
+        {
+            Object.DestroyImmediate(data);
+            Object.DestroyImmediate(trackerObject);
+        }
+    }
+
     private void TestPuzzleDataInitializePuzzle()
     {
         Setup();
@@ -300,22 +419,16 @@ public class TideMovementTest : MonoBehaviour
 
         manager.InitializePuzzle(data);
 
-        FieldInfo valuesField = typeof(TideManager).GetField("puzzleValues", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.IsNotNull(valuesField, "puzzleValues field should exist.");
-        int[,] values = (int[,])valuesField.GetValue(manager);
+        int[,] values = (int[,])GetPrivateFieldValue("puzzleValues");
         Assert.AreEqual(8, values[0, 0], "Tile (0,0) should be 8.");
         Assert.AreEqual(5, values[0, 1], "Tile (0,1) should be 5.");
         Assert.AreEqual(3, values[0, 2], "Tile (0,2) should be 3.");
 
-        FieldInfo sealedField = typeof(TideManager).GetField("sealedTiles", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.IsNotNull(sealedField, "sealedTiles field should exist.");
-        bool[,] sealedArr = (bool[,])sealedField.GetValue(manager);
+        bool[,] sealedArr = (bool[,])GetPrivateFieldValue("sealedTiles");
         Assert.IsTrue(sealedArr[0, 2], "Tile at row 0 col 2 should be sealed.");
         Assert.IsFalse(sealedArr[1, 1], "Tile at row 1 col 1 should not be sealed.");
 
-        FieldInfo condField = typeof(TideManager).GetField("winCondition", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.IsNotNull(condField, "winCondition field should exist.");
-        PuzzleWinCondition cond = (PuzzleWinCondition)condField.GetValue(manager);
+        PuzzleWinCondition cond = (PuzzleWinCondition)GetPrivateFieldValue("winCondition");
         Assert.AreEqual(WinConditionType.PercentageAtTarget, cond.type, "Win condition type should be PercentageAtTarget.");
         Assert.AreEqual(0.6f, cond.requiredPercent, "Required percent should be 0.6.");
 

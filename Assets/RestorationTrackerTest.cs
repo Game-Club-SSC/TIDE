@@ -14,6 +14,8 @@ public class RestorationTrackerTest : MonoBehaviour
         TestCombatContribution();
         TestPuzzleContribution();
         TestDuplicateEncounterPrevented();
+        TestDuplicatePuzzleEncounterPrevented();
+        TestLegacyCompleteEncounterCannotStack();
         TestTypedBuckets();
         TestRestorationPercentCalculation();
         TestThresholdQuery();
@@ -85,6 +87,47 @@ public class RestorationTrackerTest : MonoBehaviour
 
         DestroyImmediate(trackerObject);
         Debug.Log("✓ Duplicate encounter prevention test passed");
+    }
+
+    private void TestDuplicatePuzzleEncounterPrevented()
+    {
+        Debug.Log("Testing duplicate puzzle encounter prevention...");
+
+        GameObject trackerObject = new GameObject("TestTracker_PuzzleDupe");
+        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+
+        tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
+        tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
+
+        float percent = tracker.GetRestorationPercent("island_test");
+        Assert.AreEqual(30f, percent, 0.01f, "Duplicate puzzle encounter should not add extra restoration.");
+
+        IslandRestorationState state = tracker.GetRestorationState("island_test");
+        Assert.AreEqual(1, state.PuzzleEncountersCompleted, "Should still have exactly 1 puzzle encounter completed.");
+
+        DestroyImmediate(trackerObject);
+        Debug.Log("笨・Duplicate puzzle encounter prevention test passed");
+    }
+
+    private void TestLegacyCompleteEncounterCannotStack()
+    {
+        Debug.Log("Testing legacy CompleteEncounter duplicate protection...");
+
+        GameObject trackerObject = new GameObject("TestTracker_Legacy");
+        IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+
+        tracker.CompleteEncounter(0.2f);
+        tracker.CompleteEncounter(0.4f);
+
+        float percent = tracker.GetRestorationPercent("default");
+        Assert.AreEqual(20f, percent, 0.01f, "Legacy CompleteEncounter should only count once without a real encounter id.");
+
+        IslandRestorationState state = tracker.GetRestorationState("default");
+        Assert.AreEqual(1, state.CombatEncountersCompleted, "Legacy CompleteEncounter should not stack duplicate combat completions.");
+        Assert.AreEqual(1, state.CompletedEncounterIds.Count, "Legacy path should register a stable encounter id for duplicate protection.");
+
+        DestroyImmediate(trackerObject);
+        Debug.Log("笨・Legacy CompleteEncounter duplicate protection test passed");
     }
 
     private void TestTypedBuckets()
