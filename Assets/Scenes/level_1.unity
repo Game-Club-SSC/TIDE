@@ -895,8 +895,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1d480f20d69fb41f3e9184cdd4b4142a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PartyManager
-  partyData: {fileID: 11400000, guid: party0000000000000000000000000001, type: 2}
-  heroDatabase: {fileID: 11400000, guid: herodb000000000000000000000000001, type: 2}
+  partyData: {fileID: 11400000, guid: f564b641fd1c4a9baa8f1b0aaab725f8, type: 2}
+  heroDatabase: {fileID: 11400000, guid: 4f7f0d67bc8c45f08639359a1b715a99, type: 2}
 --- !u!4 &1406907654
 Transform:
   m_ObjectHideFlags: 0

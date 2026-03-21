@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: DefaultParty
   m_EditorClassIdentifier: 
   activeSlots:
-  - {fileID: 11400000, guid: hero00000000000000000000000000000005, type: 2}
-  - {fileID: 11400000, guid: hero00000000000000000000000000000001, type: 2}
-  - {fileID: 11400000, guid: hero00000000000000000000000000000003, type: 2}
+  - {fileID: 11400000, guid: 903e2141756844ce8b2c3d219cbb63d1, type: 2}
+  - {fileID: 11400000, guid: 526b20e719374fde9d1309b9b2e61756, type: 2}
+  - {fileID: 11400000, guid: d3fb0be5ccc74d0ea0dc7fecf390c364, type: 2}
   reserveSlots:
-  - {fileID: 11400000, guid: hero00000000000000000000000000000002, type: 2}
-  - {fileID: 11400000, guid: hero00000000000000000000000000000004, type: 2}
+  - {fileID: 11400000, guid: 1fd0260387f748fba663b864346a9587, type: 2}
+  - {fileID: 11400000, guid: b1bcc102fc914df4ad381c4bdc08343c, type: 2}
