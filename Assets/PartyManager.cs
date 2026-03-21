@@ -28,7 +28,7 @@ public class PartyManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
-    private void OnDisable()
+    private void OnDestroy()
     {
         if (Instance == this)
         {

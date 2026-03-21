@@ -414,6 +414,11 @@ public class CombatSceneBootstrap : MonoBehaviour
             return PartyManager.Instance.GetActiveParty();
         }
 
+        if (partyData == null)
+        {
+            partyData = Resources.Load<PartyData>("PartyData/DefaultParty");
+        }
+
         if (partyData != null)
         {
             return partyData.activeSlots ?? System.Array.Empty<HeroData>();
