@@ -643,6 +643,11 @@ public class BattleManager : MonoBehaviour
 
         CheckBattleOutcome();
         UpdateDebugText();
+
+        if (actor.Type == CombatUnit.UnitType.Enemy)
+        {
+            enemyPlannedActions.Remove(actor);
+        }
     }
 
     private PlannedAction GetPlannedAction(CombatUnit actor)

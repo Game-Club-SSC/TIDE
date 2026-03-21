@@ -18,6 +18,7 @@ public class BattleHud : MonoBehaviour
         public Image MpFill;
         public Text NameLabel;
         public Text HpText;
+        public Text MpText;
         public Text TargetLabel;
         public CombatUnit TrackedUnit;
     }
@@ -244,6 +245,21 @@ public class BattleHud : MonoBehaviour
         hpText.color = new Color(0.7f, 1f, 0.7f);
         hpText.raycastTarget = false;
 
+        // MP text (top-right of MP bar)
+        GameObject mpTextObj = new GameObject("MPText", typeof(RectTransform));
+        mpTextObj.transform.SetParent(root.transform, false);
+        RectTransform mpTextRect = mpTextObj.GetComponent<RectTransform>();
+        mpTextRect.anchorMin = new Vector2(0.65f, 0.28f);
+        mpTextRect.anchorMax = new Vector2(1f, 0.48f);
+        mpTextRect.offsetMin = new Vector2(2f, 0f);
+        mpTextRect.offsetMax = new Vector2(-4f, 0f);
+        Text mpText = mpTextObj.AddComponent<Text>();
+        mpText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        mpText.fontSize = 11;
+        mpText.alignment = TextAnchor.MiddleRight;
+        mpText.color = new Color(0.6f, 0.7f, 1f);
+        mpText.raycastTarget = false;
+
         // HP bar background
         GameObject hpBgObj = new GameObject("HPBG", typeof(RectTransform));
         hpBgObj.transform.SetParent(root.transform, false);
@@ -265,6 +281,8 @@ public class BattleHud : MonoBehaviour
         hpFillRect.offsetMin = Vector2.zero;
         hpFillRect.offsetMax = Vector2.zero;
         Image hpFill = hpFillObj.AddComponent<Image>();
+        hpFill.type = Image.Type.Filled;
+        hpFill.fillMethod = Image.FillMethod.Horizontal;
         hpFill.color = new Color(0.2f, 0.85f, 0.3f);
         hpFill.raycastTarget = false;
 
@@ -289,6 +307,8 @@ public class BattleHud : MonoBehaviour
         mpFillRect.offsetMin = Vector2.zero;
         mpFillRect.offsetMax = Vector2.zero;
         Image mpFill = mpFillObj.AddComponent<Image>();
+        mpFill.type = Image.Type.Filled;
+        mpFill.fillMethod = Image.FillMethod.Horizontal;
         mpFill.color = new Color(0.3f, 0.5f, 1f);
         mpFill.raycastTarget = false;
 
@@ -318,6 +338,7 @@ public class BattleHud : MonoBehaviour
             MpFill = mpFill,
             NameLabel = nameLabel,
             HpText = hpText,
+            MpText = mpText,
             TargetLabel = targetLabel,
             TrackedUnit = null
         };
@@ -371,12 +392,14 @@ public class BattleHud : MonoBehaviour
         bar.MpFill.fillAmount = mpRatio;
 
         bar.HpText.text = $"{unit.HP}/{unit.MaxHP}";
+        bar.MpText.text = $"{unit.MP}/{unit.MaxMP}";
 
         if (!unit.IsAlive)
         {
             bar.NameLabel.text = unit.UnitName + " [KO]";
             bar.HpText.text = "KO";
             bar.HpText.color = new Color(1f, 0.3f, 0.3f);
+            bar.MpText.text = "";
             bar.TargetLabel.text = "";
         }
         else
