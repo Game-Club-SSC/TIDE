@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 [DisallowMultipleComponent]
 public class PartySetupUI : MonoBehaviour
@@ -111,6 +112,19 @@ public class PartySetupUI : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
 
         canvasObject.AddComponent<GraphicRaycaster>();
+        EnsureEventSystem();
+    }
+
+    private void EnsureEventSystem()
+    {
+        if (FindFirstObjectByType<EventSystem>() != null)
+        {
+            return;
+        }
+
+        GameObject eventSystemObject = new GameObject("EventSystem");
+        eventSystemObject.AddComponent<EventSystem>();
+        eventSystemObject.AddComponent<StandaloneInputModule>();
     }
 
     private void RebuildPanel()
@@ -188,7 +202,7 @@ public class PartySetupUI : MonoBehaviour
         }
 
         currentY += 10f;
-        CreateLabel(panelRoot, "Press P to close", new Vector2(padding, currentY), new Vector2(panelWidth - padding * 2, 20f), textColor, 12, FontStyle.Italic);
+        CreateLabel(panelRoot, $"Press {toggleKey} to close", new Vector2(padding, currentY), new Vector2(panelWidth - padding * 2, 20f), textColor, 12, FontStyle.Italic);
     }
 
     private void CreateHeroRow(GameObject parent, HeroData hero, bool isActive, float yPos, PartyData party)
@@ -237,6 +251,13 @@ public class PartySetupUI : MonoBehaviour
 
         if (wasActive)
         {
+            PartyData party = PartyManager.Instance.PartyData;
+            if (party != null && party.GetActiveCount() <= 1)
+            {
+                Debug.Log("[PartySetupUI] Cannot remove the last active hero.");
+                return;
+            }
+
             PartyManager.Instance.ToggleHeroActive(heroId);
             RebuildPanel();
             return;

@@ -309,4 +309,13 @@ public class TideTile : MonoBehaviour
             valueLabel.transform.localRotation = LabelTopDownRotation;
         }
     }
+
+    private void OnDestroy()
+    {
+        if (cachedMaterial != null)
+        {
+            Destroy(cachedMaterial);
+            cachedMaterial = null;
+        }
+    }
 }

@@ -57,8 +57,27 @@ public class CombatUnit : MonoBehaviour
     }
 
     #region Properties
-    public int HP { get => hp; set => hp = value; }
-    public int MaxHP { get => maxHp; set => maxHp = value; }
+    public int HP
+    {
+        get => hp;
+        set
+        {
+            hp = Mathf.Clamp(value, 0, maxHp);
+            if (hp <= 0 && isAlive)
+            {
+                Die();
+            }
+        }
+    }
+    public int MaxHP
+    {
+        get => maxHp;
+        set
+        {
+            maxHp = Mathf.Max(1, value);
+            hp = Mathf.Clamp(hp, 0, maxHp);
+        }
+    }
     public int MP
     {
         get => mp;

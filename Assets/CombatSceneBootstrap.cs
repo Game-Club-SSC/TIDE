@@ -325,7 +325,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                         unit.ElementType = enemyComposition.elements[i];
                         unit.Attack += enemyComposition.attackModifiers[i];
                         unit.Defense += enemyComposition.defenseModifiers[i];
-                        unit.MaxHP += enemyComposition.maxHpModifiers[i];
+                        unit.MaxHP = Mathf.Max(1, unit.MaxHP + enemyComposition.maxHpModifiers[i]);
                         unit.HP = unit.MaxHP;
                     }
                     else
@@ -416,7 +416,7 @@ public class CombatSceneBootstrap : MonoBehaviour
 
         if (partyData != null)
         {
-            return partyData.activeSlots;
+            return partyData.activeSlots ?? System.Array.Empty<HeroData>();
         }
 
         return System.Array.Empty<HeroData>();

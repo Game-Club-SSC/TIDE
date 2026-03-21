@@ -15,6 +15,11 @@ public class EnemyTrigger : MonoBehaviour
             return;
         }
 
+        if (GameStateManager.Instance.HasActiveFlowController)
+        {
+            return;
+        }
+
         GameStateManager.Instance.EnterCombatScene();
 
         Collider triggerCollider = GetComponent<Collider>();

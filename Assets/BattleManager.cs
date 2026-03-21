@@ -479,6 +479,11 @@ public class BattleManager : MonoBehaviour
                     continue;
                 }
 
+                if (actionA.Target == null || actionB.Target == null)
+                {
+                    continue;
+                }
+
                 bool mutualTarget = (actionA.Target == unitB && actionB.Target == unitA);
                 if (!mutualTarget)
                 {
@@ -776,7 +781,9 @@ public class BattleManager : MonoBehaviour
             foreach (CombatUnit enemy in enemies)
             {
                 int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
-                int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier));
+                float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, enemy.ElementType);
+                float variance = UnityEngine.Random.Range(0.8f, 1.2f);
+                int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier * elementMultiplier * variance));
                 int hpBefore = enemy.HP;
                 enemy.TakeDamage(modifiedDmg);
                 totalDamage += modifiedDmg;
@@ -800,7 +807,9 @@ public class BattleManager : MonoBehaviour
             }
 
             int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
-            int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier));
+            float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+            float variance = UnityEngine.Random.Range(0.8f, 1.2f);
+            int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier * elementMultiplier * variance));
             int hpBefore = target.HP;
             target.TakeDamage(modifiedDmg);
             Debug.Log($"  -> {target.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {target.HP}", this);
@@ -975,13 +984,13 @@ public class BattleManager : MonoBehaviour
             cachedBattleHud = FindFirstObjectByType<BattleHud>();
         }
 
-        Rect debugRect = new Rect(24f, 24f, 400f, 100f);
-        GUI.Box(debugRect, debugText);
-
         if (cachedBattleHud != null)
         {
             return;
         }
+
+        Rect debugRect = new Rect(24f, 24f, 400f, 100f);
+        GUI.Box(debugRect, debugText);
 
         if (!hasActivePhase || currentPhase != BattlePhase.PlayerInput || IsTerminalPhase(currentPhase))
         {
@@ -1226,6 +1235,7 @@ public class BattleManager : MonoBehaviour
 
     private string GetSkillButtonLabel(CombatUnit unit)
     {
+        if (unit == null) return "No Skill";
         if (unit.Skills == null || unit.Skills.Length == 0)
         {
             return "No Skill";

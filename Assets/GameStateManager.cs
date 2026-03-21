@@ -174,10 +174,7 @@ public class GameStateManager : MonoBehaviour
 
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
-        if (PendingPuzzleData == null)
-        {
-            PendingPuzzleIslandId = string.Empty;
-        }
+        PendingPuzzleIslandId = string.Empty;
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
     }
 
@@ -305,7 +302,7 @@ public class GameStateManager : MonoBehaviour
                 deferredFlowFromCombat = true;
                 isFlowControlledCombat = false;
             }
-            else if (HasActiveFlowController)
+            else if (HasActiveFlowController && !string.IsNullOrEmpty(PendingPuzzleIslandId))
             {
                 deferredFlowFromPuzzle = true;
             }

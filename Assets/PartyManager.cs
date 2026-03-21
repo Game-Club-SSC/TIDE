@@ -194,6 +194,10 @@ public class PartyManager : MonoBehaviour
         }
 
         unit.UnitName = hero.displayName;
+        if (hero.isMainCharacter)
+        {
+            Debug.LogWarning("[PartyManager] ApplyHeroToUnitStatic called for main character. Use instance method ApplyHeroToUnit for correct element resolution.");
+        }
         unit.ElementType = hero.element;
         unit.MaxHP = hero.baseMaxHP;
         unit.HP = hero.baseMaxHP;

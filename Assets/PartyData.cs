@@ -215,8 +215,13 @@ public class PartyData : ScriptableObject
                 return false;
             }
 
+            if (!usedIds.Add(heroIds[i]))
+            {
+                Debug.LogWarning($"[PartyData] Duplicate hero ID in active party: '{heroIds[i]}'.");
+                return false;
+            }
+
             newActive[i] = heroLookup[heroIds[i]];
-            usedIds.Add(heroIds[i]);
         }
 
         int reserveIdx = 0;

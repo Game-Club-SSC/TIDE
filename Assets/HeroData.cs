@@ -40,7 +40,7 @@ public class HeroData : ScriptableObject
     {
         return !string.IsNullOrEmpty(heroId)
             && !string.IsNullOrEmpty(displayName)
-            && element != CombatUnit.Element.None
+            && (isMainCharacter || element != CombatUnit.Element.None)
             && baseMaxHP > 0;
     }
 }
