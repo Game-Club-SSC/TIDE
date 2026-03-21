@@ -677,7 +677,7 @@ public class BattleManager : MonoBehaviour
 
         int baseDamage = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
-        float variance = Random.Range(0.8f, 1.2f);
+        float variance = UnityEngine.Random.Range(0.8f, 1.2f);
         int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDamage * multiplier * variance));
 
         MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
@@ -736,7 +736,7 @@ public class BattleManager : MonoBehaviour
         int baseDamage = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
         float skillMultiplier = multiplier * skill.damageMultiplier;
-        float variance = Random.Range(0.8f, 1.2f);
+        float variance = UnityEngine.Random.Range(0.8f, 1.2f);
         int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDamage * skillMultiplier * variance));
 
         MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
@@ -823,7 +823,7 @@ public class BattleManager : MonoBehaviour
             return null;
         }
 
-        return candidates[Random.Range(0, candidates.Count)];
+        return candidates[UnityEngine.Random.Range(0, candidates.Count)];
     }
 
     private bool IsValidTarget(CombatUnit actor, CombatUnit target)
