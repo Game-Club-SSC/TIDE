@@ -18,6 +18,8 @@ public class BattleHud : MonoBehaviour
         public Image MpFill;
         public Text NameLabel;
         public Text HpText;
+        public Text TargetLabel;
+        public CombatUnit TrackedUnit;
     }
 
     private List<WorldHealthBar> worldBars = new List<WorldHealthBar>();
@@ -152,7 +154,7 @@ public class BattleHud : MonoBehaviour
         root.transform.SetParent(worldBarContainer, false);
 
         RectTransform rootRect = root.GetComponent<RectTransform>();
-        rootRect.sizeDelta = new Vector2(120f, 48f);
+        rootRect.sizeDelta = new Vector2(120f, 64f);
 
         // Background
         GameObject bgObj = new GameObject("BG", typeof(RectTransform));
@@ -244,6 +246,23 @@ public class BattleHud : MonoBehaviour
         mpFill.color = new Color(0.3f, 0.5f, 1f);
         mpFill.raycastTarget = false;
 
+        // Target label
+        GameObject targetObj = new GameObject("TargetLabel", typeof(RectTransform));
+        targetObj.transform.SetParent(root.transform, false);
+        RectTransform targetRect = targetObj.GetComponent<RectTransform>();
+        targetRect.anchorMin = new Vector2(0f, -0.55f);
+        targetRect.anchorMax = new Vector2(1f, 0f);
+        targetRect.offsetMin = Vector2.zero;
+        targetRect.offsetMax = Vector2.zero;
+        Text targetLabel = targetObj.AddComponent<Text>();
+        targetLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        targetLabel.fontSize = 11;
+        targetLabel.fontStyle = FontStyle.Italic;
+        targetLabel.alignment = TextAnchor.MiddleCenter;
+        targetLabel.color = new Color(1f, 0.6f, 0.3f);
+        targetLabel.raycastTarget = false;
+        targetLabel.text = "";
+
         root.SetActive(false);
 
         return new WorldHealthBar
@@ -252,7 +271,9 @@ public class BattleHud : MonoBehaviour
             HpFill = hpFill,
             MpFill = mpFill,
             NameLabel = nameLabel,
-            HpText = hpText
+            HpText = hpText,
+            TargetLabel = targetLabel,
+            TrackedUnit = null
         };
     }
 
@@ -287,6 +308,7 @@ public class BattleHud : MonoBehaviour
     private void SetupWorldBar(WorldHealthBar bar, CombatUnit unit, Color nameColor)
     {
         bar.Root.gameObject.SetActive(true);
+        bar.TrackedUnit = unit;
 
         bar.NameLabel.text = unit.UnitName;
         bar.NameLabel.color = unit.IsAlive ? nameColor : Color.gray;
@@ -309,10 +331,37 @@ public class BattleHud : MonoBehaviour
             bar.NameLabel.text = unit.UnitName + " [KO]";
             bar.HpText.text = "KO";
             bar.HpText.color = new Color(1f, 0.3f, 0.3f);
+            bar.TargetLabel.text = "";
         }
         else
         {
             bar.HpText.color = new Color(0.7f, 1f, 0.7f);
+        }
+
+        UpdateTargetLabel(bar);
+    }
+
+    private void UpdateTargetLabel(WorldHealthBar bar)
+    {
+        if (bar.TargetLabel == null || bar.TrackedUnit == null) return;
+
+        bool showTargets = battleManager.CurrentPhase == BattlePhase.PlayerInput
+                        || battleManager.CurrentPhase == BattlePhase.ActionExecution;
+
+        if (!showTargets || !bar.TrackedUnit.IsAlive)
+        {
+            bar.TargetLabel.text = "";
+            return;
+        }
+
+        if (bar.TrackedUnit.Type == CombatUnit.UnitType.Enemy)
+        {
+            CombatUnit target = battleManager.GetEnemyTarget(bar.TrackedUnit);
+            bar.TargetLabel.text = target != null ? $"\u25B6 {target.UnitName}" : "";
+        }
+        else
+        {
+            bar.TargetLabel.text = "";
         }
     }
 

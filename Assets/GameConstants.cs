@@ -2,6 +2,7 @@ public static class GameConstants
 {
     public const float ClashWinnerMultiplier = 1.5f;
     public const float ClashLoserMultiplier = 0.5f;
+    public const float ClashNeutralMultiplier = 0.6f;
     public const int MinimumDamage = 1;
     public const int MaxCarrySteps = 2;
     public const int InstabilityThreshold = 3;

@@ -72,6 +72,7 @@ public class BattleManager : MonoBehaviour
     private List<CombatUnit> turnQueue = new List<CombatUnit>();
     private Dictionary<CombatUnit, int> unitRegistrationOrder = new Dictionary<CombatUnit, int>();
     private Dictionary<CombatUnit, PlannedAction> selectedPlayerActions = new Dictionary<CombatUnit, PlannedAction>();
+    private Dictionary<CombatUnit, PlannedAction> enemyPlannedActions = new Dictionary<CombatUnit, PlannedAction>();
     private List<CombatUnit> playerInputUnits = new List<CombatUnit>();
     private MomentumState momentumState = new MomentumState();
 
@@ -79,6 +80,16 @@ public class BattleManager : MonoBehaviour
     public IReadOnlyList<CombatUnit> EnemyUnits => enemyUnits;
     public IReadOnlyList<CombatUnit> TurnQueue => turnQueue;
     public MomentumState Momentum => momentumState;
+
+    public CombatUnit GetEnemyTarget(CombatUnit enemy)
+    {
+        if (enemy == null) return null;
+        if (enemyPlannedActions.TryGetValue(enemy, out PlannedAction action))
+        {
+            return action.Target;
+        }
+        return null;
+    }
 
     public IReadOnlyList<CombatUnit> GetAllUnits()
     {
@@ -352,6 +363,8 @@ public class BattleManager : MonoBehaviour
         pendingInputActionType = CombatActionType.Attack;
         pendingSkillData = null;
 
+        CacheEnemyActions();
+
         if (playerInputUnits.Count == 0)
         {
             SetDefeat();
@@ -359,6 +372,46 @@ public class BattleManager : MonoBehaviour
         }
 
         Debug.Log($"[BattleManager] Player input started for {playerInputUnits.Count} allies.", this);
+    }
+
+    private void CacheEnemyActions()
+    {
+        enemyPlannedActions.Clear();
+        IReadOnlyList<CombatUnit> enemies = GetAliveUnits(CombatUnit.UnitType.Enemy);
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            CombatUnit enemy = enemies[i];
+            enemyPlannedActions[enemy] = ComputeEnemyAction(enemy);
+        }
+    }
+
+    private PlannedAction ComputeEnemyAction(CombatUnit actor)
+    {
+        if (momentumState.IsEnemyTideBreakReady)
+        {
+            CombatUnit tbTarget = GetRandomLivingOpponent(actor);
+            if (tbTarget != null)
+            {
+                return new PlannedAction(CombatActionType.TideBreak, actor, tbTarget);
+            }
+        }
+
+        CombatUnit target = GetRandomLivingOpponent(actor);
+        if (target == null)
+        {
+            return new PlannedAction(CombatActionType.Attack, actor, null);
+        }
+
+        if (actor.Skills != null && actor.Skills.Length > 0)
+        {
+            SkillData skill = actor.Skills[0];
+            if (actor.CanUseSkill(skill))
+            {
+                return new PlannedAction(CombatActionType.Skill, actor, target, skill);
+            }
+        }
+
+        return new PlannedAction(CombatActionType.Attack, actor, target);
     }
 
     private void BeginActionExecutionPhase()
@@ -395,7 +448,7 @@ public class BattleManager : MonoBehaviour
             }
 
             PlannedAction actionA = GetPlannedAction(unitA);
-            if (actionA.ActionType != CombatActionType.Attack && actionA.ActionType != CombatActionType.TideBreak)
+            if (!IsClashableAction(actionA.ActionType))
             {
                 continue;
             }
@@ -409,7 +462,7 @@ public class BattleManager : MonoBehaviour
                 }
 
                 PlannedAction actionB = GetPlannedAction(unitB);
-                if (actionB.ActionType != CombatActionType.Attack && actionB.ActionType != CombatActionType.TideBreak)
+                if (!IsClashableAction(actionB.ActionType))
                 {
                     continue;
                 }
@@ -435,14 +488,20 @@ public class BattleManager : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log($"[BattleManager] Clash is neutral. Both attack normally.", this);
-                    continue;
+                    ExecuteNeutralClash(unitA, unitB);
                 }
 
                 clashedUnits.Add(unitA);
                 clashedUnits.Add(unitB);
             }
         }
+    }
+
+    private static bool IsClashableAction(CombatActionType actionType)
+    {
+        return actionType == CombatActionType.Attack
+            || actionType == CombatActionType.Skill
+            || actionType == CombatActionType.TideBreak;
     }
 
     private void ExecuteClash(CombatUnit winner, CombatUnit loser)
@@ -461,6 +520,22 @@ public class BattleManager : MonoBehaviour
         Debug.Log($"  -> {loser.UnitName} deals {loserDmg} to {winner.UnitName}. HP {winnerHpBefore} -> {winner.HP}", this);
 
         momentumState.ShiftForAction(winner, MatchupResult.Strong);
+    }
+
+    private void ExecuteNeutralClash(CombatUnit unitA, CombatUnit unitB)
+    {
+        Debug.Log($"[BattleManager] Clash is neutral. Both deal reduced damage.", this);
+
+        int dmgA = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(unitA.Attack * GameConstants.ClashNeutralMultiplier));
+        int dmgB = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(unitB.Attack * GameConstants.ClashNeutralMultiplier));
+
+        int hpBBefore = unitB.HP;
+        unitB.TakeDamage(dmgA);
+        Debug.Log($"  -> {unitA.UnitName} deals {dmgA} to {unitB.UnitName}. HP {hpBBefore} -> {unitB.HP}", this);
+
+        int hpABefore = unitA.HP;
+        unitA.TakeDamage(dmgB);
+        Debug.Log($"  -> {unitB.UnitName} deals {dmgB} to {unitA.UnitName}. HP {hpABefore} -> {unitA.HP}", this);
     }
 
     private void BeginEndTurnPhase()
@@ -545,31 +620,12 @@ public class BattleManager : MonoBehaviour
             return new PlannedAction(CombatActionType.Attack, actor, GetRandomLivingOpponent(actor));
         }
 
-        if (momentumState.IsEnemyTideBreakReady)
+        if (enemyPlannedActions.TryGetValue(actor, out PlannedAction cachedAction))
         {
-            CombatUnit tbTarget = GetRandomLivingOpponent(actor);
-            if (tbTarget != null)
-            {
-                return new PlannedAction(CombatActionType.TideBreak, actor, tbTarget);
-            }
+            return cachedAction;
         }
 
-        CombatUnit target = GetRandomLivingOpponent(actor);
-        if (target == null)
-        {
-            return new PlannedAction(CombatActionType.Attack, actor, null);
-        }
-
-        if (actor.Skills != null && actor.Skills.Length > 0)
-        {
-            SkillData skill = actor.Skills[0];
-            if (actor.CanUseSkill(skill))
-            {
-                return new PlannedAction(CombatActionType.Skill, actor, target, skill);
-            }
-        }
-
-        return new PlannedAction(CombatActionType.Attack, actor, target);
+        return ComputeEnemyAction(actor);
     }
 
     private void ResolveAttack(CombatUnit actor, CombatUnit requestedTarget)
