@@ -287,7 +287,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                     else
                     {
                         unit.UnitName = $"Ally_{i + 1}";
-                        Debug.LogWarning($"[CombatSceneBootstrap] No hero data for active slot {i}. Using fallback.");
+                        Debug.Log($"[CombatSceneBootstrap] No hero data for active slot {i}. Using fallback stats.");
                     }
 
                     if (battleManager != null)

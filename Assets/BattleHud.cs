@@ -8,10 +8,22 @@ public class BattleHud : MonoBehaviour
     private const string CanvasName = "BattleHudCanvas";
 
     private BattleManager battleManager;
+    private Camera mainCamera;
+
+    // World health bars
+    private class WorldHealthBar
+    {
+        public RectTransform Root;
+        public Image HpFill;
+        public Image MpFill;
+        public Text NameLabel;
+        public Text HpText;
+    }
+
+    private List<WorldHealthBar> worldBars = new List<WorldHealthBar>();
+    private Transform worldBarContainer;
 
     // Panels
-    private GameObject allyPanel;
-    private GameObject enemyPanel;
     private GameObject actionPanel;
     private GameObject momentumPanel;
     private GameObject victoryOverlay;
@@ -20,12 +32,6 @@ public class BattleHud : MonoBehaviour
     // Momentum
     private Image momentumFill;
     private Text momentumLabel;
-
-    // Ally status
-    private List<Text> allyLabels = new List<Text>();
-
-    // Enemy status
-    private List<Text> enemyLabels = new List<Text>();
 
     // Action buttons
     private Button attackButton;
@@ -40,7 +46,7 @@ public class BattleHud : MonoBehaviour
     private List<Button> targetButtons = new List<Button>();
 
     // State display
-    private Text phaseLabel;
+    private Text turnLabel;
 
     private void Awake()
     {
@@ -55,10 +61,17 @@ public class BattleHud : MonoBehaviour
             TryFindBattleManager();
         }
 
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+
         if (battleManager != null)
         {
             RefreshDisplay();
         }
+
+        UpdateWorldBarPositions();
     }
 
     private void TryFindBattleManager()
@@ -85,60 +98,261 @@ public class BattleHud : MonoBehaviour
 
     private void RefreshDisplay()
     {
-        UpdatePhase();
-        UpdateAllyStatus();
-        UpdateEnemyStatus();
+        UpdateTurnLabel();
+        UpdateWorldBars();
         UpdateActionButtons();
         UpdateMomentumBar(battleManager.Momentum.Value);
         UpdateOverlays();
     }
 
-    private void UpdatePhase()
+    private void UpdateTurnLabel()
     {
-        if (phaseLabel == null) return;
-        phaseLabel.text = battleManager.CurrentPhase.ToString();
+        if (turnLabel == null) return;
+
+        BattlePhase phase = battleManager.CurrentPhase;
+        switch (phase)
+        {
+            case BattlePhase.PlayerInput:
+                CombatUnit current = battleManager.GetCurrentInputUnit();
+                turnLabel.text = current != null ? $"{current.UnitName}'s Turn" : "Player Turn";
+                turnLabel.color = new Color(0.4f, 0.9f, 1f);
+                break;
+            case BattlePhase.ActionExecution:
+                turnLabel.text = "Executing...";
+                turnLabel.color = new Color(1f, 0.8f, 0.3f);
+                break;
+            case BattlePhase.Victory:
+                turnLabel.text = "";
+                break;
+            case BattlePhase.Defeat:
+                turnLabel.text = "";
+                break;
+            default:
+                turnLabel.text = phase.ToString();
+                turnLabel.color = Color.white;
+                break;
+        }
     }
 
-    private void UpdateAllyStatus()
+    // --- World health bars ---
+
+    private void EnsureWorldBars()
     {
+        if (worldBars.Count > 0) return;
+
+        for (int i = 0; i < 6; i++)
+        {
+            worldBars.Add(CreateWorldBar(i));
+        }
+    }
+
+    private WorldHealthBar CreateWorldBar(int index)
+    {
+        GameObject root = new GameObject($"WorldBar_{index}", typeof(RectTransform));
+        root.transform.SetParent(worldBarContainer, false);
+
+        RectTransform rootRect = root.GetComponent<RectTransform>();
+        rootRect.sizeDelta = new Vector2(120f, 48f);
+
+        // Background
+        GameObject bgObj = new GameObject("BG", typeof(RectTransform));
+        bgObj.transform.SetParent(root.transform, false);
+        RectTransform bgRect = bgObj.GetComponent<RectTransform>();
+        bgRect.anchorMin = Vector2.zero;
+        bgRect.anchorMax = Vector2.one;
+        bgRect.offsetMin = Vector2.zero;
+        bgRect.offsetMax = Vector2.zero;
+        Image bgImg = bgObj.AddComponent<Image>();
+        bgImg.color = new Color(0f, 0f, 0f, 0.6f);
+        bgImg.raycastTarget = false;
+
+        // Name label
+        GameObject nameObj = new GameObject("Name", typeof(RectTransform));
+        nameObj.transform.SetParent(root.transform, false);
+        RectTransform nameRect = nameObj.GetComponent<RectTransform>();
+        nameRect.anchorMin = new Vector2(0f, 0.65f);
+        nameRect.anchorMax = new Vector2(0.65f, 1f);
+        nameRect.offsetMin = new Vector2(4f, 0f);
+        nameRect.offsetMax = new Vector2(-2f, 0f);
+        Text nameLabel = nameObj.AddComponent<Text>();
+        nameLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        nameLabel.fontSize = 12;
+        nameLabel.alignment = TextAnchor.MiddleLeft;
+        nameLabel.color = Color.white;
+        nameLabel.raycastTarget = false;
+
+        // HP text
+        GameObject hpTextObj = new GameObject("HPText", typeof(RectTransform));
+        hpTextObj.transform.SetParent(root.transform, false);
+        RectTransform hpTextRect = hpTextObj.GetComponent<RectTransform>();
+        hpTextRect.anchorMin = new Vector2(0.65f, 0.65f);
+        hpTextRect.anchorMax = new Vector2(1f, 1f);
+        hpTextRect.offsetMin = new Vector2(2f, 0f);
+        hpTextRect.offsetMax = new Vector2(-4f, 0f);
+        Text hpText = hpTextObj.AddComponent<Text>();
+        hpText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        hpText.fontSize = 11;
+        hpText.alignment = TextAnchor.MiddleRight;
+        hpText.color = new Color(0.7f, 1f, 0.7f);
+        hpText.raycastTarget = false;
+
+        // HP bar background
+        GameObject hpBgObj = new GameObject("HPBG", typeof(RectTransform));
+        hpBgObj.transform.SetParent(root.transform, false);
+        RectTransform hpBgRect = hpBgObj.GetComponent<RectTransform>();
+        hpBgRect.anchorMin = new Vector2(0.03f, 0.32f);
+        hpBgRect.anchorMax = new Vector2(0.97f, 0.6f);
+        hpBgRect.offsetMin = Vector2.zero;
+        hpBgRect.offsetMax = Vector2.zero;
+        Image hpBgImg = hpBgObj.AddComponent<Image>();
+        hpBgImg.color = new Color(0.15f, 0.15f, 0.15f, 1f);
+        hpBgImg.raycastTarget = false;
+
+        // HP bar fill
+        GameObject hpFillObj = new GameObject("HPFill", typeof(RectTransform));
+        hpFillObj.transform.SetParent(hpBgObj.transform, false);
+        RectTransform hpFillRect = hpFillObj.GetComponent<RectTransform>();
+        hpFillRect.anchorMin = Vector2.zero;
+        hpFillRect.anchorMax = Vector2.one;
+        hpFillRect.offsetMin = Vector2.zero;
+        hpFillRect.offsetMax = Vector2.zero;
+        Image hpFill = hpFillObj.AddComponent<Image>();
+        hpFill.color = new Color(0.2f, 0.85f, 0.3f);
+        hpFill.raycastTarget = false;
+
+        // MP bar background
+        GameObject mpBgObj = new GameObject("MPBG", typeof(RectTransform));
+        mpBgObj.transform.SetParent(root.transform, false);
+        RectTransform mpBgRect = mpBgObj.GetComponent<RectTransform>();
+        mpBgRect.anchorMin = new Vector2(0.03f, 0.1f);
+        mpBgRect.anchorMax = new Vector2(0.97f, 0.28f);
+        mpBgRect.offsetMin = Vector2.zero;
+        mpBgRect.offsetMax = Vector2.zero;
+        Image mpBgImg = mpBgObj.AddComponent<Image>();
+        mpBgImg.color = new Color(0.15f, 0.15f, 0.15f, 1f);
+        mpBgImg.raycastTarget = false;
+
+        // MP bar fill
+        GameObject mpFillObj = new GameObject("MPFill", typeof(RectTransform));
+        mpFillObj.transform.SetParent(mpBgObj.transform, false);
+        RectTransform mpFillRect = mpFillObj.GetComponent<RectTransform>();
+        mpFillRect.anchorMin = Vector2.zero;
+        mpFillRect.anchorMax = Vector2.one;
+        mpFillRect.offsetMin = Vector2.zero;
+        mpFillRect.offsetMax = Vector2.zero;
+        Image mpFill = mpFillObj.AddComponent<Image>();
+        mpFill.color = new Color(0.3f, 0.5f, 1f);
+        mpFill.raycastTarget = false;
+
+        root.SetActive(false);
+
+        return new WorldHealthBar
+        {
+            Root = rootRect,
+            HpFill = hpFill,
+            MpFill = mpFill,
+            NameLabel = nameLabel,
+            HpText = hpText
+        };
+    }
+
+    private void UpdateWorldBars()
+    {
+        EnsureWorldBars();
+
         IReadOnlyList<CombatUnit> allies = battleManager.AllyUnits;
-        for (int i = 0; i < allyLabels.Count; i++)
+        IReadOnlyList<CombatUnit> enemies = battleManager.EnemyUnits;
+
+        int barIndex = 0;
+
+        // Allies first (left side of screen)
+        for (int i = 0; i < allies.Count && barIndex < worldBars.Count; i++, barIndex++)
         {
-            if (i < allies.Count)
-            {
-                CombatUnit unit = allies[i];
-                string hpBar = BuildBar(unit.HP, unit.MaxHP, 10);
-                string mpBar = BuildBar(unit.MP, unit.MaxMP, 6);
-                string alive = unit.IsAlive ? "" : " [KO]";
-                allyLabels[i].text = $"{unit.UnitName}{alive}\nHP: {unit.HP}/{unit.MaxHP} {hpBar}\nMP: {unit.MP}/{unit.MaxMP} {mpBar}";
-                allyLabels[i].color = unit.IsAlive ? Color.white : Color.gray;
-            }
-            else
-            {
-                allyLabels[i].text = "---";
-            }
+            SetupWorldBar(worldBars[barIndex], allies[i], new Color(0.4f, 0.9f, 1f));
+        }
+
+        // Enemies (right side)
+        for (int i = 0; i < enemies.Count && barIndex < worldBars.Count; i++, barIndex++)
+        {
+            SetupWorldBar(worldBars[barIndex], enemies[i], new Color(1f, 0.5f, 0.4f));
+        }
+
+        // Hide unused bars
+        for (int i = barIndex; i < worldBars.Count; i++)
+        {
+            worldBars[i].Root.gameObject.SetActive(false);
         }
     }
 
-    private void UpdateEnemyStatus()
+    private void SetupWorldBar(WorldHealthBar bar, CombatUnit unit, Color nameColor)
     {
-        IReadOnlyList<CombatUnit> enemies = battleManager.EnemyUnits;
-        for (int i = 0; i < enemyLabels.Count; i++)
+        bar.Root.gameObject.SetActive(true);
+
+        bar.NameLabel.text = unit.UnitName;
+        bar.NameLabel.color = unit.IsAlive ? nameColor : Color.gray;
+
+        float hpRatio = unit.MaxHP > 0 ? (float)unit.HP / unit.MaxHP : 0f;
+        bar.HpFill.fillAmount = hpRatio;
+
+        if (hpRatio > 0.5f)
+            bar.HpFill.color = Color.Lerp(new Color(1f, 0.8f, 0.2f), new Color(0.2f, 0.85f, 0.3f), (hpRatio - 0.5f) * 2f);
+        else
+            bar.HpFill.color = Color.Lerp(new Color(0.8f, 0.15f, 0.15f), new Color(1f, 0.8f, 0.2f), hpRatio * 2f);
+
+        float mpRatio = unit.MaxMP > 0 ? (float)unit.MP / unit.MaxMP : 0f;
+        bar.MpFill.fillAmount = mpRatio;
+
+        bar.HpText.text = $"{unit.HP}/{unit.MaxHP}";
+
+        if (!unit.IsAlive)
         {
-            if (i < enemies.Count)
-            {
-                CombatUnit unit = enemies[i];
-                string hpBar = BuildBar(unit.HP, unit.MaxHP, 10);
-                string alive = unit.IsAlive ? "" : " [KO]";
-                enemyLabels[i].text = $"{unit.UnitName} ({unit.ElementType}){alive}\nHP: {unit.HP}/{unit.MaxHP} {hpBar}";
-                enemyLabels[i].color = unit.IsAlive ? new Color(1f, 0.7f, 0.7f) : Color.gray;
-            }
-            else
-            {
-                enemyLabels[i].text = "---";
-            }
+            bar.NameLabel.text = unit.UnitName + " [KO]";
+            bar.HpText.text = "KO";
+            bar.HpText.color = new Color(1f, 0.3f, 0.3f);
+        }
+        else
+        {
+            bar.HpText.color = new Color(0.7f, 1f, 0.7f);
         }
     }
+
+    private void UpdateWorldBarPositions()
+    {
+        if (mainCamera == null || battleManager == null) return;
+
+        IReadOnlyList<CombatUnit> allies = battleManager.AllyUnits;
+        IReadOnlyList<CombatUnit> enemies = battleManager.EnemyUnits;
+
+        int barIndex = 0;
+
+        for (int i = 0; i < allies.Count && barIndex < worldBars.Count; i++, barIndex++)
+        {
+            PositionBarAboveUnit(worldBars[barIndex], allies[i]);
+        }
+
+        for (int i = 0; i < enemies.Count && barIndex < worldBars.Count; i++, barIndex++)
+        {
+            PositionBarAboveUnit(worldBars[barIndex], enemies[i]);
+        }
+    }
+
+    private void PositionBarAboveUnit(WorldHealthBar bar, CombatUnit unit)
+    {
+        if (unit == null || !bar.Root.gameObject.activeSelf) return;
+
+        Vector3 worldPos = unit.transform.position + Vector3.up * 2.2f;
+        Vector3 screenPos = mainCamera.WorldToScreenPoint(worldPos);
+
+        if (screenPos.z < 0f)
+        {
+            bar.Root.gameObject.SetActive(false);
+            return;
+        }
+
+        bar.Root.position = screenPos;
+    }
+
+    // --- Action buttons ---
 
     private void UpdateActionButtons()
     {
@@ -178,7 +392,6 @@ public class BattleHud : MonoBehaviour
             skillButton.interactable = false;
         }
 
-        // Tide Break button
         bool tbReady = battleManager.Momentum.IsPlayerTideBreakReady;
         if (tideBreakButton != null)
         {
@@ -210,11 +423,11 @@ public class BattleHud : MonoBehaviour
         if (momentumLabel != null)
         {
             if (battleManager.Momentum.IsPlayerTideBreakReady)
-                momentumLabel.text = "PLAYER TB READY!";
+                momentumLabel.text = "TIDE BREAK READY!";
             else if (battleManager.Momentum.IsEnemyTideBreakReady)
                 momentumLabel.text = "ENEMY TB READY!";
             else
-                momentumLabel.text = $"Momentum: {value:F2}";
+                momentumLabel.text = "";
         }
     }
 
@@ -226,13 +439,6 @@ public class BattleHud : MonoBehaviour
             defeatOverlay.SetActive(battleManager.CurrentPhase == BattlePhase.Defeat);
     }
 
-    private string BuildBar(int current, int max, int length)
-    {
-        if (max <= 0) return new string('.', length);
-        int filled = Mathf.Clamp(Mathf.RoundToInt((float)current / max * length), 0, length);
-        return new string('█', filled) + new string('░', length - filled);
-    }
-
     // --- Button callbacks ---
     private void OnAttackClicked()
     {
@@ -241,11 +447,7 @@ public class BattleHud : MonoBehaviour
 
     private void OnDefendClicked()
     {
-        if (battleManager == null)
-        {
-            return;
-        }
-
+        if (battleManager == null) return;
         battleManager.TryAssignActionFromHud(CombatActionType.Defend, null);
     }
 
@@ -261,10 +463,7 @@ public class BattleHud : MonoBehaviour
 
     private void ShowTargetSelection(CombatActionType actionType)
     {
-        if (battleManager == null || targetPanel == null)
-        {
-            return;
-        }
+        if (battleManager == null || targetPanel == null) return;
 
         targetPanel.SetActive(true);
         IReadOnlyList<CombatUnit> enemies = battleManager.GetAliveUnits(CombatUnit.UnitType.Enemy);
@@ -289,11 +488,7 @@ public class BattleHud : MonoBehaviour
     private void OnTargetSelected(CombatActionType actionType, CombatUnit target)
     {
         targetPanel.SetActive(false);
-        if (battleManager == null)
-        {
-            return;
-        }
-
+        if (battleManager == null) return;
         battleManager.TryAssignActionFromHud(actionType, target);
     }
 
@@ -315,22 +510,26 @@ public class BattleHud : MonoBehaviour
 
         canvasObject.AddComponent<GraphicRaycaster>();
 
-        CreateAllyPanel(canvasObject.transform);
-        CreateEnemyPanel(canvasObject.transform);
+        // World bar container (no raycasting, just for layout)
+        worldBarContainer = new GameObject("WorldBars", typeof(RectTransform)).transform;
+        worldBarContainer.SetParent(canvasObject.transform, false);
+        RectTransform wbRect = worldBarContainer.GetComponent<RectTransform>();
+        wbRect.anchorMin = Vector2.zero;
+        wbRect.anchorMax = Vector2.one;
+        wbRect.offsetMin = Vector2.zero;
+        wbRect.offsetMax = Vector2.zero;
+
         CreateActionPanel(canvasObject.transform);
         CreateTargetPanel(canvasObject.transform);
         CreateMomentumPanel(canvasObject.transform);
-        CreatePhaseLabel(canvasObject.transform);
+        CreateTurnLabel(canvasObject.transform);
         CreateVictoryOverlay(canvasObject.transform);
         CreateDefeatOverlay(canvasObject.transform);
     }
 
     private void EnsureEventSystem()
     {
-        if (FindFirstObjectByType<EventSystem>() != null)
-        {
-            return;
-        }
+        if (FindFirstObjectByType<EventSystem>() != null) return;
 
         GameObject eventSystemObj = new GameObject("EventSystem");
         eventSystemObj.AddComponent<EventSystem>();
@@ -338,65 +537,11 @@ public class BattleHud : MonoBehaviour
         Debug.Log("[BattleHud] Created EventSystem for combat scene.");
     }
 
-    private void CreateAllyPanel(Transform parent)
-    {
-        allyPanel = CreatePanel("AllyPanel", parent,
-            new Vector2(0f, 0f), new Vector2(0.3f, 0.4f),
-            new Color(0.1f, 0.1f, 0.2f, 0.85f));
-
-        for (int i = 0; i < 3; i++)
-        {
-            GameObject labelObj = new GameObject($"Ally_{i}", typeof(RectTransform));
-            labelObj.transform.SetParent(allyPanel.transform, false);
-
-            Text label = labelObj.AddComponent<Text>();
-            RectTransform rect = label.rectTransform;
-            rect.anchorMin = new Vector2(0.05f, 1f - (i + 1) * 0.33f);
-            rect.anchorMax = new Vector2(0.95f, 1f - i * 0.33f);
-            rect.offsetMin = new Vector2(10f, 2f);
-            rect.offsetMax = new Vector2(-10f, -2f);
-
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            label.fontSize = 16;
-            label.alignment = TextAnchor.UpperLeft;
-            label.color = Color.white;
-            label.raycastTarget = false;
-            allyLabels.Add(label);
-        }
-    }
-
-    private void CreateEnemyPanel(Transform parent)
-    {
-        enemyPanel = CreatePanel("EnemyPanel", parent,
-            new Vector2(0.7f, 0.6f), new Vector2(1f, 1f),
-            new Color(0.2f, 0.1f, 0.1f, 0.85f));
-
-        for (int i = 0; i < 3; i++)
-        {
-            GameObject labelObj = new GameObject($"Enemy_{i}", typeof(RectTransform));
-            labelObj.transform.SetParent(enemyPanel.transform, false);
-
-            Text label = labelObj.AddComponent<Text>();
-            RectTransform rect = label.rectTransform;
-            rect.anchorMin = new Vector2(0.05f, 1f - (i + 1) * 0.33f);
-            rect.anchorMax = new Vector2(0.95f, 1f - i * 0.33f);
-            rect.offsetMin = new Vector2(10f, 2f);
-            rect.offsetMax = new Vector2(-10f, -2f);
-
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            label.fontSize = 16;
-            label.alignment = TextAnchor.UpperLeft;
-            label.color = new Color(1f, 0.7f, 0.7f);
-            label.raycastTarget = false;
-            enemyLabels.Add(label);
-        }
-    }
-
     private void CreateActionPanel(Transform parent)
     {
         actionPanel = CreatePanel("ActionPanel", parent,
-            new Vector2(0.25f, 0f), new Vector2(0.75f, 0.18f),
-            new Color(0.15f, 0.15f, 0.15f, 0.9f));
+            new Vector2(0.25f, 0.01f), new Vector2(0.75f, 0.13f),
+            new Color(0.08f, 0.08f, 0.12f, 0.92f));
 
         attackButton = CreateActionButton(actionPanel.transform, "Attack", 0, OnAttackClicked);
         defendButton = CreateActionButton(actionPanel.transform, "Defend", 1, OnDefendClicked);
@@ -414,17 +559,23 @@ public class BattleHud : MonoBehaviour
         btnObj.transform.SetParent(parent, false);
 
         RectTransform rect = btnObj.GetComponent<RectTransform>();
-        float width = 0.23f;
-        rect.anchorMin = new Vector2(0.02f + index * width, 0.15f);
-        rect.anchorMax = new Vector2(0.02f + (index + 1) * width - 0.02f, 0.85f);
+        float width = 0.235f;
+        rect.anchorMin = new Vector2(0.015f + index * width, 0.12f);
+        rect.anchorMax = new Vector2(0.015f + (index + 1) * width - 0.015f, 0.88f);
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
 
         Image img = btnObj.AddComponent<Image>();
-        img.color = new Color(0.3f, 0.3f, 0.35f, 1f);
+        img.color = new Color(0.18f, 0.18f, 0.24f, 1f);
 
         Button btn = btnObj.AddComponent<Button>();
         btn.targetGraphic = img;
+        ColorBlock colors = btn.colors;
+        colors.normalColor = new Color(0.18f, 0.18f, 0.24f, 1f);
+        colors.highlightedColor = new Color(0.3f, 0.3f, 0.4f, 1f);
+        colors.pressedColor = new Color(0.12f, 0.12f, 0.18f, 1f);
+        colors.selectedColor = new Color(0.25f, 0.25f, 0.35f, 1f);
+        btn.colors = colors;
         btn.onClick.AddListener(onClick);
 
         GameObject textObj = new GameObject("Text", typeof(RectTransform));
@@ -433,14 +584,15 @@ public class BattleHud : MonoBehaviour
         RectTransform textRect = textObj.GetComponent<RectTransform>();
         textRect.anchorMin = Vector2.zero;
         textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = Vector2.zero;
-        textRect.offsetMax = Vector2.zero;
+        textRect.offsetMin = new Vector2(4f, 2f);
+        textRect.offsetMax = new Vector2(-4f, -2f);
 
         Text text = textObj.AddComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 18;
+        text.fontSize = 16;
+        text.fontStyle = FontStyle.Bold;
         text.alignment = TextAnchor.MiddleCenter;
-        text.color = Color.white;
+        text.color = new Color(0.9f, 0.9f, 0.95f);
         text.text = label;
         text.raycastTarget = false;
 
@@ -450,8 +602,8 @@ public class BattleHud : MonoBehaviour
     private void CreateTargetPanel(Transform parent)
     {
         targetPanel = CreatePanel("TargetPanel", parent,
-            new Vector2(0.3f, 0.18f), new Vector2(0.7f, 0.45f),
-            new Color(0.2f, 0.15f, 0.1f, 0.95f));
+            new Vector2(0.32f, 0.14f), new Vector2(0.68f, 0.42f),
+            new Color(0.1f, 0.08f, 0.06f, 0.95f));
         targetPanel.SetActive(false);
 
         GameObject titleObj = new GameObject("Title", typeof(RectTransform));
@@ -464,8 +616,9 @@ public class BattleHud : MonoBehaviour
         titleRect.offsetMax = Vector2.zero;
         title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         title.fontSize = 18;
+        title.fontStyle = FontStyle.Bold;
         title.alignment = TextAnchor.MiddleCenter;
-        title.color = Color.white;
+        title.color = new Color(1f, 0.85f, 0.5f);
         title.text = "Select Target";
         title.raycastTarget = false;
 
@@ -481,10 +634,14 @@ public class BattleHud : MonoBehaviour
             rect.offsetMax = Vector2.zero;
 
             Image img = btnObj.AddComponent<Image>();
-            img.color = new Color(0.5f, 0.2f, 0.2f, 1f);
+            img.color = new Color(0.35f, 0.15f, 0.12f, 1f);
 
             Button btn = btnObj.AddComponent<Button>();
             btn.targetGraphic = img;
+            ColorBlock colors = btn.colors;
+            colors.highlightedColor = new Color(0.5f, 0.25f, 0.18f, 1f);
+            colors.pressedColor = new Color(0.25f, 0.1f, 0.08f, 1f);
+            btn.colors = colors;
 
             GameObject textObj = new GameObject("Text", typeof(RectTransform));
             textObj.transform.SetParent(btnObj.transform, false);
@@ -494,8 +651,9 @@ public class BattleHud : MonoBehaviour
             Text text = textObj.AddComponent<Text>();
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = 16;
+            text.fontStyle = FontStyle.Bold;
             text.alignment = TextAnchor.MiddleCenter;
-            text.color = Color.white;
+            text.color = new Color(1f, 0.85f, 0.7f);
             text.raycastTarget = false;
 
             targetButtons.Add(btn);
@@ -505,25 +663,26 @@ public class BattleHud : MonoBehaviour
     private void CreateMomentumPanel(Transform parent)
     {
         momentumPanel = CreatePanel("MomentumPanel", parent,
-            new Vector2(0.25f, 0.92f), new Vector2(0.75f, 0.98f),
-            new Color(0.1f, 0.1f, 0.15f, 0.9f));
+            new Vector2(0.28f, 0.94f), new Vector2(0.72f, 0.99f),
+            new Color(0.06f, 0.06f, 0.1f, 0.85f));
 
         // Background bar
         GameObject bgObj = new GameObject("BarBG", typeof(RectTransform));
         bgObj.transform.SetParent(momentumPanel.transform, false);
         RectTransform bgRect = bgObj.GetComponent<RectTransform>();
-        bgRect.anchorMin = new Vector2(0.05f, 0.2f);
-        bgRect.anchorMax = new Vector2(0.75f, 0.8f);
+        bgRect.anchorMin = new Vector2(0.03f, 0.15f);
+        bgRect.anchorMax = new Vector2(0.65f, 0.85f);
         bgRect.offsetMin = Vector2.zero;
         bgRect.offsetMax = Vector2.zero;
         Image bgImg = bgObj.AddComponent<Image>();
-        bgImg.color = new Color(0.2f, 0.2f, 0.25f, 1f);
+        bgImg.color = new Color(0.12f, 0.12f, 0.18f, 1f);
+        bgImg.raycastTarget = false;
 
         // Fill bar
         GameObject fillObj = new GameObject("BarFill", typeof(RectTransform));
         fillObj.transform.SetParent(bgObj.transform, false);
         RectTransform fillRect = fillObj.GetComponent<RectTransform>();
-        fillRect.anchorMin = new Vector2(0f, 0f);
+        fillRect.anchorMin = Vector2.zero;
         fillRect.anchorMax = new Vector2(0.5f, 1f);
         fillRect.offsetMin = Vector2.zero;
         fillRect.offsetMax = Vector2.zero;
@@ -532,42 +691,45 @@ public class BattleHud : MonoBehaviour
         momentumFill.fillMethod = Image.FillMethod.Horizontal;
         momentumFill.fillAmount = 0.5f;
         momentumFill.color = new Color(0.2f, 0.5f, 1f);
+        momentumFill.raycastTarget = false;
 
         // Label
         GameObject labelObj = new GameObject("Label", typeof(RectTransform));
         labelObj.transform.SetParent(momentumPanel.transform, false);
         RectTransform labelRect = labelObj.GetComponent<RectTransform>();
-        labelRect.anchorMin = new Vector2(0.77f, 0f);
+        labelRect.anchorMin = new Vector2(0.68f, 0f);
         labelRect.anchorMax = new Vector2(1f, 1f);
         labelRect.offsetMin = Vector2.zero;
         labelRect.offsetMax = Vector2.zero;
         momentumLabel = labelObj.AddComponent<Text>();
         momentumLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        momentumLabel.fontSize = 14;
+        momentumLabel.fontSize = 13;
+        momentumLabel.fontStyle = FontStyle.Bold;
         momentumLabel.alignment = TextAnchor.MiddleCenter;
-        momentumLabel.color = Color.white;
-        momentumLabel.text = "Momentum: 0.00";
+        momentumLabel.color = new Color(1f, 0.9f, 0.4f);
+        momentumLabel.text = "";
         momentumLabel.raycastTarget = false;
     }
 
-    private void CreatePhaseLabel(Transform parent)
+    private void CreateTurnLabel(Transform parent)
     {
-        GameObject labelObj = new GameObject("PhaseLabel", typeof(RectTransform));
+        GameObject labelObj = new GameObject("TurnLabel", typeof(RectTransform));
         labelObj.transform.SetParent(parent, false);
 
-        phaseLabel = labelObj.AddComponent<Text>();
-        RectTransform rect = phaseLabel.rectTransform;
+        turnLabel = labelObj.AddComponent<Text>();
+        RectTransform rect = turnLabel.rectTransform;
         rect.anchorMin = new Vector2(0.5f, 1f);
         rect.anchorMax = new Vector2(0.5f, 1f);
         rect.pivot = new Vector2(0.5f, 1f);
-        rect.anchoredPosition = new Vector2(0f, -10f);
-        rect.sizeDelta = new Vector2(300f, 30f);
+        rect.anchoredPosition = new Vector2(0f, -8f);
+        rect.sizeDelta = new Vector2(400f, 28f);
 
-        phaseLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        phaseLabel.fontSize = 20;
-        phaseLabel.alignment = TextAnchor.MiddleCenter;
-        phaseLabel.color = Color.yellow;
-        phaseLabel.raycastTarget = false;
+        turnLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        turnLabel.fontSize = 22;
+        turnLabel.fontStyle = FontStyle.Bold;
+        turnLabel.alignment = TextAnchor.MiddleCenter;
+        turnLabel.color = Color.white;
+        turnLabel.raycastTarget = false;
     }
 
     private void CreateVictoryOverlay(Transform parent)
@@ -586,6 +748,7 @@ public class BattleHud : MonoBehaviour
         rect.offsetMax = Vector2.zero;
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         text.fontSize = 72;
+        text.fontStyle = FontStyle.Bold;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = new Color(0.3f, 1f, 0.3f);
         text.text = "VICTORY!";
@@ -610,6 +773,7 @@ public class BattleHud : MonoBehaviour
         rect.offsetMax = Vector2.zero;
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         text.fontSize = 72;
+        text.fontStyle = FontStyle.Bold;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = new Color(1f, 0.3f, 0.3f);
         text.text = "DEFEAT...";
@@ -631,6 +795,7 @@ public class BattleHud : MonoBehaviour
 
         Image img = panel.AddComponent<Image>();
         img.color = bgColor;
+        img.raycastTarget = false;
 
         return panel;
     }
