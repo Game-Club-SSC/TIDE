@@ -22,4 +22,4 @@ MonoBehaviour:
   baseDefense: 12
   baseSpeed: 8
   starterSkills:
-  - {fileID: 11400000, guid: skill00000000000000000000000000000001, type: 2}
+  - {fileID: 11400000, guid: e54f7e1f7838426bbec48ba5eb96a3ce, type: 2}

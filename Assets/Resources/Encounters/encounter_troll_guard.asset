@@ -9,11 +9,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: encount00000000000000000000000000000, type: 3}
+  m_Script: {fileID: 11500000, guid: b436287634dc4e8fa90a52dd3c0d1fe3, type: 3}
   m_Name: encounter_troll_guard
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   encounterId: encounter_troll_guard
   displayName: Troll Guard
   enemies:
-  - {fileID: 11400000, guid: enemy00000000000000000000000000000003, type: 2}
-  - {fileID: 11400000, guid: enemy00000000000000000000000000000004, type: 2}
+  - {fileID: 11400000, guid: 956230fc7b274eec9a2426ef8718c5ea, type: 2}
+  - {fileID: 11400000, guid: e1c98092b99644bc8ab5653e1a110799, type: 2}

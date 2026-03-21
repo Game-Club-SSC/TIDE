@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: enemy00000000000000000000000000000000, type: 3}
+  m_Script: {fileID: 11500000, guid: 6eeeb8b56bcd4f5385484f40ddb4e43f, type: 3}
   m_Name: enemy_troll
   m_EditorClassIdentifier: 
   enemyId: enemy_troll
@@ -21,4 +21,4 @@ MonoBehaviour:
   baseDefense: 12
   baseSpeed: 4
   skills:
-  - {fileID: 11400000, guid: skill00000000000000000000000000000001, type: 2}
+  - {fileID: 11400000, guid: e54f7e1f7838426bbec48ba5eb96a3ce, type: 2}

@@ -476,7 +476,10 @@ public class BattleHud : MonoBehaviour
                     ? $"{skill.skillName} ({skill.mpCost} MP)"
                     : $"No MP ({skill.mpCost})";
             }
-            skillButton.interactable = currentInput.CanUseSkill(skill);
+            if (skillButton != null)
+            {
+                skillButton.interactable = currentInput.CanUseSkill(skill);
+            }
         }
         else
         {
@@ -484,7 +487,10 @@ public class BattleHud : MonoBehaviour
             {
                 skillButtonText.text = "No Skill";
             }
-            skillButton.interactable = false;
+            if (skillButton != null)
+            {
+                skillButton.interactable = false;
+            }
         }
 
         bool tbReady = battleManager.Momentum.IsPlayerTideBreakReady;

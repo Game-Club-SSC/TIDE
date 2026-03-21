@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: enemy00000000000000000000000000000000, type: 3}
+  m_Script: {fileID: 11500000, guid: 6eeeb8b56bcd4f5385484f40ddb4e43f, type: 3}
   m_Name: enemy_imp
   m_EditorClassIdentifier: 
   enemyId: enemy_imp
@@ -21,4 +21,4 @@ MonoBehaviour:
   baseDefense: 3
   baseSpeed: 14
   skills:
-  - {fileID: 11400000, guid: skill00000000000000000000000000000003, type: 2}
+  - {fileID: 11400000, guid: 916ceb21465c4fc1880a8d156a071148, type: 2}

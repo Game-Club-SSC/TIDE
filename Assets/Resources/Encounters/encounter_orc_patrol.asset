@@ -9,11 +9,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: encount00000000000000000000000000000, type: 3}
+  m_Script: {fileID: 11500000, guid: b436287634dc4e8fa90a52dd3c0d1fe3, type: 3}
   m_Name: encounter_orc_patrol
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   encounterId: encounter_orc_patrol
   displayName: Orc Patrol
   enemies:
-  - {fileID: 11400000, guid: enemy00000000000000000000000000000002, type: 2}
-  - {fileID: 11400000, guid: enemy00000000000000000000000000000001, type: 2}
+  - {fileID: 11400000, guid: 299eb70b37ae4410899b914da3e38267, type: 2}
+  - {fileID: 11400000, guid: 820932bdfb8940ae80b7cbfdfd811d49, type: 2}
