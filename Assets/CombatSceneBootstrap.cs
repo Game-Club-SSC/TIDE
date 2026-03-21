@@ -122,7 +122,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         Renderer groundRenderer = groundTransform.GetComponent<Renderer>();
         if (groundRenderer != null)
         {
-            groundRenderer.sharedMaterial.color = battlefieldColor;
+            groundRenderer.material.color = battlefieldColor;
         }
     }
 
@@ -246,7 +246,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         Renderer markerRenderer = markerTransform.GetComponent<Renderer>();
         if (markerRenderer != null)
         {
-            markerRenderer.sharedMaterial.color = markerColor;
+            markerRenderer.material.color = markerColor;
         }
     }
 
@@ -404,7 +404,7 @@ public class CombatSceneBootstrap : MonoBehaviour
             return;
         }
 
-        renderer.sharedMaterial.color = color;
+        renderer.material.color = color;
     }
 
     private HeroData[] GetActiveHeroes()

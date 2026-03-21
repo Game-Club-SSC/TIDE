@@ -67,6 +67,16 @@ public class IsometricPlayer : MonoBehaviour
         // Flatten the camera vectors
         forward.y = 0f;
         right.y = 0f;
+
+        if (forward.sqrMagnitude < 0.001f)
+        {
+            forward = Vector3.forward;
+        }
+        if (right.sqrMagnitude < 0.001f)
+        {
+            right = Vector3.right;
+        }
+
         forward.Normalize();
         right.Normalize();
 

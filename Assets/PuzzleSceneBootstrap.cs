@@ -59,7 +59,7 @@ public class PuzzleSceneBootstrap : MonoBehaviour
         Renderer groundRenderer = ground.GetComponent<Renderer>();
         if (groundRenderer != null)
         {
-            groundRenderer.sharedMaterial.color = groundColor;
+            groundRenderer.material.color = groundColor;
         }
     }
 

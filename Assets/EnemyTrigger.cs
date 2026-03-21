@@ -17,6 +17,13 @@ public class EnemyTrigger : MonoBehaviour
 
         if (GameStateManager.Instance.HasActiveFlowController)
         {
+            Collider triggerCollider = GetComponent<Collider>();
+            if (triggerCollider != null)
+            {
+                triggerCollider.enabled = false;
+            }
+
+            Destroy(gameObject, 0.1f);
             return;
         }
 

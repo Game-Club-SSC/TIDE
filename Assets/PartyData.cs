@@ -155,30 +155,48 @@ public class PartyData : ScriptableObject
         if (activeIndex >= 0)
         {
             int reserveSlot = FindFirstEmptyReserveSlot();
-            if (reserveSlot < 0)
+            if (reserveSlot >= 0)
             {
-                Debug.LogWarning("[PartyData] No empty reserve slot available.");
-                return false;
+                reserveSlots[reserveSlot] = activeSlots[activeIndex];
+                activeSlots[activeIndex] = null;
+                return true;
             }
 
-            reserveSlots[reserveSlot] = activeSlots[activeIndex];
-            activeSlots[activeIndex] = null;
-            return true;
+            int swapIdx = FindFirstReserveSlotForSwap();
+            if (swapIdx >= 0)
+            {
+                HeroData temp = activeSlots[activeIndex];
+                activeSlots[activeIndex] = reserveSlots[swapIdx];
+                reserveSlots[swapIdx] = temp;
+                return true;
+            }
+
+            Debug.LogWarning("[PartyData] No empty reserve slot available.");
+            return false;
         }
 
         int reserveIdx = FindReserveIndex(heroId);
         if (reserveIdx >= 0)
         {
             int activeSlot = FindFirstEmptyActiveSlot();
-            if (activeSlot < 0)
+            if (activeSlot >= 0)
             {
-                Debug.LogWarning("[PartyData] Active party is full (3/3). Remove a hero first.");
-                return false;
+                activeSlots[activeSlot] = reserveSlots[reserveIdx];
+                reserveSlots[reserveIdx] = null;
+                return true;
             }
 
-            activeSlots[activeSlot] = reserveSlots[reserveIdx];
-            reserveSlots[reserveIdx] = null;
-            return true;
+            int swapIdx = FindFirstActiveSlotForSwap();
+            if (swapIdx >= 0)
+            {
+                HeroData temp = reserveSlots[reserveIdx];
+                reserveSlots[reserveIdx] = activeSlots[swapIdx];
+                activeSlots[swapIdx] = temp;
+                return true;
+            }
+
+            Debug.LogWarning("[PartyData] Active party is full (3/3). Remove a hero first.");
+            return false;
         }
 
         Debug.LogWarning($"[PartyData] Hero '{heroId}' not found in party.");
@@ -293,6 +311,32 @@ public class PartyData : ScriptableObject
         for (int i = 0; i < reserveSlots.Length; i++)
         {
             if (reserveSlots[i] == null)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int FindFirstReserveSlotForSwap()
+    {
+        for (int i = 0; i < reserveSlots.Length; i++)
+        {
+            if (reserveSlots[i] != null)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int FindFirstActiveSlotForSwap()
+    {
+        for (int i = 0; i < activeSlots.Length; i++)
+        {
+            if (activeSlots[i] != null)
             {
                 return i;
             }

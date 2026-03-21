@@ -120,7 +120,7 @@ public class RestorationTrackerTest : MonoBehaviour
         Assert.AreEqual(1, state.PuzzleEncountersCompleted, "Should still have exactly 1 puzzle encounter completed.");
 
         DestroyImmediate(trackerObject);
-        Debug.Log("笨・Duplicate puzzle encounter prevention test passed");
+        Debug.Log("✓ Duplicate puzzle encounter prevention test passed");
     }
 
     private void TestLegacyCompleteEncounterCannotStack()
@@ -141,7 +141,7 @@ public class RestorationTrackerTest : MonoBehaviour
         Assert.AreEqual(1, state.CompletedEncounterIds.Count, "Legacy path should register a stable encounter id for duplicate protection.");
 
         DestroyImmediate(trackerObject);
-        Debug.Log("笨・Legacy CompleteEncounter duplicate protection test passed");
+        Debug.Log("✓ Legacy CompleteEncounter duplicate protection test passed");
     }
 
     private void TestTypedBuckets()
