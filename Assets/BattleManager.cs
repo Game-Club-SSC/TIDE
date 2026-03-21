@@ -542,19 +542,19 @@ public class BattleManager : MonoBehaviour
                 return plannedAction;
             }
 
-            return new PlannedAction(CombatActionType.Attack, actor, GetFirstLivingOpponent(actor));
+            return new PlannedAction(CombatActionType.Attack, actor, GetRandomLivingOpponent(actor));
         }
 
         if (momentumState.IsEnemyTideBreakReady)
         {
-            CombatUnit tbTarget = GetFirstLivingOpponent(actor);
+            CombatUnit tbTarget = GetRandomLivingOpponent(actor);
             if (tbTarget != null)
             {
                 return new PlannedAction(CombatActionType.TideBreak, actor, tbTarget);
             }
         }
 
-        CombatUnit target = GetFirstLivingOpponent(actor);
+        CombatUnit target = GetRandomLivingOpponent(actor);
         if (target == null)
         {
             return new PlannedAction(CombatActionType.Attack, actor, null);
@@ -577,7 +577,7 @@ public class BattleManager : MonoBehaviour
         CombatUnit target = requestedTarget;
         if (!IsValidTarget(actor, target))
         {
-            target = GetFirstLivingOpponent(actor);
+            target = GetRandomLivingOpponent(actor);
         }
 
         if (!IsValidTarget(actor, target))
@@ -588,7 +588,8 @@ public class BattleManager : MonoBehaviour
 
         int baseDamage = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
-        int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDamage * multiplier));
+        float variance = Random.Range(0.8f, 1.2f);
+        int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDamage * multiplier * variance));
 
         MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
         int hpBefore = target.HP;
@@ -632,7 +633,7 @@ public class BattleManager : MonoBehaviour
         CombatUnit target = requestedTarget;
         if (!IsValidTarget(actor, target))
         {
-            target = GetFirstLivingOpponent(actor);
+            target = GetRandomLivingOpponent(actor);
         }
 
         if (!IsValidTarget(actor, target))
@@ -646,7 +647,8 @@ public class BattleManager : MonoBehaviour
         int baseDamage = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
         float skillMultiplier = multiplier * skill.damageMultiplier;
-        int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDamage * skillMultiplier));
+        float variance = Random.Range(0.8f, 1.2f);
+        int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDamage * skillMultiplier * variance));
 
         MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
         int hpBefore = target.HP;
@@ -699,7 +701,7 @@ public class BattleManager : MonoBehaviour
             CombatUnit target = requestedTarget;
             if (!IsValidTarget(actor, target))
             {
-                target = GetFirstLivingOpponent(actor);
+                target = GetRandomLivingOpponent(actor);
             }
 
             if (target == null)
@@ -720,13 +722,19 @@ public class BattleManager : MonoBehaviour
         Debug.Log("[BattleManager] Momentum reset after Tide Break.", this);
     }
 
-    private CombatUnit GetFirstLivingOpponent(CombatUnit actor)
+    private CombatUnit GetRandomLivingOpponent(CombatUnit actor)
     {
         CombatUnit.UnitType targetType = actor.Type == CombatUnit.UnitType.Ally
             ? CombatUnit.UnitType.Enemy
             : CombatUnit.UnitType.Ally;
 
-        return GetAliveUnits(targetType).FirstOrDefault();
+        IReadOnlyList<CombatUnit> candidates = GetAliveUnits(targetType);
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        return candidates[Random.Range(0, candidates.Count)];
     }
 
     private bool IsValidTarget(CombatUnit actor, CombatUnit target)

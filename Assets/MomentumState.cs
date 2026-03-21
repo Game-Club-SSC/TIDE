@@ -54,6 +54,17 @@ public class MomentumState
                     ShiftTowardPlayer(DefaultShiftAmount * 0.5f);
                 }
                 break;
+
+            case MatchupResult.Neutral:
+                if (attackerIsAlly)
+                {
+                    ShiftTowardPlayer(DefaultShiftAmount * 0.33f);
+                }
+                else
+                {
+                    ShiftTowardEnemy(DefaultShiftAmount * 0.33f);
+                }
+                break;
         }
     }
 
