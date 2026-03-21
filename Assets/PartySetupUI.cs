@@ -247,12 +247,14 @@ public class PartySetupUI : MonoBehaviour
     {
         if (PartyManager.Instance == null) return;
 
+        PartyData party = PartyManager.Instance.PartyData;
+        if (party == null) return;
+
         bool wasActive = PartyManager.Instance.IsHeroActive(heroId);
 
         if (wasActive)
         {
-            PartyData party = PartyManager.Instance.PartyData;
-            if (party != null && party.GetActiveCount() <= 1)
+            if (party.GetActiveCount() <= 1)
             {
                 Debug.Log("[PartySetupUI] Cannot remove the last active hero.");
                 return;
@@ -263,8 +265,7 @@ public class PartySetupUI : MonoBehaviour
             return;
         }
 
-        PartyData party = PartyManager.Instance.PartyData;
-        if (party != null && party.GetActiveCount() >= 3)
+        if (party.GetActiveCount() >= 3)
         {
             Debug.Log("[PartySetupUI] Active party is full (3/3). Remove a hero first.");
             return;
