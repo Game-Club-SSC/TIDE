@@ -27,6 +27,15 @@ public class PuzzleBoxInteractable : MonoBehaviour
     [SerializeField] private int sealedRow = 1;
     [SerializeField] private int sealedCol = 1;
 
+    [Header("Restoration")]
+    [Tooltip("Island ID this puzzle belongs to. Leave empty if not part of island restoration.")]
+    [SerializeField] private string islandId = "";
+    [Tooltip("Unique encounter ID for this puzzle within the island.")]
+    [SerializeField] private string encounterId = "";
+    [Range(0f, 1f)]
+    [Tooltip("Restoration contribution when puzzle is solved (0-1).")]
+    [SerializeField] private float restorationValue = 0.2f;
+
     private BoxCollider interactionTrigger;
     private Renderer cachedRenderer;
     private GameObject promptRoot;
@@ -97,12 +106,28 @@ public class PuzzleBoxInteractable : MonoBehaviour
             gsm.PendingPuzzleSealedTile = new Vector2Int(sealedCol, sealedRow);
         }
 
+        // Set restoration tracking data
+        if (gsm != null)
+        {
+            gsm.PendingPuzzleIslandId = islandId;
+            gsm.PendingPuzzleEncounterId = encounterId;
+            gsm.PendingPuzzleRestorationValue = restorationValue;
+        }
+
         gsm?.EnterPuzzleScene(returnPosition, GetInstanceID().ToString());
     }
 
     public void MarkSolved()
     {
         thisBoxSolved = true;
+
+        // Hide mound child object if it exists
+        Transform moundTransform = transform.Find("Mound for Dig (1)");
+        if (moundTransform != null)
+        {
+            moundTransform.gameObject.SetActive(false);
+            Debug.Log("[PuzzleBoxInteractable] Mound hidden after puzzle completion.");
+        }
     }
 
     private void OnTriggerEnter(Collider other)

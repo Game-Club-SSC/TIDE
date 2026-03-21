@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -38,9 +39,13 @@ public class GameStateManager : MonoBehaviour
     public Vector2Int PendingPuzzleSealedTile { get; set; }
     public EnemyComposition PendingEnemyComposition { get; set; }
     public string PendingPuzzleIslandId { get; set; }
+    public string PendingPuzzleEncounterId { get; set; }
+    public float PendingPuzzleRestorationValue { get; set; }
     public IslandFlowController FlowController { get; set; }
     public bool HasActiveFlowController => FlowController != null && FlowController.IsActive;
     public IslandRestorationTracker RestorationTracker => IslandRestorationTracker.Instance;
+
+    public event Action OnPuzzleCompleted;
     private bool isFlowControlledCombat;
     private bool deferredFlowFromCombat;
     private bool hasDeferredFlowFromCombatResult;
@@ -288,6 +293,26 @@ public class GameStateManager : MonoBehaviour
                     }
                 }
                 pendingSolvedPuzzleBoxId = null;
+
+                // Record restoration if island ID provided
+                if (!string.IsNullOrEmpty(PendingPuzzleIslandId) && IslandRestorationTracker.Instance != null)
+                {
+                    IslandRestorationTracker.Instance.RecordEncounterCompletion(
+                        PendingPuzzleIslandId,
+                        PendingPuzzleEncounterId,
+                        EncounterType.Puzzle,
+                        PendingPuzzleRestorationValue);
+                    Debug.Log($"[GameStateManager] Recorded puzzle completion for island '{PendingPuzzleIslandId}', encounter '{PendingPuzzleEncounterId}'.");
+                }
+
+                // Clear pending restoration fields
+                PendingPuzzleIslandId = null;
+                PendingPuzzleEncounterId = null;
+                PendingPuzzleRestorationValue = 0f;
+
+                // Trigger puzzle completed event to change ground color
+                OnPuzzleCompleted?.Invoke();
+                Debug.Log("[GameStateManager] Puzzle completed - ground color changed to white.");
             }
 
             PuzzleSolved = false;
