@@ -31,6 +31,12 @@ public class BattleHud : MonoBehaviour
     private GameObject victoryOverlay;
     private GameObject defeatOverlay;
 
+    // Clash announcement
+    private GameObject clashOverlay;
+    private Text clashTitle;
+    private Text clashSubtitle;
+    private float clashDisplayTimer;
+
     // Momentum
     private Image momentumFill;
     private Text momentumLabel;
@@ -74,6 +80,15 @@ public class BattleHud : MonoBehaviour
         }
 
         UpdateWorldBarPositions();
+
+        if (clashOverlay != null && clashOverlay.activeSelf)
+        {
+            clashDisplayTimer -= Time.deltaTime;
+            if (clashDisplayTimer <= 0f)
+            {
+                clashOverlay.SetActive(false);
+            }
+        }
     }
 
     private void TryFindBattleManager()
@@ -82,6 +97,7 @@ public class BattleHud : MonoBehaviour
         if (battleManager != null)
         {
             battleManager.Momentum.OnMomentumChanged += OnMomentumChanged;
+            battleManager.OnClashResolved += OnClashResolved;
         }
     }
 
@@ -90,12 +106,42 @@ public class BattleHud : MonoBehaviour
         if (battleManager != null)
         {
             battleManager.Momentum.OnMomentumChanged -= OnMomentumChanged;
+            battleManager.OnClashResolved -= OnClashResolved;
         }
     }
 
     private void OnMomentumChanged(float value)
     {
         UpdateMomentumBar(value);
+    }
+
+    private void OnClashResolved(BattleManager.ClashResult result)
+    {
+        ShowClashAnnouncement(result);
+    }
+
+    private void ShowClashAnnouncement(BattleManager.ClashResult result)
+    {
+        if (clashOverlay == null) return;
+
+        clashOverlay.SetActive(true);
+        clashDisplayTimer = 2.5f;
+
+        if (result.HasWinner)
+        {
+            bool winnerIsAlly = result.Winner.Type == CombatUnit.UnitType.Ally;
+            clashTitle.text = "CLASH!";
+            clashTitle.color = winnerIsAlly ? new Color(0.3f, 1f, 0.5f) : new Color(1f, 0.3f, 0.3f);
+            clashSubtitle.text = $"{result.Winner.UnitName} beats {result.Loser.UnitName}!";
+            clashSubtitle.color = winnerIsAlly ? new Color(0.5f, 1f, 0.7f) : new Color(1f, 0.5f, 0.5f);
+        }
+        else
+        {
+            clashTitle.text = "CLASH!";
+            clashTitle.color = new Color(1f, 0.9f, 0.4f);
+            clashSubtitle.text = $"{result.UnitA.UnitName} vs {result.UnitB.UnitName} — Neutral!";
+            clashSubtitle.color = new Color(1f, 0.85f, 0.5f);
+        }
     }
 
     private void RefreshDisplay()
@@ -574,6 +620,7 @@ public class BattleHud : MonoBehaviour
         CreateTurnLabel(canvasObject.transform);
         CreateVictoryOverlay(canvasObject.transform);
         CreateDefeatOverlay(canvasObject.transform);
+        CreateClashOverlay(canvasObject.transform);
     }
 
     private void EnsureEventSystem()
@@ -829,6 +876,58 @@ public class BattleHud : MonoBehaviour
         text.raycastTarget = false;
 
         defeatOverlay.SetActive(false);
+    }
+
+    private void CreateClashOverlay(Transform parent)
+    {
+        clashOverlay = new GameObject("ClashOverlay", typeof(RectTransform));
+        clashOverlay.transform.SetParent(parent, false);
+
+        RectTransform rootRect = clashOverlay.GetComponent<RectTransform>();
+        rootRect.anchorMin = new Vector2(0.2f, 0.6f);
+        rootRect.anchorMax = new Vector2(0.8f, 0.85f);
+        rootRect.offsetMin = Vector2.zero;
+        rootRect.offsetMax = Vector2.zero;
+
+        Image bgImg = clashOverlay.AddComponent<Image>();
+        bgImg.color = new Color(0f, 0f, 0f, 0.75f);
+        bgImg.raycastTarget = false;
+
+        // Title (CLASH!)
+        GameObject titleObj = new GameObject("ClashTitle", typeof(RectTransform));
+        titleObj.transform.SetParent(clashOverlay.transform, false);
+        RectTransform titleRect = titleObj.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0f, 0.5f);
+        titleRect.anchorMax = new Vector2(1f, 1f);
+        titleRect.offsetMin = Vector2.zero;
+        titleRect.offsetMax = Vector2.zero;
+        clashTitle = titleObj.AddComponent<Text>();
+        clashTitle.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        clashTitle.fontSize = 48;
+        clashTitle.fontStyle = FontStyle.Bold;
+        clashTitle.alignment = TextAnchor.MiddleCenter;
+        clashTitle.color = Color.white;
+        clashTitle.text = "";
+        clashTitle.raycastTarget = false;
+
+        // Subtitle (who won / neutral)
+        GameObject subObj = new GameObject("ClashSubtitle", typeof(RectTransform));
+        subObj.transform.SetParent(clashOverlay.transform, false);
+        RectTransform subRect = subObj.GetComponent<RectTransform>();
+        subRect.anchorMin = new Vector2(0f, 0f);
+        subRect.anchorMax = new Vector2(1f, 0.5f);
+        subRect.offsetMin = Vector2.zero;
+        subRect.offsetMax = Vector2.zero;
+        clashSubtitle = subObj.AddComponent<Text>();
+        clashSubtitle.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        clashSubtitle.fontSize = 24;
+        clashSubtitle.fontStyle = FontStyle.Bold;
+        clashSubtitle.alignment = TextAnchor.MiddleCenter;
+        clashSubtitle.color = Color.white;
+        clashSubtitle.text = "";
+        clashSubtitle.raycastTarget = false;
+
+        clashOverlay.SetActive(false);
     }
 
     private GameObject CreatePanel(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Color bgColor)

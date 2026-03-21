@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -80,6 +81,18 @@ public class BattleManager : MonoBehaviour
     public IReadOnlyList<CombatUnit> EnemyUnits => enemyUnits;
     public IReadOnlyList<CombatUnit> TurnQueue => turnQueue;
     public MomentumState Momentum => momentumState;
+
+    public struct ClashResult
+    {
+        public CombatUnit UnitA;
+        public CombatUnit UnitB;
+        public bool HasWinner;
+        public CombatUnit Winner;
+        public CombatUnit Loser;
+        public string Description;
+    }
+
+    public event Action<ClashResult> OnClashResolved;
 
     public CombatUnit GetEnemyTarget(CombatUnit enemy)
     {
@@ -520,6 +533,16 @@ public class BattleManager : MonoBehaviour
         Debug.Log($"  -> {loser.UnitName} deals {loserDmg} to {winner.UnitName}. HP {winnerHpBefore} -> {winner.HP}", this);
 
         momentumState.ShiftForAction(winner, MatchupResult.Strong);
+
+        OnClashResolved?.Invoke(new ClashResult
+        {
+            UnitA = winner,
+            UnitB = loser,
+            HasWinner = true,
+            Winner = winner,
+            Loser = loser,
+            Description = $"{winner.UnitName} WINS!"
+        });
     }
 
     private void ExecuteNeutralClash(CombatUnit unitA, CombatUnit unitB)
@@ -536,6 +559,16 @@ public class BattleManager : MonoBehaviour
         int hpABefore = unitA.HP;
         unitA.TakeDamage(dmgB);
         Debug.Log($"  -> {unitB.UnitName} deals {dmgB} to {unitA.UnitName}. HP {hpABefore} -> {unitA.HP}", this);
+
+        OnClashResolved?.Invoke(new ClashResult
+        {
+            UnitA = unitA,
+            UnitB = unitB,
+            HasWinner = false,
+            Winner = null,
+            Loser = null,
+            Description = "NEUTRAL CLASH"
+        });
     }
 
     private void BeginEndTurnPhase()
