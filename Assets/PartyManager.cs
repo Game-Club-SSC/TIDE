@@ -106,6 +106,50 @@ public class PartyManager : MonoBehaviour
         return swapped;
     }
 
+    public bool ToggleHeroActive(string heroId)
+    {
+        if (partyData == null)
+        {
+            Debug.LogWarning("[PartyManager] No party data assigned.");
+            return false;
+        }
+
+        bool toggled = partyData.ToggleHeroActive(heroId);
+        if (toggled)
+        {
+            Debug.Log($"[PartyManager] Toggled hero '{heroId}'. Active: {partyData.GetActiveCount()}/3, Reserve: {partyData.GetReserveCount()}/2");
+        }
+
+        return toggled;
+    }
+
+    public bool ValidateActiveParty()
+    {
+        if (partyData == null)
+        {
+            Debug.LogWarning("[PartyManager] No party data assigned.");
+            return false;
+        }
+
+        bool valid = partyData.GetActiveCount() == 3;
+        if (!valid)
+        {
+            Debug.LogWarning($"[PartyManager] Active party has {partyData.GetActiveCount()}/3 members. Need exactly 3.");
+        }
+
+        return valid;
+    }
+
+    public bool IsHeroActive(string heroId)
+    {
+        if (partyData == null)
+        {
+            return false;
+        }
+
+        return partyData.IsHeroActive(heroId);
+    }
+
     public HeroData GetHero(string heroId)
     {
         if (heroDatabase == null)

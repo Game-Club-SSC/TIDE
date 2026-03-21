@@ -31,6 +31,7 @@ public class GameStateManager : MonoBehaviour
     private bool hasPendingReturnPosition;
     private bool isTransitioning;
     private bool hasHandledSceneLoad;
+    private PartySetupUI partySetupUI;
 
     public PuzzleData PendingPuzzleData { get; set; }
     public int[,] PendingPuzzleLayout { get; set; }
@@ -297,6 +298,8 @@ public class GameStateManager : MonoBehaviour
                 SetPlayerMovementLocked(false);
             }
 
+            EnsurePartySetupUI();
+
             if (isFlowControlledCombat)
             {
                 deferredFlowFromCombat = true;
@@ -339,6 +342,25 @@ public class GameStateManager : MonoBehaviour
         {
             player.canMove = !isLocked;
         }
+    }
+
+    private void EnsurePartySetupUI()
+    {
+        if (partySetupUI != null)
+        {
+            return;
+        }
+
+        partySetupUI = FindFirstObjectByType<PartySetupUI>();
+        if (partySetupUI != null)
+        {
+            return;
+        }
+
+        GameObject partyUiObject = new GameObject("PartySetupUI");
+        partyUiObject.transform.SetParent(transform, false);
+        partySetupUI = partyUiObject.AddComponent<PartySetupUI>();
+        Debug.Log("[GameStateManager] PartySetupUI created.");
     }
 
     private void EnsureFadeCanvas()

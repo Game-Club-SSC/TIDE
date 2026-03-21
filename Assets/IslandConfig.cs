@@ -26,6 +26,7 @@ public class EncounterDefinition
     public EncounterType type;
     [Range(0f, 1f)]
     public float restorationValue;
+    public EncounterConfig encounterConfig;
     public EnemyComposition enemyComposition;
     public PuzzleData puzzleData;
 }
@@ -33,22 +34,73 @@ public class EncounterDefinition
 [Serializable]
 public class EnemyComposition
 {
+    [Tooltip("Direct EnemyData references. Preferred over modifier arrays.")]
+    public EnemyData[] enemyDataSlots = Array.Empty<EnemyData>();
+
     public string[] names = Array.Empty<string>();
     public CombatUnit.Element[] elements = Array.Empty<CombatUnit.Element>();
     public int[] attackModifiers = Array.Empty<int>();
     public int[] defenseModifiers = Array.Empty<int>();
     public int[] maxHpModifiers = Array.Empty<int>();
 
-    public int Count => Math.Min(Math.Min(Math.Min(Math.Min(names.Length, elements.Length), attackModifiers.Length), defenseModifiers.Length), maxHpModifiers.Length);
+    public bool HasEnemyDataSlots
+    {
+        get
+        {
+            if (enemyDataSlots == null) return false;
+            for (int i = 0; i < enemyDataSlots.Length; i++)
+            {
+                if (enemyDataSlots[i] != null) return true;
+            }
+            return false;
+        }
+    }
+
+    public int Count
+    {
+        get
+        {
+            if (HasEnemyDataSlots) return enemyDataSlots.Length;
+            return Math.Min(Math.Min(Math.Min(Math.Min(names.Length, elements.Length), attackModifiers.Length), defenseModifiers.Length), maxHpModifiers.Length);
+        }
+    }
 
     public bool IsValidIndex(int index)
     {
+        if (HasEnemyDataSlots)
+        {
+            return index >= 0 && index < enemyDataSlots.Length;
+        }
+
         return index >= 0
             && index < names.Length
             && index < elements.Length
             && index < attackModifiers.Length
             && index < defenseModifiers.Length
             && index < maxHpModifiers.Length;
+    }
+
+    public EnemyData GetEnemyData(int index)
+    {
+        if (enemyDataSlots == null || index < 0 || index >= enemyDataSlots.Length)
+        {
+            return null;
+        }
+
+        return enemyDataSlots[index];
+    }
+
+    public static EnemyComposition FromEncounterConfig(EncounterConfig config)
+    {
+        if (config == null || config.enemies == null)
+        {
+            return new EnemyComposition();
+        }
+
+        return new EnemyComposition
+        {
+            enemyDataSlots = config.enemies
+        };
     }
 
     public static EnemyComposition Create(string[] names, CombatUnit.Element[] elements,

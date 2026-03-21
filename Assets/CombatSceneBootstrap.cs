@@ -309,7 +309,17 @@ public class CombatSceneBootstrap : MonoBehaviour
                     CombatUnit unit = GetOrAddCombatUnit(unitObject);
                     unit.Type = CombatUnit.UnitType.Enemy;
 
-                    if (enemyComposition != null && enemyComposition.IsValidIndex(i))
+                    EnemyData enemyData = null;
+                    if (enemyComposition != null && enemyComposition.HasEnemyDataSlots && enemyComposition.IsValidIndex(i))
+                    {
+                        enemyData = enemyComposition.GetEnemyData(i);
+                    }
+
+                    if (enemyData != null)
+                    {
+                        ApplyEnemyDataToUnit(unit, enemyData);
+                    }
+                    else if (enemyComposition != null && enemyComposition.IsValidIndex(i))
                     {
                         unit.UnitName = enemyComposition.names[i];
                         unit.ElementType = enemyComposition.elements[i];
@@ -434,6 +444,31 @@ public class CombatSceneBootstrap : MonoBehaviour
         {
             unit.SetSkills(hero.starterSkills);
         }
+    }
+
+    private void ApplyEnemyDataToUnit(CombatUnit unit, EnemyData enemyData)
+    {
+        if (unit == null || enemyData == null)
+        {
+            return;
+        }
+
+        unit.UnitName = enemyData.displayName;
+        unit.ElementType = enemyData.element;
+        unit.MaxHP = enemyData.baseMaxHP;
+        unit.HP = enemyData.baseMaxHP;
+        unit.MaxMP = enemyData.baseMaxMP;
+        unit.MP = enemyData.baseMaxMP;
+        unit.Attack = enemyData.baseAttack;
+        unit.Defense = enemyData.baseDefense;
+        unit.Speed = enemyData.baseSpeed;
+
+        if (enemyData.skills != null)
+        {
+            unit.SetSkills(enemyData.skills);
+        }
+
+        Debug.Log($"[CombatSceneBootstrap] Applied enemy data '{enemyData.displayName}' ({unit.ElementType}) to unit.");
     }
 
     private void EnsureBattleHud()

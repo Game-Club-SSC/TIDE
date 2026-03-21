@@ -143,4 +143,156 @@ public class PartyData : ScriptableObject
 
         return true;
     }
+
+    public bool ToggleHeroActive(string heroId)
+    {
+        if (string.IsNullOrEmpty(heroId))
+        {
+            return false;
+        }
+
+        int activeIndex = FindActiveIndex(heroId);
+        if (activeIndex >= 0)
+        {
+            int reserveSlot = FindFirstEmptyReserveSlot();
+            if (reserveSlot < 0)
+            {
+                Debug.LogWarning("[PartyData] No empty reserve slot available.");
+                return false;
+            }
+
+            reserveSlots[reserveSlot] = activeSlots[activeIndex];
+            activeSlots[activeIndex] = null;
+            return true;
+        }
+
+        int reserveIdx = FindReserveIndex(heroId);
+        if (reserveIdx >= 0)
+        {
+            int activeSlot = FindFirstEmptyActiveSlot();
+            if (activeSlot < 0)
+            {
+                Debug.LogWarning("[PartyData] Active party is full (3/3). Remove a hero first.");
+                return false;
+            }
+
+            activeSlots[activeSlot] = reserveSlots[reserveIdx];
+            reserveSlots[reserveIdx] = null;
+            return true;
+        }
+
+        Debug.LogWarning($"[PartyData] Hero '{heroId}' not found in party.");
+        return false;
+    }
+
+    public bool SetActiveParty(string[] heroIds)
+    {
+        if (heroIds == null || heroIds.Length != 3)
+        {
+            Debug.LogWarning("[PartyData] SetActiveParty requires exactly 3 hero IDs.");
+            return false;
+        }
+
+        HeroData[] all = GetAllHeroes();
+        Dictionary<string, HeroData> heroLookup = new Dictionary<string, HeroData>();
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] != null && !string.IsNullOrEmpty(all[i].heroId))
+            {
+                heroLookup[all[i].heroId] = all[i];
+            }
+        }
+
+        HeroData[] newActive = new HeroData[3];
+        HeroData[] newReserve = new HeroData[2];
+        HashSet<string> usedIds = new HashSet<string>();
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (string.IsNullOrEmpty(heroIds[i]) || !heroLookup.ContainsKey(heroIds[i]))
+            {
+                Debug.LogWarning($"[PartyData] Hero '{heroIds[i]}' not found in party.");
+                return false;
+            }
+
+            newActive[i] = heroLookup[heroIds[i]];
+            usedIds.Add(heroIds[i]);
+        }
+
+        int reserveIdx = 0;
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] != null && !usedIds.Contains(all[i].heroId) && reserveIdx < 2)
+            {
+                newReserve[reserveIdx] = all[i];
+                reserveIdx++;
+            }
+        }
+
+        activeSlots = newActive;
+        reserveSlots = newReserve;
+        return true;
+    }
+
+    public bool IsHeroActive(string heroId)
+    {
+        return FindActiveIndex(heroId) >= 0;
+    }
+
+    public bool IsHeroInReserve(string heroId)
+    {
+        return FindReserveIndex(heroId) >= 0;
+    }
+
+    private int FindActiveIndex(string heroId)
+    {
+        for (int i = 0; i < activeSlots.Length; i++)
+        {
+            if (activeSlots[i] != null && activeSlots[i].heroId == heroId)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int FindReserveIndex(string heroId)
+    {
+        for (int i = 0; i < reserveSlots.Length; i++)
+        {
+            if (reserveSlots[i] != null && reserveSlots[i].heroId == heroId)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int FindFirstEmptyActiveSlot()
+    {
+        for (int i = 0; i < activeSlots.Length; i++)
+        {
+            if (activeSlots[i] == null)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int FindFirstEmptyReserveSlot()
+    {
+        for (int i = 0; i < reserveSlots.Length; i++)
+        {
+            if (reserveSlots[i] == null)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 }

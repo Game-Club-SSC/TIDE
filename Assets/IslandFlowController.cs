@@ -198,7 +198,11 @@ public class IslandFlowController : MonoBehaviour
     {
         awaitingEncounterResolution = true;
 
-        if (encounter.enemyComposition != null && GameStateManager.Instance != null)
+        if (encounter.encounterConfig != null && GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.PendingEnemyComposition = EnemyComposition.FromEncounterConfig(encounter.encounterConfig);
+        }
+        else if (encounter.enemyComposition != null && GameStateManager.Instance != null)
         {
             GameStateManager.Instance.PendingEnemyComposition = encounter.enemyComposition;
         }
