@@ -97,7 +97,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
             gsm.PendingPuzzleSealedTile = new Vector2Int(sealedCol, sealedRow);
         }
 
-        gsm?.EnterPuzzleScene(returnPosition);
+        gsm?.EnterPuzzleScene(returnPosition, GetInstanceID().ToString());
     }
 
     public void MarkSolved()

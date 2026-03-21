@@ -191,10 +191,7 @@ public class TideManager : MonoBehaviour
 
         if (puzzleSolved)
         {
-            foreach (TideTile tile in grid)
-            {
-                tile.SetVisualState(false, true, false, false);
-            }
+            UpdateTileVisuals();
             return;
         }
 

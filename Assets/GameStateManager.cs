@@ -46,6 +46,7 @@ public class GameStateManager : MonoBehaviour
     private bool hasDeferredFlowFromCombatResult;
     private bool deferredFlowFromCombatResult;
     private bool deferredFlowFromPuzzle;
+    private string pendingSolvedPuzzleBoxId;
 
     public float GetIslandRestorationPercent(string islandId)
     {
@@ -152,7 +153,7 @@ public class GameStateManager : MonoBehaviour
         SetPlayerMovementLocked(false);
     }
 
-    public void EnterPuzzleScene(Vector3 returnPosition)
+    public void EnterPuzzleScene(Vector3 returnPosition, string puzzleBoxId = null)
     {
         if (!CanEnterPuzzle())
         {
@@ -162,6 +163,7 @@ public class GameStateManager : MonoBehaviour
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
         PendingPuzzleIslandId = string.Empty;
+        pendingSolvedPuzzleBoxId = puzzleBoxId;
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
     }
 
@@ -274,6 +276,20 @@ public class GameStateManager : MonoBehaviour
 
         if (scene.name == MainSceneName)
         {
+            if (PuzzleSolved && !string.IsNullOrEmpty(pendingSolvedPuzzleBoxId))
+            {
+                PuzzleBoxInteractable[] boxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsSortMode.None);
+                for (int i = 0; i < boxes.Length; i++)
+                {
+                    if (boxes[i].GetInstanceID().ToString() == pendingSolvedPuzzleBoxId)
+                    {
+                        boxes[i].MarkSolved();
+                        break;
+                    }
+                }
+                pendingSolvedPuzzleBoxId = null;
+            }
+
             PuzzleSolved = false;
 
             if (hasPendingReturnPosition && player != null)
