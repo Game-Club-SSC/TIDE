@@ -8,6 +8,9 @@ public class IsometricPlayer : MonoBehaviour
     [SerializeField] private float sprintSpeed = 10f;
     public bool canMove = true;
 
+    [Header("UI")]
+    [SerializeField] private bool addExplorationMapOnStart = true;
+
     private Rigidbody rb;
     private Camera cachedMainCamera;
     private Vector3 inputVector;
@@ -24,6 +27,28 @@ public class IsometricPlayer : MonoBehaviour
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         currentSpeed = walkSpeed;
         ApplyPlayerColor();
+        EnsureExplorationMapUi();
+    }
+
+    private void EnsureExplorationMapUi()
+    {
+        if (!addExplorationMapOnStart)
+        {
+            return;
+        }
+
+        if (GetComponent<ExplorationMapUI>() != null)
+        {
+            return;
+        }
+
+        if (FindFirstObjectByType<ExplorationMapUI>() != null)
+        {
+            return;
+        }
+
+        gameObject.AddComponent<ExplorationMapUI>();
+        Debug.Log("[IsometricPlayer] Added ExplorationMapUI.");
     }
 
     private void ApplyPlayerColor()
