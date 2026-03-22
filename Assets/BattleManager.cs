@@ -843,6 +843,7 @@ public class BattleManager : MonoBehaviour
         switch (skill.target)
         {
             case SkillTarget.AllEnemies:
+            {
                 // AoE skill: apply to all living enemies (opposite faction)
                 CombatUnit.UnitType targetType = actor.Type == CombatUnit.UnitType.Ally ? CombatUnit.UnitType.Enemy : CombatUnit.UnitType.Ally;
                 List<CombatUnit> targets = GetAliveUnits(targetType).ToList();
@@ -904,7 +905,8 @@ public class BattleManager : MonoBehaviour
                     Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on {target.UnitName} for {modifiedDamage} (base {baseDamage} x{skillMultiplier:F2}, -{skill.mpCost} MP). HP {hpBefore} -> {hpAfter}.{matchupFeedback}", this);
                 }
                 Debug.Log($"[BattleManager] {skill.skillName} hits {targets.Count} targets for {totalDamage} total.", this);
-                return;
+            }
+            return;
 
             case SkillTarget.SingleAlly:
                 Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} targeting ally (not implemented). Attacking instead.", this);

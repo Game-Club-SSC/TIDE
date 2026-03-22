@@ -46,8 +46,6 @@ public class OverworldEnemy : MonoBehaviour
     private Transform playerTransform;
     private Rigidbody rb;
     private Camera mainCamera;
-    private bool isAlert;
-
     private GameObject exclamationObject;
     private SpriteRenderer exclamationRenderer;
     private GameObject facingArrowObject;
@@ -229,7 +227,6 @@ public class OverworldEnemy : MonoBehaviour
         if (distanceToPlayer > chaseGiveUpRange)
         {
             SetExclamationVisible(false);
-            isAlert = false;
             TransitionToState(EnemyState.Returning);
             return;
         }
