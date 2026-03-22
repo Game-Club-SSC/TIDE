@@ -1,5 +1,8 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
+[DisallowMultipleComponent]
 public class CombatSceneBootstrap : MonoBehaviour
 {
     [Header("Environment")]
@@ -7,6 +10,7 @@ public class CombatSceneBootstrap : MonoBehaviour
     [SerializeField] private Color cameraBackground = new Color(0.1f, 0.12f, 0.16f);
     [SerializeField] private Color playerMarkerColor = new Color(0.21f, 0.73f, 0.84f);
     [SerializeField] private Color enemyMarkerColor = new Color(0.89f, 0.38f, 0.25f);
+    [SerializeField] private Color reserveMarkerColor = new Color(0.9f, 0.9f, 0.2f);
     [SerializeField] private Color allyUnitColor = new Color(0.21f, 0.73f, 0.84f);
     [SerializeField] private Color enemyUnitColor = new Color(0.89f, 0.38f, 0.25f);
     [SerializeField] private float lightIntensity = 1.15f;
@@ -51,6 +55,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         EnsureBattleManager();
         SpawnCombatUnits();
         EnsureBattleHud();
+        EnsureBattleEscapeMenu();
     }
 
     private void EnsureGameManager()
@@ -178,21 +183,31 @@ public class CombatSceneBootstrap : MonoBehaviour
 
     private Transform[] playerSpawnPoints;
     private Transform[] enemySpawnPoints;
+    private Transform[] reserveSpawnPoints;
     private EnemyComposition enemyComposition;
+    public List<CombatUnit> spawnedReserveUnits = new List<CombatUnit>();
 
     private void EnsureSpawnPoints()
     {
         Transform playerRoot = GetOrCreateChild(transform, "PlayerSpawnPoints");
         Transform enemyRoot = GetOrCreateChild(transform, "EnemySpawnPoints");
+        Transform reserveRoot = GetOrCreateChild(transform, "ReserveSpawnPoints");
 
         playerSpawnPoints = new Transform[3];
         enemySpawnPoints = new Transform[3];
+        reserveSpawnPoints = new Transform[2];
 
         for (int slotIndex = 0; slotIndex < 3; slotIndex++)
         {
             float zOffset = (slotIndex - 1) * slotSpacing;
             playerSpawnPoints[slotIndex] = EnsureSlot(playerRoot, $"PlayerSlot_{slotIndex + 1}", new Vector3(playerSideX, 0f, zOffset), playerMarkerColor);
             enemySpawnPoints[slotIndex] = EnsureSlot(enemyRoot, $"EnemySlot_{slotIndex + 1}", new Vector3(enemySideX, 0f, zOffset), enemyMarkerColor);
+        }
+
+        for (int i = 0; i < 2; i++)
+        {
+            float zOffset = (i - 0.5f) * slotSpacing;
+            reserveSpawnPoints[i] = EnsureSlot(reserveRoot, $"ReserveSlot_{i + 1}", new Vector3(playerSideX - 2f, 0f, zOffset), reserveMarkerColor);
         }
     }
 
@@ -296,6 +311,41 @@ public class CombatSceneBootstrap : MonoBehaviour
                     }
                 }
             }
+        }
+
+        // Spawn reserve units (inactive)
+        HeroData[] reserveHeroes = GetReserveHeroes();
+        List<CombatUnit> reserveUnits = new List<CombatUnit>();
+        if (reserveSpawnPoints != null)
+        {
+            for (int i = 0; i < reserveSpawnPoints.Length; i++)
+            {
+                if (reserveSpawnPoints[i] != null)
+                {
+                    GameObject unitObject = SpawnOrCreateUnit(playerUnitPrefab, reserveSpawnPoints[i], $"ReserveUnit_{i + 1}", reserveMarkerColor);
+                    CombatUnit unit = GetOrAddCombatUnit(unitObject);
+                    unit.Type = CombatUnit.UnitType.Ally;
+                    SetUnitColor(unitObject, reserveMarkerColor);
+                    unitObject.SetActive(false); // Reserve units start inactive
+
+                    if (i < reserveHeroes.Length && reserveHeroes[i] != null)
+                    {
+                        ApplyHeroToUnit(unit, reserveHeroes[i]);
+                    }
+                    else
+                    {
+                        unit.UnitName = $"Reserve_{i + 1}";
+                        Debug.Log($"[CombatSceneBootstrap] No hero data for reserve slot {i}. Using fallback stats.");
+                    }
+
+                    reserveUnits.Add(unit);
+                }
+            }
+        }
+        if (battleManager != null)
+        {
+            battleManager.SetAllyReserveUnits(reserveUnits);
+            Debug.Log($"[CombatSceneBootstrap] Set {reserveUnits.Count} reserve units.");
         }
 
         if (enemySpawnPoints != null)
@@ -427,6 +477,26 @@ public class CombatSceneBootstrap : MonoBehaviour
         return System.Array.Empty<HeroData>();
     }
 
+    private HeroData[] GetReserveHeroes()
+    {
+        if (PartyManager.Instance != null && PartyManager.Instance.PartyData != null)
+        {
+            return PartyManager.Instance.GetReserveParty();
+        }
+
+        if (partyData == null)
+        {
+            partyData = Resources.Load<PartyData>("PartyData/DefaultParty");
+        }
+
+        if (partyData != null)
+        {
+            return partyData.reserveSlots ?? System.Array.Empty<HeroData>();
+        }
+
+        return System.Array.Empty<HeroData>();
+    }
+
     private void ApplyHeroToUnit(CombatUnit unit, HeroData hero)
     {
         if (PartyManager.Instance != null)
@@ -487,5 +557,16 @@ public class CombatSceneBootstrap : MonoBehaviour
 
         GameObject hudObject = new GameObject("BattleHud");
         hudObject.AddComponent<BattleHud>();
+    }
+
+    private void EnsureBattleEscapeMenu()
+    {
+        if (FindFirstObjectByType<BattleEscapeMenu>() != null)
+        {
+            return;
+        }
+
+        GameObject menuObject = new GameObject("BattleEscapeMenu");
+        menuObject.AddComponent<BattleEscapeMenu>();
     }
 }

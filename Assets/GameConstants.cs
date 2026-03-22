@@ -15,4 +15,5 @@ public static class GameConstants
     public const int DefaultBaseXpToLevel = 100;
     public const int DefaultXpPerLevelIncrement = 50;
     public const float DefaultReserveXpMultiplier = 0.5f;
+    public const float DefendMultiplier = 0.5f;
 }

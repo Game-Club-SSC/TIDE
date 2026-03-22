@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -16,16 +18,26 @@ public class CombatUnit : MonoBehaviour
     [SerializeField] protected int attack = 10;
     [SerializeField] protected int defense = 5;
     [SerializeField] protected int speed = 10;
+    [SerializeField] [Range(0f,1f)] protected float critRate = 0.05f;
+    [SerializeField] protected float critDamage = 1.5f;
     [SerializeField] protected Element element = Element.None;
 
     [Header("Skills")]
     [SerializeField] protected SkillData[] skills = System.Array.Empty<SkillData>();
+
+    [Header("TideBreak Abilities")]
+    [SerializeField] private List<TideBreakData> tideBreakAbilities = new List<TideBreakData>();
+    public IReadOnlyList<TideBreakData> TideBreakAbilities => tideBreakAbilities.AsReadOnly();
+    public void AddTideBreak(TideBreakData tb) { tideBreakAbilities.Add(tb); }
+    public void SetTideBreaks(List<TideBreakData> tbs) { tideBreakAbilities = tbs; }
 
     // Unit state
     [Header("Unit State")]
     [SerializeField] protected string unitName = "Combat Unit";
     [SerializeField] protected UnitType unitType = UnitType.Ally;
     [SerializeField] protected bool isAlive = true;
+    [SerializeField] protected bool isDefending = false;
+    public bool SkipTurnThisRound { get; set; }
 
     // XP reward (set on enemies)
     [Header("XP")]
@@ -36,8 +48,13 @@ public class CombatUnit : MonoBehaviour
     internal int DebugMP { set => mp = value; }
     internal int DebugMaxMP { set => maxMp = value; }
     internal int DebugDefense { set => defense = value; }
+    internal float DebugCritRate { set => critRate = value; }
+    internal float DebugCritDamage { set => critDamage = value; }
     internal bool DebugIsAlive { set => isAlive = value; }
     internal int DebugXpReward { set => xpReward = value; }
+
+    private List<StatusEffect> activeEffects = new List<StatusEffect>();
+    public IReadOnlyList<StatusEffect> ActiveEffects => activeEffects.AsReadOnly();
 
     /// <summary>
     /// Type of combat unit (ally or enemy).
@@ -100,6 +117,8 @@ public class CombatUnit : MonoBehaviour
     public int Attack { get => attack; set => attack = value; }
     public int Defense { get => defense; set => defense = value; }
     public int Speed { get => speed; set => speed = value; }
+    public float CritRate { get => critRate; set => critRate = value; }
+    public float CritDamage { get => critDamage; set => critDamage = value; }
     public Element ElementType
     {
         get => element;
@@ -114,6 +133,7 @@ public class CombatUnit : MonoBehaviour
     }
     public SkillData[] Skills => skills;
     public int XpReward { get => xpReward; set => xpReward = value; }
+    public bool IsDefending => isDefending;
 
     public bool CanUseSkill(SkillData skill)
     {
@@ -137,7 +157,14 @@ public class CombatUnit : MonoBehaviour
         if (!isAlive) return;
 
         // Apply defense reduction
-        int actualDamage = Mathf.Max(1, damage - defense);
+        int modifiedDamage = damage;
+        if (isDefending)
+        {
+            modifiedDamage = Mathf.RoundToInt(modifiedDamage * GameConstants.DefendMultiplier);
+        }
+        float defenseMod = GetDefenseModifier();
+        int effectiveDefense = Mathf.Max(0, Mathf.RoundToInt(defense * (1f + defenseMod)));
+        int actualDamage = Mathf.Max(1, modifiedDamage - effectiveDefense);
         hp = Mathf.Max(0, hp - actualDamage);
 
         Debug.Log($"{unitName} took {actualDamage} damage (from {damage}). HP: {hp}/{maxHp}");
@@ -167,6 +194,100 @@ public class CombatUnit : MonoBehaviour
 
         Debug.Log($"{unitName} healed for {healedAmount}. HP: {hp}/{maxHp}");
     }
+
+    /// <summary>
+    /// Puts the unit into a defending state, reducing incoming damage.
+    /// </summary>
+    public void StartDefend()
+    {
+        if (!isAlive) return;
+        isDefending = true;
+        Debug.Log($"[CombatUnit] {unitName} is now defending.");
+    }
+
+    /// <summary>
+    /// Clears the defending state.
+    /// </summary>
+    public void ClearDefend()
+    {
+        isDefending = false;
+        Debug.Log($"[CombatUnit] {unitName} defend cleared.");
+    }
+
+    #region Status Effects
+
+    public void ApplyStatusEffect(StatusEffect effect)
+    {
+        if (effect == null) return;
+        // If effect of same type already exists, refresh duration to the NEWER one (more recent).
+        StatusEffect existing = activeEffects.Find(e => e.Type == effect.Type);
+        if (existing != null)
+        {
+            existing.Duration = effect.Duration;
+            existing.Magnitude = effect.Magnitude;
+            existing.SourceName = effect.SourceName;
+            Debug.Log($"[CombatUnit] {unitName} refreshed {effect.Type} effect from {effect.SourceName}. Duration: {existing.Duration}");
+        }
+        else
+        {
+            activeEffects.Add(effect);
+            Debug.Log($"[CombatUnit] {unitName} gained {effect.Type} effect from {effect.SourceName}. Duration: {effect.Duration}, Magnitude: {effect.Magnitude}");
+        }
+    }
+
+    public void ProcessTurnStartEffects()
+    {
+        // Process effects at start of turn
+        for (int i = activeEffects.Count - 1; i >= 0; i--)
+        {
+            StatusEffect effect = activeEffects[i];
+            if (effect.Type == StatusEffectType.Poison)
+            {
+                TakeDamage((int)effect.Magnitude);
+                Debug.Log($"[CombatUnit] {unitName} took {effect.Magnitude} poison damage from {effect.SourceName}.");
+            }
+            effect.Tick();
+            if (effect.Duration <= 0)
+            {
+                Debug.Log($"[CombatUnit] {unitName}'s {effect.Type} effect expired.");
+                activeEffects.RemoveAt(i);
+            }
+        }
+    }
+
+    public float GetAttackModifier()
+    {
+        float total = 0f;
+        foreach (StatusEffect effect in activeEffects)
+        {
+            if (effect.Type == StatusEffectType.BuffAttack)
+                total += effect.Magnitude;
+            else if (effect.Type == StatusEffectType.DebuffAttack)
+                total -= effect.Magnitude;
+        }
+        return Mathf.Clamp(total, -0.5f, 1.0f);
+    }
+
+    public float GetDefenseModifier()
+    {
+        float total = 0f;
+        foreach (StatusEffect effect in activeEffects)
+        {
+            if (effect.Type == StatusEffectType.BuffDefense)
+                total += effect.Magnitude;
+            else if (effect.Type == StatusEffectType.DebuffDefense)
+                total -= effect.Magnitude;
+        }
+        return Mathf.Clamp(total, -0.5f, 1.0f);
+    }
+
+    public void ClearAllStatusEffects()
+    {
+        activeEffects.Clear();
+        Debug.Log($"[CombatUnit] {unitName} cleared all status effects.");
+    }
+
+    #endregion
 
     /// <summary>
     /// Spends MP if the unit has sufficient MP available.

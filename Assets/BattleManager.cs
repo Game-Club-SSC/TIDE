@@ -20,7 +20,8 @@ public enum CombatActionType
     Attack,
     Defend,
     Skill,
-    TideBreak
+    TideBreak,
+    Swap
 }
 
 public struct PlannedAction
@@ -29,6 +30,7 @@ public struct PlannedAction
     public CombatUnit Actor;
     public CombatUnit Target;
     public SkillData SelectedSkill;
+    public TideBreakData SelectedTideBreak;
 
     public PlannedAction(CombatActionType actionType, CombatUnit actor, CombatUnit target)
     {
@@ -36,6 +38,7 @@ public struct PlannedAction
         Actor = actor;
         Target = target;
         SelectedSkill = null;
+        SelectedTideBreak = null;
     }
 
     public PlannedAction(CombatActionType actionType, CombatUnit actor, CombatUnit target, SkillData skill)
@@ -44,6 +47,16 @@ public struct PlannedAction
         Actor = actor;
         Target = target;
         SelectedSkill = skill;
+        SelectedTideBreak = null;
+    }
+
+    public PlannedAction(CombatActionType actionType, CombatUnit actor, CombatUnit target, TideBreakData tideBreak)
+    {
+        ActionType = actionType;
+        Actor = actor;
+        Target = target;
+        SelectedSkill = null;
+        SelectedTideBreak = tideBreak;
     }
 }
 
@@ -69,6 +82,7 @@ public class BattleManager : MonoBehaviour
 
     private List<CombatUnit> allyUnits = new List<CombatUnit>();
     private List<CombatUnit> enemyUnits = new List<CombatUnit>();
+    private List<CombatUnit> allyReserveUnits = new List<CombatUnit>();
     private List<CombatUnit> turnQueue = new List<CombatUnit>();
     private Dictionary<CombatUnit, int> unitRegistrationOrder = new Dictionary<CombatUnit, int>();
     private Dictionary<CombatUnit, PlannedAction> selectedPlayerActions = new Dictionary<CombatUnit, PlannedAction>();
@@ -78,6 +92,7 @@ public class BattleManager : MonoBehaviour
 
     public IReadOnlyList<CombatUnit> AllyUnits => allyUnits;
     public IReadOnlyList<CombatUnit> EnemyUnits => enemyUnits;
+    public IReadOnlyList<CombatUnit> AllyReserveUnits => allyReserveUnits;
     public IReadOnlyList<CombatUnit> TurnQueue => turnQueue;
     public MomentumState Momentum => momentumState;
 
@@ -92,6 +107,7 @@ public class BattleManager : MonoBehaviour
     }
 
     public event Action<ClashResult> OnClashResolved;
+    public event Action<CombatUnit, bool> OnDamageDealt;
 
     public CombatUnit GetEnemyTarget(CombatUnit enemy)
     {
@@ -114,6 +130,53 @@ public class BattleManager : MonoBehaviour
     {
         List<CombatUnit> units = unitType == CombatUnit.UnitType.Ally ? allyUnits : enemyUnits;
         return units.Where(u => u != null && u.IsAlive).ToList();
+    }
+
+    public IReadOnlyList<CombatUnit> GetAllyReserveUnits()
+    {
+        return allyReserveUnits;
+    }
+
+    public void SwapUnits(CombatUnit activeUnit, CombatUnit reserveUnit)
+    {
+        if (activeUnit == null || reserveUnit == null)
+        {
+            Debug.LogWarning("[BattleManager] SwapUnits called with null unit.");
+            return;
+        }
+        if (!allyUnits.Contains(activeUnit))
+        {
+            Debug.LogWarning($"[BattleManager] {activeUnit.UnitName} is not in active ally list.");
+            return;
+        }
+        if (!allyReserveUnits.Contains(reserveUnit))
+        {
+            Debug.LogWarning($"[BattleManager] {reserveUnit.UnitName} is not in reserve ally list.");
+            return;
+        }
+        if (!reserveUnit.IsAlive)
+        {
+            Debug.LogWarning($"[BattleManager] Cannot swap in dead unit {reserveUnit.UnitName}.");
+            return;
+        }
+
+        // Swap lists
+        allyUnits.Remove(activeUnit);
+        allyReserveUnits.Remove(reserveUnit);
+        allyUnits.Add(reserveUnit);
+        allyReserveUnits.Add(activeUnit);
+
+        // Swap active states
+        activeUnit.gameObject.SetActive(false);
+        reserveUnit.gameObject.SetActive(true);
+
+        Debug.Log($"[BattleManager] Swapped {activeUnit.UnitName} out with {reserveUnit.UnitName}.");
+    }
+
+    public void SetAllyReserveUnits(List<CombatUnit> reserves)
+    {
+        allyReserveUnits = reserves ?? new List<CombatUnit>();
+        Debug.Log($"[BattleManager] Set {allyReserveUnits.Count} reserve units.");
     }
 
     public void RegisterUnit(CombatUnit unit)
@@ -159,6 +222,7 @@ public class BattleManager : MonoBehaviour
     private CombatUnit currentActingUnit;
     private CombatActionType pendingInputActionType = CombatActionType.Attack;
     private SkillData pendingSkillData;
+    private TideBreakData pendingTideBreak;
     private float actionStepTimer;
     private bool actionExecutionActive;
     private BattleHud cachedBattleHud;
@@ -357,7 +421,14 @@ public class BattleManager : MonoBehaviour
             {
                 continue;
             }
+            if (candidate.SkipTurnThisRound)
+            {
+                Debug.Log($"[BattleManager] {candidate.UnitName} skips turn this round.");
+                continue;
+            }
 
+            candidate.ProcessTurnStartEffects();
+            candidate.ClearDefend();
             actor = candidate;
             currentActingUnit = candidate;
             return true;
@@ -374,6 +445,13 @@ public class BattleManager : MonoBehaviour
         isAwaitingTargetSelection = false;
         pendingInputActionType = CombatActionType.Attack;
         pendingSkillData = null;
+        pendingTideBreak = null;
+
+        // Clear skip turn flags for all ally units
+        foreach (CombatUnit ally in allyUnits)
+        {
+            if (ally != null) ally.SkipTurnThisRound = false;
+        }
 
         CacheEnemyActions();
 
@@ -384,6 +462,16 @@ public class BattleManager : MonoBehaviour
         }
 
         Debug.Log($"[BattleManager] Player input started for {playerInputUnits.Count} allies.", this);
+    }
+
+    private void RefreshPlayerInputUnits()
+    {
+        playerInputUnits = GetAliveUnits(CombatUnit.UnitType.Ally).ToList();
+        // Remove units that have already been assigned actions
+        playerInputUnits.RemoveAll(u => selectedPlayerActions.ContainsKey(u));
+        // Remove units that are flagged to skip this round
+        playerInputUnits.RemoveAll(u => u.SkipTurnThisRound);
+        playerInputIndex = 0;
     }
 
     private void CacheEnemyActions()
@@ -404,7 +492,8 @@ public class BattleManager : MonoBehaviour
             CombatUnit tbTarget = GetRandomLivingOpponent(actor);
             if (tbTarget != null)
             {
-                return new PlannedAction(CombatActionType.TideBreak, actor, tbTarget);
+                TideBreakData tbData = GetTideBreakForActor(actor);
+                return new PlannedAction(CombatActionType.TideBreak, actor, tbTarget, tbData);
             }
         }
 
@@ -424,6 +513,17 @@ public class BattleManager : MonoBehaviour
         }
 
         return new PlannedAction(CombatActionType.Attack, actor, target);
+    }
+
+    private TideBreakData GetTideBreakForActor(CombatUnit actor)
+    {
+        if (actor.TideBreakAbilities != null && actor.TideBreakAbilities.Count > 0)
+        {
+            // Pick random
+            int index = UnityEngine.Random.Range(0, actor.TideBreakAbilities.Count);
+            return actor.TideBreakAbilities[index];
+        }
+        return null;
     }
 
     private void BeginActionExecutionPhase()
@@ -630,11 +730,11 @@ public class BattleManager : MonoBehaviour
         }
         else if (plannedAction.ActionType == CombatActionType.TideBreak)
         {
-            ResolveTideBreak(actor, plannedAction.Target);
+            ResolveTideBreak(actor, plannedAction.Target, plannedAction.SelectedTideBreak);
         }
         else if (plannedAction.ActionType == CombatActionType.Defend)
         {
-            Debug.Log($"[BattleManager] {actor.UnitName} defends.", this);
+            actor.StartDefend();
         }
         else
         {
@@ -684,10 +784,20 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        int baseDamage = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
+        float attackMod = actor.GetAttackModifier();
+        int baseDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
         float variance = UnityEngine.Random.Range(0.8f, 1.2f);
-        int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDamage * multiplier * variance));
+        float modifiedDamageFloat = baseDamage * multiplier * variance;
+        
+        bool isCrit = UnityEngine.Random.value < actor.CritRate;
+        if (isCrit)
+        {
+            modifiedDamageFloat *= actor.CritDamage;
+            Debug.Log($"[BattleManager] CRITICAL HIT! {actor.UnitName} crits {target.UnitName}!");
+        }
+        
+        int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageFloat));
 
         MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
         int hpBefore = target.HP;
@@ -706,6 +816,7 @@ public class BattleManager : MonoBehaviour
         }
 
         momentumState.ShiftForAction(actor, matchup);
+        OnDamageDealt?.Invoke(actor, isCrit);
 
         Debug.Log(
             $"[BattleManager] {actor.UnitName} attacks {target.UnitName} for {modifiedDamage} (base {baseDamage} x{multiplier:F2}). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
@@ -728,6 +839,90 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        // Handle different skill target types
+        switch (skill.target)
+        {
+            case SkillTarget.AllEnemies:
+                // AoE skill: apply to all living enemies (opposite faction)
+                CombatUnit.UnitType targetType = actor.Type == CombatUnit.UnitType.Ally ? CombatUnit.UnitType.Enemy : CombatUnit.UnitType.Ally;
+                List<CombatUnit> targets = GetAliveUnits(targetType).ToList();
+                if (targets.Count == 0)
+                {
+                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} but there are no living targets.", this);
+                    return;
+                }
+
+                actor.SpendMp(skill.mpCost);
+                int totalDamage = 0;
+                float attackMod = actor.GetAttackModifier();
+                int baseDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
+
+                foreach (CombatUnit target in targets)
+                {
+                    if (!target.IsAlive) continue;
+
+                    float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+                    float skillMultiplier = elementMultiplier * skill.damageMultiplier;
+                    float variance = UnityEngine.Random.Range(0.8f, 1.2f);
+                    float modifiedDamageFloat = baseDamage * skillMultiplier * variance;
+
+                    bool isCrit = UnityEngine.Random.value < actor.CritRate;
+                    if (isCrit)
+                    {
+                        modifiedDamageFloat *= actor.CritDamage;
+                        Debug.Log($"[BattleManager] CRITICAL HIT! {actor.UnitName} crits {target.UnitName} with {skill.skillName}!");
+                    }
+
+                    int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageFloat));
+                    MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+
+                    int hpBefore = target.HP;
+                    target.TakeDamage(modifiedDamage);
+                    int hpAfter = target.HP;
+                    totalDamage += modifiedDamage;
+
+                    if (skill.appliedEffectType != StatusEffectType.None && target.IsAlive)
+                    {
+                        StatusEffect effect = new StatusEffect(skill.appliedEffectType, skill.effectDuration, skill.effectMagnitude, actor.UnitName);
+                        target.ApplyStatusEffect(effect);
+                    }
+
+                    string matchupFeedback = "";
+                    switch (matchup)
+                    {
+                        case MatchupResult.Strong:
+                            matchupFeedback = " Super effective!";
+                            break;
+                        case MatchupResult.Weak:
+                            matchupFeedback = " Not very effective...";
+                            break;
+                    }
+
+                    momentumState.ShiftForAction(actor, matchup);
+                    OnDamageDealt?.Invoke(actor, isCrit);
+
+                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on {target.UnitName} for {modifiedDamage} (base {baseDamage} x{skillMultiplier:F2}, -{skill.mpCost} MP). HP {hpBefore} -> {hpAfter}.{matchupFeedback}", this);
+                }
+                Debug.Log($"[BattleManager] {skill.skillName} hits {targets.Count} targets for {totalDamage} total.", this);
+                return;
+
+            case SkillTarget.SingleAlly:
+                Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} targeting ally (not implemented). Attacking instead.", this);
+                ResolveAttack(actor, requestedTarget);
+                return;
+
+            case SkillTarget.Self:
+                Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} targeting self (not implemented). Attacking instead.", this);
+                ResolveAttack(actor, requestedTarget);
+                return;
+
+            case SkillTarget.SingleEnemy:
+            default:
+                // Single-target skill (existing behavior)
+                break;
+        }
+
+        // Single-target logic (original code)
         CombatUnit target = requestedTarget;
         if (!IsValidTarget(actor, target))
         {
@@ -742,61 +937,97 @@ public class BattleManager : MonoBehaviour
 
         actor.SpendMp(skill.mpCost);
 
-        int baseDamage = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
+        float attackMod = actor.GetAttackModifier();
+        int baseDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
-        float skillMultiplier = multiplier * skill.damageMultiplier;
-        float variance = UnityEngine.Random.Range(0.8f, 1.2f);
-        int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDamage * skillMultiplier * variance));
+        float skillMultiplierSingle = multiplier * skill.damageMultiplier;
+        float varianceSingle = UnityEngine.Random.Range(0.8f, 1.2f);
+        float modifiedDamageFloatSingle = baseDamageSingle * skillMultiplierSingle * varianceSingle;
+        
+        bool isCritSingle = UnityEngine.Random.value < actor.CritRate;
+        if (isCritSingle)
+        {
+            modifiedDamageFloatSingle *= actor.CritDamage;
+            Debug.Log($"[BattleManager] CRITICAL HIT! {actor.UnitName} crits {target.UnitName} with {skill.skillName}!");
+        }
+        
+        int modifiedDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageFloatSingle));
 
-        MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
-        int hpBefore = target.HP;
-        target.TakeDamage(modifiedDamage);
-        int hpAfter = target.HP;
+        MatchupResult matchupSingle = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+        int hpBeforeSingle = target.HP;
+        target.TakeDamage(modifiedDamageSingle);
+        int hpAfterSingle = target.HP;
 
-        string matchupFeedback = "";
-        switch (matchup)
+        if (skill.appliedEffectType != StatusEffectType.None && target.IsAlive)
+        {
+            StatusEffect effect = new StatusEffect(skill.appliedEffectType, skill.effectDuration, skill.effectMagnitude, actor.UnitName);
+            target.ApplyStatusEffect(effect);
+        }
+
+        string matchupFeedbackSingle = "";
+        switch (matchupSingle)
         {
             case MatchupResult.Strong:
-                matchupFeedback = " Super effective!";
+                matchupFeedbackSingle = " Super effective!";
                 break;
             case MatchupResult.Weak:
-                matchupFeedback = " Not very effective...";
+                matchupFeedbackSingle = " Not very effective...";
                 break;
         }
 
-        momentumState.ShiftForAction(actor, matchup);
+        momentumState.ShiftForAction(actor, matchupSingle);
+        OnDamageDealt?.Invoke(actor, isCritSingle);
 
         Debug.Log(
-            $"[BattleManager] {actor.UnitName} uses {skill.skillName} on {target.UnitName} for {modifiedDamage} (base {baseDamage} x{skillMultiplier:F2}, -{skill.mpCost} MP). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
+            $"[BattleManager] {actor.UnitName} uses {skill.skillName} on {target.UnitName} for {modifiedDamageSingle} (base {baseDamageSingle} x{skillMultiplierSingle:F2}, -{skill.mpCost} MP). HP {hpBeforeSingle} -> {hpAfterSingle}.{matchupFeedbackSingle}",
             this);
     }
 
-    private void ResolveTideBreak(CombatUnit actor, CombatUnit requestedTarget)
+    private void ResolveTideBreak(CombatUnit actor, CombatUnit requestedTarget, TideBreakData tideBreak)
     {
-        TideBreakAbility tb = actor.Type == CombatUnit.UnitType.Ally
-            ? TideBreakAbility.PlayerDefault
-            : TideBreakAbility.EnemyDefault;
-
-        Debug.Log($"[BattleManager] *** TIDE BREAK! {actor.UnitName} unleashes {tb.AbilityName}! ***", this);
-
-        if (tb.IsPlayerAbility)
+        // Determine which TideBreak data to use
+        string abilityName;
+        float damageMultiplier;
+        SkillTarget targetType;
+        
+        if (tideBreak != null)
         {
-            List<CombatUnit> enemies = GetAliveUnits(CombatUnit.UnitType.Enemy).ToList();
-            int totalDamage = 0;
-            foreach (CombatUnit enemy in enemies)
-            {
-                int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
-                float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, enemy.ElementType);
-                float variance = UnityEngine.Random.Range(0.8f, 1.2f);
-                int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier * elementMultiplier * variance));
-                int hpBefore = enemy.HP;
-                enemy.TakeDamage(modifiedDmg);
-                totalDamage += modifiedDmg;
-                Debug.Log($"  -> {enemy.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {enemy.HP}", this);
-            }
-            Debug.Log($"[BattleManager] {tb.AbilityName} hits {enemies.Count} enemies for {totalDamage} total.", this);
+            abilityName = tideBreak.abilityName;
+            damageMultiplier = tideBreak.damageMultiplier;
+            targetType = tideBreak.targetType;
         }
         else
+        {
+            // Fallback to static defaults
+            TideBreakAbility tb = actor.Type == CombatUnit.UnitType.Ally
+                ? TideBreakAbility.PlayerDefault
+                : TideBreakAbility.EnemyDefault;
+            abilityName = tb.AbilityName;
+            damageMultiplier = tb.DamageMultiplier;
+            targetType = tb.IsPlayerAbility ? SkillTarget.AllEnemies : SkillTarget.SingleEnemy;
+        }
+
+        Debug.Log($"[BattleManager] *** TIDE BREAK! {actor.UnitName} unleashes {abilityName}! ***", this);
+
+        if (targetType == SkillTarget.AllEnemies)
+        {
+            CombatUnit.UnitType targetTypeUnit = actor.Type == CombatUnit.UnitType.Ally ? CombatUnit.UnitType.Enemy : CombatUnit.UnitType.Ally;
+            List<CombatUnit> targets = GetAliveUnits(targetTypeUnit).ToList();
+            int totalDamage = 0;
+            foreach (CombatUnit target in targets)
+            {
+                int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
+                float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+                float variance = UnityEngine.Random.Range(0.8f, 1.2f);
+                int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * damageMultiplier * elementMultiplier * variance));
+                int hpBefore = target.HP;
+                target.TakeDamage(modifiedDmg);
+                totalDamage += modifiedDmg;
+                Debug.Log($"  -> {target.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {target.HP}", this);
+            }
+            Debug.Log($"[BattleManager] {abilityName} hits {targets.Count} targets for {totalDamage} total.", this);
+        }
+        else // SingleEnemy (or other, but treat as single)
         {
             CombatUnit target = requestedTarget;
             if (!IsValidTarget(actor, target))
@@ -814,7 +1045,7 @@ public class BattleManager : MonoBehaviour
             int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
             float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
             float variance = UnityEngine.Random.Range(0.8f, 1.2f);
-            int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * tb.DamageMultiplier * elementMultiplier * variance));
+            int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * damageMultiplier * elementMultiplier * variance));
             int hpBefore = target.HP;
             target.TakeDamage(modifiedDmg);
             Debug.Log($"  -> {target.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {target.HP}", this);
@@ -1035,9 +1266,26 @@ public class BattleManager : MonoBehaviour
                         : null;
                     if (skill != null && currentInputUnit.CanUseSkill(skill))
                     {
-                        pendingInputActionType = CombatActionType.Skill;
-                        pendingSkillData = skill;
-                        isAwaitingTargetSelection = true;
+                        // Check skill target type
+                        switch (skill.target)
+                        {
+                            case SkillTarget.AllEnemies:
+                                // AoE skill: skip target selection, assign with null target
+                                AssignPlayerAction(currentInputUnit, CombatActionType.Skill, null, skill);
+                                break;
+                            case SkillTarget.SingleAlly:
+                                Debug.Log("[BattleManager] SingleAlly skill target not implemented. Skipping.");
+                                break;
+                            case SkillTarget.Self:
+                                Debug.Log("[BattleManager] Self skill target not implemented. Skipping.");
+                                break;
+                            case SkillTarget.SingleEnemy:
+                            default:
+                                pendingInputActionType = CombatActionType.Skill;
+                                pendingSkillData = skill;
+                                isAwaitingTargetSelection = true;
+                                break;
+                        }
                     }
                 }
             }
@@ -1164,33 +1412,147 @@ public class BattleManager : MonoBehaviour
                 return true;
 
             case CombatActionType.Skill:
-                if (!IsValidTarget(actor, target) || actor.Skills == null || actor.Skills.Length == 0)
+                if (actor.Skills == null || actor.Skills.Length == 0)
                 {
                     return false;
                 }
-
                 SkillData skill = actor.Skills[0];
                 if (!actor.CanUseSkill(skill))
                 {
                     return false;
                 }
-
+                
+                // For AoE skills, target can be null
+                if (skill.target == SkillTarget.AllEnemies)
+                {
+                    // target can be null, we still assign action
+                    AssignPlayerAction(actor, CombatActionType.Skill, target, skill);
+                    TryAutoConfirmPlayerActions();
+                    return true;
+                }
+                
+                // For single-target skills, require valid target
+                if (!IsValidTarget(actor, target))
+                {
+                    return false;
+                }
+                
                 AssignPlayerAction(actor, CombatActionType.Skill, target, skill);
                 TryAutoConfirmPlayerActions();
                 return true;
 
             case CombatActionType.TideBreak:
-                if (!momentumState.IsPlayerTideBreakReady || !IsValidTarget(actor, target))
+                if (!momentumState.IsPlayerTideBreakReady)
                 {
                     return false;
                 }
-
-                AssignPlayerAction(actor, CombatActionType.TideBreak, target);
+                
+                TideBreakData tbData = pendingTideBreak;
+                if (tbData == null)
+                {
+                    // No pending TB selected; pick first if available, else fallback to default
+                    if (actor.TideBreakAbilities != null && actor.TideBreakAbilities.Count > 0)
+                        tbData = actor.TideBreakAbilities[0];
+                    // else keep null, will fallback to default in ResolveTideBreak
+                }
+                
+                // Determine if target is required based on targetType
+                bool targetRequired = true;
+                if (tbData != null)
+                {
+                    targetRequired = tbData.targetType != SkillTarget.AllEnemies;
+                }
+                else
+                {
+                    // Fallback defaults: player -> AllEnemies, enemy -> SingleEnemy
+                    // Since this is player input, actor is always Ally (player)
+                    targetRequired = false; // AllEnemies fallback, target not required
+                }
+                
+                if (targetRequired && !IsValidTarget(actor, target))
+                {
+                    return false;
+                }
+                
+                AssignPlayerAction(actor, CombatActionType.TideBreak, target, tbData);
+                pendingTideBreak = null; // Clear after use
                 TryAutoConfirmPlayerActions();
+                return true;
+
+            case CombatActionType.Swap:
+                // target is the reserve unit to swap IN
+                if (target == null || !allyReserveUnits.Contains(target))
+                {
+                    return false;
+                }
+                if (!target.IsAlive)
+                {
+                    return false;
+                }
+                // Perform swap instantly (no turn consumed)
+                // Assign swap action for the outgoing unit
+                AssignPlayerAction(actor, CombatActionType.Swap, target);
+                // Swap units
+                SwapUnits(actor, target);
+                // Mark incoming unit to skip turn this round
+                target.SkipTurnThisRound = true;
+                // Refresh player input units to reflect new composition
+                RefreshPlayerInputUnits();
+                // Since swap consumes the outgoing unit's turn (they are removed), we can consider action assigned.
+                // No need to auto-confirm because there may be other units needing actions.
                 return true;
         }
 
         return false;
+    }
+
+    public bool TrySwapWithReserve(CombatUnit activeUnit, CombatUnit reserveUnit)
+    {
+        if (activeUnit == null || reserveUnit == null)
+        {
+            Debug.LogWarning("[BattleManager] TrySwapWithReserve called with null unit.");
+            return false;
+        }
+        if (!activeUnit.IsAlive)
+        {
+            Debug.LogWarning($"[BattleManager] {activeUnit.UnitName} is dead.");
+            return false;
+        }
+        if (!allyUnits.Contains(activeUnit))
+        {
+            Debug.LogWarning($"[BattleManager] {activeUnit.UnitName} is not in active ally list.");
+            return false;
+        }
+        if (!allyReserveUnits.Contains(reserveUnit))
+        {
+            Debug.LogWarning($"[BattleManager] {reserveUnit.UnitName} is not in reserve ally list.");
+            return false;
+        }
+        if (!reserveUnit.IsAlive)
+        {
+            Debug.LogWarning($"[BattleManager] Cannot swap in dead unit {reserveUnit.UnitName}.");
+            return false;
+        }
+        // Check if activeUnit already has an action assigned
+        if (selectedPlayerActions.ContainsKey(activeUnit))
+        {
+            Debug.LogWarning($"[BattleManager] {activeUnit.UnitName} already has an action assigned.");
+            return false;
+        }
+        // Assign swap action for the outgoing unit
+        AssignPlayerAction(activeUnit, CombatActionType.Swap, reserveUnit);
+        // Swap units
+        SwapUnits(activeUnit, reserveUnit);
+        // Mark incoming unit to skip turn this round
+        reserveUnit.SkipTurnThisRound = true;
+        // Refresh player input units to reflect new composition
+        RefreshPlayerInputUnits();
+        return true;
+    }
+
+    public void SetPendingTideBreak(TideBreakData tb)
+    {
+        pendingTideBreak = tb;
     }
 
     private void TryAutoConfirmPlayerActions()
@@ -1231,6 +1593,22 @@ public class BattleManager : MonoBehaviour
 
         selectedPlayerActions[actor] = new PlannedAction(actionType, actor, target, skill);
         Debug.Log($"[BattleManager] Action assigned: {actor.UnitName} => {actionType} ({skill?.skillName})", this);
+
+        if (playerInputIndex < playerInputUnits.Count && playerInputUnits[playerInputIndex] == actor)
+        {
+            playerInputIndex++;
+        }
+    }
+
+    private void AssignPlayerAction(CombatUnit actor, CombatActionType actionType, CombatUnit target, TideBreakData tideBreak)
+    {
+        if (actor == null || !actor.IsAlive)
+        {
+            return;
+        }
+
+        selectedPlayerActions[actor] = new PlannedAction(actionType, actor, target, tideBreak);
+        Debug.Log($"[BattleManager] Action assigned: {actor.UnitName} => {actionType} ({tideBreak?.abilityName})", this);
 
         if (playerInputIndex < playerInputUnits.Count && playerInputUnits[playerInputIndex] == actor)
         {

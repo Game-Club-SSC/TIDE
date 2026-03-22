@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -8,6 +9,8 @@ public class BattleHud : MonoBehaviour
     private const string CanvasName = "BattleHudCanvas";
 
     private BattleManager battleManager;
+    private BattleEscapeMenu escapeMenu;
+    private bool isMenuOpen = false;
     private Camera mainCamera;
 
     // World health bars
@@ -20,6 +23,7 @@ public class BattleHud : MonoBehaviour
         public Text HpText;
         public Text MpText;
         public Text TargetLabel;
+        public Text StatusLabel;
         public CombatUnit TrackedUnit;
     }
 
@@ -55,6 +59,10 @@ public class BattleHud : MonoBehaviour
     private GameObject targetPanel;
     private List<Button> targetButtons = new List<Button>();
 
+    // TideBreak selection
+    private GameObject tideBreakPanel;
+    private List<Button> tideBreakButtons = new List<Button>();
+
     // State display
     private Text turnLabel;
 
@@ -62,10 +70,31 @@ public class BattleHud : MonoBehaviour
     {
         EnsureCanvas();
         TryFindBattleManager();
+        TryFindEscapeMenu();
     }
 
     private void Update()
     {
+        if (escapeMenu == null)
+            TryFindEscapeMenu();
+
+        isMenuOpen = escapeMenu != null && escapeMenu.IsMenuOpen;
+
+        // Handle Escape key press to toggle menu (only during PlayerInput phase)
+        if (Input.GetKeyDown(KeyCode.Escape) && battleManager != null && battleManager.CurrentPhase == BattlePhase.PlayerInput)
+        {
+            if (escapeMenu != null)
+                escapeMenu.ToggleMenu();
+        }
+
+        // Hide other UI elements when menu is open
+        if (actionPanel != null)
+            actionPanel.SetActive(!isMenuOpen && battleManager != null && battleManager.CurrentPhase == BattlePhase.PlayerInput);
+        if (targetPanel != null)
+            targetPanel.SetActive(!isMenuOpen && targetPanel.activeSelf); // Keep its previous state but hide if menu open
+        if (tideBreakPanel != null)
+            tideBreakPanel.SetActive(!isMenuOpen && tideBreakPanel.activeSelf);
+
         if (battleManager == null)
         {
             TryFindBattleManager();
@@ -101,6 +130,11 @@ public class BattleHud : MonoBehaviour
             battleManager.Momentum.OnMomentumChanged += OnMomentumChanged;
             battleManager.OnClashResolved += OnClashResolved;
         }
+    }
+
+    private void TryFindEscapeMenu()
+    {
+        escapeMenu = FindFirstObjectByType<BattleEscapeMenu>();
     }
 
     private void OnDestroy()
@@ -330,6 +364,22 @@ public class BattleHud : MonoBehaviour
         targetLabel.raycastTarget = false;
         targetLabel.text = "";
 
+        // Status effect label
+        GameObject statusObj = new GameObject("StatusLabel", typeof(RectTransform));
+        statusObj.transform.SetParent(root.transform, false);
+        RectTransform statusRect = statusObj.GetComponent<RectTransform>();
+        statusRect.anchorMin = new Vector2(0.03f, 0.0f);
+        statusRect.anchorMax = new Vector2(0.97f, 0.09f);
+        statusRect.offsetMin = Vector2.zero;
+        statusRect.offsetMax = Vector2.zero;
+        Text statusLabel = statusObj.AddComponent<Text>();
+        statusLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        statusLabel.fontSize = 10;
+        statusLabel.alignment = TextAnchor.MiddleLeft;
+        statusLabel.color = new Color(1f, 0.9f, 0.5f);
+        statusLabel.raycastTarget = false;
+        statusLabel.text = "";
+
         root.SetActive(false);
 
         return new WorldHealthBar
@@ -341,6 +391,7 @@ public class BattleHud : MonoBehaviour
             HpText = hpText,
             MpText = mpText,
             TargetLabel = targetLabel,
+            StatusLabel = statusLabel,
             TrackedUnit = null
         };
     }
@@ -384,10 +435,17 @@ public class BattleHud : MonoBehaviour
         float hpRatio = unit.MaxHP > 0 ? (float)unit.HP / unit.MaxHP : 0f;
         bar.HpFill.fillAmount = hpRatio;
 
+        Color hpColor;
         if (hpRatio > 0.5f)
-            bar.HpFill.color = Color.Lerp(new Color(1f, 0.8f, 0.2f), new Color(0.2f, 0.85f, 0.3f), (hpRatio - 0.5f) * 2f);
+            hpColor = Color.Lerp(new Color(1f, 0.8f, 0.2f), new Color(0.2f, 0.85f, 0.3f), (hpRatio - 0.5f) * 2f);
         else
-            bar.HpFill.color = Color.Lerp(new Color(0.8f, 0.15f, 0.15f), new Color(1f, 0.8f, 0.2f), hpRatio * 2f);
+            hpColor = Color.Lerp(new Color(0.8f, 0.15f, 0.15f), new Color(1f, 0.8f, 0.2f), hpRatio * 2f);
+        
+        if (unit.IsDefending)
+        {
+            hpColor = new Color(0.2f, 0.5f, 1f); // Blue tint for defending
+        }
+        bar.HpFill.color = hpColor;
 
         float mpRatio = unit.MaxMP > 0 ? (float)unit.MP / unit.MaxMP : 0f;
         bar.MpFill.fillAmount = mpRatio;
@@ -409,6 +467,7 @@ public class BattleHud : MonoBehaviour
         }
 
         UpdateTargetLabel(bar);
+        UpdateStatusLabel(bar);
     }
 
     private void UpdateTargetLabel(WorldHealthBar bar)
@@ -433,6 +492,40 @@ public class BattleHud : MonoBehaviour
         {
             bar.TargetLabel.text = "";
         }
+    }
+
+    private void UpdateStatusLabel(WorldHealthBar bar)
+    {
+        if (bar.StatusLabel == null || bar.TrackedUnit == null) return;
+        if (!bar.TrackedUnit.IsAlive)
+        {
+            bar.StatusLabel.text = "";
+            return;
+        }
+
+        IReadOnlyList<StatusEffect> effects = bar.TrackedUnit.ActiveEffects;
+        if (effects.Count == 0)
+        {
+            bar.StatusLabel.text = "";
+            return;
+        }
+
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        foreach (StatusEffect effect in effects)
+        {
+            string abbr = "";
+            switch (effect.Type)
+            {
+                case StatusEffectType.BuffAttack: abbr = "B ATK"; break;
+                case StatusEffectType.BuffDefense: abbr = "B DEF"; break;
+                case StatusEffectType.DebuffAttack: abbr = "D ATK"; break;
+                case StatusEffectType.DebuffDefense: abbr = "D DEF"; break;
+                case StatusEffectType.Poison: abbr = "PSN"; break;
+                default: continue;
+            }
+            sb.Append($"{abbr}({effect.Duration}) ");
+        }
+        bar.StatusLabel.text = sb.ToString().TrimEnd();
     }
 
     private void UpdateWorldBarPositions()
@@ -478,14 +571,18 @@ public class BattleHud : MonoBehaviour
         bool isPlayerInput = battleManager.CurrentPhase == BattlePhase.PlayerInput;
         if (actionPanel != null)
         {
-            actionPanel.SetActive(isPlayerInput);
+            actionPanel.SetActive(isPlayerInput && !isMenuOpen);
         }
 
-        if (!isPlayerInput)
+        if (!isPlayerInput || isMenuOpen)
         {
             if (targetPanel != null)
             {
                 targetPanel.SetActive(false);
+            }
+            if (tideBreakPanel != null)
+            {
+                tideBreakPanel.SetActive(false);
             }
             return;
         }
@@ -593,18 +690,162 @@ public class BattleHud : MonoBehaviour
 
     private void OnSkillClicked()
     {
-        ShowTargetSelection(CombatActionType.Skill);
+        if (battleManager == null) return;
+        CombatUnit currentInput = battleManager.GetCurrentInputUnit();
+        if (currentInput == null) return;
+        
+        SkillData skill = currentInput.Skills != null && currentInput.Skills.Length > 0 ? currentInput.Skills[0] : null;
+        if (skill == null)
+        {
+            Debug.Log("[BattleHud] No skill available for current unit.");
+            return;
+        }
+        
+        switch (skill.target)
+        {
+            case SkillTarget.AllEnemies:
+                // AoE skill: skip target selection, assign with null target
+                battleManager.TryAssignActionFromHud(CombatActionType.Skill, null);
+                break;
+            case SkillTarget.SingleAlly:
+                Debug.Log("[BattleHud] SingleAlly skill target not implemented. Skipping.");
+                break;
+            case SkillTarget.Self:
+                Debug.Log("[BattleHud] Self skill target not implemented. Skipping.");
+                break;
+            case SkillTarget.SingleEnemy:
+            default:
+                ShowTargetSelection(CombatActionType.Skill);
+                break;
+        }
+    }
+
+    private void ShowTBSelectionPanel(CombatUnit actor)
+    {
+        if (battleManager == null || tideBreakPanel == null) return;
+        
+        // Hide target panel if open
+        targetPanel.SetActive(false);
+        // Clear previous buttons
+        foreach (Button btn in tideBreakButtons) { Destroy(btn.gameObject); }
+        tideBreakButtons.Clear();
+        
+        IReadOnlyList<TideBreakData> abilities = actor.TideBreakAbilities;
+        if (abilities == null || abilities.Count == 0)
+        {
+            Debug.LogWarning("[BattleHud] No TideBreak abilities available.");
+            tideBreakPanel.SetActive(false);
+            return;
+        }
+        
+        tideBreakPanel.SetActive(true);
+        // Create buttons for each ability
+        for (int i = 0; i < abilities.Count; i++)
+        {
+            TideBreakData ability = abilities[i];
+            GameObject btnObj = new GameObject($"TB_{i}", typeof(RectTransform));
+            btnObj.transform.SetParent(tideBreakPanel.transform, false);
+            
+            RectTransform rect = btnObj.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.1f, 0.55f - i * 0.25f);
+            rect.anchorMax = new Vector2(0.9f, 0.75f - i * 0.25f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            
+            Image img = btnObj.AddComponent<Image>();
+            img.color = new Color(0.2f, 0.2f, 0.3f, 1f);
+            
+            Button btn = btnObj.AddComponent<Button>();
+            btn.targetGraphic = img;
+            ColorBlock colors = btn.colors;
+            colors.highlightedColor = new Color(0.3f, 0.3f, 0.5f, 1f);
+            colors.pressedColor = new Color(0.15f, 0.15f, 0.25f, 1f);
+            btn.colors = colors;
+            
+            GameObject textObj = new GameObject("Text", typeof(RectTransform));
+            textObj.transform.SetParent(btnObj.transform, false);
+            RectTransform tr = textObj.GetComponent<RectTransform>();
+            tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one;
+            tr.offsetMin = Vector2.zero; tr.offsetMax = Vector2.zero;
+            Text text = textObj.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 16;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = new Color(0.9f, 0.9f, 1f);
+            text.text = $"{ability.abilityName} ({ability.damageMultiplier}x)";
+            text.raycastTarget = false;
+            
+            int index = i;
+            btn.onClick.AddListener(() => OnTideBreakSelected(ability));
+            tideBreakButtons.Add(btn);
+        }
+    }
+
+    private void OnTideBreakSelected(TideBreakData ability)
+    {
+        tideBreakPanel.SetActive(false);
+        if (battleManager == null) return;
+        
+        battleManager.SetPendingTideBreak(ability);
+        
+        // Determine if target selection needed
+        if (ability.targetType == SkillTarget.AllEnemies)
+        {
+            // No target selection needed, assign action directly
+            battleManager.TryAssignActionFromHud(CombatActionType.TideBreak, null);
+        }
+        else
+        {
+            // Show target selection for SingleEnemy
+            ShowTargetSelection(CombatActionType.TideBreak);
+        }
     }
 
     private void OnTideBreakClicked()
     {
-        ShowTargetSelection(CombatActionType.TideBreak);
+        CombatUnit currentInput = battleManager.GetCurrentInputUnit();
+        if (currentInput == null) return;
+        
+        IReadOnlyList<TideBreakData> abilities = currentInput.TideBreakAbilities;
+        if (abilities != null && abilities.Count > 1)
+        {
+            ShowTBSelectionPanel(currentInput);
+        }
+        else
+        {
+            // Auto-select first ability if available, else null (will fallback to default)
+            TideBreakData autoSelect = (abilities != null && abilities.Count == 1) ? abilities[0] : null;
+            battleManager.SetPendingTideBreak(autoSelect);
+            
+            bool targetRequired = true;
+            if (autoSelect != null)
+            {
+                targetRequired = autoSelect.targetType != SkillTarget.AllEnemies;
+            }
+            else
+            {
+                // No abilities, fallback to default (player -> AllEnemies)
+                targetRequired = false;
+            }
+            
+            if (targetRequired)
+            {
+                ShowTargetSelection(CombatActionType.TideBreak);
+            }
+            else
+            {
+                // Assign directly with null target
+                battleManager.TryAssignActionFromHud(CombatActionType.TideBreak, null);
+            }
+        }
     }
 
     private void ShowTargetSelection(CombatActionType actionType)
     {
         if (battleManager == null || targetPanel == null) return;
 
+        if (tideBreakPanel != null) tideBreakPanel.SetActive(false);
         targetPanel.SetActive(true);
         IReadOnlyList<CombatUnit> enemies = battleManager.GetAliveUnits(CombatUnit.UnitType.Enemy);
 
@@ -661,6 +902,7 @@ public class BattleHud : MonoBehaviour
 
         CreateActionPanel(canvasObject.transform);
         CreateTargetPanel(canvasObject.transform);
+        CreateTBSelectionPanel(canvasObject.transform);
         CreateMomentumPanel(canvasObject.transform);
         CreateTurnLabel(canvasObject.transform);
         CreateVictoryOverlay(canvasObject.transform);
@@ -799,6 +1041,31 @@ public class BattleHud : MonoBehaviour
 
             targetButtons.Add(btn);
         }
+    }
+
+    private void CreateTBSelectionPanel(Transform parent)
+    {
+        tideBreakPanel = CreatePanel("TBSelectionPanel", parent,
+            new Vector2(0.32f, 0.14f), new Vector2(0.68f, 0.42f),
+            new Color(0.08f, 0.08f, 0.15f, 0.95f));
+        tideBreakPanel.SetActive(false);
+
+        GameObject titleObj = new GameObject("Title", typeof(RectTransform));
+        titleObj.transform.SetParent(tideBreakPanel.transform, false);
+        Text title = titleObj.AddComponent<Text>();
+        RectTransform titleRect = title.rectTransform;
+        titleRect.anchorMin = new Vector2(0f, 0.8f);
+        titleRect.anchorMax = new Vector2(1f, 1f);
+        titleRect.offsetMin = Vector2.zero;
+        titleRect.offsetMax = Vector2.zero;
+        title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        title.fontSize = 18;
+        title.fontStyle = FontStyle.Bold;
+        title.alignment = TextAnchor.MiddleCenter;
+        title.color = new Color(0.6f, 0.9f, 1f);
+        title.text = "Select TideBreak Ability";
+        title.raycastTarget = false;
+        // Buttons will be created dynamically when needed
     }
 
     private void CreateMomentumPanel(Transform parent)

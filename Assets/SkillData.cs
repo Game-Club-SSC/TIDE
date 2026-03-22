@@ -24,4 +24,9 @@ public class SkillData : ScriptableObject
     [Tooltip("Multiplier applied to base damage. 1.0 = normal, 2.0 = double damage.")]
     public float damageMultiplier = 1f;
     public SkillTarget target;
+
+    [Header("Status Effect")]
+    public StatusEffectType appliedEffectType = StatusEffectType.None;
+    public int effectDuration = 0;
+    public float effectMagnitude = 0f;
 }
