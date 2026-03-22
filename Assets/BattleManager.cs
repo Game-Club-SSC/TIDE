@@ -846,8 +846,8 @@ public class BattleManager : MonoBehaviour
             {
                 // AoE skill: apply to all living enemies (opposite faction)
                 CombatUnit.UnitType targetType = actor.Type == CombatUnit.UnitType.Ally ? CombatUnit.UnitType.Enemy : CombatUnit.UnitType.Ally;
-                List<CombatUnit> targets = GetAliveUnits(targetType).ToList();
-                if (targets.Count == 0)
+                List<CombatUnit> aoeTargets = GetAliveUnits(targetType).ToList();
+                if (aoeTargets.Count == 0)
                 {
                     Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} but there are no living targets.", this);
                     return;
@@ -855,14 +855,14 @@ public class BattleManager : MonoBehaviour
 
                 actor.SpendMp(skill.mpCost);
                 int totalDamage = 0;
-                float attackMod = actor.GetAttackModifier();
-                int baseDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
+                float aoeAttackMod = actor.GetAttackModifier();
+                int baseDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + aoeAttackMod)));
 
-                foreach (CombatUnit target in targets)
+                foreach (CombatUnit aoeTarget in aoeTargets)
                 {
-                    if (!target.IsAlive) continue;
+                    if (!aoeTarget.IsAlive) continue;
 
-                    float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+                    float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, aoeTarget.ElementType);
                     float skillMultiplier = elementMultiplier * skill.damageMultiplier;
                     float variance = UnityEngine.Random.Range(0.8f, 1.2f);
                     float modifiedDamageFloat = baseDamage * skillMultiplier * variance;
@@ -871,21 +871,21 @@ public class BattleManager : MonoBehaviour
                     if (isCrit)
                     {
                         modifiedDamageFloat *= actor.CritDamage;
-                        Debug.Log($"[BattleManager] CRITICAL HIT! {actor.UnitName} crits {target.UnitName} with {skill.skillName}!");
+                        Debug.Log($"[BattleManager] CRITICAL HIT! {actor.UnitName} crits {aoeTarget.UnitName} with {skill.skillName}!");
                     }
 
                     int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageFloat));
-                    MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+                    MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, aoeTarget.ElementType);
 
-                    int hpBefore = target.HP;
-                    target.TakeDamage(modifiedDamage);
-                    int hpAfter = target.HP;
+                    int hpBefore = aoeTarget.HP;
+                    aoeTarget.TakeDamage(modifiedDamage);
+                    int hpAfter = aoeTarget.HP;
                     totalDamage += modifiedDamage;
 
-                    if (skill.appliedEffectType != StatusEffectType.None && target.IsAlive)
+                    if (skill.appliedEffectType != StatusEffectType.None && aoeTarget.IsAlive)
                     {
                         StatusEffect effect = new StatusEffect(skill.appliedEffectType, skill.effectDuration, skill.effectMagnitude, actor.UnitName);
-                        target.ApplyStatusEffect(effect);
+                        aoeTarget.ApplyStatusEffect(effect);
                     }
 
                     string matchupFeedback = "";
@@ -902,9 +902,9 @@ public class BattleManager : MonoBehaviour
                     momentumState.ShiftForAction(actor, matchup);
                     OnDamageDealt?.Invoke(actor, isCrit);
 
-                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on {target.UnitName} for {modifiedDamage} (base {baseDamage} x{skillMultiplier:F2}, -{skill.mpCost} MP). HP {hpBefore} -> {hpAfter}.{matchupFeedback}", this);
+                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on {aoeTarget.UnitName} for {modifiedDamage} (base {baseDamage} x{skillMultiplier:F2}, -{skill.mpCost} MP). HP {hpBefore} -> {hpAfter}.{matchupFeedback}", this);
                 }
-                Debug.Log($"[BattleManager] {skill.skillName} hits {targets.Count} targets for {totalDamage} total.", this);
+                Debug.Log($"[BattleManager] {skill.skillName} hits {aoeTargets.Count} targets for {totalDamage} total.", this);
             }
             return;
 
