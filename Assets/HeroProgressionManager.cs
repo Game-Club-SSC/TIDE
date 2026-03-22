@@ -10,18 +10,24 @@ public class HeroProgressionManager : MonoBehaviour
     [Header("Configuration")]
     [SerializeField] private LevelingConfig levelingConfig;
 
+    [Header("Gear")]
+    [SerializeField] private GearSetData[] availableGearSets = System.Array.Empty<GearSetData>();
+
     public event Action<string, int> OnHeroLeveledUp;
     public event Action<string, int> OnXpGained;
+    public event Action<string, GearSetData> OnGearChanged;
 
     private Dictionary<string, HeroProgressionState> heroStates = new Dictionary<string, HeroProgressionState>();
 
     public LevelingConfig LevelingConfig => levelingConfig;
+    public GearSetData[] AvailableGearSets => availableGearSets;
 
     public class HeroProgressionState
     {
         public string heroId;
         public int level = 1;
         public int currentXp = 0;
+        public string equippedGearSetId;
 
         public HeroProgressionState(string id)
         {
@@ -92,6 +98,88 @@ public class HeroProgressionManager : MonoBehaviour
         return levelingConfig.GetXpToNextLevel(level);
     }
 
+    public void EquipGearSet(string heroId, GearSetData gearSet)
+    {
+        if (string.IsNullOrEmpty(heroId) || gearSet == null)
+        {
+            return;
+        }
+
+        EnsureHero(heroId);
+        HeroProgressionState state = heroStates[heroId];
+        state.equippedGearSetId = gearSet.setId;
+
+        OnGearChanged?.Invoke(heroId, gearSet);
+        Debug.Log($"[HeroProgressionManager] {heroId} equipped gear set '{gearSet.displayName}'.");
+    }
+
+    public void UnequipGearSet(string heroId)
+    {
+        if (string.IsNullOrEmpty(heroId))
+        {
+            return;
+        }
+
+        HeroProgressionState state = GetState(heroId);
+        if (state == null || state.equippedGearSetId == null)
+        {
+            return;
+        }
+
+        string oldSetId = state.equippedGearSetId;
+        state.equippedGearSetId = null;
+
+        OnGearChanged?.Invoke(heroId, null);
+        Debug.Log($"[HeroProgressionManager] {heroId} unequipped gear set '{oldSetId}'.");
+    }
+
+    public GearSetData GetEquippedGearSet(string heroId)
+    {
+        HeroProgressionState state = GetState(heroId);
+        if (state == null || string.IsNullOrEmpty(state.equippedGearSetId))
+        {
+            return null;
+        }
+
+        return FindGearSet(state.equippedGearSetId);
+    }
+
+    public float GetAttackBonusPercent(string heroId)
+    {
+        GearSetData gear = GetEquippedGearSet(heroId);
+        return gear != null ? gear.TotalAttackPercent : 0f;
+    }
+
+    public float GetDefenseBonusPercent(string heroId)
+    {
+        GearSetData gear = GetEquippedGearSet(heroId);
+        return gear != null ? gear.TotalDefensePercent : 0f;
+    }
+
+    public float GetHpBonusPercent(string heroId)
+    {
+        GearSetData gear = GetEquippedGearSet(heroId);
+        return gear != null ? gear.TotalHpPercent : 0f;
+    }
+
+    private GearSetData FindGearSet(string setId)
+    {
+        if (string.IsNullOrEmpty(setId) || availableGearSets == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < availableGearSets.Length; i++)
+        {
+            if (availableGearSets[i] != null && availableGearSets[i].setId == setId)
+            {
+                return availableGearSets[i];
+            }
+        }
+
+        return null;
+    }
+
     public void ApplyStatGrowth(CombatUnit unit, HeroData hero)
     {
         if (unit == null || hero == null || levelingConfig == null)
@@ -100,21 +188,29 @@ public class HeroProgressionManager : MonoBehaviour
         }
 
         int level = GetLevel(hero.heroId);
-        if (level <= 1)
-        {
-            return;
-        }
-
         int bonus = level - 1;
-        unit.MaxHP = hero.baseMaxHP + bonus * levelingConfig.hpPerLevel;
-        unit.HP = unit.MaxHP;
-        unit.MaxMP = hero.baseMaxMP + bonus * levelingConfig.mpPerLevel;
-        unit.MP = unit.MaxMP;
-        unit.Attack = hero.baseAttack + bonus * levelingConfig.attackPerLevel;
-        unit.Defense = hero.baseDefense + bonus * levelingConfig.defensePerLevel;
-        unit.Speed = hero.baseSpeed + bonus * levelingConfig.speedPerLevel;
 
-        Debug.Log($"[HeroProgressionManager] Applied stat growth for {hero.displayName} (Lv.{level}): HP={unit.MaxHP}, ATK={unit.Attack}, DEF={unit.Defense}");
+        int levelHp = hero.baseMaxHP + bonus * levelingConfig.hpPerLevel;
+        int levelMp = hero.baseMaxMP + bonus * levelingConfig.mpPerLevel;
+        int levelAttack = hero.baseAttack + bonus * levelingConfig.attackPerLevel;
+        int levelDefense = hero.baseDefense + bonus * levelingConfig.defensePerLevel;
+        int levelSpeed = hero.baseSpeed + bonus * levelingConfig.speedPerLevel;
+
+        float atkPercent = GetAttackBonusPercent(hero.heroId);
+        float defPercent = GetDefenseBonusPercent(hero.heroId);
+        float hpPercent = GetHpBonusPercent(hero.heroId);
+
+        unit.MaxHP = levelHp + Mathf.RoundToInt(levelHp * hpPercent);
+        unit.HP = unit.MaxHP;
+        unit.MaxMP = levelMp;
+        unit.MP = unit.MaxMP;
+        unit.Attack = levelAttack + Mathf.RoundToInt(levelAttack * atkPercent);
+        unit.Defense = levelDefense + Mathf.RoundToInt(levelDefense * defPercent);
+        unit.Speed = levelSpeed;
+
+        GearSetData gear = GetEquippedGearSet(hero.heroId);
+        string gearTag = gear != null ? $", Gear={gear.setId}" : "";
+        Debug.Log($"[HeroProgressionManager] Applied stats for {hero.displayName} (Lv.{level}{gearTag}): HP={unit.MaxHP}, ATK={unit.Attack}, DEF={unit.Defense}");
     }
 
     public bool GrantXp(string heroId, int xpAmount)

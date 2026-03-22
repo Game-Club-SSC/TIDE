@@ -7,11 +7,12 @@ public class PartySetupUI : MonoBehaviour
 {
     [Header("Toggle")]
     [SerializeField] private KeyCode toggleKey = KeyCode.P;
+    [SerializeField] private KeyCode gearCycleKey = KeyCode.Return;
 
     [Header("Layout")]
     [SerializeField] private float panelWidth = 400f;
-    [SerializeField] private float panelHeight = 420f;
-    [SerializeField] private float heroRowHeight = 60f;
+    [SerializeField] private float panelHeight = 520f;
+    [SerializeField] private float heroRowHeight = 72f;
     [SerializeField] private float padding = 16f;
 
     [Header("Colors")]
@@ -26,6 +27,7 @@ public class PartySetupUI : MonoBehaviour
     private bool isOpen;
     private Canvas menuCanvas;
     private GameObject panelRoot;
+    private string selectedHeroId;
 
     public bool IsOpen => isOpen;
 
@@ -37,6 +39,11 @@ public class PartySetupUI : MonoBehaviour
             {
                 ToggleMenu();
             }
+        }
+
+        if (isOpen && Input.GetKeyDown(gearCycleKey) && !string.IsNullOrEmpty(selectedHeroId))
+        {
+            CycleGearForHero(selectedHeroId);
         }
     }
 
@@ -237,14 +244,19 @@ public class PartySetupUI : MonoBehaviour
         string statusLabel = isActive ? "[ACTIVE]" : "[RESERVE]";
         string displayName = $"{hero.displayName} - {elementName}  {statusLabel}";
 
-        CreateLabel(rowObject, displayName, new Vector2(textX, 6f), new Vector2(textWidth, 22f), textColor, 14, FontStyle.Bold);
+        CreateLabel(rowObject, displayName, new Vector2(textX, 4f), new Vector2(textWidth, 20f), textColor, 14, FontStyle.Bold);
 
-        string stats = $"HP {hero.baseMaxHP}  ATK {hero.baseAttack}  DEF {hero.baseDefense}  SPD {hero.baseSpeed}";
-        CreateLabel(rowObject, stats, new Vector2(textX, 28f), new Vector2(textWidth, 18f), new Color(0.7f, 0.7f, 0.7f), 11, FontStyle.Normal);
+        string stats = BuildStatsLine(hero);
+        CreateLabel(rowObject, stats, new Vector2(textX, 24f), new Vector2(textWidth, 14f), new Color(0.7f, 0.7f, 0.7f), 11, FontStyle.Normal);
+
+        string gearText = BuildGearLine(hero);
+        CreateLabel(rowObject, gearText, new Vector2(textX, 38f), new Vector2(textWidth, 14f), new Color(0.6f, 0.85f, 0.6f), 10, FontStyle.Italic);
     }
 
     private void OnHeroClicked(string heroId)
     {
+        selectedHeroId = heroId;
+
         if (PartyManager.Instance == null) return;
 
         PartyData party = PartyManager.Instance.PartyData;
@@ -308,6 +320,108 @@ public class PartySetupUI : MonoBehaviour
         label.fontStyle = fontStyle;
         label.color = color;
         label.alignment = TextAnchor.MiddleLeft;
+    }
+
+    private string BuildStatsLine(HeroData hero)
+    {
+        if (HeroProgressionManager.Instance != null)
+        {
+            int level = HeroProgressionManager.Instance.GetLevel(hero.heroId);
+            int bonus = level - 1;
+            LevelingConfig config = HeroProgressionManager.Instance.LevelingConfig;
+            GearSetData gear = HeroProgressionManager.Instance.GetEquippedGearSet(hero.heroId);
+
+            int baseHp = hero.baseMaxHP;
+            int baseAtk = hero.baseAttack;
+            int baseDef = hero.baseDefense;
+            int baseSpd = hero.baseSpeed;
+
+            if (config != null && bonus > 0)
+            {
+                baseHp += bonus * config.hpPerLevel;
+                baseAtk += bonus * config.attackPerLevel;
+                baseDef += bonus * config.defensePerLevel;
+                baseSpd += bonus * config.speedPerLevel;
+            }
+
+            float atkPct = gear != null ? gear.TotalAttackPercent : 0f;
+            float defPct = gear != null ? gear.TotalDefensePercent : 0f;
+            float hpPct = gear != null ? gear.TotalHpPercent : 0f;
+
+            int finalHp = baseHp + Mathf.RoundToInt(baseHp * hpPct);
+            int finalAtk = baseAtk + Mathf.RoundToInt(baseAtk * atkPct);
+            int finalDef = baseDef + Mathf.RoundToInt(baseDef * defPct);
+
+            return $"Lv.{level}  HP {finalHp}  ATK {finalAtk}  DEF {finalDef}  SPD {baseSpd}";
+        }
+
+        return $"HP {hero.baseMaxHP}  ATK {hero.baseAttack}  DEF {hero.baseDefense}  SPD {hero.baseSpeed}";
+    }
+
+    private string BuildGearLine(HeroData hero)
+    {
+        if (HeroProgressionManager.Instance != null)
+        {
+            GearSetData equipped = HeroProgressionManager.Instance.GetEquippedGearSet(hero.heroId);
+            if (equipped != null)
+            {
+                string tag = hero.heroId == selectedHeroId ? " [Enter: cycle]" : "";
+                return $"Gear: {equipped.displayName}{tag}";
+            }
+        }
+
+        if (hero.heroId == selectedHeroId)
+        {
+            return "Gear: None (Enter to equip)";
+        }
+
+        return "Gear: None";
+    }
+
+    private void CycleGearForHero(string heroId)
+    {
+        if (HeroProgressionManager.Instance == null)
+        {
+            Debug.LogWarning("[PartySetupUI] HeroProgressionManager not found.");
+            return;
+        }
+
+        GearSetData[] available = HeroProgressionManager.Instance.AvailableGearSets;
+        if (available == null || available.Length == 0)
+        {
+            Debug.Log("[PartySetupUI] No gear sets available.");
+            return;
+        }
+
+        GearSetData current = HeroProgressionManager.Instance.GetEquippedGearSet(heroId);
+        if (current == null)
+        {
+            HeroProgressionManager.Instance.EquipGearSet(heroId, available[0]);
+        }
+        else
+        {
+            int currentIndex = -1;
+            for (int i = 0; i < available.Length; i++)
+            {
+                if (available[i] != null && available[i].setId == current.setId)
+                {
+                    currentIndex = i;
+                    break;
+                }
+            }
+
+            int nextIndex = (currentIndex + 1) % available.Length;
+            if (nextIndex < available.Length && available[nextIndex] != null)
+            {
+                HeroProgressionManager.Instance.EquipGearSet(heroId, available[nextIndex]);
+            }
+            else
+            {
+                HeroProgressionManager.Instance.UnequipGearSet(heroId);
+            }
+        }
+
+        RebuildPanel();
     }
 
     private void OnDestroy()
