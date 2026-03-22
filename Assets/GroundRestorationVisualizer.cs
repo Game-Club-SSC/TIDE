@@ -19,6 +19,7 @@ public class GroundRestorationVisualizer : MonoBehaviour
     private void OnEnable()
     {
         TryFindTracker();
+        SubscribeToGameStateManager();
         if (groundRenderer == null)
         {
             FindGroundRenderer();
@@ -29,6 +30,36 @@ public class GroundRestorationVisualizer : MonoBehaviour
     private void OnDisable()
     {
         UnsubscribeFromTracker();
+        UnsubscribeFromGameStateManager();
+    }
+
+    private void SubscribeToGameStateManager()
+    {
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.OnPuzzleCompleted -= HandlePuzzleCompleted;
+            GameStateManager.Instance.OnPuzzleCompleted += HandlePuzzleCompleted;
+        }
+    }
+
+    private void UnsubscribeFromGameStateManager()
+    {
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.OnPuzzleCompleted -= HandlePuzzleCompleted;
+        }
+    }
+
+    private void HandlePuzzleCompleted()
+    {
+        if (groundRenderer == null)
+        {
+            return;
+        }
+
+        // Instantly set ground to max color (white) when puzzle is completed
+        groundRenderer.material.color = maxColor;
+        Debug.Log($"[GroundRestorationVisualizer] Puzzle completed! Ground changed to {maxColor}.");
     }
 
     private void TryFindTracker()
@@ -103,6 +134,12 @@ public class GroundRestorationVisualizer : MonoBehaviour
         {
             string targetIsland = string.IsNullOrEmpty(islandId) ? "default" : islandId;
             percent = tracker.GetRestorationPercent(targetIsland) / 100f;
+        }
+
+        // Check if puzzle was just completed - instantly set to max color
+        if (GameStateManager.Instance != null && GameStateManager.Instance.HasActiveFlowController)
+        {
+            // For flow-controlled puzzles, use tracker percentage
         }
 
         Color targetColor = Color.Lerp(minColor, maxColor, percent);
