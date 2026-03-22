@@ -1,8 +1,11 @@
 using UnityEngine;
 
+[DisallowMultipleComponent]
 [RequireComponent(typeof(Collider))]
 public class EnemyTrigger : MonoBehaviour
 {
+    [SerializeField] private EncounterConfig encounterConfig;
+
     private void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player"))
@@ -13,6 +16,11 @@ public class EnemyTrigger : MonoBehaviour
         if (GameStateManager.Instance == null || !GameStateManager.Instance.CanEnterCombatScene())
         {
             return;
+        }
+
+        if (encounterConfig != null)
+        {
+            GameStateManager.Instance.PendingEnemyComposition = EnemyComposition.FromEncounterConfig(encounterConfig);
         }
 
         if (GameStateManager.Instance.HasActiveFlowController)
