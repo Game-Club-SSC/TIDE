@@ -22,3 +22,4 @@ MonoBehaviour:
   baseSpeed: 14
   skills:
   - {fileID: 11400000, guid: 916ceb21465c4fc1880a8d156a071148, type: 2}
+  xpReward: 25

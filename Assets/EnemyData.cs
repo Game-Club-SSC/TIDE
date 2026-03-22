@@ -32,6 +32,11 @@ public class EnemyData : ScriptableObject
     [Header("Skills")]
     public SkillData[] skills = System.Array.Empty<SkillData>();
 
+    [Header("XP Reward")]
+    [Tooltip("XP awarded to the party when this enemy is defeated.")]
+    [Min(0)]
+    public int xpReward = 25;
+
     public bool IsValid()
     {
         return !string.IsNullOrEmpty(enemyId)

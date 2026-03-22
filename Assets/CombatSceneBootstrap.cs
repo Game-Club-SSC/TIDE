@@ -473,7 +473,9 @@ public class CombatSceneBootstrap : MonoBehaviour
             unit.SetSkills(enemyData.skills);
         }
 
-        Debug.Log($"[CombatSceneBootstrap] Applied enemy data '{enemyData.displayName}' ({unit.ElementType}) to unit.");
+        unit.XpReward = enemyData.xpReward;
+
+        Debug.Log($"[CombatSceneBootstrap] Applied enemy data '{enemyData.displayName}' ({unit.ElementType}, {unit.XpReward} XP) to unit.");
     }
 
     private void EnsureBattleHud()

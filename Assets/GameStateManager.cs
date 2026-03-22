@@ -192,6 +192,11 @@ public class GameStateManager : MonoBehaviour
 
     public void OnCombatEnded(bool playerWon)
     {
+        if (playerWon)
+        {
+            GrantBattleRewards();
+        }
+
         if (HasActiveFlowController)
         {
             hasDeferredFlowFromCombatResult = true;
@@ -199,6 +204,47 @@ public class GameStateManager : MonoBehaviour
         }
 
         StartCoroutine(ReturnFromCombatAfterDelay(1.5f));
+    }
+
+    private void GrantBattleRewards()
+    {
+        if (HeroProgressionManager.Instance == null)
+        {
+            Debug.LogWarning("[GameStateManager] HeroProgressionManager not found. Skipping XP rewards.");
+            return;
+        }
+
+        if (PartyManager.Instance == null)
+        {
+            Debug.LogWarning("[GameStateManager] PartyManager not found. Skipping XP rewards.");
+            return;
+        }
+
+        BattleManager battleManager = FindFirstObjectByType<BattleManager>();
+        if (battleManager == null)
+        {
+            Debug.LogWarning("[GameStateManager] BattleManager not found. Skipping XP rewards.");
+            return;
+        }
+
+        int totalXp = HeroProgressionManager.Instance.GetTotalXpFromEnemies(battleManager);
+        if (totalXp <= 0)
+        {
+            Debug.Log("[GameStateManager] No XP to grant from defeated enemies.");
+            return;
+        }
+
+        HeroData[] active = PartyManager.Instance.GetActiveParty();
+        HeroData[] reserve = PartyManager.Instance.GetReserveParty();
+
+        HeroProgressionManager.Instance.GrantBattleXp(totalXp, active, reserve);
+
+        float reserveMultiplier = HeroProgressionManager.Instance.LevelingConfig != null
+            ? HeroProgressionManager.Instance.LevelingConfig.reserveXpMultiplier
+            : 0.5f;
+        int reserveXp = Mathf.RoundToInt(totalXp * reserveMultiplier);
+
+        Debug.Log($"[GameStateManager] Granted {totalXp} XP to active party, {reserveXp} XP to reserve.");
     }
 
     private IEnumerator ReturnFromCombatAfterDelay(float delay)

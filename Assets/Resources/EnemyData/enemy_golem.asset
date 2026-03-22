@@ -21,3 +21,4 @@ MonoBehaviour:
   baseDefense: 15
   baseSpeed: 2
   skills: []
+  xpReward: 60

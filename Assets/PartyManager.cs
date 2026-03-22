@@ -183,6 +183,11 @@ public class PartyManager : MonoBehaviour
             unit.SetSkills(hero.starterSkills);
         }
 
+        if (HeroProgressionManager.Instance != null)
+        {
+            HeroProgressionManager.Instance.ApplyStatGrowth(unit, hero);
+        }
+
         Debug.Log($"[PartyManager] Applied hero '{hero.displayName}' ({unit.ElementType}) to unit.");
     }
 
@@ -211,6 +216,11 @@ public class PartyManager : MonoBehaviour
         {
             unit.SetSkills(hero.starterSkills);
         }
+
+        if (HeroProgressionManager.Instance != null)
+        {
+            HeroProgressionManager.Instance.ApplyStatGrowth(unit, hero);
+        }
     }
 
     public static void ApplyHeroToUnitWithElement(CombatUnit unit, HeroData hero, CombatUnit.Element element)
@@ -233,6 +243,11 @@ public class PartyManager : MonoBehaviour
         if (hero.starterSkills != null)
         {
             unit.SetSkills(hero.starterSkills);
+        }
+
+        if (HeroProgressionManager.Instance != null)
+        {
+            HeroProgressionManager.Instance.ApplyStatGrowth(unit, hero);
         }
     }
 }

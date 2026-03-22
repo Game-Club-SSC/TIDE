@@ -31,6 +31,7 @@ public class BattleHud : MonoBehaviour
     private GameObject momentumPanel;
     private GameObject victoryOverlay;
     private GameObject defeatOverlay;
+    private Text xpRewardText;
 
     // Clash announcement
     private GameObject clashOverlay;
@@ -557,8 +558,23 @@ public class BattleHud : MonoBehaviour
 
     private void UpdateOverlays()
     {
+        bool isVictory = battleManager.CurrentPhase == BattlePhase.Victory;
         if (victoryOverlay != null)
-            victoryOverlay.SetActive(battleManager.CurrentPhase == BattlePhase.Victory);
+            victoryOverlay.SetActive(isVictory);
+
+        if (isVictory && xpRewardText != null && HeroProgressionManager.Instance != null)
+        {
+            int totalXp = HeroProgressionManager.Instance.GetTotalXpFromEnemies(battleManager);
+            if (totalXp > 0)
+            {
+                xpRewardText.text = $"+{totalXp} XP";
+            }
+            else
+            {
+                xpRewardText.text = "";
+            }
+        }
+
         if (defeatOverlay != null)
             defeatOverlay.SetActive(battleManager.CurrentPhase == BattlePhase.Defeat);
     }
@@ -878,6 +894,22 @@ public class BattleHud : MonoBehaviour
         text.color = new Color(0.3f, 1f, 0.3f);
         text.text = "VICTORY!";
         text.raycastTarget = false;
+
+        GameObject xpObj = new GameObject("XpRewardText", typeof(RectTransform));
+        xpObj.transform.SetParent(victoryOverlay.transform, false);
+        xpRewardText = xpObj.AddComponent<Text>();
+        RectTransform xpRect = xpRewardText.rectTransform;
+        xpRect.anchorMin = new Vector2(0.2f, 0.2f);
+        xpRect.anchorMax = new Vector2(0.8f, 0.35f);
+        xpRect.offsetMin = Vector2.zero;
+        xpRect.offsetMax = Vector2.zero;
+        xpRewardText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        xpRewardText.fontSize = 28;
+        xpRewardText.fontStyle = FontStyle.Bold;
+        xpRewardText.alignment = TextAnchor.MiddleCenter;
+        xpRewardText.color = new Color(1f, 0.9f, 0.4f);
+        xpRewardText.text = "";
+        xpRewardText.raycastTarget = false;
 
         victoryOverlay.SetActive(false);
     }

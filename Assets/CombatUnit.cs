@@ -27,12 +27,17 @@ public class CombatUnit : MonoBehaviour
     [SerializeField] protected UnitType unitType = UnitType.Ally;
     [SerializeField] protected bool isAlive = true;
 
+    // XP reward (set on enemies)
+    [Header("XP")]
+    [SerializeField] protected int xpReward;
+
     internal int DebugHP { set => hp = value; }
     internal int DebugMaxHP { set => maxHp = value; }
     internal int DebugMP { set => mp = value; }
     internal int DebugMaxMP { set => maxMp = value; }
     internal int DebugDefense { set => defense = value; }
     internal bool DebugIsAlive { set => isAlive = value; }
+    internal int DebugXpReward { set => xpReward = value; }
 
     /// <summary>
     /// Type of combat unit (ally or enemy).
@@ -108,6 +113,7 @@ public class CombatUnit : MonoBehaviour
         set => unitType = value;
     }
     public SkillData[] Skills => skills;
+    public int XpReward { get => xpReward; set => xpReward = value; }
 
     public bool CanUseSkill(SkillData skill)
     {
