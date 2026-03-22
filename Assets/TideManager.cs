@@ -21,6 +21,10 @@ public class TideManager : MonoBehaviour
     [Header("Instability Decay")]
     [SerializeField] private int instabilityThreshold = 3;
 
+    [Header("Sealed Tile Combat")]
+    [SerializeField] private string fallbackSealedTileEncounterId = "encounter_imp_trio";
+    [SerializeField] private float sealedTileCombatRestorationValue = 0.001f;
+
     private readonly TideTile[,] activeTiles = new TideTile[3, 3];
     private int[,] puzzleValues =
     {
@@ -43,10 +47,12 @@ public class TideManager : MonoBehaviour
     private PuzzleWinCondition winCondition = new PuzzleWinCondition();
 
     private Transform runtimeBoardRoot;
+    private readonly List<GameObject> sealedTileEnemyMarkers = new List<GameObject>();
     private TideTile hoveredTile;
     private TideTile carryingSource;
     private int carriedAmount;
     private bool puzzleSolved;
+    private bool isStartingSealedTileCombat;
 
     public int CarriedAmount => carriedAmount;
     public bool IsCarrying => carriedAmount > 0;
@@ -178,6 +184,7 @@ public class TideManager : MonoBehaviour
         GenerateBoard();
         StoreInitialValues();
         UpdateTileVisuals();
+        isStartingSealedTileCombat = false;
 
         if (GameStateManager.Instance != null)
         {
@@ -209,6 +216,15 @@ public class TideManager : MonoBehaviour
 
     private void GenerateBoard()
     {
+        for (int i = 0; i < sealedTileEnemyMarkers.Count; i++)
+        {
+            if (sealedTileEnemyMarkers[i] != null)
+            {
+                Destroy(sealedTileEnemyMarkers[i]);
+            }
+        }
+        sealedTileEnemyMarkers.Clear();
+
         if (runtimeBoardRoot != null)
         {
             Destroy(runtimeBoardRoot.gameObject);
@@ -231,8 +247,60 @@ public class TideManager : MonoBehaviour
                 TideTile tile = tileObject.AddComponent<TideTile>();
                 tile.Configure(new Vector2Int(col, row), puzzleValues[row, col], sealedTiles[row, col]);
                 activeTiles[row, col] = tile;
+
+                if (tile.IsSealed)
+                {
+                    CreateSealedTileEnemyMarker(tileObject.transform);
+                }
             }
         }
+    }
+
+    private void CreateSealedTileEnemyMarker(Transform tileTransform)
+    {
+        if (tileTransform == null)
+        {
+            return;
+        }
+
+        TideTile markerTile = tileTransform.GetComponent<TideTile>();
+        if (markerTile != null)
+        {
+            for (int i = 0; i < sealedTileEnemyMarkers.Count; i++)
+            {
+                GameObject existingMarker = sealedTileEnemyMarkers[i];
+                if (existingMarker == null)
+                {
+                    continue;
+                }
+
+                TideTile existingTile = existingMarker.GetComponentInParent<TideTile>();
+                if (existingTile != null && existingTile.GridPosition == markerTile.GridPosition)
+                {
+                    return;
+                }
+            }
+        }
+
+        GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        marker.name = "SealedTileEnemyMarker";
+        marker.transform.SetParent(tileTransform, false);
+        marker.transform.localPosition = new Vector3(0f, 0.8f, 0f);
+        marker.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
+
+        Collider markerCollider = marker.GetComponent<Collider>();
+        if (markerCollider != null)
+        {
+            Destroy(markerCollider);
+        }
+
+        Renderer markerRenderer = marker.GetComponent<Renderer>();
+        if (markerRenderer != null)
+        {
+            markerRenderer.material.color = new Color(0.89f, 0.22f, 0.18f);
+        }
+
+        sealedTileEnemyMarkers.Add(marker);
     }
 
     private void StoreInitialValues()
@@ -308,6 +376,12 @@ public class TideManager : MonoBehaviour
             return;
         }
 
+        if (hoveredTile.IsSealed)
+        {
+            TryTriggerSealedTileEncounter(hoveredTile);
+            return;
+        }
+
         int takeAmount = hoveredTile.GetMaxTake();
         if (takeAmount <= 0)
         {
@@ -322,6 +396,94 @@ public class TideManager : MonoBehaviour
         carriedAmount = takeAmount;
         carryingSource.ApplyTake(carriedAmount);
         OnCarriedAmountChanged?.Invoke();
+    }
+
+    private void TryTriggerSealedTileEncounter(TideTile sealedTile)
+    {
+        if (sealedTile == null || isStartingSealedTileCombat)
+        {
+            return;
+        }
+
+        if (GameStateManager.Instance == null || !GameStateManager.Instance.CanEnterCombatFromPuzzle())
+        {
+            return;
+        }
+
+        Vector2Int tilePosition = sealedTile.GridPosition;
+        string completionEncounterId = GetSealedTileEncounterId(tilePosition);
+        string islandScope = GetPuzzleIslandIdForLookup();
+        if (string.IsNullOrEmpty(islandScope))
+        {
+            islandScope = "default";
+        }
+
+        if (IslandRestorationTracker.Instance != null
+            && !string.IsNullOrEmpty(completionEncounterId)
+            && IslandRestorationTracker.Instance.HasClearedEncounter(islandScope, completionEncounterId))
+        {
+            sealedTile.FlashInvalid();
+            return;
+        }
+
+        EncounterConfig encounterConfig = LoadEncounterConfigById(completionEncounterId);
+        if (encounterConfig == null && !string.IsNullOrEmpty(fallbackSealedTileEncounterId))
+        {
+            encounterConfig = LoadEncounterConfigById(fallbackSealedTileEncounterId);
+        }
+
+        if (encounterConfig == null)
+        {
+            Debug.LogWarning($"[TideManager] No encounter config found for sealed tile '{completionEncounterId}'.");
+            sealedTile.FlashInvalid();
+            return;
+        }
+
+        if (string.IsNullOrEmpty(completionEncounterId))
+        {
+            completionEncounterId = $"sealed_{tilePosition.x}_{tilePosition.y}_guard";
+        }
+
+        GameStateManager.Instance.PendingEnemyComposition = EnemyComposition.FromEncounterConfig(encounterConfig);
+        isStartingSealedTileCombat = true;
+        Debug.Log($"[TideManager] Sealed tile combat started at {tilePosition} using encounter '{encounterConfig.encounterId}'.");
+        GameStateManager.Instance.EnterCombatSceneFromPuzzle(islandScope, completionEncounterId, sealedTileCombatRestorationValue);
+    }
+
+    private string GetSealedTileEncounterId(Vector2Int tilePosition)
+    {
+        if (tilePosition == lockedPosition && !string.IsNullOrEmpty(lockedEncounterId))
+        {
+            return lockedEncounterId;
+        }
+
+        return $"sealed_{tilePosition.x}_{tilePosition.y}_guard";
+    }
+
+    private static EncounterConfig LoadEncounterConfigById(string encounterId)
+    {
+        if (string.IsNullOrEmpty(encounterId))
+        {
+            return null;
+        }
+
+        EncounterConfig encounterConfig = Resources.Load<EncounterConfig>($"Encounters/{encounterId}");
+        if (encounterConfig != null)
+        {
+            return encounterConfig;
+        }
+
+        EncounterConfig[] encounterConfigs = Resources.LoadAll<EncounterConfig>("Encounters");
+        for (int i = 0; i < encounterConfigs.Length; i++)
+        {
+            EncounterConfig candidate = encounterConfigs[i];
+            if (candidate != null && string.Equals(candidate.encounterId, encounterId, StringComparison.Ordinal))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     private void HandleDestinationSelection()
@@ -555,7 +717,56 @@ public class TideManager : MonoBehaviour
             return;
         }
 
+        bool wasSealed = sealedTiles[position.y, position.x];
+
         sealedTiles[position.y, position.x] = isSealed;
+
+        if (activeTiles[position.y, position.x] != null)
+        {
+            activeTiles[position.y, position.x].Configure(position, activeTiles[position.y, position.x].CurrentTideValue, isSealed);
+        }
+
+        if (isSealed == wasSealed)
+        {
+            return;
+        }
+
+        if (isSealed)
+        {
+            if (runtimeBoardRoot != null)
+            {
+                Transform tileTransform = runtimeBoardRoot.Find($"TideTile_{position.y}_{position.x}");
+                if (tileTransform != null)
+                {
+                    CreateSealedTileEnemyMarker(tileTransform);
+                }
+            }
+            return;
+        }
+
+        for (int i = sealedTileEnemyMarkers.Count - 1; i >= 0; i--)
+        {
+            GameObject marker = sealedTileEnemyMarkers[i];
+            if (marker == null)
+            {
+                sealedTileEnemyMarkers.RemoveAt(i);
+                continue;
+            }
+
+            if (marker.transform.parent == null)
+            {
+                Destroy(marker);
+                sealedTileEnemyMarkers.RemoveAt(i);
+                continue;
+            }
+
+            TideTile markerTile = marker.GetComponentInParent<TideTile>();
+            if (markerTile != null && markerTile.GridPosition == position)
+            {
+                Destroy(marker);
+                sealedTileEnemyMarkers.RemoveAt(i);
+            }
+        }
     }
 
     private readonly struct PathNode

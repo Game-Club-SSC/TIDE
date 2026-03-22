@@ -19,6 +19,7 @@ public class BattleHud : MonoBehaviour
         public RectTransform Root;
         public Image HpFill;
         public Image MpFill;
+        public RectTransform MpFillRect;
         public Text NameLabel;
         public Text HpText;
         public Text MpText;
@@ -342,8 +343,6 @@ public class BattleHud : MonoBehaviour
         mpFillRect.offsetMin = Vector2.zero;
         mpFillRect.offsetMax = Vector2.zero;
         Image mpFill = mpFillObj.AddComponent<Image>();
-        mpFill.type = Image.Type.Filled;
-        mpFill.fillMethod = Image.FillMethod.Horizontal;
         mpFill.color = new Color(0.3f, 0.5f, 1f);
         mpFill.raycastTarget = false;
 
@@ -387,6 +386,7 @@ public class BattleHud : MonoBehaviour
             Root = rootRect,
             HpFill = hpFill,
             MpFill = mpFill,
+            MpFillRect = mpFillRect,
             NameLabel = nameLabel,
             HpText = hpText,
             MpText = mpText,
@@ -448,7 +448,12 @@ public class BattleHud : MonoBehaviour
         bar.HpFill.color = hpColor;
 
         float mpRatio = unit.MaxMP > 0 ? (float)unit.MP / unit.MaxMP : 0f;
-        bar.MpFill.fillAmount = mpRatio;
+        if (bar.MpFillRect != null)
+        {
+            bar.MpFillRect.anchorMax = new Vector2(mpRatio, 1f);
+            bar.MpFillRect.offsetMin = Vector2.zero;
+            bar.MpFillRect.offsetMax = Vector2.zero;
+        }
 
         bar.HpText.text = $"{unit.HP}/{unit.MaxHP}";
         bar.MpText.text = $"{unit.MP}/{unit.MaxMP}";
@@ -1091,7 +1096,7 @@ public class BattleHud : MonoBehaviour
         fillObj.transform.SetParent(bgObj.transform, false);
         RectTransform fillRect = fillObj.GetComponent<RectTransform>();
         fillRect.anchorMin = Vector2.zero;
-        fillRect.anchorMax = new Vector2(0.5f, 1f);
+        fillRect.anchorMax = Vector2.one;
         fillRect.offsetMin = Vector2.zero;
         fillRect.offsetMax = Vector2.zero;
         momentumFill = fillObj.AddComponent<Image>();

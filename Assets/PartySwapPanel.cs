@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public class PartySwapPanel : MonoBehaviour
 {
     private BattleManager battleManager;
+    private Transform contentRoot;
     private Transform activeHeroesContainer;
     private Transform reserveHeroesContainer;
     private List<Button> activeHeroButtons = new List<Button>();
@@ -24,16 +25,25 @@ public class PartySwapPanel : MonoBehaviour
 
     private void CreateLayout()
     {
-        // Clear existing children
-        foreach (Transform child in transform)
+        if (contentRoot == null)
+        {
+            GameObject content = new GameObject("ContentRoot", typeof(RectTransform));
+            content.transform.SetParent(transform, false);
+            RectTransform contentRect = content.GetComponent<RectTransform>();
+            contentRect.anchorMin = Vector2.zero;
+            contentRect.anchorMax = Vector2.one;
+            contentRect.offsetMin = Vector2.zero;
+            contentRect.offsetMax = Vector2.zero;
+            contentRoot = content.transform;
+        }
+
+        foreach (Transform child in contentRoot)
         {
             Destroy(child.gameObject);
         }
 
-        // Title already exists (created by BattleEscapeMenu)
-        // We'll create two columns
         GameObject activeColumn = new GameObject("ActiveColumn", typeof(RectTransform));
-        activeColumn.transform.SetParent(transform, false);
+        activeColumn.transform.SetParent(contentRoot, false);
         RectTransform activeRect = activeColumn.GetComponent<RectTransform>();
         activeRect.anchorMin = new Vector2(0.05f, 0.2f);
         activeRect.anchorMax = new Vector2(0.45f, 0.8f);
@@ -41,7 +51,7 @@ public class PartySwapPanel : MonoBehaviour
         activeRect.offsetMax = Vector2.zero;
 
         GameObject reserveColumn = new GameObject("ReserveColumn", typeof(RectTransform));
-        reserveColumn.transform.SetParent(transform, false);
+        reserveColumn.transform.SetParent(contentRoot, false);
         RectTransform reserveRect = reserveColumn.GetComponent<RectTransform>();
         reserveRect.anchorMin = new Vector2(0.55f, 0.2f);
         reserveRect.anchorMax = new Vector2(0.95f, 0.8f);

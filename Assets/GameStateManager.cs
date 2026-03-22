@@ -32,7 +32,6 @@ public class GameStateManager : MonoBehaviour
     private bool hasPendingReturnPosition;
     private bool isTransitioning;
     private bool hasHandledSceneLoad;
-    private PartySetupUI partySetupUI;
 
     public PuzzleData PendingPuzzleData { get; set; }
     public int[,] PendingPuzzleLayout { get; set; }
@@ -41,6 +40,9 @@ public class GameStateManager : MonoBehaviour
     public string PendingPuzzleIslandId { get; set; }
     public string PendingPuzzleEncounterId { get; set; }
     public float PendingPuzzleRestorationValue { get; set; }
+    public string PendingCombatIslandId { get; set; }
+    public string PendingCombatEncounterId { get; set; }
+    public float PendingCombatRestorationValue { get; set; }
     public IslandFlowController FlowController { get; set; }
     public bool HasActiveFlowController => FlowController != null && FlowController.IsActive;
     public IslandRestorationTracker RestorationTracker => IslandRestorationTracker.Instance;
@@ -52,6 +54,7 @@ public class GameStateManager : MonoBehaviour
     private bool deferredFlowFromCombatResult;
     private bool deferredFlowFromPuzzle;
     private string pendingSolvedPuzzleBoxId;
+    private bool returnToPuzzleAfterCombat;
 
     public float GetIslandRestorationPercent(string islandId)
     {
@@ -121,6 +124,11 @@ public class GameStateManager : MonoBehaviour
         return !isTransitioning && currentState == GameState.Exploration;
     }
 
+    public bool CanEnterCombatFromPuzzle()
+    {
+        return !isTransitioning && currentState == GameState.Puzzle;
+    }
+
     public void EnterCombat()
     {
         currentState = GameState.Combat;
@@ -134,9 +142,38 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
+        returnToPuzzleAfterCombat = false;
+        PendingCombatIslandId = null;
+        PendingCombatEncounterId = null;
+        PendingCombatRestorationValue = 0f;
+        BeginCombatTransition();
+    }
+
+    public void EnterCombatSceneFromPuzzle(string islandId, string encounterId, float restorationValue = 0.001f)
+    {
+        if (!CanEnterCombatFromPuzzle())
+        {
+            return;
+        }
+
+        returnToPuzzleAfterCombat = true;
+        PendingCombatIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        PendingCombatEncounterId = encounterId;
+        PendingCombatRestorationValue = Mathf.Max(0.001f, restorationValue);
+        BeginCombatTransition();
+    }
+
+    private void BeginCombatTransition()
+    {
         isFlowControlledCombat = HasActiveFlowController;
         hasDeferredFlowFromCombatResult = false;
         deferredFlowFromCombatResult = false;
+
+        if (!isFlowControlledCombat && currentState != GameState.Puzzle)
+        {
+            PuzzleSolved = false;
+        }
+
         StartCoroutine(TransitionToScene(CombatSceneName, GameState.Combat));
     }
 
@@ -192,6 +229,18 @@ public class GameStateManager : MonoBehaviour
 
     public void OnCombatEnded(bool playerWon)
     {
+        if (playerWon && IslandRestorationTracker.Instance != null && !string.IsNullOrEmpty(PendingCombatEncounterId))
+        {
+            string islandId = string.IsNullOrEmpty(PendingCombatIslandId) ? "default" : PendingCombatIslandId;
+            float contribution = PendingCombatRestorationValue > 0f ? PendingCombatRestorationValue : 0.001f;
+            IslandRestorationTracker.Instance.RecordEncounterCompletion(
+                islandId,
+                PendingCombatEncounterId,
+                EncounterType.Combat,
+                contribution);
+            Debug.Log($"[GameStateManager] Recorded combat completion for island '{islandId}', encounter '{PendingCombatEncounterId}'.");
+        }
+
         if (playerWon)
         {
             GrantBattleRewards();
@@ -253,6 +302,18 @@ public class GameStateManager : MonoBehaviour
 
         if (isTransitioning)
         {
+            yield break;
+        }
+
+        bool shouldReturnToPuzzle = returnToPuzzleAfterCombat;
+        returnToPuzzleAfterCombat = false;
+        PendingCombatIslandId = null;
+        PendingCombatEncounterId = null;
+        PendingCombatRestorationValue = 0f;
+
+        if (shouldReturnToPuzzle)
+        {
+            StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
             yield break;
         }
 
@@ -327,28 +388,47 @@ public class GameStateManager : MonoBehaviour
 
         if (scene.name == MainSceneName)
         {
-            if (PuzzleSolved && !string.IsNullOrEmpty(pendingSolvedPuzzleBoxId))
+            bool returnedFromPuzzleScene = hasPendingReturnPosition;
+
+            if (PuzzleSolved)
             {
-                PuzzleBoxInteractable[] boxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsSortMode.None);
-                for (int i = 0; i < boxes.Length; i++)
+                if (!string.IsNullOrEmpty(pendingSolvedPuzzleBoxId))
                 {
-                    if (boxes[i].GetInstanceID().ToString() == pendingSolvedPuzzleBoxId)
+                    PuzzleBoxInteractable[] boxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsSortMode.None);
+                    for (int i = 0; i < boxes.Length; i++)
                     {
-                        boxes[i].MarkSolved();
-                        break;
+                        if (boxes[i].GetInstanceID().ToString() == pendingSolvedPuzzleBoxId)
+                        {
+                            boxes[i].MarkSolved();
+                            break;
+                        }
                     }
                 }
                 pendingSolvedPuzzleBoxId = null;
 
                 // Record restoration if island ID provided
-                if (!string.IsNullOrEmpty(PendingPuzzleIslandId) && IslandRestorationTracker.Instance != null)
+                if (IslandRestorationTracker.Instance != null)
                 {
+                    string islandId = PendingPuzzleIslandId;
+                    if (string.IsNullOrEmpty(islandId))
+                    {
+                        islandId = "default";
+                    }
+
+                    string encounterId = PendingPuzzleEncounterId;
+                    if (string.IsNullOrEmpty(encounterId))
+                    {
+                        encounterId = "__puzzle_complete__";
+                    }
+
+                    float contribution = PendingPuzzleRestorationValue > 0f ? PendingPuzzleRestorationValue : 0.2f;
+
                     IslandRestorationTracker.Instance.RecordEncounterCompletion(
-                        PendingPuzzleIslandId,
-                        PendingPuzzleEncounterId,
+                        islandId,
+                        encounterId,
                         EncounterType.Puzzle,
-                        PendingPuzzleRestorationValue);
-                    Debug.Log($"[GameStateManager] Recorded puzzle completion for island '{PendingPuzzleIslandId}', encounter '{PendingPuzzleEncounterId}'.");
+                        contribution);
+                    Debug.Log($"[GameStateManager] Recorded puzzle completion for island '{islandId}', encounter '{encounterId}'.");
                 }
 
                 // Clear pending restoration fields
@@ -382,14 +462,12 @@ public class GameStateManager : MonoBehaviour
                 SetPlayerMovementLocked(false);
             }
 
-            EnsurePartySetupUI();
-
             if (isFlowControlledCombat)
             {
                 deferredFlowFromCombat = true;
                 isFlowControlledCombat = false;
             }
-            else if (HasActiveFlowController && !string.IsNullOrEmpty(PendingPuzzleIslandId))
+            else if (HasActiveFlowController && returnedFromPuzzleScene)
             {
                 deferredFlowFromPuzzle = true;
             }
@@ -426,25 +504,6 @@ public class GameStateManager : MonoBehaviour
         {
             player.canMove = !isLocked;
         }
-    }
-
-    private void EnsurePartySetupUI()
-    {
-        if (partySetupUI != null)
-        {
-            return;
-        }
-
-        partySetupUI = FindFirstObjectByType<PartySetupUI>();
-        if (partySetupUI != null)
-        {
-            return;
-        }
-
-        GameObject partyUiObject = new GameObject("PartySetupUI");
-        partyUiObject.transform.SetParent(transform, false);
-        partySetupUI = partyUiObject.AddComponent<PartySetupUI>();
-        Debug.Log("[GameStateManager] PartySetupUI created.");
     }
 
     private void EnsureFadeCanvas()

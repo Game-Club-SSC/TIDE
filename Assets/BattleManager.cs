@@ -227,6 +227,7 @@ public class BattleManager : MonoBehaviour
     private bool actionExecutionActive;
     private BattleHud cachedBattleHud;
     private string debugText = "";
+    private bool canSwapDuringPlayerInput = true;
 
     private void Awake()
     {
@@ -264,6 +265,7 @@ public class BattleManager : MonoBehaviour
 
     public void StartBattle()
     {
+        canSwapDuringPlayerInput = true;
         TransitionToPhase(BattlePhase.StartBattle, "StartBattle");
     }
 
@@ -528,6 +530,8 @@ public class BattleManager : MonoBehaviour
 
     private void BeginActionExecutionPhase()
     {
+        canSwapDuringPlayerInput = false;
+
         if (CheckBattleOutcome())
         {
             return;
@@ -1482,6 +1486,11 @@ public class BattleManager : MonoBehaviour
                 return true;
 
             case CombatActionType.Swap:
+                if (!canSwapDuringPlayerInput)
+                {
+                    return false;
+                }
+
                 // target is the reserve unit to swap IN
                 if (target == null || !allyReserveUnits.Contains(target))
                 {
@@ -1510,6 +1519,18 @@ public class BattleManager : MonoBehaviour
 
     public bool TrySwapWithReserve(CombatUnit activeUnit, CombatUnit reserveUnit)
     {
+        if (!canSwapDuringPlayerInput)
+        {
+            Debug.LogWarning("[BattleManager] Party swapping is only allowed during the first input round.");
+            return false;
+        }
+
+        if (!hasActivePhase || currentPhase != BattlePhase.PlayerInput)
+        {
+            Debug.LogWarning("[BattleManager] Party swapping is only allowed during player input.");
+            return false;
+        }
+
         if (activeUnit == null || reserveUnit == null)
         {
             Debug.LogWarning("[BattleManager] TrySwapWithReserve called with null unit.");
@@ -1550,6 +1571,11 @@ public class BattleManager : MonoBehaviour
         // Refresh player input units to reflect new composition
         RefreshPlayerInputUnits();
         return true;
+    }
+
+    public bool IsPartySwapAllowedThisRound()
+    {
+        return canSwapDuringPlayerInput && hasActivePhase && currentPhase == BattlePhase.PlayerInput;
     }
 
     public void SetPendingTideBreak(TideBreakData tb)
