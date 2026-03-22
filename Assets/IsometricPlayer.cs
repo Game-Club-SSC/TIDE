@@ -13,6 +13,9 @@ public class IsometricPlayer : MonoBehaviour
     private Vector3 inputVector;
     private float currentSpeed;
 
+    [Header("Visual")]
+    [SerializeField] private Color playerColor = new Color(0.2f, 0.8f, 0.2f, 1f);
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -20,6 +23,17 @@ public class IsometricPlayer : MonoBehaviour
         rb.freezeRotation = true;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         currentSpeed = walkSpeed;
+        ApplyPlayerColor();
+    }
+
+    private void ApplyPlayerColor()
+    {
+        Renderer playerRenderer = GetComponentInChildren<Renderer>();
+        if (playerRenderer != null)
+        {
+            playerRenderer.material.color = playerColor;
+            Debug.Log($"[IsometricPlayer] Player color set to {playerColor}.");
+        }
     }
 
     void Update()

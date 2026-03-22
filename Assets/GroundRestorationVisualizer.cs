@@ -6,10 +6,10 @@ public class GroundRestorationVisualizer : MonoBehaviour
     [SerializeField] private Renderer groundRenderer;
 
     [Header("Color Gradient")]
-    [Tooltip("Color when restoration is 0%.")]
-    [SerializeField] private Color minColor = new Color(1f, 0.45f, 0.12f, 1f);
-    [Tooltip("Color when restoration is 100%.")]
-    [SerializeField] private Color maxColor = new Color(0.2f, 0.8f, 0.2f, 1f);
+    [Tooltip("Color when restoration is 0% (Excess Evil - Black corruption).")]
+    [SerializeField] private Color minColor = Color.black;
+    [Tooltip("Color when restoration is 100% (Excess Good - White distortion).")]
+    [SerializeField] private Color maxColor = Color.white;
 
     [Tooltip("Island ID to track. Leave empty to track default island.")]
     [SerializeField] private string islandId = "";
