@@ -32,6 +32,8 @@ public class PuzzleBoxInteractable : MonoBehaviour
     [SerializeField] private string islandId = "";
     [Tooltip("Unique encounter ID for this puzzle within the island.")]
     [SerializeField] private string encounterId = "";
+    [Tooltip("Stable runtime identifier for this puzzle box. Falls back to encounterId when empty.")]
+    [SerializeField] private string puzzleBoxId = "";
     [Range(0f, 1f)]
     [Tooltip("Restoration contribution when puzzle is solved (0-1).")]
     [SerializeField] private float restorationValue = 0.2f;
@@ -58,11 +60,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
 
     private void Update()
     {
-        if (thisBoxSolved)
-        {
-            Destroy(gameObject);
-            return;
-        }
+        if (thisBoxSolved) return;
 
         UpdatePromptFacing();
 
@@ -90,6 +88,8 @@ public class PuzzleBoxInteractable : MonoBehaviour
         if (puzzleData != null && gsm != null)
         {
             gsm.PendingPuzzleData = puzzleData;
+            gsm.PendingPuzzleLayout = null;
+            gsm.PendingPuzzleSealedTile = new Vector2Int(-1, -1);
         }
         else if (puzzleValues != null && puzzleValues.Length == 9 && gsm != null)
         {
@@ -102,6 +102,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
                 }
             }
 
+            gsm.PendingPuzzleData = null;
             gsm.PendingPuzzleLayout = grid;
             gsm.PendingPuzzleSealedTile = new Vector2Int(sealedCol, sealedRow);
         }
@@ -114,12 +115,32 @@ public class PuzzleBoxInteractable : MonoBehaviour
             gsm.PendingPuzzleRestorationValue = restorationValue;
         }
 
-        gsm?.EnterPuzzleScene(returnPosition, GetInstanceID().ToString());
+        gsm?.EnterPuzzleScene(returnPosition, GetPuzzleBoxId());
     }
 
     public void MarkSolved()
     {
+        if (thisBoxSolved)
+        {
+            return;
+        }
+
         thisBoxSolved = true;
+        SetPromptVisible(false);
+
+        if (interactionTrigger != null)
+        {
+            interactionTrigger.enabled = false;
+        }
+
+        Collider[] colliders = GetComponents<Collider>();
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i] != null)
+            {
+                colliders[i].enabled = false;
+            }
+        }
 
         // Hide mound child object if it exists
         Transform moundTransform = transform.Find("Mound for Dig (1)");
@@ -128,6 +149,23 @@ public class PuzzleBoxInteractable : MonoBehaviour
             moundTransform.gameObject.SetActive(false);
             Debug.Log("[PuzzleBoxInteractable] Mound hidden after puzzle completion.");
         }
+
+        gameObject.SetActive(false);
+    }
+
+    public string GetPuzzleBoxId()
+    {
+        if (!string.IsNullOrEmpty(puzzleBoxId))
+        {
+            return puzzleBoxId;
+        }
+
+        if (!string.IsNullOrEmpty(encounterId))
+        {
+            return encounterId;
+        }
+
+        return name;
     }
 
     private void OnTriggerEnter(Collider other)

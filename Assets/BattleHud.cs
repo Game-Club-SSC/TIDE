@@ -1131,16 +1131,16 @@ public class BattleHud : MonoBehaviour
 
         turnLabel = labelObj.AddComponent<Text>();
         RectTransform rect = turnLabel.rectTransform;
-        rect.anchorMin = new Vector2(0.5f, 1f);
-        rect.anchorMax = new Vector2(0.5f, 1f);
-        rect.pivot = new Vector2(0.5f, 1f);
-        rect.anchoredPosition = new Vector2(0f, -8f);
-        rect.sizeDelta = new Vector2(400f, 28f);
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(24f, -18f);
+        rect.sizeDelta = new Vector2(360f, 36f);
 
         turnLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        turnLabel.fontSize = 22;
+        turnLabel.fontSize = 24;
         turnLabel.fontStyle = FontStyle.Bold;
-        turnLabel.alignment = TextAnchor.MiddleCenter;
+        turnLabel.alignment = TextAnchor.MiddleLeft;
         turnLabel.color = Color.white;
         turnLabel.raycastTarget = false;
     }

@@ -204,7 +204,6 @@ public class GameStateManager : MonoBehaviour
 
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
-        PendingPuzzleIslandId = string.Empty;
         pendingSolvedPuzzleBoxId = puzzleBoxId;
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
     }
@@ -218,7 +217,6 @@ public class GameStateManager : MonoBehaviour
 
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
-        PendingPuzzleIslandId = string.Empty;
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
     }
 
@@ -397,14 +395,13 @@ public class GameStateManager : MonoBehaviour
                     PuzzleBoxInteractable[] boxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsSortMode.None);
                     for (int i = 0; i < boxes.Length; i++)
                     {
-                        if (boxes[i].GetInstanceID().ToString() == pendingSolvedPuzzleBoxId)
+                        if (string.Equals(boxes[i].GetPuzzleBoxId(), pendingSolvedPuzzleBoxId, StringComparison.Ordinal))
                         {
                             boxes[i].MarkSolved();
                             break;
                         }
                     }
                 }
-                pendingSolvedPuzzleBoxId = null;
 
                 // Record restoration if island ID provided
                 if (IslandRestorationTracker.Instance != null)
@@ -442,6 +439,17 @@ public class GameStateManager : MonoBehaviour
             }
 
             PuzzleSolved = false;
+
+            if (returnedFromPuzzleScene)
+            {
+                pendingSolvedPuzzleBoxId = null;
+                PendingPuzzleData = null;
+                PendingPuzzleLayout = null;
+                PendingPuzzleSealedTile = new Vector2Int(-1, -1);
+                PendingPuzzleIslandId = null;
+                PendingPuzzleEncounterId = null;
+                PendingPuzzleRestorationValue = 0f;
+            }
 
             if (hasPendingReturnPosition && player != null)
             {

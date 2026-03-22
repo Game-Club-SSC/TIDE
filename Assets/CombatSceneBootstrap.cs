@@ -351,7 +351,13 @@ public class CombatSceneBootstrap : MonoBehaviour
         if (enemySpawnPoints != null)
         {
             string[] defaultEnemyNames = { "Imp", "Orc", "Troll" };
-            for (int i = 0; i < enemySpawnPoints.Length; i++)
+            int enemySpawnCount = enemySpawnPoints.Length;
+            if (enemyComposition != null && enemyComposition.Count > 0)
+            {
+                enemySpawnCount = Mathf.Min(enemyComposition.Count, enemySpawnPoints.Length);
+            }
+
+            for (int i = 0; i < enemySpawnCount; i++)
             {
                 if (enemySpawnPoints[i] != null)
                 {
@@ -360,7 +366,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                     unit.Type = CombatUnit.UnitType.Enemy;
 
                     EnemyData enemyData = null;
-                    if (enemyComposition != null && enemyComposition.HasEnemyDataSlots && enemyComposition.IsValidIndex(i))
+                    if (enemyComposition != null && enemyComposition.HasEnemyDataSlots)
                     {
                         enemyData = enemyComposition.GetEnemyData(i);
                     }
@@ -369,7 +375,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                     {
                         ApplyEnemyDataToUnit(unit, enemyData);
                     }
-                    else if (enemyComposition != null && enemyComposition.IsValidIndex(i))
+                    else if (enemyComposition != null && !enemyComposition.HasEnemyDataSlots && enemyComposition.IsValidIndex(i))
                     {
                         unit.UnitName = enemyComposition.names[i];
                         unit.ElementType = enemyComposition.elements[i];
@@ -380,6 +386,11 @@ public class CombatSceneBootstrap : MonoBehaviour
                     }
                     else
                     {
+                        if (enemyComposition != null)
+                        {
+                            Debug.LogWarning($"[CombatSceneBootstrap] Missing enemy data for configured slot {i}. Using fallback enemy stats.");
+                        }
+
                         unit.UnitName = i < defaultEnemyNames.Length ? defaultEnemyNames[i] : $"Enemy_{i + 1}";
                         switch (i)
                         {

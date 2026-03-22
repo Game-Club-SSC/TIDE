@@ -545,12 +545,13 @@ MonoBehaviour:
   promptTint: {r: 1, g: 1, b: 1, a: 1}
   triggerSize: {x: 3.25, y: 2.25, z: 3.25}
   boxColor: {r: 1, g: 0.45, b: 0.12, a: 1}
-  puzzleData: {fileID: 0}
+  puzzleData: {fileID: 11400000, guid: 9186e0c12fd84e058a26913898d6da9d, type: 2}
   puzzleValues: 
   sealedRow: 1
   sealedCol: 1
   islandId: island_1
   encounterId: puzzle_1
+  puzzleBoxId: puzzle_1
   restorationValue: 0.2
 --- !u!1 &661358599
 GameObject:
