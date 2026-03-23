@@ -38,6 +38,12 @@ public class PuzzleHud : MonoBehaviour
             TryFindTideManager();
         }
 
+        if (tideManager != null && tideManager.IsOverlayMode && Input.GetKeyDown(KeyCode.Escape))
+        {
+            tideManager.RequestOverlayClose();
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.T))
         {
             OnResetPressed();
@@ -87,13 +93,13 @@ public class PuzzleHud : MonoBehaviour
         {
             carriedLabel.text = $"Carrying: {tideManager.CarriedAmount}";
             carriedLabel.color = carriedColor;
-            hintLabel.text = "Click a tile to place Tide";
+            hintLabel.text = tideManager.IsOverlayMode ? "Click tile to place Tide | Esc to exit" : "Click a tile to place Tide";
         }
         else
         {
             carriedLabel.text = "Carrying: -";
             carriedLabel.color = Color.white;
-            hintLabel.text = "Click a tile to pick up Tide";
+            hintLabel.text = tideManager.IsOverlayMode ? "Click tile to pick up Tide | Esc to exit" : "Click a tile to pick up Tide";
         }
     }
 

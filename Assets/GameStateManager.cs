@@ -1,11 +1,19 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class GameStateManager : MonoBehaviour
 {
+    private sealed class PuzzleRuntimeState
+    {
+        public readonly int[] tileValues = new int[9];
+        public bool hasGrid;
+        public bool solved;
+    }
+
     public enum GameState
     {
         Exploration,
@@ -55,6 +63,8 @@ public class GameStateManager : MonoBehaviour
     private bool deferredFlowFromPuzzle;
     private string pendingSolvedPuzzleBoxId;
     private bool returnToPuzzleAfterCombat;
+    private bool hasPendingCombatReturnPosition;
+    private readonly Dictionary<string, PuzzleRuntimeState> puzzleRuntimeStates = new Dictionary<string, PuzzleRuntimeState>();
 
     public float GetIslandRestorationPercent(string islandId)
     {
@@ -87,6 +97,7 @@ public class GameStateManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         SceneManager.sceneLoaded += HandleSceneLoaded;
+        EnsureRestorationTracker();
         EnsureFadeCanvas();
     }
 
@@ -146,6 +157,24 @@ public class GameStateManager : MonoBehaviour
         PendingCombatIslandId = null;
         PendingCombatEncounterId = null;
         PendingCombatRestorationValue = 0f;
+        CaptureExplorationReturnPosition();
+        BeginCombatTransition();
+    }
+
+    public void EnterCombatSceneFromExploration(string islandId, string encounterId, float restorationValue, Vector3 returnPosition)
+    {
+        if (!CanEnterCombatScene())
+        {
+            return;
+        }
+
+        returnToPuzzleAfterCombat = false;
+        PendingCombatIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        PendingCombatEncounterId = encounterId;
+        PendingCombatRestorationValue = Mathf.Max(0.001f, restorationValue);
+        pendingReturnPosition = returnPosition;
+        hasPendingReturnPosition = true;
+        hasPendingCombatReturnPosition = true;
         BeginCombatTransition();
     }
 
@@ -160,6 +189,7 @@ public class GameStateManager : MonoBehaviour
         PendingCombatIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
         PendingCombatEncounterId = encounterId;
         PendingCombatRestorationValue = Mathf.Max(0.001f, restorationValue);
+        hasPendingCombatReturnPosition = false;
         BeginCombatTransition();
     }
 
@@ -204,6 +234,7 @@ public class GameStateManager : MonoBehaviour
 
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
+        hasPendingCombatReturnPosition = false;
         pendingSolvedPuzzleBoxId = puzzleBoxId;
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
     }
@@ -217,7 +248,119 @@ public class GameStateManager : MonoBehaviour
 
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
+        hasPendingCombatReturnPosition = false;
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
+    }
+
+    public void SavePuzzleRuntimeState(string puzzleBoxId, int[,] grid, bool solved)
+    {
+        if (string.IsNullOrEmpty(puzzleBoxId) || grid == null || grid.GetLength(0) != 3 || grid.GetLength(1) != 3)
+        {
+            return;
+        }
+
+        if (!puzzleRuntimeStates.TryGetValue(puzzleBoxId, out PuzzleRuntimeState state))
+        {
+            state = new PuzzleRuntimeState();
+            puzzleRuntimeStates[puzzleBoxId] = state;
+        }
+
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                state.tileValues[row * 3 + col] = Mathf.Clamp(grid[row, col], 1, 10);
+            }
+        }
+
+        state.hasGrid = true;
+        state.solved = state.solved || solved;
+    }
+
+    public bool TryGetPuzzleRuntimeGrid(string puzzleBoxId, out int[,] grid, out bool solved)
+    {
+        grid = null;
+        solved = false;
+
+        if (string.IsNullOrEmpty(puzzleBoxId))
+        {
+            return false;
+        }
+
+        if (!puzzleRuntimeStates.TryGetValue(puzzleBoxId, out PuzzleRuntimeState state))
+        {
+            return false;
+        }
+
+        solved = state.solved;
+        if (!state.hasGrid)
+        {
+            return false;
+        }
+
+        grid = new int[3, 3];
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                grid[row, col] = state.tileValues[row * 3 + col];
+            }
+        }
+
+        return true;
+    }
+
+    public bool IsPuzzleBoxSolved(string puzzleBoxId)
+    {
+        if (string.IsNullOrEmpty(puzzleBoxId))
+        {
+            return false;
+        }
+
+        return puzzleRuntimeStates.TryGetValue(puzzleBoxId, out PuzzleRuntimeState state) && state.solved;
+    }
+
+    public void MarkPuzzleBoxSolved(string puzzleBoxId)
+    {
+        if (string.IsNullOrEmpty(puzzleBoxId))
+        {
+            return;
+        }
+
+        if (!puzzleRuntimeStates.TryGetValue(puzzleBoxId, out PuzzleRuntimeState state))
+        {
+            state = new PuzzleRuntimeState();
+            puzzleRuntimeStates[puzzleBoxId] = state;
+        }
+
+        state.solved = true;
+    }
+
+    public void CompletePuzzleInExploration(string puzzleBoxId, string islandId, string encounterId, float restorationValue)
+    {
+        MarkPuzzleBoxSolved(puzzleBoxId);
+
+        string scopedIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        string scopedEncounterId = string.IsNullOrEmpty(encounterId) ? "__puzzle_complete__" : encounterId;
+        float contribution = restorationValue > 0f ? restorationValue : 0.2f;
+
+        if (IslandRestorationTracker.Instance != null)
+        {
+            IslandRestorationTracker.Instance.RecordEncounterCompletion(
+                scopedIslandId,
+                scopedEncounterId,
+                EncounterType.Puzzle,
+                contribution);
+            Debug.Log($"[GameStateManager] Recorded puzzle completion for island '{scopedIslandId}', encounter '{scopedEncounterId}'.");
+        }
+
+        OnPuzzleCompleted?.Invoke();
+
+        PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
+        if (guardSpawner != null)
+        {
+            guardSpawner.RefreshGuards();
+        }
     }
 
     public void MarkPuzzleSolved()
@@ -383,10 +526,14 @@ public class GameStateManager : MonoBehaviour
     {
         hasHandledSceneLoad = true;
         CachePlayer();
+        EnsureRestorationTracker();
 
         if (scene.name == MainSceneName)
         {
-            bool returnedFromPuzzleScene = hasPendingReturnPosition;
+            bool returnedFromPuzzleScene = hasPendingReturnPosition && !hasPendingCombatReturnPosition;
+
+            EnsureMainSceneRuntimeComponents();
+            ApplySolvedPuzzleBoxesInScene();
 
             if (PuzzleSolved)
             {
@@ -463,12 +610,15 @@ public class GameStateManager : MonoBehaviour
             }
 
             hasPendingReturnPosition = false;
+            hasPendingCombatReturnPosition = false;
 
             if (!isTransitioning)
             {
                 currentState = GameState.Exploration;
                 SetPlayerMovementLocked(false);
             }
+
+            SnapFollowCameraToPlayer();
 
             if (isFlowControlledCombat)
             {
@@ -572,5 +722,95 @@ public class GameStateManager : MonoBehaviour
         }
 
         fadeCanvasGroup.alpha = targetAlpha;
+    }
+
+    private void CaptureExplorationReturnPosition()
+    {
+        CachePlayer();
+        if (player == null)
+        {
+            return;
+        }
+
+        pendingReturnPosition = player.transform.position;
+        hasPendingReturnPosition = true;
+        hasPendingCombatReturnPosition = true;
+    }
+
+    private void EnsureRestorationTracker()
+    {
+        if (IslandRestorationTracker.Instance != null)
+        {
+            return;
+        }
+
+        GameObject trackerObject = new GameObject("IslandRestorationTracker");
+        trackerObject.AddComponent<IslandRestorationTracker>();
+    }
+
+    private void ApplySolvedPuzzleBoxesInScene()
+    {
+        PuzzleBoxInteractable[] boxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsSortMode.None);
+        for (int i = 0; i < boxes.Length; i++)
+        {
+            PuzzleBoxInteractable box = boxes[i];
+            if (box == null)
+            {
+                continue;
+            }
+
+            if (IsPuzzleBoxSolved(box.GetPuzzleBoxId()))
+            {
+                box.MarkSolved();
+            }
+        }
+    }
+
+    private void EnsureMainSceneRuntimeComponents()
+    {
+        if (FindFirstObjectByType<PuzzleOverlayController>() == null)
+        {
+            GameObject overlayObject = new GameObject("PuzzleOverlayController");
+            overlayObject.AddComponent<PuzzleOverlayController>();
+        }
+
+        PuzzleGuardSpawner spawner = FindFirstObjectByType<PuzzleGuardSpawner>();
+        if (spawner == null)
+        {
+            GameObject spawnerObject = new GameObject("PuzzleGuardSpawner");
+            spawner = spawnerObject.AddComponent<PuzzleGuardSpawner>();
+        }
+
+        if (spawner != null)
+        {
+            spawner.RefreshGuards();
+        }
+    }
+
+    private void SnapFollowCameraToPlayer()
+    {
+        CachePlayer();
+        if (player == null)
+        {
+            return;
+        }
+
+        TopDownFollowCamera followCamera = FindFirstObjectByType<TopDownFollowCamera>();
+        if (followCamera != null)
+        {
+            followCamera.SetTarget(player.transform, true);
+            followCamera.SnapToCurrentTarget();
+            return;
+        }
+
+        Camera activeCamera = Camera.main;
+        if (activeCamera == null)
+        {
+            return;
+        }
+
+        Vector3 currentPosition = activeCamera.transform.position;
+        Vector3 toPlayer = player.transform.position;
+        activeCamera.transform.position = new Vector3(toPlayer.x, currentPosition.y, toPlayer.z);
     }
 }

@@ -47,6 +47,8 @@ public class BattleHud : MonoBehaviour
     // Momentum
     private Image momentumFill;
     private Text momentumLabel;
+    private RectTransform momentumIndicator;
+    private float displayedMomentumValue;
 
     // Action buttons
     private Button attackButton;
@@ -632,18 +634,27 @@ public class BattleHud : MonoBehaviour
 
     private void UpdateMomentumBar(float value)
     {
+        displayedMomentumValue = Mathf.MoveTowards(displayedMomentumValue, Mathf.Clamp(value, -1f, 1f), Time.deltaTime * 3f);
+
         if (momentumFill == null) return;
-        float normalized = (value + 1f) / 2f;
+        float normalized = (displayedMomentumValue + 1f) / 2f;
         momentumFill.fillAmount = normalized;
 
-        if (value >= 0)
+        if (momentumIndicator != null)
         {
-            float t = Mathf.InverseLerp(0f, 1f, value);
+            momentumIndicator.anchorMin = new Vector2(normalized, 0f);
+            momentumIndicator.anchorMax = new Vector2(normalized, 1f);
+            momentumIndicator.anchoredPosition = Vector2.zero;
+        }
+
+        if (displayedMomentumValue >= 0)
+        {
+            float t = Mathf.InverseLerp(0f, 1f, displayedMomentumValue);
             momentumFill.color = Color.Lerp(new Color(0.2f, 0.5f, 1f), new Color(0.1f, 1f, 0.3f), t);
         }
         else
         {
-            float t = Mathf.InverseLerp(0f, -1f, value);
+            float t = Mathf.InverseLerp(0f, -1f, displayedMomentumValue);
             momentumFill.color = Color.Lerp(new Color(0.2f, 0.5f, 1f), new Color(1f, 0.2f, 0.2f), t);
         }
 
@@ -1105,6 +1116,30 @@ public class BattleHud : MonoBehaviour
         momentumFill.fillAmount = 0.5f;
         momentumFill.color = new Color(0.2f, 0.5f, 1f);
         momentumFill.raycastTarget = false;
+
+        // Center line for tug-of-war baseline
+        GameObject centerObj = new GameObject("CenterLine", typeof(RectTransform));
+        centerObj.transform.SetParent(bgObj.transform, false);
+        RectTransform centerRect = centerObj.GetComponent<RectTransform>();
+        centerRect.anchorMin = new Vector2(0.5f, 0f);
+        centerRect.anchorMax = new Vector2(0.5f, 1f);
+        centerRect.sizeDelta = new Vector2(2f, 0f);
+        centerRect.anchoredPosition = Vector2.zero;
+        Image centerImage = centerObj.AddComponent<Image>();
+        centerImage.color = new Color(1f, 1f, 1f, 0.35f);
+        centerImage.raycastTarget = false;
+
+        // Momentum indicator pin
+        GameObject markerObj = new GameObject("MomentumPin", typeof(RectTransform));
+        markerObj.transform.SetParent(bgObj.transform, false);
+        momentumIndicator = markerObj.GetComponent<RectTransform>();
+        momentumIndicator.anchorMin = new Vector2(0.5f, 0f);
+        momentumIndicator.anchorMax = new Vector2(0.5f, 1f);
+        momentumIndicator.sizeDelta = new Vector2(4f, 0f);
+        momentumIndicator.anchoredPosition = Vector2.zero;
+        Image markerImage = markerObj.AddComponent<Image>();
+        markerImage.color = new Color(1f, 0.95f, 0.7f, 0.9f);
+        markerImage.raycastTarget = false;
 
         // Label
         GameObject labelObj = new GameObject("Label", typeof(RectTransform));

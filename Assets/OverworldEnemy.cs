@@ -33,6 +33,11 @@ public class OverworldEnemy : MonoBehaviour
     [Header("Combat")]
     [SerializeField] private EncounterConfig encounterConfig;
 
+    [Header("Puzzle Guard")]
+    [SerializeField] private bool isPuzzleGuard;
+    [SerializeField] private float puzzleGuardRoamRadius = 1.5f;
+    [SerializeField] private float puzzleGuardLeashRadius = 8f;
+
     [Header("Visual")]
     [SerializeField] private Color enemyColor = new Color(0.89f, 0.38f, 0.25f);
     [SerializeField] private Color alertIndicatorColor = Color.yellow;
@@ -50,6 +55,13 @@ public class OverworldEnemy : MonoBehaviour
     private SpriteRenderer exclamationRenderer;
     private GameObject facingArrowObject;
     private SpriteRenderer arrowRenderer;
+    private Vector3 guardAnchorPosition;
+    private Vector3 guardRoamTarget;
+    private float guardRoamWaitTimer;
+    private bool hasGuardRoamTarget;
+    private string puzzleGuardIslandId = "default";
+    private string puzzleGuardEncounterId;
+    private float puzzleGuardRestorationValue = 0.001f;
 
     private void Awake()
     {
@@ -62,10 +74,48 @@ public class OverworldEnemy : MonoBehaviour
     private void Start()
     {
         playerTransform = FindPlayer();
+
+        if (isPuzzleGuard)
+        {
+            if (guardAnchorPosition == Vector3.zero)
+            {
+                guardAnchorPosition = transform.position;
+            }
+
+            transform.position = guardAnchorPosition;
+            hasGuardRoamTarget = false;
+            guardRoamWaitTimer = 0f;
+        }
+
         CreateExclamationIndicator();
         CreateFacingArrow();
         TransitionToState(EnemyState.Roaming);
         Debug.Log($"[OverworldEnemy] Initialized: {name} with {(patrolPoints != null ? patrolPoints.Length : 0)} patrol points.");
+    }
+
+    public void ConfigureAsPuzzleGuard(
+        EncounterConfig config,
+        string islandId,
+        string encounterId,
+        float restorationValue,
+        Vector3 anchorPosition,
+        float microRoamRadius,
+        float leashRadius,
+        float roamSpeedOverride,
+        float chaseSpeedOverride)
+    {
+        encounterConfig = config;
+        isPuzzleGuard = true;
+        guardAnchorPosition = anchorPosition;
+        puzzleGuardRoamRadius = Mathf.Max(0.25f, microRoamRadius);
+        puzzleGuardLeashRadius = Mathf.Max(1f, leashRadius);
+        puzzleGuardIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        puzzleGuardEncounterId = encounterId;
+        puzzleGuardRestorationValue = Mathf.Max(0.001f, restorationValue);
+        roamSpeed = Mathf.Max(0.1f, roamSpeedOverride);
+        chaseSpeed = Mathf.Max(roamSpeed, chaseSpeedOverride);
+        patrolPoints = null;
+        transform.position = guardAnchorPosition;
     }
 
     private void Update()
@@ -125,6 +175,7 @@ public class OverworldEnemy : MonoBehaviour
         {
             case EnemyState.Roaming:
                 stateTimer = 0f;
+                SetExclamationVisible(false);
                 break;
             case EnemyState.Alert:
                 stateTimer = 0.5f;
@@ -134,6 +185,15 @@ public class OverworldEnemy : MonoBehaviour
                 SetExclamationVisible(true);
                 break;
             case EnemyState.Returning:
+                SetExclamationVisible(false);
+
+                if (isPuzzleGuard)
+                {
+                    hasGuardRoamTarget = false;
+                    guardRoamWaitTimer = 0f;
+                    break;
+                }
+
                 patrolIndex = FindNearestPatrolIndex();
                 break;
         }
@@ -151,6 +211,12 @@ public class OverworldEnemy : MonoBehaviour
             return;
         }
 
+        if (isPuzzleGuard)
+        {
+            UpdatePuzzleGuardRoamState();
+            return;
+        }
+
         if (!HasPatrolPoints())
         {
             return;
@@ -164,6 +230,12 @@ public class OverworldEnemy : MonoBehaviour
 
     private void FixedRoaming()
     {
+        if (isPuzzleGuard)
+        {
+            FixedPuzzleGuardRoam();
+            return;
+        }
+
         if (!HasPatrolPoints())
         {
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
@@ -218,9 +290,25 @@ public class OverworldEnemy : MonoBehaviour
 
         float distanceToPlayer = GetPlanarDistance(transform.position, playerTransform.position);
 
+        if (isPuzzleGuard)
+        {
+            float distanceFromAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
+            if (distanceFromAnchor > puzzleGuardLeashRadius)
+            {
+                SetExclamationVisible(false);
+                TransitionToState(EnemyState.Returning);
+                return;
+            }
+        }
+
         if (distanceToPlayer <= arrivalThreshold)
         {
             TryTriggerCombat();
+            return;
+        }
+
+        if (isPuzzleGuard)
+        {
             return;
         }
 
@@ -247,6 +335,16 @@ public class OverworldEnemy : MonoBehaviour
 
     private void UpdateReturning()
     {
+        if (isPuzzleGuard)
+        {
+            float distanceToAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
+            if (distanceToAnchor <= arrivalThreshold)
+            {
+                TransitionToState(EnemyState.Roaming);
+            }
+            return;
+        }
+
         if (!HasPatrolPoints())
         {
             TransitionToState(EnemyState.Roaming);
@@ -269,6 +367,12 @@ public class OverworldEnemy : MonoBehaviour
 
     private void FixedReturning()
     {
+        if (isPuzzleGuard)
+        {
+            MoveToward(guardAnchorPosition, roamSpeed);
+            return;
+        }
+
         if (!HasPatrolPoints())
         {
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
@@ -481,9 +585,66 @@ public class OverworldEnemy : MonoBehaviour
             col.enabled = false;
         }
 
-        Debug.Log($"[OverworldEnemy] {name} initiating combat with '{encounterConfig.displayName}'.");
-        GameStateManager.Instance.EnterCombatScene();
+        if (isPuzzleGuard)
+        {
+            Vector3 returnPosition = playerTransform != null ? playerTransform.position : transform.position;
+            Debug.Log($"[OverworldEnemy] Puzzle guard '{name}' initiating combat for encounter '{puzzleGuardEncounterId}'.");
+            GameStateManager.Instance.EnterCombatSceneFromExploration(
+                puzzleGuardIslandId,
+                puzzleGuardEncounterId,
+                puzzleGuardRestorationValue,
+                returnPosition);
+        }
+        else
+        {
+            Debug.Log($"[OverworldEnemy] {name} initiating combat with '{encounterConfig.displayName}'.");
+            GameStateManager.Instance.EnterCombatScene();
+        }
+
         Destroy(gameObject, 0.1f);
+    }
+
+    private void UpdatePuzzleGuardRoamState()
+    {
+        if (guardRoamWaitTimer > 0f)
+        {
+            guardRoamWaitTimer -= Time.deltaTime;
+            return;
+        }
+
+        if (!hasGuardRoamTarget)
+        {
+            AssignNewGuardRoamTarget();
+            return;
+        }
+
+        float distance = GetPlanarDistance(transform.position, guardRoamTarget);
+        if (distance <= arrivalThreshold)
+        {
+            guardRoamWaitTimer = Mathf.Max(0.25f, waitTimeAtPoint * 0.8f);
+            AssignNewGuardRoamTarget();
+        }
+    }
+
+    private void FixedPuzzleGuardRoam()
+    {
+        if (!hasGuardRoamTarget || guardRoamWaitTimer > 0f)
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            return;
+        }
+
+        MoveToward(guardRoamTarget, roamSpeed);
+    }
+
+    private void AssignNewGuardRoamTarget()
+    {
+        Vector2 offset = Random.insideUnitCircle * puzzleGuardRoamRadius;
+        guardRoamTarget = new Vector3(
+            guardAnchorPosition.x + offset.x,
+            transform.position.y,
+            guardAnchorPosition.z + offset.y);
+        hasGuardRoamTarget = true;
     }
 
     // ========== HELPERS ==========

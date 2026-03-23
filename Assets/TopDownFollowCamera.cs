@@ -109,6 +109,16 @@ public class TopDownFollowCamera : MonoBehaviour
         }
     }
 
+    public void SnapToCurrentTarget()
+    {
+        if (!EnsureTarget())
+        {
+            return;
+        }
+
+        SnapToTarget();
+    }
+
     private bool EnsureTarget()
     {
         if (target != null)

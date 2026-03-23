@@ -38,6 +38,9 @@ public class PuzzleBoxInteractable : MonoBehaviour
     [Tooltip("Restoration contribution when puzzle is solved (0-1).")]
     [SerializeField] private float restorationValue = 0.2f;
 
+    [Header("Locked Tile Combat")]
+    [SerializeField] private float sealedTileCombatRestorationValue = 0.001f;
+
     private BoxCollider interactionTrigger;
     private Renderer cachedRenderer;
     private GameObject promptRoot;
@@ -56,6 +59,11 @@ public class PuzzleBoxInteractable : MonoBehaviour
         CreatePromptVisual();
         ApplyBoxColor();
         SetPromptVisible(false);
+
+        if (GameStateManager.Instance != null && GameStateManager.Instance.IsPuzzleBoxSolved(GetPuzzleBoxId()))
+        {
+            MarkSolved();
+        }
     }
 
     private void Update()
@@ -82,40 +90,17 @@ public class PuzzleBoxInteractable : MonoBehaviour
             return;
         }
 
-        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
-        Vector3 returnPosition = player != null ? player.transform.position : transform.position + Vector3.back * 2f;
-
-        if (puzzleData != null && gsm != null)
+        PuzzleOverlayController overlayController = FindFirstObjectByType<PuzzleOverlayController>();
+        if (overlayController == null)
         {
-            gsm.PendingPuzzleData = puzzleData;
-            gsm.PendingPuzzleLayout = null;
-            gsm.PendingPuzzleSealedTile = new Vector2Int(-1, -1);
-        }
-        else if (puzzleValues != null && puzzleValues.Length == 9 && gsm != null)
-        {
-            int[,] grid = new int[3, 3];
-            for (int r = 0; r < 3; r++)
-            {
-                for (int c = 0; c < 3; c++)
-                {
-                    grid[r, c] = puzzleValues[r * 3 + c];
-                }
-            }
-
-            gsm.PendingPuzzleData = null;
-            gsm.PendingPuzzleLayout = grid;
-            gsm.PendingPuzzleSealedTile = new Vector2Int(sealedCol, sealedRow);
+            GameObject overlayObject = new GameObject("PuzzleOverlayController");
+            overlayController = overlayObject.AddComponent<PuzzleOverlayController>();
         }
 
-        // Set restoration tracking data
-        if (gsm != null)
+        if (overlayController != null)
         {
-            gsm.PendingPuzzleIslandId = islandId;
-            gsm.PendingPuzzleEncounterId = encounterId;
-            gsm.PendingPuzzleRestorationValue = restorationValue;
+            overlayController.OpenPuzzle(this);
         }
-
-        gsm?.EnterPuzzleScene(returnPosition, GetPuzzleBoxId());
     }
 
     public void MarkSolved()
@@ -151,6 +136,12 @@ public class PuzzleBoxInteractable : MonoBehaviour
         }
 
         gameObject.SetActive(false);
+
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm != null)
+        {
+            gsm.MarkPuzzleBoxSolved(GetPuzzleBoxId());
+        }
     }
 
     public string GetPuzzleBoxId()
@@ -166,6 +157,101 @@ public class PuzzleBoxInteractable : MonoBehaviour
         }
 
         return name;
+    }
+
+    public PuzzleData GetPuzzleData()
+    {
+        return puzzleData;
+    }
+
+    public int[,] GetLegacyPuzzleLayout()
+    {
+        if (puzzleValues == null || puzzleValues.Length != 9)
+        {
+            return null;
+        }
+
+        int[,] grid = new int[3, 3];
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                grid[row, col] = Mathf.Clamp(puzzleValues[row * 3 + col], 1, 10);
+            }
+        }
+
+        return grid;
+    }
+
+    public Vector2Int GetLegacySealedPosition()
+    {
+        return new Vector2Int(Mathf.Clamp(sealedCol, -1, 2), Mathf.Clamp(sealedRow, -1, 2));
+    }
+
+    public string GetIslandId()
+    {
+        return islandId;
+    }
+
+    public string GetEncounterId()
+    {
+        return encounterId;
+    }
+
+    public float GetRestorationValue()
+    {
+        return restorationValue;
+    }
+
+    public float GetSealedTileCombatRestorationValue()
+    {
+        return Mathf.Max(0.001f, sealedTileCombatRestorationValue);
+    }
+
+    public bool TryGetLockedTileInfo(out Vector2Int lockedTilePosition, out string lockedTileEncounterId, out string lockedTileIslandId)
+    {
+        lockedTilePosition = new Vector2Int(-1, -1);
+        lockedTileEncounterId = string.Empty;
+        lockedTileIslandId = islandId;
+
+        if (puzzleData != null)
+        {
+            if (!puzzleData.HasLockedTile)
+            {
+                return false;
+            }
+
+            lockedTilePosition = puzzleData.lockedPosition;
+            lockedTileEncounterId = puzzleData.lockedTileEncounterId;
+            if (!string.IsNullOrEmpty(puzzleData.lockedTileIslandId))
+            {
+                lockedTileIslandId = puzzleData.lockedTileIslandId;
+            }
+
+            if (string.IsNullOrEmpty(lockedTileEncounterId))
+            {
+                string scopedEncounter = !string.IsNullOrEmpty(encounterId) ? encounterId : GetPuzzleBoxId();
+                lockedTileEncounterId = $"{scopedEncounter}_sealed_{lockedTilePosition.x}_{lockedTilePosition.y}_guard";
+            }
+
+            return true;
+        }
+
+        Vector2Int legacyLockedPosition = GetLegacySealedPosition();
+        if (legacyLockedPosition.x < 0 || legacyLockedPosition.y < 0)
+        {
+            return false;
+        }
+
+        lockedTilePosition = legacyLockedPosition;
+        string legacyScope = !string.IsNullOrEmpty(encounterId) ? encounterId : GetPuzzleBoxId();
+        lockedTileEncounterId = $"{legacyScope}_sealed_{legacyLockedPosition.x}_{legacyLockedPosition.y}_guard";
+        return true;
+    }
+
+    public Vector3 GetOverlayBoardCenterWorldPosition()
+    {
+        return transform.position;
     }
 
     private void OnTriggerEnter(Collider other)

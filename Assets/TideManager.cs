@@ -53,12 +53,89 @@ public class TideManager : MonoBehaviour
     private int carriedAmount;
     private bool puzzleSolved;
     private bool isStartingSealedTileCombat;
+    private bool overlayMode;
+    private bool overlayClosing;
+    private string overlayPuzzleBoxId = string.Empty;
+    private string overlayIslandId = string.Empty;
+    private string overlayEncounterId = string.Empty;
+    private float overlayRestorationValue = 0.2f;
+    private PuzzleData overlayPuzzleData;
+    private int[,] overlayLegacyLayout;
+    private Vector2Int overlayLegacySealed = new Vector2Int(-1, -1);
+    private int[,] overlayRuntimeLayout;
+
+    public event Action OverlayExitRequested;
+    public event Action OverlayPuzzleSolved;
 
     public int CarriedAmount => carriedAmount;
     public bool IsCarrying => carriedAmount > 0;
 
     public event Action OnCarriedAmountChanged;
     public event Action OnPuzzleReset;
+
+    public bool IsPuzzleSolved => puzzleSolved;
+    public bool IsOverlayMode => overlayMode;
+    public string OverlayPuzzleBoxId => overlayPuzzleBoxId;
+
+    public void ConfigureOverlaySession(
+        PuzzleData data,
+        int[,] legacyLayout,
+        Vector2Int legacySealed,
+        int[,] runtimeLayout,
+        string puzzleBoxId,
+        string islandId,
+        string encounterId,
+        float restorationValue,
+        Vector3 worldBoardCenter)
+    {
+        overlayMode = true;
+        overlayClosing = false;
+        overlayPuzzleData = data;
+        overlayLegacyLayout = CloneGrid(legacyLayout);
+        overlayLegacySealed = legacySealed;
+        overlayRuntimeLayout = CloneGrid(runtimeLayout);
+        overlayPuzzleBoxId = puzzleBoxId;
+        overlayIslandId = islandId;
+        overlayEncounterId = encounterId;
+        overlayRestorationValue = restorationValue;
+        boardCenter = worldBoardCenter;
+        puzzleIslandId = islandId;
+    }
+
+    public int[,] CaptureCurrentGrid()
+    {
+        int[,] grid = new int[3, 3];
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                TideTile tile = activeTiles[row, col];
+                grid[row, col] = tile != null ? tile.CurrentTideValue : puzzleValues[row, col];
+            }
+        }
+
+        return grid;
+    }
+
+    public void RequestOverlayClose()
+    {
+        if (!overlayMode || overlayClosing)
+        {
+            return;
+        }
+
+        overlayClosing = true;
+
+        if (carryingSource != null)
+        {
+            carryingSource.ApplyPlace(carriedAmount);
+            carryingSource = null;
+            carriedAmount = 0;
+            OnCarriedAmountChanged?.Invoke();
+        }
+
+        OverlayExitRequested?.Invoke();
+    }
 
     public void InitializePuzzle(int[,] layout, Vector2Int sealedTile)
     {
@@ -169,6 +246,12 @@ public class TideManager : MonoBehaviour
 
     private void Start()
     {
+        if (overlayMode)
+        {
+            InitializeOverlaySession();
+            return;
+        }
+
         if (SceneManager.GetActiveScene().name != GameStateManager.PuzzleSceneName)
         {
             enabled = false;
@@ -206,8 +289,40 @@ public class TideManager : MonoBehaviour
         }
     }
 
+    private void InitializeOverlaySession()
+    {
+        if (overlayPuzzleData != null)
+        {
+            InitializePuzzle(overlayPuzzleData);
+        }
+        else if (overlayLegacyLayout != null)
+        {
+            InitializePuzzle(overlayLegacyLayout, overlayLegacySealed);
+        }
+        else
+        {
+            InitializePuzzle(puzzleValues, sealedPosition);
+        }
+
+        if (overlayRuntimeLayout != null)
+        {
+            ApplyRuntimeLayout(overlayRuntimeLayout);
+        }
+
+        GenerateBoard();
+        StoreInitialValues();
+        UpdateTileVisuals();
+        isStartingSealedTileCombat = false;
+    }
+
     private void Update()
     {
+        if (overlayMode && Input.GetKeyDown(KeyCode.Escape))
+        {
+            RequestOverlayClose();
+            return;
+        }
+
         hoveredTile = GetHoveredTile();
 
         if (puzzleSolved)
@@ -392,6 +507,12 @@ public class TideManager : MonoBehaviour
 
         if (hoveredTile.IsSealed)
         {
+            if (overlayMode)
+            {
+                hoveredTile.FlashInvalid();
+                return;
+            }
+
             TryTriggerSealedTileEncounter(hoveredTile);
             return;
         }
@@ -595,6 +716,19 @@ public class TideManager : MonoBehaviour
         puzzleSolved = true;
         if (GameStateManager.Instance != null)
         {
+            if (overlayMode)
+            {
+                GameStateManager.Instance.SavePuzzleRuntimeState(overlayPuzzleBoxId, grid, true);
+                GameStateManager.Instance.CompletePuzzleInExploration(
+                    overlayPuzzleBoxId,
+                    overlayIslandId,
+                    overlayEncounterId,
+                    overlayRestorationValue);
+                StartCoroutine(FlashAllTilesComplete());
+                OverlayPuzzleSolved?.Invoke();
+                return;
+            }
+
             GameStateManager.Instance.MarkPuzzleSolved();
             StartCoroutine(FlashAllTilesComplete());
             StartCoroutine(ReturnToMainSceneAfterDelay());
@@ -807,5 +941,40 @@ public class TideManager : MonoBehaviour
 
         public Vector2Int Position { get; }
         public int StepsTaken { get; }
+    }
+
+    private static int[,] CloneGrid(int[,] source)
+    {
+        if (source == null || source.GetLength(0) != 3 || source.GetLength(1) != 3)
+        {
+            return null;
+        }
+
+        int[,] clone = new int[3, 3];
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                clone[row, col] = source[row, col];
+            }
+        }
+
+        return clone;
+    }
+
+    private void ApplyRuntimeLayout(int[,] runtimeGrid)
+    {
+        if (runtimeGrid == null || runtimeGrid.GetLength(0) != 3 || runtimeGrid.GetLength(1) != 3)
+        {
+            return;
+        }
+
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                puzzleValues[row, col] = Mathf.Clamp(runtimeGrid[row, col], 1, 10);
+            }
+        }
     }
 }
