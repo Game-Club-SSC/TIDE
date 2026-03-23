@@ -36,6 +36,8 @@ public class TopDownFollowCamera : MonoBehaviour
     private float fixedOrthogonalAxis;
     private Vector2 currentVelocity;
     private bool offsetInitialized;
+    private Vector2 cachedDefaultOffset;
+    private bool hasCachedDefaultOffset;
     private float nextTargetSearchTime;
 
     private void Awake()
@@ -168,7 +170,16 @@ public class TopDownFollowCamera : MonoBehaviour
 
         if (preserveInitialOffset)
         {
-            followOffset = GetPlanarPosition(transform.position) - GetPlanarPosition(target.position);
+            if (hasCachedDefaultOffset)
+            {
+                followOffset = cachedDefaultOffset;
+            }
+            else
+            {
+                followOffset = GetPlanarPosition(transform.position) - GetPlanarPosition(target.position);
+                cachedDefaultOffset = followOffset;
+                hasCachedDefaultOffset = true;
+            }
         }
 
         offsetInitialized = true;
@@ -236,5 +247,15 @@ public class TopDownFollowCamera : MonoBehaviour
         return followPlane == FollowPlane.XY
             ? new Vector3(planarPosition.x, planarPosition.y, orthogonalAxis)
             : new Vector3(planarPosition.x, orthogonalAxis, planarPosition.y);
+    }
+
+    public void ResetToDefaultOffset()
+    {
+        if (hasCachedDefaultOffset)
+        {
+            followOffset = cachedDefaultOffset;
+            offsetInitialized = true;
+            currentVelocity = Vector2.zero;
+        }
     }
 }

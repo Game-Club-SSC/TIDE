@@ -10,6 +10,14 @@ public class PuzzleOverlayController : MonoBehaviour
 
     private static readonly Vector3 OverlaySpawnOffset = new Vector3(0f, 0.02f, 0f);
 
+    private bool didSaveCamera;
+    private Vector3 savedCamPosition;
+    private Quaternion savedCamRotation;
+    private bool savedCamOrtho;
+    private float savedCamOrthoSize;
+    private float savedCamFOV;
+    private TopDownFollowCamera savedFollowCamera;
+
     public bool IsSessionOpen => sessionOpen;
 
     private void OnDisable()
@@ -64,6 +72,7 @@ public class PuzzleOverlayController : MonoBehaviour
         activeManager.OverlayPuzzleSolved += OnOverlayPuzzleSolved;
 
         EnsurePuzzleHud();
+        SaveAndZoomCamera(boardCenter);
         return true;
     }
 
@@ -102,6 +111,7 @@ public class PuzzleOverlayController : MonoBehaviour
 
     private void CleanupActiveSession()
     {
+        RestoreCamera();
         sessionOpen = false;
 
         if (activeManager != null)
@@ -118,6 +128,12 @@ public class PuzzleOverlayController : MonoBehaviour
         activeRoot = null;
         activeManager = null;
         activeBox = null;
+
+        PuzzleHud existingHud = FindFirstObjectByType<PuzzleHud>();
+        if (existingHud != null)
+        {
+            Destroy(existingHud.gameObject);
+        }
     }
 
     private static void EnsurePuzzleHud()
@@ -129,5 +145,50 @@ public class PuzzleOverlayController : MonoBehaviour
 
         GameObject hudObject = new GameObject("PuzzleHud");
         hudObject.AddComponent<PuzzleHud>();
+    }
+
+    private void SaveAndZoomCamera(Vector3 boardCenter)
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return;
+
+        didSaveCamera = true;
+        savedCamPosition = cam.transform.position;
+        savedCamRotation = cam.transform.rotation;
+        savedCamOrtho = cam.orthographic;
+        savedCamOrthoSize = cam.orthographicSize;
+        savedCamFOV = cam.fieldOfView;
+
+        savedFollowCamera = cam.GetComponent<TopDownFollowCamera>();
+        if (savedFollowCamera != null)
+        {
+            savedFollowCamera.enabled = false;
+        }
+
+        cam.transform.position = new Vector3(boardCenter.x, 14f, boardCenter.z);
+        cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+        cam.orthographic = true;
+        cam.orthographicSize = 4.5f;
+    }
+
+    private void RestoreCamera()
+    {
+        if (!didSaveCamera) return;
+        didSaveCamera = false;
+
+        Camera cam = Camera.main;
+        if (cam == null) return;
+
+        cam.transform.position = savedCamPosition;
+        cam.transform.rotation = savedCamRotation;
+        cam.orthographic = savedCamOrtho;
+        cam.orthographicSize = savedCamOrthoSize;
+        cam.fieldOfView = savedCamFOV;
+
+        if (savedFollowCamera != null)
+        {
+            savedFollowCamera.enabled = true;
+            savedFollowCamera.SnapToCurrentTarget();
+        }
     }
 }

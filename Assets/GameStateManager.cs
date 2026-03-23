@@ -98,6 +98,7 @@ public class GameStateManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         SceneManager.sceneLoaded += HandleSceneLoaded;
         EnsureRestorationTracker();
+        EnsureProgressionManager();
         EnsureFadeCanvas();
     }
 
@@ -748,6 +749,17 @@ public class GameStateManager : MonoBehaviour
         trackerObject.AddComponent<IslandRestorationTracker>();
     }
 
+    private void EnsureProgressionManager()
+    {
+        if (HeroProgressionManager.Instance != null)
+        {
+            return;
+        }
+
+        GameObject managerObject = new GameObject("HeroProgressionManager");
+        managerObject.AddComponent<HeroProgressionManager>();
+    }
+
     private void ApplySolvedPuzzleBoxesInScene()
     {
         PuzzleBoxInteractable[] boxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsSortMode.None);
@@ -798,7 +810,8 @@ public class GameStateManager : MonoBehaviour
         TopDownFollowCamera followCamera = FindFirstObjectByType<TopDownFollowCamera>();
         if (followCamera != null)
         {
-            followCamera.SetTarget(player.transform, true);
+            followCamera.SetTarget(player.transform, false);
+            followCamera.ResetToDefaultOffset();
             followCamera.SnapToCurrentTarget();
             return;
         }
