@@ -41,6 +41,9 @@ public class OverworldEnemy : MonoBehaviour
 
     [Header("Combat")]
     [SerializeField] private EncounterConfig encounterConfig;
+    [SerializeField] private string islandId = "default";
+    [SerializeField] private string encounterIdOverride = "";
+    [SerializeField] private float restorationValue = 0.001f;
 
     [Header("Puzzle Guard")]
     [SerializeField] private bool isPuzzleGuard;
@@ -91,6 +94,12 @@ public class OverworldEnemy : MonoBehaviour
     private void Start()
     {
         playerTransform = FindPlayer();
+
+        if (ShouldDespawnAsClearedEncounter())
+        {
+            Destroy(gameObject);
+            return;
+        }
 
         if (isPuzzleGuard)
         {
@@ -639,8 +648,22 @@ public class OverworldEnemy : MonoBehaviour
         }
         else
         {
-            Debug.Log($"[OverworldEnemy] {name} initiating combat with '{encounterConfig.displayName}'.");
-            GameStateManager.Instance.EnterCombatScene();
+            string scopedEncounterId = ResolveTrackingEncounterId();
+            if (!string.IsNullOrEmpty(scopedEncounterId))
+            {
+                Vector3 returnPosition = playerTransform != null ? playerTransform.position : transform.position;
+                GameStateManager.Instance.EnterCombatSceneFromExploration(
+                    ResolveTrackingIslandId(),
+                    scopedEncounterId,
+                    Mathf.Max(0.001f, restorationValue),
+                    returnPosition);
+                Debug.Log($"[OverworldEnemy] {name} initiating tracked combat '{scopedEncounterId}'.");
+            }
+            else
+            {
+                Debug.Log($"[OverworldEnemy] {name} initiating combat with '{encounterConfig.displayName}'.");
+                GameStateManager.Instance.EnterCombatScene();
+            }
         }
 
         Destroy(gameObject, 0.1f);
@@ -879,6 +902,59 @@ public class OverworldEnemy : MonoBehaviour
     private static Vector2 GetPlanarPosition(Vector3 position)
     {
         return new Vector2(position.x, position.z);
+    }
+
+    private bool ShouldDespawnAsClearedEncounter()
+    {
+        string scopedEncounterId = ResolveTrackingEncounterId();
+        if (string.IsNullOrEmpty(scopedEncounterId))
+        {
+            return false;
+        }
+
+        if (IslandRestorationTracker.Instance == null)
+        {
+            return false;
+        }
+
+        string scopedIslandId = ResolveTrackingIslandId();
+        if (IslandRestorationTracker.Instance.HasClearedEncounter(scopedIslandId, scopedEncounterId))
+        {
+            Debug.Log($"[OverworldEnemy] Removing '{name}' because encounter '{scopedEncounterId}' is already cleared.");
+            return true;
+        }
+
+        return false;
+    }
+
+    private string ResolveTrackingEncounterId()
+    {
+        if (isPuzzleGuard)
+        {
+            return puzzleGuardEncounterId;
+        }
+
+        if (!string.IsNullOrEmpty(encounterIdOverride))
+        {
+            return encounterIdOverride;
+        }
+
+        if (encounterConfig != null && !string.IsNullOrEmpty(encounterConfig.encounterId))
+        {
+            return encounterConfig.encounterId;
+        }
+
+        return string.Empty;
+    }
+
+    private string ResolveTrackingIslandId()
+    {
+        if (isPuzzleGuard)
+        {
+            return string.IsNullOrEmpty(puzzleGuardIslandId) ? "default" : puzzleGuardIslandId;
+        }
+
+        return string.IsNullOrEmpty(islandId) ? "default" : islandId;
     }
 
     // ========== LIFECYCLE ==========

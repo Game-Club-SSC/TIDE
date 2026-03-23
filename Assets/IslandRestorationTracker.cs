@@ -4,6 +4,12 @@ using UnityEngine;
 
 public class IslandRestorationTracker : MonoBehaviour
 {
+    [Serializable]
+    public sealed class TrackerSnapshot
+    {
+        public List<IslandRestorationStateSnapshot> islands = new List<IslandRestorationStateSnapshot>();
+    }
+
     public static IslandRestorationTracker Instance { get; private set; }
 
     public event Action<string, float> OnRestorationChanged;
@@ -25,6 +31,7 @@ public class IslandRestorationTracker : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+
     }
 
     private void OnDestroy()
@@ -86,6 +93,11 @@ public class IslandRestorationTracker : MonoBehaviour
             Debug.Log($"[IslandRestorationTracker] Island '{islandId}' fully restored!");
             OnIslandRestored?.Invoke(islandId);
         }
+
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.SaveWorldState();
+        }
     }
 
     public void ResetTracker()
@@ -103,6 +115,11 @@ public class IslandRestorationTracker : MonoBehaviour
         IslandRestorationState state = GetOrCreateState(islandId);
         state.Reset();
         OnRestorationChanged?.Invoke(islandId, 0f);
+
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.SaveWorldState();
+        }
     }
 
     public float GetRestorationPercent(string islandId)
@@ -191,6 +208,56 @@ public class IslandRestorationTracker : MonoBehaviour
         }
 
         return state.HasCompleted(encounterId);
+    }
+
+    public TrackerSnapshot CaptureSnapshot()
+    {
+        TrackerSnapshot snapshot = new TrackerSnapshot();
+        foreach (KeyValuePair<string, IslandRestorationState> pair in islandStates)
+        {
+            if (pair.Value != null)
+            {
+                snapshot.islands.Add(pair.Value.CaptureSnapshot());
+            }
+        }
+
+        return snapshot;
+    }
+
+    public void ApplySnapshot(TrackerSnapshot snapshot)
+    {
+        if (snapshot == null)
+        {
+            return;
+        }
+
+        islandStates.Clear();
+
+        if (snapshot.islands != null)
+        {
+            for (int i = 0; i < snapshot.islands.Count; i++)
+            {
+                IslandRestorationStateSnapshot stateSnapshot = snapshot.islands[i];
+                if (stateSnapshot == null)
+                {
+                    continue;
+                }
+
+                string scopedIslandId = string.IsNullOrEmpty(stateSnapshot.islandId) ? DefaultIslandId : stateSnapshot.islandId;
+                IslandRestorationState state = new IslandRestorationState(scopedIslandId);
+                state.ApplySnapshot(stateSnapshot);
+                islandStates[scopedIslandId] = state;
+            }
+        }
+
+        foreach (KeyValuePair<string, IslandRestorationState> pair in islandStates)
+        {
+            OnRestorationChanged?.Invoke(pair.Key, pair.Value.TotalContribution);
+            if (pair.Value.IsIslandRestored)
+            {
+                OnIslandRestored?.Invoke(pair.Key);
+            }
+        }
     }
 
     private IslandRestorationState GetOrCreateState(string islandId)

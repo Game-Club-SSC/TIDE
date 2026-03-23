@@ -10,6 +10,7 @@ public class ExplorationMapUI : MonoBehaviour
 
     [Header("Input")]
     [SerializeField] private KeyCode toggleKey = KeyCode.M;
+    [SerializeField] private KeyCode loreLogKey = KeyCode.L;
 
     [Header("Tracking")]
     [SerializeField] private string islandId = "island_1";
@@ -94,6 +95,11 @@ public class ExplorationMapUI : MonoBehaviour
         if (Input.GetKeyDown(toggleKey))
         {
             ToggleMapSize();
+        }
+
+        if (Input.GetKeyDown(loreLogKey))
+        {
+            OpenAncientTextLog();
         }
 
         ResolvePlayer();
@@ -356,7 +362,7 @@ public class ExplorationMapUI : MonoBehaviour
 
             if (hintLabel != null)
             {
-                hintLabel.text = $"[{toggleKey}] Minimize";
+                hintLabel.text = $"[{toggleKey}] Minimize  [{loreLogKey}] Lore";
             }
         }
         else
@@ -379,7 +385,7 @@ public class ExplorationMapUI : MonoBehaviour
 
             if (hintLabel != null)
             {
-                hintLabel.text = $"[{toggleKey}] Expand";
+                hintLabel.text = $"[{toggleKey}] Expand  [{loreLogKey}] Lore";
             }
         }
 
@@ -565,5 +571,20 @@ public class ExplorationMapUI : MonoBehaviour
         }
 
         mapMarkers.Clear();
+    }
+
+    private void OpenAncientTextLog()
+    {
+        AncientTextLogUI logUi = FindFirstObjectByType<AncientTextLogUI>();
+        if (logUi == null)
+        {
+            GameObject logObject = new GameObject("AncientTextLogUI");
+            logUi = logObject.AddComponent<AncientTextLogUI>();
+        }
+
+        if (logUi != null)
+        {
+            logUi.ShowDiscoveredLog();
+        }
     }
 }

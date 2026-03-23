@@ -3,6 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
+public sealed class IslandRestorationStateSnapshot
+{
+    public string islandId;
+    public float combatContribution;
+    public float puzzleContribution;
+    public float totalContribution;
+    public int combatEncountersCompleted;
+    public int puzzleEncountersCompleted;
+    public List<string> completedEncounterIds = new List<string>();
+}
+
+[Serializable]
 public class IslandRestorationState
 {
     [SerializeField] private string islandId;
@@ -74,5 +86,53 @@ public class IslandRestorationState
         combatEncountersCompleted = 0;
         puzzleEncountersCompleted = 0;
         completedEncounterIds.Clear();
+    }
+
+    public IslandRestorationStateSnapshot CaptureSnapshot()
+    {
+        IslandRestorationStateSnapshot snapshot = new IslandRestorationStateSnapshot
+        {
+            islandId = this.islandId,
+            combatContribution = this.combatContribution,
+            puzzleContribution = this.puzzleContribution,
+            totalContribution = this.totalContribution,
+            combatEncountersCompleted = this.combatEncountersCompleted,
+            puzzleEncountersCompleted = this.puzzleEncountersCompleted,
+            completedEncounterIds = new List<string>(completedEncounterIds)
+        };
+
+        return snapshot;
+    }
+
+    public void ApplySnapshot(IslandRestorationStateSnapshot snapshot)
+    {
+        if (snapshot == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(snapshot.islandId))
+        {
+            islandId = snapshot.islandId;
+        }
+
+        combatContribution = Mathf.Max(0f, snapshot.combatContribution);
+        puzzleContribution = Mathf.Max(0f, snapshot.puzzleContribution);
+        totalContribution = Mathf.Clamp01(combatContribution + puzzleContribution);
+        combatEncountersCompleted = Mathf.Max(0, snapshot.combatEncountersCompleted);
+        puzzleEncountersCompleted = Mathf.Max(0, snapshot.puzzleEncountersCompleted);
+
+        completedEncounterIds.Clear();
+        if (snapshot.completedEncounterIds != null)
+        {
+            for (int i = 0; i < snapshot.completedEncounterIds.Count; i++)
+            {
+                string encounterId = snapshot.completedEncounterIds[i];
+                if (!string.IsNullOrEmpty(encounterId) && !completedEncounterIds.Contains(encounterId))
+                {
+                    completedEncounterIds.Add(encounterId);
+                }
+            }
+        }
     }
 }

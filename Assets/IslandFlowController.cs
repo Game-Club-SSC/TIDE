@@ -88,10 +88,11 @@ public class IslandFlowController : MonoBehaviour
             return;
         }
 
-        currentEncounterIndex = 0;
         isActive = true;
         awaitingEncounterResolution = false;
-        tracker.ResetIsland(islandConfig.islandId);
+
+        int restoredIndex = GetNextIncompleteEncounterIndex();
+        currentEncounterIndex = Mathf.Clamp(restoredIndex, 0, islandConfig.encounters.Length);
 
         if (GameStateManager.Instance != null)
         {
@@ -179,6 +180,14 @@ public class IslandFlowController : MonoBehaviour
         }
 
         EncounterDefinition encounter = islandConfig.encounters[currentEncounterIndex];
+        string encounterId = GetEncounterId(encounter, currentEncounterIndex);
+        if (tracker != null && tracker.HasClearedEncounter(islandConfig.islandId, encounterId))
+        {
+            currentEncounterIndex++;
+            LoadCurrentEncounter();
+            return;
+        }
+
         int subsection = currentEncounterIndex / 2;
         int totalSubsections = Mathf.Max(1, (islandConfig.encounters.Length + 1) / 2);
 
@@ -247,5 +256,25 @@ public class IslandFlowController : MonoBehaviour
         return encounter.type == EncounterType.Combat
             ? $"combat_{index / 2 + 1}"
             : $"puzzle_{index / 2 + 1}";
+    }
+
+    private int GetNextIncompleteEncounterIndex()
+    {
+        if (tracker == null || islandConfig == null || islandConfig.encounters == null)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < islandConfig.encounters.Length; i++)
+        {
+            EncounterDefinition encounter = islandConfig.encounters[i];
+            string encounterId = GetEncounterId(encounter, i);
+            if (!tracker.HasClearedEncounter(islandConfig.islandId, encounterId))
+            {
+                return i;
+            }
+        }
+
+        return islandConfig.encounters.Length;
     }
 }
