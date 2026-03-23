@@ -26,6 +26,8 @@ public class BattleHud : MonoBehaviour
         public Text TargetLabel;
         public Text StatusLabel;
         public CombatUnit TrackedUnit;
+        public float DisplayedHpRatio = 1f;
+        public float DisplayedMpRatio = 1f;
     }
 
     private List<WorldHealthBar> worldBars = new List<WorldHealthBar>();
@@ -43,6 +45,11 @@ public class BattleHud : MonoBehaviour
     private Text clashTitle;
     private Text clashSubtitle;
     private float clashDisplayTimer;
+
+    // Crit announcement
+    private GameObject critOverlay;
+    private Text critLabel;
+    private float critDisplayTimer;
 
     // Momentum
     private Image momentumFill;
@@ -65,6 +72,11 @@ public class BattleHud : MonoBehaviour
     // TideBreak selection
     private GameObject tideBreakPanel;
     private List<Button> tideBreakButtons = new List<Button>();
+
+    // Skill selection
+    private GameObject skillPanel;
+    private List<Button> skillButtons = new List<Button>();
+    private SkillData selectedSkillData;
 
     // State display
     private Text turnLabel;
@@ -97,6 +109,8 @@ public class BattleHud : MonoBehaviour
             targetPanel.SetActive(!isMenuOpen && targetPanel.activeSelf); // Keep its previous state but hide if menu open
         if (tideBreakPanel != null)
             tideBreakPanel.SetActive(!isMenuOpen && tideBreakPanel.activeSelf);
+        if (skillPanel != null)
+            skillPanel.SetActive(!isMenuOpen && skillPanel.activeSelf);
 
         if (battleManager == null)
         {
@@ -123,6 +137,15 @@ public class BattleHud : MonoBehaviour
                 clashOverlay.SetActive(false);
             }
         }
+
+        if (critOverlay != null && critOverlay.activeSelf)
+        {
+            critDisplayTimer -= Time.deltaTime;
+            if (critDisplayTimer <= 0f)
+            {
+                critOverlay.SetActive(false);
+            }
+        }
     }
 
     private void TryFindBattleManager()
@@ -132,6 +155,7 @@ public class BattleHud : MonoBehaviour
         {
             battleManager.Momentum.OnMomentumChanged += OnMomentumChanged;
             battleManager.OnClashResolved += OnClashResolved;
+            battleManager.OnDamageDealt += OnDamageDealt;
         }
     }
 
@@ -146,6 +170,7 @@ public class BattleHud : MonoBehaviour
         {
             battleManager.Momentum.OnMomentumChanged -= OnMomentumChanged;
             battleManager.OnClashResolved -= OnClashResolved;
+            battleManager.OnDamageDealt -= OnDamageDealt;
         }
     }
 
@@ -181,6 +206,23 @@ public class BattleHud : MonoBehaviour
             clashSubtitle.text = $"{result.UnitA.UnitName} vs {result.UnitB.UnitName} — Neutral!";
             clashSubtitle.color = new Color(1f, 0.85f, 0.5f);
         }
+    }
+
+    private void OnDamageDealt(CombatUnit actor, bool isCrit)
+    {
+        if (isCrit)
+        {
+            ShowCritAnnouncement(actor);
+        }
+    }
+
+    private void ShowCritAnnouncement(CombatUnit actor)
+    {
+        if (critOverlay == null) return;
+        critOverlay.SetActive(true);
+        critDisplayTimer = 1.2f;
+        critLabel.text = "CRITICAL!";
+        critLabel.color = new Color(1f, 0.85f, 0.2f);
     }
 
     private void RefreshDisplay()
@@ -429,13 +471,19 @@ public class BattleHud : MonoBehaviour
     private void SetupWorldBar(WorldHealthBar bar, CombatUnit unit, Color nameColor)
     {
         bar.Root.gameObject.SetActive(true);
+        if (bar.TrackedUnit != unit)
+        {
+            bar.DisplayedHpRatio = unit.MaxHP > 0 ? (float)unit.HP / unit.MaxHP : 0f;
+            bar.DisplayedMpRatio = unit.MaxMP > 0 ? (float)unit.MP / unit.MaxMP : 0f;
+        }
         bar.TrackedUnit = unit;
 
         bar.NameLabel.text = unit.UnitName;
         bar.NameLabel.color = unit.IsAlive ? nameColor : Color.gray;
 
         float hpRatio = unit.MaxHP > 0 ? (float)unit.HP / unit.MaxHP : 0f;
-        bar.HpFill.fillAmount = hpRatio;
+        bar.DisplayedHpRatio = Mathf.MoveTowards(bar.DisplayedHpRatio, hpRatio, Time.deltaTime * 5f);
+        bar.HpFill.fillAmount = bar.DisplayedHpRatio;
 
         Color hpColor;
         if (hpRatio > 0.5f)
@@ -591,6 +639,10 @@ public class BattleHud : MonoBehaviour
             {
                 tideBreakPanel.SetActive(false);
             }
+            if (skillPanel != null)
+            {
+                skillPanel.SetActive(false);
+            }
             return;
         }
 
@@ -710,30 +762,114 @@ public class BattleHud : MonoBehaviour
         CombatUnit currentInput = battleManager.GetCurrentInputUnit();
         if (currentInput == null) return;
         
-        SkillData skill = currentInput.Skills != null && currentInput.Skills.Length > 0 ? currentInput.Skills[0] : null;
-        if (skill == null)
+        if (currentInput.Skills == null || currentInput.Skills.Length == 0)
         {
             Debug.Log("[BattleHud] No skill available for current unit.");
             return;
         }
-        
+
+        if (currentInput.Skills.Length > 1)
+        {
+            ShowSkillSelectionPanel(currentInput);
+            return;
+        }
+
+        selectedSkillData = currentInput.Skills[0];
+        HandleSkillTargetType(selectedSkillData);
+    }
+
+    private void HandleSkillTargetType(SkillData skill)
+    {
         switch (skill.target)
         {
             case SkillTarget.AllEnemies:
-                // AoE skill: skip target selection, assign with null target
+                battleManager.SetPendingSkill(skill);
                 battleManager.TryAssignActionFromHud(CombatActionType.Skill, null);
                 break;
             case SkillTarget.SingleAlly:
                 Debug.Log("[BattleHud] SingleAlly skill target not implemented. Skipping.");
                 break;
             case SkillTarget.Self:
-                Debug.Log("[BattleHud] Self skill target not implemented. Skipping.");
+                battleManager.SetPendingSkill(skill);
+                battleManager.TryAssignActionFromHud(CombatActionType.Skill, null);
                 break;
             case SkillTarget.SingleEnemy:
             default:
+                battleManager.SetPendingSkill(skill);
                 ShowTargetSelection(CombatActionType.Skill);
                 break;
         }
+    }
+
+    private void ShowSkillSelectionPanel(CombatUnit actor)
+    {
+        if (battleManager == null || skillPanel == null) return;
+
+        targetPanel.SetActive(false);
+        foreach (Button btn in skillButtons) { Destroy(btn.gameObject); }
+        skillButtons.Clear();
+
+        if (actor.Skills == null || actor.Skills.Length == 0)
+        {
+            skillPanel.SetActive(false);
+            return;
+        }
+
+        skillPanel.SetActive(true);
+        for (int i = 0; i < actor.Skills.Length; i++)
+        {
+            SkillData skill = actor.Skills[i];
+            if (skill == null) continue;
+
+            GameObject btnObj = new GameObject($"Skill_{i}", typeof(RectTransform));
+            btnObj.transform.SetParent(skillPanel.transform, false);
+
+            RectTransform rect = btnObj.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.1f, 0.55f - i * 0.25f);
+            rect.anchorMax = new Vector2(0.9f, 0.75f - i * 0.25f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            Image img = btnObj.AddComponent<Image>();
+            bool canUse = actor.CanUseSkill(skill);
+            img.color = canUse ? new Color(0.2f, 0.2f, 0.3f, 1f) : new Color(0.3f, 0.15f, 0.15f, 1f);
+
+            Button btn = btnObj.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.interactable = canUse;
+            ColorBlock colors = btn.colors;
+            colors.highlightedColor = new Color(0.3f, 0.3f, 0.5f, 1f);
+            colors.pressedColor = new Color(0.15f, 0.15f, 0.25f, 1f);
+            btn.colors = colors;
+
+            GameObject textObj = new GameObject("Text", typeof(RectTransform));
+            textObj.transform.SetParent(btnObj.transform, false);
+            RectTransform tr = textObj.GetComponent<RectTransform>();
+            tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one;
+            tr.offsetMin = Vector2.zero; tr.offsetMax = Vector2.zero;
+            Text text = textObj.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 16;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = canUse ? new Color(0.9f, 0.9f, 1f) : new Color(0.6f, 0.4f, 0.4f);
+            string mpLabel = canUse ? $"({skill.mpCost} MP)" : $"(No MP)";
+            text.text = $"{skill.skillName} {mpLabel}";
+            text.raycastTarget = false;
+
+            SkillData capturedSkill = skill;
+            btn.onClick.AddListener(() => OnSkillSelected(capturedSkill));
+            skillButtons.Add(btn);
+        }
+    }
+
+    private void OnSkillSelected(SkillData skill)
+    {
+        skillPanel.SetActive(false);
+        if (battleManager == null || skill == null) return;
+
+        selectedSkillData = skill;
+        HandleSkillTargetType(skill);
     }
 
     private void ShowTBSelectionPanel(CombatUnit actor)
@@ -918,12 +1054,14 @@ public class BattleHud : MonoBehaviour
 
         CreateActionPanel(canvasObject.transform);
         CreateTargetPanel(canvasObject.transform);
+        CreateSkillSelectionPanel(canvasObject.transform);
         CreateTBSelectionPanel(canvasObject.transform);
         CreateMomentumPanel(canvasObject.transform);
         CreateTurnLabel(canvasObject.transform);
         CreateVictoryOverlay(canvasObject.transform);
         CreateDefeatOverlay(canvasObject.transform);
         CreateClashOverlay(canvasObject.transform);
+        CreateCritOverlay(canvasObject.transform);
     }
 
     private void EnsureEventSystem()
@@ -1057,6 +1195,30 @@ public class BattleHud : MonoBehaviour
 
             targetButtons.Add(btn);
         }
+    }
+
+    private void CreateSkillSelectionPanel(Transform parent)
+    {
+        skillPanel = CreatePanel("SkillSelectionPanel", parent,
+            new Vector2(0.32f, 0.14f), new Vector2(0.68f, 0.42f),
+            new Color(0.08f, 0.12f, 0.08f, 0.95f));
+        skillPanel.SetActive(false);
+
+        GameObject titleObj = new GameObject("Title", typeof(RectTransform));
+        titleObj.transform.SetParent(skillPanel.transform, false);
+        Text title = titleObj.AddComponent<Text>();
+        RectTransform titleRect = title.rectTransform;
+        titleRect.anchorMin = new Vector2(0f, 0.8f);
+        titleRect.anchorMax = new Vector2(1f, 1f);
+        titleRect.offsetMin = Vector2.zero;
+        titleRect.offsetMax = Vector2.zero;
+        title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        title.fontSize = 18;
+        title.fontStyle = FontStyle.Bold;
+        title.alignment = TextAnchor.MiddleCenter;
+        title.color = new Color(0.5f, 1f, 0.6f);
+        title.text = "Select Skill";
+        title.raycastTarget = false;
     }
 
     private void CreateTBSelectionPanel(Transform parent)
@@ -1296,6 +1458,40 @@ public class BattleHud : MonoBehaviour
         clashSubtitle.raycastTarget = false;
 
         clashOverlay.SetActive(false);
+    }
+
+    private void CreateCritOverlay(Transform parent)
+    {
+        critOverlay = new GameObject("CritOverlay", typeof(RectTransform));
+        critOverlay.transform.SetParent(parent, false);
+
+        RectTransform rootRect = critOverlay.GetComponent<RectTransform>();
+        rootRect.anchorMin = new Vector2(0.3f, 0.52f);
+        rootRect.anchorMax = new Vector2(0.7f, 0.6f);
+        rootRect.offsetMin = Vector2.zero;
+        rootRect.offsetMax = Vector2.zero;
+
+        Image bgImg = critOverlay.AddComponent<Image>();
+        bgImg.color = new Color(0f, 0f, 0f, 0.6f);
+        bgImg.raycastTarget = false;
+
+        GameObject labelObj = new GameObject("CritLabel", typeof(RectTransform));
+        labelObj.transform.SetParent(critOverlay.transform, false);
+        RectTransform labelRect = labelObj.GetComponent<RectTransform>();
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+        critLabel = labelObj.AddComponent<Text>();
+        critLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        critLabel.fontSize = 40;
+        critLabel.fontStyle = FontStyle.Bold;
+        critLabel.alignment = TextAnchor.MiddleCenter;
+        critLabel.color = new Color(1f, 0.85f, 0.2f);
+        critLabel.text = "";
+        critLabel.raycastTarget = false;
+
+        critOverlay.SetActive(false);
     }
 
     private GameObject CreatePanel(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Color bgColor)

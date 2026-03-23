@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -529,6 +530,35 @@ public class CombatSceneBootstrap : MonoBehaviour
         if (hero.starterSkills != null)
         {
             unit.SetSkills(hero.starterSkills);
+        }
+
+        AssignElementTideBreaks(unit, hero);
+    }
+
+    private static void AssignElementTideBreaks(CombatUnit unit, HeroData hero)
+    {
+        if (unit == null || hero == null)
+        {
+            return;
+        }
+
+        int level = 1;
+        if (HeroProgressionManager.Instance != null)
+        {
+            level = HeroProgressionManager.Instance.GetLevel(hero.heroId);
+        }
+
+        int elementId = (int)hero.element;
+        if (elementId <= 0)
+        {
+            return;
+        }
+
+        List<TideBreakData> tbs = TideBreakData.GetForElement(elementId, level);
+        if (tbs.Count > 0)
+        {
+            unit.SetTideBreaks(tbs);
+            Debug.Log($"[CombatSceneBootstrap] Assigned {tbs.Count} TideBreak(s) to {unit.UnitName} (element {elementId}).");
         }
     }
 

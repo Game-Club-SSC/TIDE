@@ -918,8 +918,25 @@ public class BattleManager : MonoBehaviour
                 return;
 
             case SkillTarget.Self:
-                Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} targeting self (not implemented). Attacking instead.", this);
-                ResolveAttack(actor, requestedTarget);
+                if (!actor.CanUseSkill(skill))
+                {
+                    Debug.Log($"[BattleManager] {actor.UnitName} lacks MP for {skill.skillName}. Attacking instead.", this);
+                    ResolveAttack(actor, requestedTarget);
+                    return;
+                }
+
+                actor.SpendMp(skill.mpCost);
+
+                if (skill.appliedEffectType != StatusEffectType.None)
+                {
+                    StatusEffect selfEffect = new StatusEffect(skill.appliedEffectType, skill.effectDuration, skill.effectMagnitude, actor.UnitName);
+                    actor.ApplyStatusEffect(selfEffect);
+                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on self. Applied {skill.appliedEffectType}.", this);
+                }
+                else
+                {
+                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on self.", this);
+                }
                 return;
 
             case SkillTarget.SingleEnemy:
@@ -1422,7 +1439,7 @@ public class BattleManager : MonoBehaviour
                 {
                     return false;
                 }
-                SkillData skill = actor.Skills[0];
+                SkillData skill = pendingSkillData ?? actor.Skills[0];
                 if (!actor.CanUseSkill(skill))
                 {
                     return false;
@@ -1433,6 +1450,16 @@ public class BattleManager : MonoBehaviour
                 {
                     // target can be null, we still assign action
                     AssignPlayerAction(actor, CombatActionType.Skill, target, skill);
+                    pendingSkillData = null;
+                    TryAutoConfirmPlayerActions();
+                    return true;
+                }
+
+                // For self-target skills, target can be null
+                if (skill.target == SkillTarget.Self)
+                {
+                    AssignPlayerAction(actor, CombatActionType.Skill, null, skill);
+                    pendingSkillData = null;
                     TryAutoConfirmPlayerActions();
                     return true;
                 }
@@ -1444,6 +1471,7 @@ public class BattleManager : MonoBehaviour
                 }
                 
                 AssignPlayerAction(actor, CombatActionType.Skill, target, skill);
+                pendingSkillData = null;
                 TryAutoConfirmPlayerActions();
                 return true;
 
@@ -1581,6 +1609,11 @@ public class BattleManager : MonoBehaviour
     public void SetPendingTideBreak(TideBreakData tb)
     {
         pendingTideBreak = tb;
+    }
+
+    public void SetPendingSkill(SkillData skill)
+    {
+        pendingSkillData = skill;
     }
 
     private void TryAutoConfirmPlayerActions()

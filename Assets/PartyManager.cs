@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -188,6 +189,19 @@ public class PartyManager : MonoBehaviour
             HeroProgressionManager.Instance.ApplyStatGrowth(unit, hero);
         }
 
+        int elementId = (int)ResolveElement(hero);
+        if (elementId > 0)
+        {
+            int level = HeroProgressionManager.Instance != null
+                ? HeroProgressionManager.Instance.GetLevel(hero.heroId)
+                : 1;
+            List<TideBreakData> tbs = TideBreakData.GetForElement(elementId, level);
+            if (tbs.Count > 0)
+            {
+                unit.SetTideBreaks(tbs);
+            }
+        }
+
         Debug.Log($"[PartyManager] Applied hero '{hero.displayName}' ({unit.ElementType}) to unit.");
     }
 
@@ -221,6 +235,19 @@ public class PartyManager : MonoBehaviour
         {
             HeroProgressionManager.Instance.ApplyStatGrowth(unit, hero);
         }
+
+        int elementId = (int)hero.element;
+        if (elementId > 0)
+        {
+            int level = HeroProgressionManager.Instance != null
+                ? HeroProgressionManager.Instance.GetLevel(hero.heroId)
+                : 1;
+            List<TideBreakData> tbs = TideBreakData.GetForElement(elementId, level);
+            if (tbs.Count > 0)
+            {
+                unit.SetTideBreaks(tbs);
+            }
+        }
     }
 
     public static void ApplyHeroToUnitWithElement(CombatUnit unit, HeroData hero, CombatUnit.Element element)
@@ -248,6 +275,19 @@ public class PartyManager : MonoBehaviour
         if (HeroProgressionManager.Instance != null)
         {
             HeroProgressionManager.Instance.ApplyStatGrowth(unit, hero);
+        }
+
+        int elementId = (int)element;
+        if (elementId > 0)
+        {
+            int level = HeroProgressionManager.Instance != null
+                ? HeroProgressionManager.Instance.GetLevel(hero.heroId)
+                : 1;
+            List<TideBreakData> tbs = TideBreakData.GetForElement(elementId, level);
+            if (tbs.Count > 0)
+            {
+                unit.SetTideBreaks(tbs);
+            }
         }
     }
 }
