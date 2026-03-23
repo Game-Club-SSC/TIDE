@@ -38,6 +38,9 @@ public class GameStateManager : MonoBehaviour
     private IsometricPlayer player;
     private Vector3 pendingReturnPosition;
     private bool hasPendingReturnPosition;
+    private Vector3 pendingCameraPosition;
+    private Quaternion pendingCameraRotation;
+    private bool hasPendingCameraTransform;
     private bool isTransitioning;
     private bool hasHandledSceneLoad;
 
@@ -64,6 +67,7 @@ public class GameStateManager : MonoBehaviour
     private string pendingSolvedPuzzleBoxId;
     private bool returnToPuzzleAfterCombat;
     private bool hasPendingCombatReturnPosition;
+    private Coroutine cameraSnapRoutine;
     private readonly Dictionary<string, PuzzleRuntimeState> puzzleRuntimeStates = new Dictionary<string, PuzzleRuntimeState>();
 
     public float GetIslandRestorationPercent(string islandId)
@@ -176,6 +180,7 @@ public class GameStateManager : MonoBehaviour
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = true;
+        CaptureExplorationCameraTransform();
         BeginCombatTransition();
     }
 
@@ -610,6 +615,8 @@ public class GameStateManager : MonoBehaviour
                 }
             }
 
+            ApplyPendingCameraTransformIfAvailable();
+
             hasPendingReturnPosition = false;
             hasPendingCombatReturnPosition = false;
 
@@ -620,6 +627,13 @@ public class GameStateManager : MonoBehaviour
             }
 
             SnapFollowCameraToPlayer();
+
+            if (cameraSnapRoutine != null)
+            {
+                StopCoroutine(cameraSnapRoutine);
+            }
+
+            cameraSnapRoutine = StartCoroutine(SnapFollowCameraAfterLoad());
 
             if (isFlowControlledCombat)
             {
@@ -736,6 +750,20 @@ public class GameStateManager : MonoBehaviour
         pendingReturnPosition = player.transform.position;
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = true;
+        CaptureExplorationCameraTransform();
+    }
+
+    private void CaptureExplorationCameraTransform()
+    {
+        Camera activeCamera = Camera.main;
+        if (activeCamera == null)
+        {
+            return;
+        }
+
+        pendingCameraPosition = activeCamera.transform.position;
+        pendingCameraRotation = activeCamera.transform.rotation;
+        hasPendingCameraTransform = true;
     }
 
     private void EnsureRestorationTracker()
@@ -825,5 +853,41 @@ public class GameStateManager : MonoBehaviour
         Vector3 currentPosition = activeCamera.transform.position;
         Vector3 toPlayer = player.transform.position;
         activeCamera.transform.position = new Vector3(toPlayer.x, currentPosition.y, toPlayer.z);
+    }
+
+    private IEnumerator SnapFollowCameraAfterLoad()
+    {
+        yield return null;
+        ApplyPendingCameraTransformIfAvailable();
+        SnapFollowCameraToPlayer();
+        yield return new WaitForEndOfFrame();
+        ApplyPendingCameraTransformIfAvailable();
+        SnapFollowCameraToPlayer();
+        cameraSnapRoutine = null;
+    }
+
+    private void ApplyPendingCameraTransformIfAvailable()
+    {
+        if (!hasPendingCameraTransform)
+        {
+            return;
+        }
+
+        Camera activeCamera = Camera.main;
+        if (activeCamera == null)
+        {
+            return;
+        }
+
+        activeCamera.transform.position = pendingCameraPosition;
+        activeCamera.transform.rotation = pendingCameraRotation;
+
+        TopDownFollowCamera followCamera = activeCamera.GetComponent<TopDownFollowCamera>();
+        if (followCamera != null)
+        {
+            followCamera.CaptureCurrentOffsetAsDefault();
+        }
+
+        hasPendingCameraTransform = false;
     }
 }
