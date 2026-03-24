@@ -1,9 +1,12 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
 public class BossEncounterGate : MonoBehaviour
 {
     private const string DefeatsKeyPrefix = "TIDE_FINAL_BOSS_DEFEATS_";
+    private static readonly bool EnablePersistentSaveData = false;
+    private static readonly Dictionary<string, int> runtimeDefeatCounts = new Dictionary<string, int>();
 
     [Header("Threshold")]
     [SerializeField] private string islandId = "";
@@ -49,6 +52,17 @@ public class BossEncounterGate : MonoBehaviour
             return 0;
         }
 
+        if (!EnablePersistentSaveData)
+        {
+            string defeatsKey = GetDefeatsKey();
+            if (runtimeDefeatCounts.TryGetValue(defeatsKey, out int runtimeDefeats))
+            {
+                return Mathf.Max(0, runtimeDefeats);
+            }
+
+            return 0;
+        }
+
         return PlayerPrefs.GetInt(GetDefeatsKey(), 0);
     }
 
@@ -60,8 +74,15 @@ public class BossEncounterGate : MonoBehaviour
         }
 
         int defeats = Mathf.Max(0, GetDefeatCount()) + 1;
-        PlayerPrefs.SetInt(GetDefeatsKey(), defeats);
-        PlayerPrefs.Save();
+        if (EnablePersistentSaveData)
+        {
+            PlayerPrefs.SetInt(GetDefeatsKey(), defeats);
+            PlayerPrefs.Save();
+        }
+        else
+        {
+            runtimeDefeatCounts[GetDefeatsKey()] = defeats;
+        }
 
         bool reachedBadEnding = defeats >= Mathf.Max(1, defeatsForBadEnding);
         if (reachedBadEnding)
@@ -80,8 +101,15 @@ public class BossEncounterGate : MonoBehaviour
             return;
         }
 
-        PlayerPrefs.DeleteKey(GetDefeatsKey());
-        PlayerPrefs.Save();
+        if (EnablePersistentSaveData)
+        {
+            PlayerPrefs.DeleteKey(GetDefeatsKey());
+            PlayerPrefs.Save();
+        }
+        else
+        {
+            runtimeDefeatCounts.Remove(GetDefeatsKey());
+        }
     }
 
     public void SetDefeatCount(int defeats)
@@ -92,8 +120,15 @@ public class BossEncounterGate : MonoBehaviour
         }
 
         int sanitized = Mathf.Max(0, defeats);
-        PlayerPrefs.SetInt(GetDefeatsKey(), sanitized);
-        PlayerPrefs.Save();
+        if (EnablePersistentSaveData)
+        {
+            PlayerPrefs.SetInt(GetDefeatsKey(), sanitized);
+            PlayerPrefs.Save();
+        }
+        else
+        {
+            runtimeDefeatCounts[GetDefeatsKey()] = sanitized;
+        }
     }
 
     private void OnEnable()

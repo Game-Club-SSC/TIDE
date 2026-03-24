@@ -69,6 +69,7 @@ public class GameStateManager : MonoBehaviour
 
     private const float FadeDuration = 0.2f;
     private const string WorldStateSaveKey = "TIDE_WORLD_STATE_V1";
+    private static readonly bool EnablePersistentSaveData = false;
 
     private CanvasGroup fadeCanvasGroup;
     private IsometricPlayer player;
@@ -542,6 +543,11 @@ public class GameStateManager : MonoBehaviour
 
     public void SaveWorldState()
     {
+        if (!EnablePersistentSaveData)
+        {
+            return;
+        }
+
         if (isSavingWorldState || isLoadingWorldState)
         {
             return;
@@ -617,12 +623,17 @@ public class GameStateManager : MonoBehaviour
 
     public void LoadWorldState()
     {
-        if (isLoadingWorldState)
+        hasLoadedWorldState = true;
+
+        if (!EnablePersistentSaveData)
         {
             return;
         }
 
-        hasLoadedWorldState = true;
+        if (isLoadingWorldState)
+        {
+            return;
+        }
 
         if (!PlayerPrefs.HasKey(WorldStateSaveKey))
         {
@@ -1329,6 +1340,11 @@ public class GameStateManager : MonoBehaviour
 
     private void SaveFinalBossDefeatState()
     {
+        if (!EnablePersistentSaveData)
+        {
+            return;
+        }
+
         FinalBossDefeatSaveCollection payload = new FinalBossDefeatSaveCollection();
         BossEncounterGate[] gates = FindObjectsByType<BossEncounterGate>(FindObjectsSortMode.None);
         for (int i = 0; i < gates.Length; i++)
@@ -1354,6 +1370,11 @@ public class GameStateManager : MonoBehaviour
 
     private void LoadFinalBossDefeatStateIfAvailable()
     {
+        if (!EnablePersistentSaveData)
+        {
+            return;
+        }
+
         if (!PlayerPrefs.HasKey(FinalBossDefeatsSaveKey))
         {
             return;
