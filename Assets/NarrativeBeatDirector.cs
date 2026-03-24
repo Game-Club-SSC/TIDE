@@ -12,13 +12,18 @@ public class NarrativeBeatDirector : MonoBehaviour
     [SerializeField] private float introDelaySeconds = 1.2f;
     [SerializeField] private float beatRepeatCooldown = 6f;
     [SerializeField] private string primaryIslandId = "default";
+    [SerializeField] private float preCombatTriggerDistance = 6f;
+    [SerializeField] private float minimumPlayerTravelBeforePreCombatBeat = 1.5f;
 
     private float introTimer;
     private float beatCooldownTimer;
     private bool introQueued;
+    private Vector3 explorationStartPosition;
+    private bool hasExplorationStartPosition;
 
     private void OnEnable()
     {
+        CacheExplorationStartPosition();
         introTimer = Mathf.Max(0.2f, introDelaySeconds);
         introQueued = true;
         GameStateManager gsm = GameStateManager.Instance;
@@ -108,12 +113,66 @@ public class NarrativeBeatDirector : MonoBehaviour
         return true;
     }
 
-    private static bool TryShouldTriggerPreCombatBeat()
+    private void CacheExplorationStartPosition()
     {
+        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+        if (player == null)
+        {
+            return;
+        }
+
+        explorationStartPosition = player.transform.position;
+        hasExplorationStartPosition = true;
+    }
+
+    private bool HasPlayerMovedEnoughForPreCombatBeat()
+    {
+        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+        if (player == null)
+        {
+            return false;
+        }
+
+        if (!hasExplorationStartPosition)
+        {
+            explorationStartPosition = player.transform.position;
+            hasExplorationStartPosition = true;
+            return false;
+        }
+
+        Vector3 delta = player.transform.position - explorationStartPosition;
+        delta.y = 0f;
+        return delta.magnitude >= Mathf.Max(0.5f, minimumPlayerTravelBeforePreCombatBeat);
+    }
+
+    private bool TryShouldTriggerPreCombatBeat()
+    {
+        if (!HasPlayerMovedEnoughForPreCombatBeat())
+        {
+            return false;
+        }
+
+        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+        if (player == null)
+        {
+            return false;
+        }
+
+        Vector3 playerPosition = player.transform.position;
+        float triggerDistance = Mathf.Max(1.5f, preCombatTriggerDistance);
+
         OverworldEnemy[] enemies = FindObjectsByType<OverworldEnemy>(FindObjectsSortMode.None);
         for (int i = 0; i < enemies.Length; i++)
         {
-            if (enemies[i] != null)
+            OverworldEnemy enemy = enemies[i];
+            if (enemy == null || !enemy.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            Vector3 delta = enemy.transform.position - playerPosition;
+            delta.y = 0f;
+            if (delta.magnitude <= triggerDistance)
             {
                 return true;
             }

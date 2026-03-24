@@ -181,7 +181,8 @@ public class PuzzleOverlayController : MonoBehaviour
             savedFollowCameraWasEnabled = false;
         }
 
-        cam.transform.position = new Vector3(boardCenter.x, 14f, boardCenter.z);
+        float overlayCameraHeight = Mathf.Max(14f, boardCenter.y + 14f);
+        cam.transform.position = new Vector3(boardCenter.x, overlayCameraHeight, boardCenter.z);
         cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         cam.orthographic = true;
         cam.orthographicSize = 4.5f;
