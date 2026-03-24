@@ -25,6 +25,14 @@ public class ExplorationMapUI : MonoBehaviour
     [Range(0.5f, 1f)]
     [SerializeField] private float expandedHeightPercent = 0.9f;
 
+    [Header("Expanded Zoom")]
+    [SerializeField] private KeyCode zoomInKey = KeyCode.Equals;
+    [SerializeField] private KeyCode zoomOutKey = KeyCode.Minus;
+    [SerializeField] private bool enableScrollWheelZoom = true;
+    [SerializeField] private float zoomStep = 0.25f;
+    [SerializeField] [Range(1f, 8f)] private float minExpandedZoom = 1f;
+    [SerializeField] [Range(1f, 8f)] private float maxExpandedZoom = 3f;
+
     [Header("World Bounds")]
     [SerializeField] private string worldBoundsObjectName = "Ground";
     [SerializeField] private Vector2 fallbackWorldCenter = new Vector2(12.5f, 0f);
@@ -62,12 +70,15 @@ public class ExplorationMapUI : MonoBehaviour
     private RectTransform panelRoot;
     private RectTransform mapRect;
     private RectTransform markerRoot;
+    private Mask mapMask;
+    private Sprite miniMapMaskSprite;
     private Text titleLabel;
     private Text hintLabel;
     private Text restorationLabel;
     private Image playerMarker;
     private Vector2 worldCenter;
     private Vector2 worldSize;
+    private float expandedZoom = 1f;
 
     private void Awake()
     {
@@ -96,6 +107,8 @@ public class ExplorationMapUI : MonoBehaviour
         {
             ToggleMapSize();
         }
+
+        HandleExpandedZoomInput();
 
         if (Input.GetKeyDown(loreLogKey))
         {
@@ -273,6 +286,11 @@ public class ExplorationMapUI : MonoBehaviour
         mapImage.color = mapColor;
         mapImage.raycastTarget = false;
 
+        mapMask = mapObject.AddComponent<Mask>();
+        mapMask.showMaskGraphic = true;
+
+        miniMapMaskSprite = CreateCircleMaskSprite(128);
+
         markerRoot = new GameObject("Markers", typeof(RectTransform)).GetComponent<RectTransform>();
         markerRoot.transform.SetParent(mapRect, false);
         markerRoot.anchorMin = Vector2.zero;
@@ -332,6 +350,120 @@ public class ExplorationMapUI : MonoBehaviour
         return marker;
     }
 
+    private static Sprite CreateCircleMaskSprite(int size)
+    {
+        int clampedSize = Mathf.Clamp(size, 32, 512);
+        Texture2D texture = new Texture2D(clampedSize, clampedSize, TextureFormat.ARGB32, false);
+        texture.name = "MiniMapCircleMask";
+        texture.wrapMode = TextureWrapMode.Clamp;
+        texture.filterMode = FilterMode.Bilinear;
+
+        Color32[] pixels = new Color32[clampedSize * clampedSize];
+        float center = (clampedSize - 1) * 0.5f;
+        float radius = center;
+        float radiusSquared = radius * radius;
+
+        for (int y = 0; y < clampedSize; y++)
+        {
+            float deltaY = y - center;
+            for (int x = 0; x < clampedSize; x++)
+            {
+                float deltaX = x - center;
+                bool inside = deltaX * deltaX + deltaY * deltaY <= radiusSquared;
+                byte alpha = inside ? (byte)255 : (byte)0;
+                pixels[y * clampedSize + x] = new Color32(255, 255, 255, alpha);
+            }
+        }
+
+        texture.SetPixels32(pixels);
+        texture.Apply(false, false);
+
+        return Sprite.Create(
+            texture,
+            new Rect(0f, 0f, clampedSize, clampedSize),
+            new Vector2(0.5f, 0.5f),
+            clampedSize);
+    }
+
+    private void HandleExpandedZoomInput()
+    {
+        if (!isExpanded)
+        {
+            return;
+        }
+
+        float step = Mathf.Max(0.05f, zoomStep);
+        float zoomDelta = 0f;
+
+        if (Input.GetKeyDown(zoomInKey))
+        {
+            zoomDelta += step;
+        }
+
+        if (Input.GetKeyDown(zoomOutKey))
+        {
+            zoomDelta -= step;
+        }
+
+        if (enableScrollWheelZoom)
+        {
+            zoomDelta += Input.mouseScrollDelta.y * step;
+        }
+
+        if (Mathf.Approximately(zoomDelta, 0f))
+        {
+            return;
+        }
+
+        float minZoom = Mathf.Max(1f, minExpandedZoom);
+        float maxZoom = Mathf.Max(minZoom, maxExpandedZoom);
+        float nextZoom = Mathf.Clamp(expandedZoom + zoomDelta, minZoom, maxZoom);
+        if (Mathf.Approximately(nextZoom, expandedZoom))
+        {
+            return;
+        }
+
+        expandedZoom = nextZoom;
+        RefreshRestorationLabel();
+        UpdatePlayerMarkerPosition();
+        UpdateMarkerPositions();
+    }
+
+    private void ApplyMapShape()
+    {
+        if (mapRect == null)
+        {
+            return;
+        }
+
+        Image mapImage = mapRect.GetComponent<Image>();
+        if (mapImage == null)
+        {
+            return;
+        }
+
+        if (isExpanded)
+        {
+            mapImage.sprite = null;
+            mapImage.preserveAspect = false;
+
+            if (mapMask != null)
+            {
+                mapMask.enabled = false;
+            }
+
+            return;
+        }
+
+        mapImage.sprite = miniMapMaskSprite;
+        mapImage.preserveAspect = true;
+
+        if (mapMask != null)
+        {
+            mapMask.enabled = true;
+        }
+    }
+
     private void ApplyLayout()
     {
         if (panelRoot == null || mapRect == null)
@@ -362,7 +494,9 @@ public class ExplorationMapUI : MonoBehaviour
 
             if (hintLabel != null)
             {
-                hintLabel.text = $"[{toggleKey}] Minimize  [{loreLogKey}] Lore";
+                string wheelHint = enableScrollWheelZoom ? "  [Wheel] Zoom" : string.Empty;
+                hintLabel.text =
+                    $"[{toggleKey}] Minimize  [{loreLogKey}] Lore  [{zoomOutKey}/{zoomInKey}] Zoom{wheelHint}";
             }
         }
         else
@@ -373,10 +507,12 @@ public class ExplorationMapUI : MonoBehaviour
             panelRoot.sizeDelta = miniMapSize;
             panelRoot.anchoredPosition = miniMapOffset;
 
-            mapRect.anchorMin = new Vector2(0.05f, 0.2f);
-            mapRect.anchorMax = new Vector2(0.95f, 0.84f);
-            mapRect.offsetMin = Vector2.zero;
-            mapRect.offsetMax = Vector2.zero;
+            float miniMapDiameter = Mathf.Min(panelRoot.sizeDelta.x * 0.8f, panelRoot.sizeDelta.y * 0.64f);
+            mapRect.anchorMin = new Vector2(0.5f, 0.52f);
+            mapRect.anchorMax = new Vector2(0.5f, 0.52f);
+            mapRect.pivot = new Vector2(0.5f, 0.5f);
+            mapRect.sizeDelta = new Vector2(miniMapDiameter, miniMapDiameter);
+            mapRect.anchoredPosition = new Vector2(0f, 2f);
 
             if (titleLabel != null)
             {
@@ -388,6 +524,8 @@ public class ExplorationMapUI : MonoBehaviour
                 hintLabel.text = $"[{toggleKey}] Expand  [{loreLogKey}] Lore";
             }
         }
+
+        ApplyMapShape();
 
         if (dimBackground != null)
         {
@@ -420,7 +558,8 @@ public class ExplorationMapUI : MonoBehaviour
             restorationLabel.text =
                 $"{targetIslandId}  {state.RestorationPercent:F1}%  " +
                 $"Combat {state.CombatEncountersCompleted}  " +
-                $"Puzzle {state.PuzzleEncountersCompleted}";
+                $"Puzzle {state.PuzzleEncountersCompleted}  " +
+                $"Zoom {expandedZoom:F1}x";
         }
         else
         {
@@ -549,13 +688,60 @@ public class ExplorationMapUI : MonoBehaviour
             return Vector2.zero;
         }
 
-        float minX = worldCenter.x - worldSize.x * 0.5f;
-        float maxX = worldCenter.x + worldSize.x * 0.5f;
-        float minZ = worldCenter.y - worldSize.y * 0.5f;
-        float maxZ = worldCenter.y + worldSize.y * 0.5f;
+        Vector2 visibleCenter = worldCenter;
+        Vector2 visibleSize = worldSize;
 
-        float normalizedX = Mathf.InverseLerp(minX, maxX, worldPosition.x);
-        float normalizedY = Mathf.InverseLerp(minZ, maxZ, worldPosition.z);
+        if (isExpanded)
+        {
+            float minZoom = Mathf.Max(1f, minExpandedZoom);
+            float maxZoom = Mathf.Max(minZoom, maxExpandedZoom);
+            float zoom = Mathf.Clamp(expandedZoom, minZoom, maxZoom);
+
+            visibleSize = new Vector2(
+                Mathf.Max(1f, worldSize.x / zoom),
+                Mathf.Max(1f, worldSize.y / zoom));
+
+            if (player != null)
+            {
+                visibleCenter = new Vector2(player.transform.position.x, player.transform.position.z);
+            }
+
+            float worldHalfX = worldSize.x * 0.5f;
+            float worldHalfY = worldSize.y * 0.5f;
+            float visibleHalfX = visibleSize.x * 0.5f;
+            float visibleHalfY = visibleSize.y * 0.5f;
+
+            float minCenterX = worldCenter.x - worldHalfX + visibleHalfX;
+            float maxCenterX = worldCenter.x + worldHalfX - visibleHalfX;
+            float minCenterY = worldCenter.y - worldHalfY + visibleHalfY;
+            float maxCenterY = worldCenter.y + worldHalfY - visibleHalfY;
+
+            if (minCenterX <= maxCenterX)
+            {
+                visibleCenter.x = Mathf.Clamp(visibleCenter.x, minCenterX, maxCenterX);
+            }
+            else
+            {
+                visibleCenter.x = worldCenter.x;
+            }
+
+            if (minCenterY <= maxCenterY)
+            {
+                visibleCenter.y = Mathf.Clamp(visibleCenter.y, minCenterY, maxCenterY);
+            }
+            else
+            {
+                visibleCenter.y = worldCenter.y;
+            }
+        }
+
+        float minX = visibleCenter.x - visibleSize.x * 0.5f;
+        float maxX = visibleCenter.x + visibleSize.x * 0.5f;
+        float minZ = visibleCenter.y - visibleSize.y * 0.5f;
+        float maxZ = visibleCenter.y + visibleSize.y * 0.5f;
+
+        float normalizedX = Mathf.Clamp01(Mathf.InverseLerp(minX, maxX, worldPosition.x));
+        float normalizedY = Mathf.Clamp01(Mathf.InverseLerp(minZ, maxZ, worldPosition.z));
 
         float x = Mathf.Lerp(-rect.width * 0.5f, rect.width * 0.5f, normalizedX);
         float y = Mathf.Lerp(-rect.height * 0.5f, rect.height * 0.5f, normalizedY);
@@ -564,6 +750,18 @@ public class ExplorationMapUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (miniMapMaskSprite != null)
+        {
+            Texture2D maskTexture = miniMapMaskSprite.texture;
+            Destroy(miniMapMaskSprite);
+            miniMapMaskSprite = null;
+
+            if (maskTexture != null)
+            {
+                Destroy(maskTexture);
+            }
+        }
+
         if (mapCanvas != null)
         {
             Destroy(mapCanvas.gameObject);
