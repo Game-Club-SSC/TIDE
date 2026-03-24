@@ -42,10 +42,14 @@ public class ExplorationMapUI : MonoBehaviour
     [SerializeField] private Color panelColor = new Color(0.07f, 0.1f, 0.14f, 0.93f);
     [SerializeField] private Color mapColor = new Color(0.16f, 0.22f, 0.28f, 0.96f);
     [SerializeField] private Color dimColor = new Color(0f, 0f, 0f, 0.58f);
+    [SerializeField] private Color miniMapBorderColor = new Color(0.23f, 0.34f, 0.45f, 0.95f);
     [SerializeField] private Color playerMarkerColor = new Color(0.2f, 0.9f, 0.85f, 1f);
     [SerializeField] private Color puzzleMarkerColor = new Color(1f, 0.6f, 0.25f, 1f);
     [SerializeField] private Color combatMarkerColor = new Color(0.95f, 0.3f, 0.25f, 1f);
     [SerializeField] private Color enemyMarkerColor = new Color(0.9f, 0.2f, 0.45f, 1f);
+
+    [Header("Mini Map Frame")]
+    [SerializeField] [Range(0f, 24f)] private float miniMapBorderPadding = 8f;
 
     [Header("Markers")]
     [SerializeField] private float playerMarkerSize = 14f;
@@ -68,7 +72,10 @@ public class ExplorationMapUI : MonoBehaviour
     private Canvas mapCanvas;
     private GameObject dimBackground;
     private RectTransform panelRoot;
+    private Image panelImage;
     private RectTransform mapRect;
+    private RectTransform miniMapBorderRect;
+    private Image miniMapBorderImage;
     private RectTransform markerRoot;
     private Mask mapMask;
     private Sprite miniMapMaskSprite;
@@ -266,9 +273,21 @@ public class ExplorationMapUI : MonoBehaviour
 
         panelRoot = panelObject.GetComponent<RectTransform>();
 
-        Image panelImage = panelObject.AddComponent<Image>();
+        panelImage = panelObject.AddComponent<Image>();
         panelImage.color = panelColor;
         panelImage.raycastTarget = false;
+
+        miniMapMaskSprite = CreateCircleMaskSprite(128);
+
+        GameObject miniMapBorderObject = new GameObject("MiniMapBorder", typeof(RectTransform));
+        miniMapBorderObject.transform.SetParent(panelRoot, false);
+        miniMapBorderRect = miniMapBorderObject.GetComponent<RectTransform>();
+
+        miniMapBorderImage = miniMapBorderObject.AddComponent<Image>();
+        miniMapBorderImage.sprite = miniMapMaskSprite;
+        miniMapBorderImage.preserveAspect = true;
+        miniMapBorderImage.color = miniMapBorderColor;
+        miniMapBorderImage.raycastTarget = false;
 
         titleLabel = CreateLabel(panelRoot, "MINIMAP", 15, FontStyle.Bold, TextAnchor.MiddleLeft);
         RectTransform titleRect = titleLabel.rectTransform;
@@ -288,8 +307,6 @@ public class ExplorationMapUI : MonoBehaviour
 
         mapMask = mapObject.AddComponent<Mask>();
         mapMask.showMaskGraphic = true;
-
-        miniMapMaskSprite = CreateCircleMaskSprite(128);
 
         markerRoot = new GameObject("Markers", typeof(RectTransform)).GetComponent<RectTransform>();
         markerRoot.transform.SetParent(mapRect, false);
@@ -473,6 +490,18 @@ public class ExplorationMapUI : MonoBehaviour
 
         if (isExpanded)
         {
+            if (panelImage != null)
+            {
+                panelImage.sprite = null;
+                panelImage.preserveAspect = false;
+                panelImage.color = panelColor;
+            }
+
+            if (miniMapBorderRect != null)
+            {
+                miniMapBorderRect.gameObject.SetActive(false);
+            }
+
             float halfWidth = Mathf.Clamp(expandedWidthPercent, 0.5f, 1f) * 0.5f;
             float halfHeight = Mathf.Clamp(expandedHeightPercent, 0.5f, 1f) * 0.5f;
 
@@ -501,6 +530,13 @@ public class ExplorationMapUI : MonoBehaviour
         }
         else
         {
+            if (panelImage != null)
+            {
+                panelImage.sprite = null;
+                panelImage.preserveAspect = false;
+                panelImage.color = Color.clear;
+            }
+
             panelRoot.anchorMin = new Vector2(1f, 0f);
             panelRoot.anchorMax = new Vector2(1f, 0f);
             panelRoot.pivot = new Vector2(1f, 0f);
@@ -508,6 +544,23 @@ public class ExplorationMapUI : MonoBehaviour
             panelRoot.anchoredPosition = miniMapOffset;
 
             float miniMapDiameter = Mathf.Min(panelRoot.sizeDelta.x * 0.8f, panelRoot.sizeDelta.y * 0.64f);
+
+            if (miniMapBorderRect != null)
+            {
+                float borderDiameter = miniMapDiameter + Mathf.Max(0f, miniMapBorderPadding) * 2f;
+                miniMapBorderRect.anchorMin = new Vector2(0.5f, 0.52f);
+                miniMapBorderRect.anchorMax = new Vector2(0.5f, 0.52f);
+                miniMapBorderRect.pivot = new Vector2(0.5f, 0.5f);
+                miniMapBorderRect.sizeDelta = new Vector2(borderDiameter, borderDiameter);
+                miniMapBorderRect.anchoredPosition = new Vector2(0f, 2f);
+                miniMapBorderRect.gameObject.SetActive(true);
+            }
+
+            if (miniMapBorderImage != null)
+            {
+                miniMapBorderImage.color = miniMapBorderColor;
+            }
+
             mapRect.anchorMin = new Vector2(0.5f, 0.52f);
             mapRect.anchorMax = new Vector2(0.5f, 0.52f);
             mapRect.pivot = new Vector2(0.5f, 0.5f);
