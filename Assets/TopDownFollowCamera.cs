@@ -258,4 +258,18 @@ public class TopDownFollowCamera : MonoBehaviour
             currentVelocity = Vector2.zero;
         }
     }
+
+    public void CaptureCurrentOffsetAsDefault()
+    {
+        if (!EnsureTarget())
+        {
+            return;
+        }
+
+        followOffset = GetPlanarPosition(transform.position) - GetPlanarPosition(target.position);
+        cachedDefaultOffset = followOffset;
+        hasCachedDefaultOffset = true;
+        offsetInitialized = true;
+        currentVelocity = Vector2.zero;
+    }
 }

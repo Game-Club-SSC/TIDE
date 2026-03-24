@@ -485,11 +485,13 @@ public class BattleHud : MonoBehaviour
         bar.DisplayedHpRatio = Mathf.MoveTowards(bar.DisplayedHpRatio, hpRatio, Time.deltaTime * 5f);
         bar.HpFill.fillAmount = bar.DisplayedHpRatio;
 
+        int displayedHp = Mathf.Clamp(Mathf.RoundToInt(bar.DisplayedHpRatio * unit.MaxHP), 0, unit.MaxHP);
+
         Color hpColor;
-        if (hpRatio > 0.5f)
-            hpColor = Color.Lerp(new Color(1f, 0.8f, 0.2f), new Color(0.2f, 0.85f, 0.3f), (hpRatio - 0.5f) * 2f);
+        if (bar.DisplayedHpRatio > 0.5f)
+            hpColor = Color.Lerp(new Color(1f, 0.8f, 0.2f), new Color(0.2f, 0.85f, 0.3f), (bar.DisplayedHpRatio - 0.5f) * 2f);
         else
-            hpColor = Color.Lerp(new Color(0.8f, 0.15f, 0.15f), new Color(1f, 0.8f, 0.2f), hpRatio * 2f);
+            hpColor = Color.Lerp(new Color(0.8f, 0.15f, 0.15f), new Color(1f, 0.8f, 0.2f), bar.DisplayedHpRatio * 2f);
         
         if (unit.IsDefending)
         {
@@ -505,7 +507,7 @@ public class BattleHud : MonoBehaviour
             bar.MpFillRect.offsetMax = Vector2.zero;
         }
 
-        bar.HpText.text = $"{unit.HP}/{unit.MaxHP}";
+        bar.HpText.text = $"{displayedHp}/{unit.MaxHP}";
         bar.MpText.text = $"{unit.MP}/{unit.MaxMP}";
 
         if (!unit.IsAlive)

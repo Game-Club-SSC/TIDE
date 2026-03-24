@@ -30,8 +30,20 @@ public class OverworldEnemy : MonoBehaviour
     [SerializeField] private float chaseSpeed = 6f;
     [SerializeField] private float chaseGiveUpRange = 12f;
 
+    [Header("Returning Recovery")]
+    [SerializeField] private float stuckCheckInterval = 0.35f;
+    [SerializeField] private float minimumReturnMovement = 0.08f;
+    [SerializeField] private float recoveryBypassDistance = 1.4f;
+    [SerializeField] private float recoveryDuration = 1.1f;
+    [SerializeField] private float recoverySpeedMultiplier = 1.2f;
+    [SerializeField] private float recoveryRetryCooldown = 0.4f;
+    [SerializeField] private int maxRecoveryAttemptsBeforeEscalation = 3;
+
     [Header("Combat")]
     [SerializeField] private EncounterConfig encounterConfig;
+    [SerializeField] private string islandId = "default";
+    [SerializeField] private string encounterIdOverride = "";
+    [SerializeField] private float restorationValue = 0.001f;
 
     [Header("Puzzle Guard")]
     [SerializeField] private bool isPuzzleGuard;
@@ -62,6 +74,14 @@ public class OverworldEnemy : MonoBehaviour
     private string puzzleGuardIslandId = "default";
     private string puzzleGuardEncounterId;
     private float puzzleGuardRestorationValue = 0.001f;
+    private Vector2 returnLastPlanarPosition;
+    private float returnStuckCheckTimer;
+    private bool returnStuckTrackingInitialized;
+    private Vector3 returnRecoveryTarget;
+    private float returnRecoveryTimer;
+    private float returnRecoveryRetryCooldownTimer;
+    private bool hasReturnRecoveryTarget;
+    private int returnRecoveryAttempts;
 
     private void Awake()
     {
@@ -74,6 +94,12 @@ public class OverworldEnemy : MonoBehaviour
     private void Start()
     {
         playerTransform = FindPlayer();
+
+        if (ShouldDespawnAsClearedEncounter())
+        {
+            Destroy(gameObject);
+            return;
+        }
 
         if (isPuzzleGuard)
         {
@@ -144,7 +170,11 @@ public class OverworldEnemy : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (!CanOperate()) return;
+        if (!CanOperate())
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            return;
+        }
 
         switch (currentState)
         {
@@ -186,6 +216,7 @@ public class OverworldEnemy : MonoBehaviour
                 break;
             case EnemyState.Returning:
                 SetExclamationVisible(false);
+                ResetReturnRecoveryTracking();
 
                 if (isPuzzleGuard)
                 {
@@ -335,8 +366,12 @@ public class OverworldEnemy : MonoBehaviour
 
     private void UpdateReturning()
     {
+        UpdateReturnRecoveryTimer();
+
         if (isPuzzleGuard)
         {
+            EvaluateReturningStuck(guardAnchorPosition);
+
             float distanceToAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
             if (distanceToAnchor <= arrivalThreshold)
             {
@@ -358,6 +393,8 @@ public class OverworldEnemy : MonoBehaviour
             return;
         }
 
+        EvaluateReturningStuck(target.position);
+
         float distance = GetPlanarDistance(transform.position, target.position);
         if (distance <= arrivalThreshold)
         {
@@ -367,6 +404,20 @@ public class OverworldEnemy : MonoBehaviour
 
     private void FixedReturning()
     {
+        if (hasReturnRecoveryTarget)
+        {
+            MoveToward(returnRecoveryTarget, roamSpeed * Mathf.Max(1f, recoverySpeedMultiplier));
+
+            float recoveryDistance = GetPlanarDistance(transform.position, returnRecoveryTarget);
+            if (recoveryDistance <= Mathf.Max(arrivalThreshold, 0.2f))
+            {
+                hasReturnRecoveryTarget = false;
+                returnRecoveryTimer = 0f;
+            }
+
+            return;
+        }
+
         if (isPuzzleGuard)
         {
             MoveToward(guardAnchorPosition, roamSpeed);
@@ -597,8 +648,22 @@ public class OverworldEnemy : MonoBehaviour
         }
         else
         {
-            Debug.Log($"[OverworldEnemy] {name} initiating combat with '{encounterConfig.displayName}'.");
-            GameStateManager.Instance.EnterCombatScene();
+            string scopedEncounterId = ResolveTrackingEncounterId();
+            if (!string.IsNullOrEmpty(scopedEncounterId))
+            {
+                Vector3 returnPosition = playerTransform != null ? playerTransform.position : transform.position;
+                GameStateManager.Instance.EnterCombatSceneFromExploration(
+                    ResolveTrackingIslandId(),
+                    scopedEncounterId,
+                    Mathf.Max(0.001f, restorationValue),
+                    returnPosition);
+                Debug.Log($"[OverworldEnemy] {name} initiating tracked combat '{scopedEncounterId}'.");
+            }
+            else
+            {
+                Debug.Log($"[OverworldEnemy] {name} initiating combat with '{encounterConfig.displayName}'.");
+                GameStateManager.Instance.EnterCombatScene();
+            }
         }
 
         Destroy(gameObject, 0.1f);
@@ -645,6 +710,136 @@ public class OverworldEnemy : MonoBehaviour
             transform.position.y,
             guardAnchorPosition.z + offset.y);
         hasGuardRoamTarget = true;
+    }
+
+    private void ResetReturnRecoveryTracking()
+    {
+        returnLastPlanarPosition = GetPlanarPosition(transform.position);
+        returnStuckCheckTimer = 0f;
+        returnStuckTrackingInitialized = true;
+        returnRecoveryTimer = 0f;
+        returnRecoveryRetryCooldownTimer = 0f;
+        hasReturnRecoveryTarget = false;
+        returnRecoveryAttempts = 0;
+    }
+
+    private void UpdateReturnRecoveryTimer()
+    {
+        if (!hasReturnRecoveryTarget)
+        {
+            if (returnRecoveryRetryCooldownTimer > 0f)
+            {
+                returnRecoveryRetryCooldownTimer -= Time.deltaTime;
+            }
+
+            return;
+        }
+
+        returnRecoveryTimer -= Time.deltaTime;
+        if (returnRecoveryTimer <= 0f)
+        {
+            hasReturnRecoveryTarget = false;
+            returnRecoveryTimer = 0f;
+        }
+    }
+
+    private void EvaluateReturningStuck(Vector3 finalTarget)
+    {
+        if (!returnStuckTrackingInitialized)
+        {
+            returnLastPlanarPosition = GetPlanarPosition(transform.position);
+            returnStuckTrackingInitialized = true;
+        }
+
+        if (hasReturnRecoveryTarget)
+        {
+            return;
+        }
+
+        if (returnRecoveryRetryCooldownTimer > 0f)
+        {
+            return;
+        }
+
+        float interval = Mathf.Max(0.1f, stuckCheckInterval);
+        returnStuckCheckTimer += Time.deltaTime;
+        if (returnStuckCheckTimer < interval)
+        {
+            return;
+        }
+
+        Vector2 currentPlanarPosition = GetPlanarPosition(transform.position);
+        float movedDistance = Vector2.Distance(currentPlanarPosition, returnLastPlanarPosition);
+        float distanceToGoal = GetPlanarDistance(transform.position, finalTarget);
+
+        returnLastPlanarPosition = currentPlanarPosition;
+        returnStuckCheckTimer = 0f;
+
+        if (distanceToGoal <= Mathf.Max(arrivalThreshold * 2f, 0.5f))
+        {
+            returnRecoveryAttempts = 0;
+            return;
+        }
+
+        float expectedMovement = Mathf.Max(0.01f, roamSpeed) * interval;
+        float requiredMovement = Mathf.Min(
+            Mathf.Max(0.01f, minimumReturnMovement),
+            Mathf.Max(0.01f, expectedMovement * 0.6f));
+
+        if (movedDistance >= requiredMovement)
+        {
+            returnRecoveryAttempts = 0;
+            return;
+        }
+
+        BeginReturnRecovery(finalTarget);
+    }
+
+    private void BeginReturnRecovery(Vector3 finalTarget)
+    {
+        Vector3 toTarget = finalTarget - transform.position;
+        toTarget.y = 0f;
+        if (toTarget.sqrMagnitude <= 0.001f)
+        {
+            return;
+        }
+
+        returnRecoveryAttempts++;
+        float scaledBypassDistance = Mathf.Max(0.5f, recoveryBypassDistance) * (1f + Mathf.Max(0, returnRecoveryAttempts - 1) * 0.45f);
+
+        if (returnRecoveryAttempts >= Mathf.Max(1, maxRecoveryAttemptsBeforeEscalation))
+        {
+            Vector3 fallbackTarget = transform.position + (toTarget.normalized * scaledBypassDistance);
+            returnRecoveryTarget = new Vector3(fallbackTarget.x, transform.position.y, fallbackTarget.z);
+            returnRecoveryTimer = Mathf.Max(0.2f, recoveryDuration * 0.8f);
+            hasReturnRecoveryTarget = true;
+            returnRecoveryRetryCooldownTimer = Mathf.Max(0.1f, recoveryRetryCooldown);
+            Debug.LogWarning($"[OverworldEnemy] {name} required repeated return recovery. Escalating direct step toward patrol target.");
+            return;
+        }
+
+        Vector3 forward = toTarget.normalized;
+        Vector3 side = Vector3.Cross(Vector3.up, forward);
+        float sideSign = Random.value < 0.5f ? -1f : 1f;
+        float bypassDistance = scaledBypassDistance;
+        Vector3 candidate = transform.position + (side * sideSign * bypassDistance) + (forward * (bypassDistance * 0.5f));
+
+        if (isPuzzleGuard)
+        {
+            Vector3 fromAnchor = candidate - guardAnchorPosition;
+            fromAnchor.y = 0f;
+            float maxLeash = Mathf.Max(1f, puzzleGuardLeashRadius * 0.9f);
+            if (fromAnchor.magnitude > maxLeash)
+            {
+                candidate = guardAnchorPosition + fromAnchor.normalized * maxLeash;
+            }
+        }
+
+        returnRecoveryTarget = new Vector3(candidate.x, transform.position.y, candidate.z);
+        returnRecoveryTimer = Mathf.Max(0.2f, recoveryDuration);
+        returnRecoveryRetryCooldownTimer = Mathf.Max(0.1f, recoveryRetryCooldown);
+        hasReturnRecoveryTarget = true;
+        Debug.Log($"[OverworldEnemy] {name} detected as stuck while returning. Applying bypass movement.");
     }
 
     // ========== HELPERS ==========
@@ -702,6 +897,64 @@ public class OverworldEnemy : MonoBehaviour
         float dx = a.x - b.x;
         float dz = a.z - b.z;
         return Mathf.Sqrt(dx * dx + dz * dz);
+    }
+
+    private static Vector2 GetPlanarPosition(Vector3 position)
+    {
+        return new Vector2(position.x, position.z);
+    }
+
+    private bool ShouldDespawnAsClearedEncounter()
+    {
+        string scopedEncounterId = ResolveTrackingEncounterId();
+        if (string.IsNullOrEmpty(scopedEncounterId))
+        {
+            return false;
+        }
+
+        if (IslandRestorationTracker.Instance == null)
+        {
+            return false;
+        }
+
+        string scopedIslandId = ResolveTrackingIslandId();
+        if (IslandRestorationTracker.Instance.HasClearedEncounter(scopedIslandId, scopedEncounterId))
+        {
+            Debug.Log($"[OverworldEnemy] Removing '{name}' because encounter '{scopedEncounterId}' is already cleared.");
+            return true;
+        }
+
+        return false;
+    }
+
+    private string ResolveTrackingEncounterId()
+    {
+        if (isPuzzleGuard)
+        {
+            return puzzleGuardEncounterId;
+        }
+
+        if (!string.IsNullOrEmpty(encounterIdOverride))
+        {
+            return encounterIdOverride;
+        }
+
+        if (encounterConfig != null && !string.IsNullOrEmpty(encounterConfig.encounterId))
+        {
+            return encounterConfig.encounterId;
+        }
+
+        return string.Empty;
+    }
+
+    private string ResolveTrackingIslandId()
+    {
+        if (isPuzzleGuard)
+        {
+            return string.IsNullOrEmpty(puzzleGuardIslandId) ? "default" : puzzleGuardIslandId;
+        }
+
+        return string.IsNullOrEmpty(islandId) ? "default" : islandId;
     }
 
     // ========== LIFECYCLE ==========

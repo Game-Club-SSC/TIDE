@@ -16,13 +16,17 @@ public class PuzzleOverlayController : MonoBehaviour
     private bool savedCamOrtho;
     private float savedCamOrthoSize;
     private float savedCamFOV;
+    private CameraClearFlags savedCamClearFlags;
+    private Color savedCamBackgroundColor;
+    private Camera savedCamera;
     private TopDownFollowCamera savedFollowCamera;
+    private bool savedFollowCameraWasEnabled;
 
     public bool IsSessionOpen => sessionOpen;
 
     private void OnDisable()
     {
-        CleanupActiveSession();
+        CloseActiveSession(false);
     }
 
     public bool OpenPuzzle(PuzzleBoxInteractable sourceBox)
@@ -94,10 +98,14 @@ public class PuzzleOverlayController : MonoBehaviour
         }
 
         GameStateManager gsm = GameStateManager.Instance;
-        if (gsm != null && activeManager != null)
+        if (gsm != null)
         {
-            int[,] grid = activeManager.CaptureCurrentGrid();
-            gsm.SavePuzzleRuntimeState(activeManager.OverlayPuzzleBoxId, grid, solved || activeManager.IsPuzzleSolved);
+            if (activeManager != null)
+            {
+                int[,] grid = activeManager.CaptureCurrentGrid();
+                gsm.SavePuzzleRuntimeState(activeManager.OverlayPuzzleBoxId, grid, solved || activeManager.IsPuzzleSolved);
+            }
+
             gsm.ExitPuzzle();
         }
 
@@ -158,37 +166,63 @@ public class PuzzleOverlayController : MonoBehaviour
         savedCamOrtho = cam.orthographic;
         savedCamOrthoSize = cam.orthographicSize;
         savedCamFOV = cam.fieldOfView;
+        savedCamClearFlags = cam.clearFlags;
+        savedCamBackgroundColor = cam.backgroundColor;
+        savedCamera = cam;
 
         savedFollowCamera = cam.GetComponent<TopDownFollowCamera>();
         if (savedFollowCamera != null)
         {
+            savedFollowCameraWasEnabled = savedFollowCamera.enabled;
             savedFollowCamera.enabled = false;
+        }
+        else
+        {
+            savedFollowCameraWasEnabled = false;
         }
 
         cam.transform.position = new Vector3(boardCenter.x, 14f, boardCenter.z);
         cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         cam.orthographic = true;
         cam.orthographicSize = 4.5f;
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(savedCamBackgroundColor.r, savedCamBackgroundColor.g, savedCamBackgroundColor.b, 1f);
     }
 
     private void RestoreCamera()
     {
         if (!didSaveCamera) return;
-        didSaveCamera = false;
 
-        Camera cam = Camera.main;
-        if (cam == null) return;
+        Camera cam = savedCamera != null ? savedCamera : Camera.main;
+        if (cam == null)
+        {
+            didSaveCamera = false;
+            savedCamera = null;
+            savedFollowCamera = null;
+            savedFollowCameraWasEnabled = false;
+            return;
+        }
 
         cam.transform.position = savedCamPosition;
         cam.transform.rotation = savedCamRotation;
         cam.orthographic = savedCamOrtho;
         cam.orthographicSize = savedCamOrthoSize;
         cam.fieldOfView = savedCamFOV;
+        cam.clearFlags = savedCamClearFlags;
+        cam.backgroundColor = savedCamBackgroundColor;
 
         if (savedFollowCamera != null)
         {
-            savedFollowCamera.enabled = true;
-            savedFollowCamera.SnapToCurrentTarget();
+            savedFollowCamera.enabled = savedFollowCameraWasEnabled;
+            if (savedFollowCameraWasEnabled)
+            {
+                savedFollowCamera.SnapToCurrentTarget();
+            }
         }
+
+        didSaveCamera = false;
+        savedCamera = null;
+        savedFollowCamera = null;
+        savedFollowCameraWasEnabled = false;
     }
 }

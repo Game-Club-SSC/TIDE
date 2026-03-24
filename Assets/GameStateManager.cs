@@ -14,6 +14,40 @@ public class GameStateManager : MonoBehaviour
         public bool solved;
     }
 
+    private sealed class AncientTextRuntimeState
+    {
+        public string title;
+        public string body;
+        public bool discovered;
+    }
+
+    [Serializable]
+    private sealed class PuzzleRuntimeSaveEntry
+    {
+        public string puzzleBoxId;
+        public int[] tileValues = new int[9];
+        public bool hasGrid;
+        public bool solved;
+    }
+
+    [Serializable]
+    private sealed class AncientTextRuntimeSaveEntry
+    {
+        public string textId;
+        public string title;
+        public string body;
+        public bool discovered;
+    }
+
+    [Serializable]
+    private sealed class WorldStateSaveData
+    {
+        public List<PuzzleRuntimeSaveEntry> puzzleStates = new List<PuzzleRuntimeSaveEntry>();
+        public List<AncientTextRuntimeSaveEntry> ancientTextStates = new List<AncientTextRuntimeSaveEntry>();
+        public List<string> completedNarrativeBeatIds = new List<string>();
+        public IslandRestorationTracker.TrackerSnapshot restorationSnapshot;
+    }
+
     public enum GameState
     {
         Exploration,
@@ -31,13 +65,18 @@ public class GameStateManager : MonoBehaviour
     public GameState currentState = GameState.Exploration;
     public bool PuzzleSolved { get; private set; }
     public bool IsTransitioning => isTransitioning;
+    public bool HasLoadedWorldState => hasLoadedWorldState;
 
     private const float FadeDuration = 0.2f;
+    private const string WorldStateSaveKey = "TIDE_WORLD_STATE_V1";
 
     private CanvasGroup fadeCanvasGroup;
     private IsometricPlayer player;
     private Vector3 pendingReturnPosition;
     private bool hasPendingReturnPosition;
+    private Vector3 pendingCameraPosition;
+    private Quaternion pendingCameraRotation;
+    private bool hasPendingCameraTransform;
     private bool isTransitioning;
     private bool hasHandledSceneLoad;
 
@@ -64,7 +103,29 @@ public class GameStateManager : MonoBehaviour
     private string pendingSolvedPuzzleBoxId;
     private bool returnToPuzzleAfterCombat;
     private bool hasPendingCombatReturnPosition;
+    private Coroutine cameraSnapRoutine;
+    private bool hasLoadedWorldState;
     private readonly Dictionary<string, PuzzleRuntimeState> puzzleRuntimeStates = new Dictionary<string, PuzzleRuntimeState>();
+    private readonly Dictionary<string, AncientTextRuntimeState> ancientTextRuntimeStates = new Dictionary<string, AncientTextRuntimeState>();
+    private readonly HashSet<string> completedNarrativeBeatIds = new HashSet<string>();
+    private string pendingBossIslandIdForDefeatTracking;
+    private bool isSavingWorldState;
+    private bool isLoadingWorldState;
+
+    [Serializable]
+    private sealed class FinalBossDefeatSaveEntry
+    {
+        public string islandId;
+        public int defeats;
+    }
+
+    [Serializable]
+    private sealed class FinalBossDefeatSaveCollection
+    {
+        public List<FinalBossDefeatSaveEntry> entries = new List<FinalBossDefeatSaveEntry>();
+    }
+
+    private const string FinalBossDefeatsSaveKey = "TIDE_FINAL_BOSS_DEFEATS_V1";
 
     public float GetIslandRestorationPercent(string islandId)
     {
@@ -100,6 +161,7 @@ public class GameStateManager : MonoBehaviour
         EnsureRestorationTracker();
         EnsureProgressionManager();
         EnsureFadeCanvas();
+        LoadWorldState();
     }
 
     private void Start()
@@ -117,12 +179,15 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
+        SaveWorldState();
+
         SceneManager.sceneLoaded -= HandleSceneLoaded;
         Instance = null;
     }
 
     private void OnApplicationQuit()
     {
+        SaveWorldState();
         Instance = null;
     }
 
@@ -158,6 +223,7 @@ public class GameStateManager : MonoBehaviour
         PendingCombatIslandId = null;
         PendingCombatEncounterId = null;
         PendingCombatRestorationValue = 0f;
+        pendingBossIslandIdForDefeatTracking = null;
         CaptureExplorationReturnPosition();
         BeginCombatTransition();
     }
@@ -176,6 +242,8 @@ public class GameStateManager : MonoBehaviour
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = true;
+        pendingBossIslandIdForDefeatTracking = PendingCombatIslandId;
+        CaptureExplorationCameraTransform();
         BeginCombatTransition();
     }
 
@@ -236,6 +304,7 @@ public class GameStateManager : MonoBehaviour
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = false;
+        pendingBossIslandIdForDefeatTracking = null;
         pendingSolvedPuzzleBoxId = puzzleBoxId;
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
     }
@@ -250,6 +319,7 @@ public class GameStateManager : MonoBehaviour
         pendingReturnPosition = returnPosition;
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = false;
+        pendingBossIslandIdForDefeatTracking = null;
         StartCoroutine(TransitionToScene(PuzzleSceneName, GameState.Puzzle));
     }
 
@@ -276,6 +346,7 @@ public class GameStateManager : MonoBehaviour
 
         state.hasGrid = true;
         state.solved = state.solved || solved;
+        SaveWorldState();
     }
 
     public bool TryGetPuzzleRuntimeGrid(string puzzleBoxId, out int[,] grid, out bool solved)
@@ -334,7 +405,326 @@ public class GameStateManager : MonoBehaviour
             puzzleRuntimeStates[puzzleBoxId] = state;
         }
 
-        state.solved = true;
+        if (!state.solved)
+        {
+            state.solved = true;
+            SaveWorldState();
+        }
+    }
+
+    public void RegisterAncientText(string textId, string title, string body)
+    {
+        if (string.IsNullOrEmpty(textId))
+        {
+            return;
+        }
+
+        bool changed = false;
+        if (!ancientTextRuntimeStates.TryGetValue(textId, out AncientTextRuntimeState state))
+        {
+            state = new AncientTextRuntimeState();
+            ancientTextRuntimeStates[textId] = state;
+            changed = true;
+        }
+
+        if (!string.IsNullOrEmpty(title) && !string.Equals(state.title, title, StringComparison.Ordinal))
+        {
+            state.title = title;
+            changed = true;
+        }
+
+        if (!string.IsNullOrEmpty(body) && !string.Equals(state.body, body, StringComparison.Ordinal))
+        {
+            state.body = body;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            SaveWorldState();
+        }
+    }
+
+    public bool DiscoverAncientText(string textId)
+    {
+        if (string.IsNullOrEmpty(textId))
+        {
+            return false;
+        }
+
+        if (!ancientTextRuntimeStates.TryGetValue(textId, out AncientTextRuntimeState state))
+        {
+            state = new AncientTextRuntimeState();
+            ancientTextRuntimeStates[textId] = state;
+        }
+
+        bool wasNewDiscovery = !state.discovered;
+        state.discovered = true;
+        if (wasNewDiscovery)
+        {
+            SaveWorldState();
+        }
+        return wasNewDiscovery;
+    }
+
+    public bool IsAncientTextDiscovered(string textId)
+    {
+        if (string.IsNullOrEmpty(textId))
+        {
+            return false;
+        }
+
+        return ancientTextRuntimeStates.TryGetValue(textId, out AncientTextRuntimeState state) && state.discovered;
+    }
+
+    public bool TryGetAncientTextEntry(string textId, out string title, out string body, out bool discovered)
+    {
+        title = string.Empty;
+        body = string.Empty;
+        discovered = false;
+
+        if (string.IsNullOrEmpty(textId))
+        {
+            return false;
+        }
+
+        if (!ancientTextRuntimeStates.TryGetValue(textId, out AncientTextRuntimeState state))
+        {
+            return false;
+        }
+
+        title = string.IsNullOrEmpty(state.title) ? textId : state.title;
+        body = string.IsNullOrEmpty(state.body) ? string.Empty : state.body;
+        discovered = state.discovered;
+        return true;
+    }
+
+    public string[] GetDiscoveredAncientTextIds()
+    {
+        List<string> discoveredIds = new List<string>();
+        foreach (KeyValuePair<string, AncientTextRuntimeState> pair in ancientTextRuntimeStates)
+        {
+            if (pair.Value != null && pair.Value.discovered)
+            {
+                discoveredIds.Add(pair.Key);
+            }
+        }
+
+        discoveredIds.Sort(StringComparer.Ordinal);
+        return discoveredIds.ToArray();
+    }
+
+    public bool MarkNarrativeBeatCompleted(string beatId)
+    {
+        if (string.IsNullOrEmpty(beatId))
+        {
+            return false;
+        }
+
+        bool added = completedNarrativeBeatIds.Add(beatId);
+        if (added)
+        {
+            SaveWorldState();
+        }
+
+        return added;
+    }
+
+    public bool IsNarrativeBeatCompleted(string beatId)
+    {
+        if (string.IsNullOrEmpty(beatId))
+        {
+            return false;
+        }
+
+        return completedNarrativeBeatIds.Contains(beatId);
+    }
+
+    public void SaveWorldState()
+    {
+        if (isSavingWorldState || isLoadingWorldState)
+        {
+            return;
+        }
+
+        isSavingWorldState = true;
+        try
+        {
+            WorldStateSaveData saveData = new WorldStateSaveData();
+
+            foreach (KeyValuePair<string, PuzzleRuntimeState> pair in puzzleRuntimeStates)
+            {
+                if (pair.Value == null)
+                {
+                    continue;
+                }
+
+                PuzzleRuntimeSaveEntry entry = new PuzzleRuntimeSaveEntry
+                {
+                    puzzleBoxId = pair.Key,
+                    hasGrid = pair.Value.hasGrid,
+                    solved = pair.Value.solved,
+                    tileValues = new int[9]
+                };
+
+                for (int i = 0; i < entry.tileValues.Length; i++)
+                {
+                    entry.tileValues[i] = pair.Value.tileValues[i];
+                }
+
+                saveData.puzzleStates.Add(entry);
+            }
+
+            foreach (KeyValuePair<string, AncientTextRuntimeState> pair in ancientTextRuntimeStates)
+            {
+                if (pair.Value == null)
+                {
+                    continue;
+                }
+
+                AncientTextRuntimeSaveEntry entry = new AncientTextRuntimeSaveEntry
+                {
+                    textId = pair.Key,
+                    title = pair.Value.title,
+                    body = pair.Value.body,
+                    discovered = pair.Value.discovered
+                };
+                saveData.ancientTextStates.Add(entry);
+            }
+
+            foreach (string beatId in completedNarrativeBeatIds)
+            {
+                if (!string.IsNullOrEmpty(beatId))
+                {
+                    saveData.completedNarrativeBeatIds.Add(beatId);
+                }
+            }
+
+            if (IslandRestorationTracker.Instance != null)
+            {
+                saveData.restorationSnapshot = IslandRestorationTracker.Instance.CaptureSnapshot();
+            }
+
+            string payload = JsonUtility.ToJson(saveData);
+            PlayerPrefs.SetString(WorldStateSaveKey, payload);
+            PlayerPrefs.Save();
+        }
+        finally
+        {
+            isSavingWorldState = false;
+        }
+    }
+
+    public void LoadWorldState()
+    {
+        if (isLoadingWorldState)
+        {
+            return;
+        }
+
+        hasLoadedWorldState = true;
+
+        if (!PlayerPrefs.HasKey(WorldStateSaveKey))
+        {
+            return;
+        }
+
+        string payload = PlayerPrefs.GetString(WorldStateSaveKey, string.Empty);
+        if (string.IsNullOrEmpty(payload))
+        {
+            return;
+        }
+
+        WorldStateSaveData saveData = JsonUtility.FromJson<WorldStateSaveData>(payload);
+        if (saveData == null)
+        {
+            return;
+        }
+
+        isLoadingWorldState = true;
+
+        try
+        {
+            puzzleRuntimeStates.Clear();
+            if (saveData.puzzleStates != null)
+            {
+                for (int i = 0; i < saveData.puzzleStates.Count; i++)
+                {
+                    PuzzleRuntimeSaveEntry entry = saveData.puzzleStates[i];
+                    if (entry == null || string.IsNullOrEmpty(entry.puzzleBoxId))
+                    {
+                        continue;
+                    }
+
+                    PuzzleRuntimeState state = new PuzzleRuntimeState
+                    {
+                        hasGrid = entry.hasGrid,
+                        solved = entry.solved
+                    };
+
+                    if (entry.tileValues != null)
+                    {
+                        int copyLength = Mathf.Min(state.tileValues.Length, entry.tileValues.Length);
+                        for (int j = 0; j < copyLength; j++)
+                        {
+                            state.tileValues[j] = Mathf.Clamp(entry.tileValues[j], 1, 10);
+                        }
+                    }
+
+                    puzzleRuntimeStates[entry.puzzleBoxId] = state;
+                }
+            }
+
+            ancientTextRuntimeStates.Clear();
+            if (saveData.ancientTextStates != null)
+            {
+                for (int i = 0; i < saveData.ancientTextStates.Count; i++)
+                {
+                    AncientTextRuntimeSaveEntry entry = saveData.ancientTextStates[i];
+                    if (entry == null || string.IsNullOrEmpty(entry.textId))
+                    {
+                        continue;
+                    }
+
+                    AncientTextRuntimeState state = new AncientTextRuntimeState
+                    {
+                        title = entry.title,
+                        body = entry.body,
+                        discovered = entry.discovered
+                    };
+
+                    ancientTextRuntimeStates[entry.textId] = state;
+                }
+            }
+
+            completedNarrativeBeatIds.Clear();
+            if (saveData.completedNarrativeBeatIds != null)
+            {
+                for (int i = 0; i < saveData.completedNarrativeBeatIds.Count; i++)
+                {
+                    string beatId = saveData.completedNarrativeBeatIds[i];
+                    if (!string.IsNullOrEmpty(beatId))
+                    {
+                        completedNarrativeBeatIds.Add(beatId);
+                    }
+                }
+            }
+
+            if (IslandRestorationTracker.Instance != null && saveData.restorationSnapshot != null)
+            {
+                IslandRestorationTracker.Instance.ApplySnapshot(saveData.restorationSnapshot);
+            }
+
+            PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
+            if (guardSpawner != null)
+            {
+                guardSpawner.RefreshGuards();
+            }
+        }
+        finally
+        {
+            isLoadingWorldState = false;
+        }
     }
 
     public void CompletePuzzleInExploration(string puzzleBoxId, string islandId, string encounterId, float restorationValue)
@@ -355,6 +745,8 @@ public class GameStateManager : MonoBehaviour
             Debug.Log($"[GameStateManager] Recorded puzzle completion for island '{scopedIslandId}', encounter '{scopedEncounterId}'.");
         }
 
+        SaveWorldState();
+
         OnPuzzleCompleted?.Invoke();
 
         PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
@@ -371,6 +763,11 @@ public class GameStateManager : MonoBehaviour
 
     public void OnCombatEnded(bool playerWon)
     {
+        if (!playerWon)
+        {
+            NotifyBossDefeatAttempt();
+        }
+
         if (playerWon && IslandRestorationTracker.Instance != null && !string.IsNullOrEmpty(PendingCombatEncounterId))
         {
             string islandId = string.IsNullOrEmpty(PendingCombatIslandId) ? "default" : PendingCombatIslandId;
@@ -386,6 +783,11 @@ public class GameStateManager : MonoBehaviour
         if (playerWon)
         {
             GrantBattleRewards();
+        }
+
+        if (playerWon)
+        {
+            SaveWorldState();
         }
 
         if (HasActiveFlowController)
@@ -452,6 +854,7 @@ public class GameStateManager : MonoBehaviour
         PendingCombatIslandId = null;
         PendingCombatEncounterId = null;
         PendingCombatRestorationValue = 0f;
+        pendingBossIslandIdForDefeatTracking = null;
 
         if (shouldReturnToPuzzle)
         {
@@ -535,6 +938,7 @@ public class GameStateManager : MonoBehaviour
 
             EnsureMainSceneRuntimeComponents();
             ApplySolvedPuzzleBoxesInScene();
+            LoadFinalBossDefeatStateIfAvailable();
 
             if (PuzzleSolved)
             {
@@ -574,6 +978,7 @@ public class GameStateManager : MonoBehaviour
                         EncounterType.Puzzle,
                         contribution);
                     Debug.Log($"[GameStateManager] Recorded puzzle completion for island '{islandId}', encounter '{encounterId}'.");
+                    SaveWorldState();
                 }
 
                 // Clear pending restoration fields
@@ -610,6 +1015,8 @@ public class GameStateManager : MonoBehaviour
                 }
             }
 
+            ApplyPendingCameraTransformIfAvailable();
+
             hasPendingReturnPosition = false;
             hasPendingCombatReturnPosition = false;
 
@@ -620,6 +1027,13 @@ public class GameStateManager : MonoBehaviour
             }
 
             SnapFollowCameraToPlayer();
+
+            if (cameraSnapRoutine != null)
+            {
+                StopCoroutine(cameraSnapRoutine);
+            }
+
+            cameraSnapRoutine = StartCoroutine(SnapFollowCameraAfterLoad());
 
             if (isFlowControlledCombat)
             {
@@ -736,6 +1150,20 @@ public class GameStateManager : MonoBehaviour
         pendingReturnPosition = player.transform.position;
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = true;
+        CaptureExplorationCameraTransform();
+    }
+
+    private void CaptureExplorationCameraTransform()
+    {
+        Camera activeCamera = Camera.main;
+        if (activeCamera == null)
+        {
+            return;
+        }
+
+        pendingCameraPosition = activeCamera.transform.position;
+        pendingCameraRotation = activeCamera.transform.rotation;
+        hasPendingCameraTransform = true;
     }
 
     private void EnsureRestorationTracker()
@@ -786,6 +1214,18 @@ public class GameStateManager : MonoBehaviour
             overlayObject.AddComponent<PuzzleOverlayController>();
         }
 
+        if (FindFirstObjectByType<AncientTextSceneBootstrap>() == null)
+        {
+            GameObject ancientTextBootstrap = new GameObject("AncientTextSceneBootstrap");
+            ancientTextBootstrap.AddComponent<AncientTextSceneBootstrap>();
+        }
+
+        if (FindFirstObjectByType<NarrativeBeatDirector>() == null)
+        {
+            GameObject narrativeDirector = new GameObject("NarrativeBeatDirector");
+            narrativeDirector.AddComponent<NarrativeBeatDirector>();
+        }
+
         PuzzleGuardSpawner spawner = FindFirstObjectByType<PuzzleGuardSpawner>();
         if (spawner == null)
         {
@@ -825,5 +1265,136 @@ public class GameStateManager : MonoBehaviour
         Vector3 currentPosition = activeCamera.transform.position;
         Vector3 toPlayer = player.transform.position;
         activeCamera.transform.position = new Vector3(toPlayer.x, currentPosition.y, toPlayer.z);
+    }
+
+    private IEnumerator SnapFollowCameraAfterLoad()
+    {
+        yield return null;
+        ApplyPendingCameraTransformIfAvailable();
+        SnapFollowCameraToPlayer();
+        yield return new WaitForEndOfFrame();
+        ApplyPendingCameraTransformIfAvailable();
+        SnapFollowCameraToPlayer();
+        cameraSnapRoutine = null;
+    }
+
+    private void ApplyPendingCameraTransformIfAvailable()
+    {
+        if (!hasPendingCameraTransform)
+        {
+            return;
+        }
+
+        Camera activeCamera = Camera.main;
+        if (activeCamera == null)
+        {
+            return;
+        }
+
+        activeCamera.transform.position = pendingCameraPosition;
+        activeCamera.transform.rotation = pendingCameraRotation;
+
+        TopDownFollowCamera followCamera = activeCamera.GetComponent<TopDownFollowCamera>();
+        if (followCamera != null)
+        {
+            followCamera.CaptureCurrentOffsetAsDefault();
+        }
+
+        hasPendingCameraTransform = false;
+    }
+
+    private void NotifyBossDefeatAttempt()
+    {
+        if (string.IsNullOrEmpty(pendingBossIslandIdForDefeatTracking))
+        {
+            return;
+        }
+
+        BossEncounterGate[] bossGates = FindObjectsByType<BossEncounterGate>(FindObjectsSortMode.None);
+        for (int i = 0; i < bossGates.Length; i++)
+        {
+            BossEncounterGate gate = bossGates[i];
+            if (gate == null)
+            {
+                continue;
+            }
+
+            if (gate.MatchesIslandForDefeatTracking(pendingBossIslandIdForDefeatTracking))
+            {
+                gate.RecordBossDefeatAttempt(false);
+                SaveFinalBossDefeatState();
+            }
+        }
+    }
+
+    private void SaveFinalBossDefeatState()
+    {
+        FinalBossDefeatSaveCollection payload = new FinalBossDefeatSaveCollection();
+        BossEncounterGate[] gates = FindObjectsByType<BossEncounterGate>(FindObjectsSortMode.None);
+        for (int i = 0; i < gates.Length; i++)
+        {
+            BossEncounterGate gate = gates[i];
+            if (gate == null || !gate.IsTrackedFinalBoss)
+            {
+                continue;
+            }
+
+            FinalBossDefeatSaveEntry entry = new FinalBossDefeatSaveEntry
+            {
+                islandId = gate.TrackedIslandId,
+                defeats = gate.GetDefeatCount()
+            };
+            payload.entries.Add(entry);
+        }
+
+        string json = JsonUtility.ToJson(payload);
+        PlayerPrefs.SetString(FinalBossDefeatsSaveKey, json);
+        PlayerPrefs.Save();
+    }
+
+    private void LoadFinalBossDefeatStateIfAvailable()
+    {
+        if (!PlayerPrefs.HasKey(FinalBossDefeatsSaveKey))
+        {
+            return;
+        }
+
+        string json = PlayerPrefs.GetString(FinalBossDefeatsSaveKey, string.Empty);
+        if (string.IsNullOrEmpty(json))
+        {
+            return;
+        }
+
+        FinalBossDefeatSaveCollection payload = JsonUtility.FromJson<FinalBossDefeatSaveCollection>(json);
+        if (payload == null || payload.entries == null)
+        {
+            return;
+        }
+
+        BossEncounterGate[] gates = FindObjectsByType<BossEncounterGate>(FindObjectsSortMode.None);
+        for (int i = 0; i < gates.Length; i++)
+        {
+            BossEncounterGate gate = gates[i];
+            if (gate == null || !gate.IsTrackedFinalBoss)
+            {
+                continue;
+            }
+
+            for (int j = 0; j < payload.entries.Count; j++)
+            {
+                FinalBossDefeatSaveEntry entry = payload.entries[j];
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                string scopedEntryIsland = string.IsNullOrEmpty(entry.islandId) ? "default" : entry.islandId;
+                if (scopedEntryIsland == gate.TrackedIslandId)
+                {
+                    gate.SetDefeatCount(entry.defeats);
+                    break;
+                }
+            }
+        }
     }
 }

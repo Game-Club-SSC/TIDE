@@ -1,31 +1,43 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
+[DisallowMultipleComponent]
 [RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Renderer))]
-public class CombatBoxInteractable : MonoBehaviour
+public class AncientTextInteractable : MonoBehaviour
 {
-    private const string DefaultPromptResourceName = "PuzzlePrompt";
-    private const float DefaultPromptPixelsPerUnit = 360f;
+    private const string PromptResourceName = "PuzzlePrompt";
+    private const float PromptPixelsPerUnit = 360f;
 
-    [Header("Prompt Layout")]
-    [SerializeField] private Vector3 promptLocalOffset = new Vector3(1.45f, 1.15f, 0f);
-    [SerializeField] private Vector3 promptScale = new Vector3(0.72f, 0.72f, 1f);
-    [SerializeField] private Sprite promptSprite;
-    [SerializeField] private Color promptTint = Color.white;
+    [Header("Text Data")]
+    [SerializeField] private AncientTextData textData;
+
+    [Header("Prompt")]
+    [SerializeField] private Vector3 promptOffset = new Vector3(1.2f, 1.25f, 0f);
+    [SerializeField] private Vector3 promptScale = new Vector3(0.68f, 0.68f, 1f);
+    [SerializeField] private Color promptColor = Color.white;
 
     [Header("Interaction")]
-    [SerializeField] private Vector3 triggerSize = new Vector3(3.25f, 2.25f, 3.25f);
-    [SerializeField] private Color boxColor = new Color(0.8f, 0.15f, 0.15f);
-    [SerializeField] private string islandId = "default";
-    [SerializeField] private string encounterId = "";
-    [SerializeField] private float restorationValue = 0.001f;
+    [SerializeField] private Vector3 triggerSize = new Vector3(3f, 2.2f, 3f);
+    [SerializeField] private KeyCode interactKey = KeyCode.Return;
+
+    [Header("Visual")]
+    [SerializeField] private Color unreadColor = new Color(0.86f, 0.75f, 0.47f, 1f);
+    [SerializeField] private Color readColor = new Color(0.62f, 0.62f, 0.68f, 1f);
 
     private BoxCollider interactionTrigger;
     private Renderer cachedRenderer;
     private GameObject promptRoot;
-    private bool playerInRange;
     private Sprite runtimePromptSprite;
+    private bool playerInRange;
+    private bool isRead;
+
+    public void ConfigureRuntimeData(AncientTextData data)
+    {
+        textData = data;
+        RegisterTextData();
+        SyncReadState();
+    }
 
     private void Awake()
     {
@@ -35,15 +47,10 @@ public class CombatBoxInteractable : MonoBehaviour
         interactionTrigger.size = triggerSize;
 
         EnsureSolidCollider();
-        CreatePromptVisual();
-        ApplyBoxColor();
+        CreatePrompt();
+        RegisterTextData();
+        SyncReadState();
         SetPromptVisible(false);
-
-        if (ShouldDisableAsClearedEncounter())
-        {
-            gameObject.SetActive(false);
-            return;
-        }
     }
 
     private void Update()
@@ -51,46 +58,88 @@ public class CombatBoxInteractable : MonoBehaviour
         UpdatePromptFacing();
 
         GameStateManager gsm = GameStateManager.Instance;
-
-        bool canInteract = playerInRange &&
-                           gsm != null &&
-                           gsm.CanEnterCombatScene();
+        bool canInteract = playerInRange
+            && gsm != null
+            && gsm.currentState == GameStateManager.GameState.Exploration
+            && !gsm.IsTransitioning;
 
         SetPromptVisible(canInteract);
-
         if (!canInteract)
         {
             return;
         }
 
-        if (!Input.GetKeyDown(KeyCode.Return) && !Input.GetKeyDown(KeyCode.KeypadEnter))
+        bool pressedMain = Input.GetKeyDown(interactKey) || Input.GetKeyDown(KeyCode.KeypadEnter);
+        if (!pressedMain)
         {
             return;
         }
 
-        if (!string.IsNullOrEmpty(encounterId))
+        OpenTextLog(gsm);
+    }
+
+    private void RegisterTextData()
+    {
+        if (textData == null)
         {
-            gsm.EnterCombatSceneFromExploration(
-                string.IsNullOrEmpty(islandId) ? "default" : islandId,
-                encounterId,
-                Mathf.Max(0.001f, restorationValue),
-                transform.position);
+            Debug.LogWarning($"[AncientTextInteractable] Missing AncientTextData on '{name}'.");
+            return;
         }
-        else
+
+        if (!textData.IsValid())
         {
-            gsm.EnterCombatScene();
+            Debug.LogWarning($"[AncientTextInteractable] Text data on '{name}' is invalid.");
+            return;
+        }
+
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.RegisterAncientText(textData.textId, textData.title, textData.body);
         }
     }
 
-    private bool ShouldDisableAsClearedEncounter()
+    private void SyncReadState()
     {
-        if (string.IsNullOrEmpty(encounterId) || IslandRestorationTracker.Instance == null)
+        if (GameStateManager.Instance != null && textData != null)
         {
-            return false;
+            isRead = GameStateManager.Instance.IsAncientTextDiscovered(textData.textId);
         }
 
-        string scopedIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
-        return IslandRestorationTracker.Instance.HasClearedEncounter(scopedIslandId, encounterId);
+        ApplyVisualState();
+    }
+
+    private void OpenTextLog(GameStateManager gsm)
+    {
+        if (gsm == null || textData == null || !textData.IsValid())
+        {
+            return;
+        }
+
+        bool wasNew = gsm.DiscoverAncientText(textData.textId);
+        isRead = true;
+        ApplyVisualState();
+
+        AncientTextLogUI logUi = FindFirstObjectByType<AncientTextLogUI>();
+        if (logUi == null)
+        {
+            GameObject logObject = new GameObject("AncientTextLogUI");
+            logUi = logObject.AddComponent<AncientTextLogUI>();
+        }
+
+        if (logUi != null)
+        {
+            logUi.ShowEntry(textData.textId, textData.title, textData.body, wasNew);
+        }
+    }
+
+    private void ApplyVisualState()
+    {
+        if (cachedRenderer == null)
+        {
+            return;
+        }
+
+        cachedRenderer.material.color = isRead ? readColor : unreadColor;
     }
 
     private void OnTriggerEnter(Collider other)
@@ -114,14 +163,6 @@ public class CombatBoxInteractable : MonoBehaviour
         SetPromptVisible(false);
     }
 
-    private void ApplyBoxColor()
-    {
-        if (cachedRenderer != null)
-        {
-            cachedRenderer.material.color = boxColor;
-        }
-    }
-
     private void EnsureSolidCollider()
     {
         Collider[] colliders = GetComponents<Collider>();
@@ -139,11 +180,11 @@ public class CombatBoxInteractable : MonoBehaviour
         solidCollider.center = Vector3.zero;
     }
 
-    private void CreatePromptVisual()
+    private void CreatePrompt()
     {
-        promptRoot = new GameObject("ExaminePrompt");
+        promptRoot = new GameObject("AncientTextPrompt");
         promptRoot.transform.SetParent(transform, false);
-        promptRoot.transform.localPosition = promptLocalOffset;
+        promptRoot.transform.localPosition = promptOffset;
 
         GameObject spriteObject = new GameObject("PromptImage");
         spriteObject.transform.SetParent(promptRoot.transform, false);
@@ -153,15 +194,10 @@ public class CombatBoxInteractable : MonoBehaviour
 
         SpriteRenderer spriteRenderer = spriteObject.AddComponent<SpriteRenderer>();
         spriteRenderer.sprite = GetPromptSprite();
-        spriteRenderer.color = promptTint;
+        spriteRenderer.color = promptColor;
         spriteRenderer.shadowCastingMode = ShadowCastingMode.Off;
         spriteRenderer.receiveShadows = false;
         spriteRenderer.sortingOrder = 10;
-
-        if (spriteRenderer.sprite == null)
-        {
-            Debug.LogWarning($"{nameof(CombatBoxInteractable)} on {name} could not find a prompt sprite. Assign one in the inspector or add a PNG named {DefaultPromptResourceName} under Assets/Resources.", this);
-        }
     }
 
     private void UpdatePromptFacing()
@@ -170,6 +206,7 @@ public class CombatBoxInteractable : MonoBehaviour
         {
             return;
         }
+
         Vector3 facingDirection = promptRoot.transform.position - Camera.main.transform.position;
         if (facingDirection.sqrMagnitude <= Mathf.Epsilon)
         {
@@ -181,17 +218,12 @@ public class CombatBoxInteractable : MonoBehaviour
 
     private Sprite GetPromptSprite()
     {
-        if (promptSprite != null)
-        {
-            return promptSprite;
-        }
-
         if (runtimePromptSprite != null)
         {
             return runtimePromptSprite;
         }
 
-        Texture2D promptTexture = Resources.Load<Texture2D>(DefaultPromptResourceName);
+        Texture2D promptTexture = Resources.Load<Texture2D>(PromptResourceName);
         if (promptTexture == null)
         {
             return null;
@@ -201,8 +233,8 @@ public class CombatBoxInteractable : MonoBehaviour
             promptTexture,
             new Rect(0f, 0f, promptTexture.width, promptTexture.height),
             new Vector2(0.5f, 0.5f),
-            DefaultPromptPixelsPerUnit);
-        runtimePromptSprite.name = $"{DefaultPromptResourceName}_Runtime";
+            PromptPixelsPerUnit);
+        runtimePromptSprite.name = $"{PromptResourceName}_Runtime";
         return runtimePromptSprite;
     }
 
