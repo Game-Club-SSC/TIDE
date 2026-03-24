@@ -5,7 +5,7 @@ using UnityEngine;
 public class PuzzleGuardSpawner : MonoBehaviour
 {
     [Header("Guard Spawn")]
-    [SerializeField] private Vector3 spawnOffset = new Vector3(0f, 0.6f, 0f);
+    [SerializeField] private Vector3 spawnOffset = new Vector3(0f, 0.6f, 2.5f);
     [SerializeField] private Vector3 guardScale = new Vector3(0.9f, 1.2f, 0.9f);
 
     private readonly Dictionary<string, OverworldEnemy> activeGuards = new Dictionary<string, OverworldEnemy>();

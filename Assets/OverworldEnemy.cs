@@ -28,7 +28,6 @@ public class OverworldEnemy : MonoBehaviour
 
     [Header("Chase")]
     [SerializeField] private float chaseSpeed = 6f;
-    [SerializeField] private float chaseGiveUpRange = 12f;
 
     [Header("Returning Recovery")]
     [SerializeField] private float stuckCheckInterval = 0.35f;
@@ -148,6 +147,16 @@ public class OverworldEnemy : MonoBehaviour
     {
         if (!CanOperate()) return;
         if (playerTransform == null) playerTransform = FindPlayer();
+
+        if (playerTransform != null)
+        {
+            float touchDistance = GetPlanarDistance(transform.position, playerTransform.position);
+            if (touchDistance <= arrivalThreshold)
+            {
+                TryTriggerCombat();
+                return;
+            }
+        }
 
         switch (currentState)
         {
@@ -321,32 +330,9 @@ public class OverworldEnemy : MonoBehaviour
 
         float distanceToPlayer = GetPlanarDistance(transform.position, playerTransform.position);
 
-        if (isPuzzleGuard)
-        {
-            float distanceFromAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
-            if (distanceFromAnchor > puzzleGuardLeashRadius)
-            {
-                SetExclamationVisible(false);
-                TransitionToState(EnemyState.Returning);
-                return;
-            }
-        }
-
         if (distanceToPlayer <= arrivalThreshold)
         {
             TryTriggerCombat();
-            return;
-        }
-
-        if (isPuzzleGuard)
-        {
-            return;
-        }
-
-        if (distanceToPlayer > chaseGiveUpRange)
-        {
-            SetExclamationVisible(false);
-            TransitionToState(EnemyState.Returning);
             return;
         }
     }
@@ -1011,12 +997,6 @@ public class OverworldEnemy : MonoBehaviour
         Gizmos.DrawRay(origin, rightBound * visionRange);
         Gizmos.DrawWireSphere(origin, visionRange);
 
-        // Chase give-up range
-        if (Application.isPlaying && currentState == EnemyState.Chasing)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, chaseGiveUpRange);
-        }
     }
 #endif
 }
