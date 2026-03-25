@@ -27,6 +27,10 @@ public class OverworldEnemy : MonoBehaviour
     [SerializeField] private LayerMask visionBlockMask;
     [SerializeField] private float eyeHeight = 0.5f;
 
+    [Header("Aggro")]
+    [SerializeField] private float proximityAggroRange = 7.5f;
+    [SerializeField] private bool allowLineOfSightAggro = true;
+
     [Header("Chase")]
     [SerializeField] private float chaseSpeed = 6f;
 
@@ -247,7 +251,7 @@ public class OverworldEnemy : MonoBehaviour
 
     private void UpdateRoaming()
     {
-        if (playerTransform != null && CanSeePlayer())
+        if (ShouldStartChase())
         {
             TransitionToState(EnemyState.Alert);
             return;
@@ -354,6 +358,12 @@ public class OverworldEnemy : MonoBehaviour
 
     private void UpdateReturning()
     {
+        if (ShouldStartChase())
+        {
+            TransitionToState(EnemyState.Alert);
+            return;
+        }
+
         UpdateReturnRecoveryTimer();
 
         if (isPuzzleGuard)
@@ -459,6 +469,22 @@ public class OverworldEnemy : MonoBehaviour
         }
 
         return true;
+    }
+
+    private bool ShouldStartChase()
+    {
+        if (playerTransform == null)
+        {
+            return false;
+        }
+
+        float distance = GetPlanarDistance(transform.position, playerTransform.position);
+        if (distance <= Mathf.Max(arrivalThreshold, proximityAggroRange))
+        {
+            return true;
+        }
+
+        return allowLineOfSightAggro && CanSeePlayer();
     }
 
     // ========== MOVEMENT ==========

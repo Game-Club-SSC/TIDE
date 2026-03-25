@@ -6,18 +6,24 @@ public class IsometricPlayer : MonoBehaviour
     [Header("Movement")]
     [SerializeField] private float walkSpeed = 5f;
     [SerializeField] private float sprintSpeed = 10f;
+    [SerializeField] private KeyCode sprintHoldKey = KeyCode.LeftShift;
+    [SerializeField] private KeyCode sprintLockToggleKey = KeyCode.CapsLock;
     public bool canMove = true;
 
     [Header("UI")]
     [SerializeField] private bool addExplorationMapOnStart = true;
+    [SerializeField] private bool addPlayerCustomizationUiOnStart = true;
 
     private Rigidbody rb;
     private Camera cachedMainCamera;
     private Vector3 inputVector;
     private float currentSpeed;
+    private bool isSprintLockEnabled;
 
     [Header("Visual")]
     [SerializeField] private Color playerColor = new Color(0.2f, 0.8f, 0.2f, 1f);
+
+    public Color PlayerColor => playerColor;
 
     void Start()
     {
@@ -28,6 +34,28 @@ public class IsometricPlayer : MonoBehaviour
         currentSpeed = walkSpeed;
         ApplyPlayerColor();
         EnsureExplorationMapUi();
+        EnsurePlayerCustomizationUi();
+    }
+
+    private void EnsurePlayerCustomizationUi()
+    {
+        if (!addPlayerCustomizationUiOnStart)
+        {
+            return;
+        }
+
+        if (GetComponent<PlayerCustomizationUI>() != null)
+        {
+            return;
+        }
+
+        if (FindFirstObjectByType<PlayerCustomizationUI>() != null)
+        {
+            return;
+        }
+
+        gameObject.AddComponent<PlayerCustomizationUI>();
+        Debug.Log("[IsometricPlayer] Added PlayerCustomizationUI.");
     }
 
     private void EnsureExplorationMapUi()
@@ -61,6 +89,12 @@ public class IsometricPlayer : MonoBehaviour
         }
     }
 
+    public void SetPlayerColor(Color newColor)
+    {
+        playerColor = newColor;
+        ApplyPlayerColor();
+    }
+
     void Update()
     {
         if (!canMove)
@@ -70,13 +104,21 @@ public class IsometricPlayer : MonoBehaviour
             return;
         }
 
+        if (Input.GetKeyDown(sprintLockToggleKey))
+        {
+            isSprintLockEnabled = !isSprintLockEnabled;
+            Debug.Log($"[IsometricPlayer] Sprint lock {(isSprintLockEnabled ? "enabled" : "disabled")}." );
+        }
+
         // 1. Gather WASD Input
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         inputVector = new Vector3(h, 0f, v).normalized;
 
         // 2. Sprinting Check
-        if (Input.GetKey(KeyCode.LeftShift))
+        bool sprintHeld = Input.GetKey(sprintHoldKey);
+        bool shouldSprint = sprintHeld || isSprintLockEnabled;
+        if (shouldSprint)
         {
             currentSpeed = sprintSpeed;
         }

@@ -5,6 +5,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class HeroProgressionManager : MonoBehaviour
 {
+    private const string CosmeticCurrencyHeroId = "__cosmetic_currency__";
+
     public static HeroProgressionManager Instance { get; private set; }
 
     [Header("Configuration")]
@@ -16,8 +18,11 @@ public class HeroProgressionManager : MonoBehaviour
     public event Action<string, int> OnHeroLeveledUp;
     public event Action<string, int> OnXpGained;
     public event Action<string, GearSetData> OnGearChanged;
+    public event Action<int> OnCosmeticXpChanged;
+    public event Action<string> OnPlayerColorPresetUnlocked;
 
     private Dictionary<string, HeroProgressionState> heroStates = new Dictionary<string, HeroProgressionState>();
+    private HashSet<string> unlockedPlayerColorPresetIds = new HashSet<string>();
 
     public LevelingConfig LevelingConfig => levelingConfig;
     public GearSetData[] AvailableGearSets => availableGearSets;
@@ -252,12 +257,88 @@ public class HeroProgressionManager : MonoBehaviour
         return leveledUp;
     }
 
+    public int GetCosmeticXp()
+    {
+        HeroProgressionState state = GetState(CosmeticCurrencyHeroId);
+        return state != null ? Mathf.Max(0, state.currentXp) : 0;
+    }
+
+    public void GrantCosmeticXp(int xpAmount)
+    {
+        int amount = Mathf.Max(0, xpAmount);
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        EnsureHero(CosmeticCurrencyHeroId);
+        HeroProgressionState state = heroStates[CosmeticCurrencyHeroId];
+        state.currentXp += amount;
+        state.level = 1;
+        OnCosmeticXpChanged?.Invoke(state.currentXp);
+    }
+
+    public bool TrySpendCosmeticXp(int xpCost)
+    {
+        int cost = Mathf.Max(0, xpCost);
+        if (cost <= 0)
+        {
+            return true;
+        }
+
+        EnsureHero(CosmeticCurrencyHeroId);
+        HeroProgressionState state = heroStates[CosmeticCurrencyHeroId];
+        if (state.currentXp < cost)
+        {
+            return false;
+        }
+
+        state.currentXp -= cost;
+        state.level = 1;
+        OnCosmeticXpChanged?.Invoke(state.currentXp);
+        return true;
+    }
+
+    public bool IsPlayerColorPresetUnlocked(string presetId)
+    {
+        if (string.IsNullOrEmpty(presetId))
+        {
+            return false;
+        }
+
+        return unlockedPlayerColorPresetIds.Contains(presetId);
+    }
+
+    public bool TryUnlockPlayerColorPreset(string presetId, int xpCost)
+    {
+        if (string.IsNullOrEmpty(presetId))
+        {
+            return false;
+        }
+
+        if (IsPlayerColorPresetUnlocked(presetId))
+        {
+            return true;
+        }
+
+        if (!TrySpendCosmeticXp(xpCost))
+        {
+            return false;
+        }
+
+        unlockedPlayerColorPresetIds.Add(presetId);
+        OnPlayerColorPresetUnlocked?.Invoke(presetId);
+        return true;
+    }
+
     public void GrantBattleXp(int totalXp, HeroData[] activeHeroes, HeroData[] reserveHeroes)
     {
         if (levelingConfig == null || totalXp <= 0)
         {
             return;
         }
+
+        GrantCosmeticXp(totalXp);
 
         int reserveXp = Mathf.RoundToInt(totalXp * levelingConfig.reserveXpMultiplier);
 

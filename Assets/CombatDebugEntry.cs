@@ -4,7 +4,7 @@ using UnityEngine;
 public class CombatDebugEntry : MonoBehaviour
 {
     [SerializeField] private bool enableDebugCombatKey;
-    [SerializeField] private KeyCode debugCombatKey = KeyCode.C;
+    [SerializeField] private KeyCode debugCombatKey = KeyCode.F8;
 
     private void Update()
     {
