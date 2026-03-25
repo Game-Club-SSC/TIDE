@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using UnityEngine;
 
 /// <summary>
@@ -74,3 +75,4 @@ public class CombatUnitTest : MonoBehaviour
         }
     }
 }
+#endif

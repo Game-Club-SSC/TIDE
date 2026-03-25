@@ -8,6 +8,7 @@ public class CombatDebugEntry : MonoBehaviour
 
     private void Update()
     {
+#if UNITY_EDITOR
         if (!enableDebugCombatKey)
         {
             return;
@@ -24,5 +25,6 @@ public class CombatDebugEntry : MonoBehaviour
         }
 
         GameStateManager.Instance.EnterCombatScene();
+#endif
     }
 }

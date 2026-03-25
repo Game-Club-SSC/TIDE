@@ -257,6 +257,7 @@ public class BattleManager : MonoBehaviour
 
     private void UpdateDebugText()
     {
+#if UNITY_EDITOR
         string phaseName = hasActivePhase ? currentPhase.ToString() : "Waiting";
         int alliesAlive = CountAliveUnits(allyUnits);
         int enemiesAlive = CountAliveUnits(enemyUnits);
@@ -269,6 +270,7 @@ public class BattleManager : MonoBehaviour
             debugText += $"Unit: {currentActingUnit.UnitName}\n";
             debugText += $"Action: {pendingInputActionType}";
         }
+#endif
     }
 
     private void Start()
@@ -320,6 +322,7 @@ public class BattleManager : MonoBehaviour
 
     private void HandleDebugInput()
     {
+#if UNITY_EDITOR
         if (Input.GetKeyDown(victoryKey))
         {
             SetVictory();
@@ -336,6 +339,7 @@ public class BattleManager : MonoBehaviour
         {
             AdvancePhase();
         }
+#endif
     }
 
     private void HandleAutoAdvance()
@@ -1561,6 +1565,7 @@ public class BattleManager : MonoBehaviour
 
     private void OnGUI()
     {
+#if UNITY_EDITOR
         if (cachedBattleHud == null)
         {
             cachedBattleHud = FindFirstObjectByType<BattleHud>();
@@ -1704,6 +1709,7 @@ public class BattleManager : MonoBehaviour
                 TransitionToPhase(BattlePhase.ActionExecution, "PlayerConfirmedActions");
             }
         }
+#endif
     }
 
     private CombatUnit GetCurrentPlayerInputUnit()
