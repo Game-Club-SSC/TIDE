@@ -11,16 +11,16 @@ public class BattleEscapeMenu : MonoBehaviour
 
     private GameObject escapeMenuPanel;
     private GameObject partySwapPanel;
+    private PartySwapPanel partySwapPanelController;
     private Button partySelectionButton;
     private bool isMenuOpen = false;
-    private bool hasAttemptedToFindBattleManager = false;
+    private bool isPartySwapPanelInitialized;
 
     public bool IsMenuOpen => isMenuOpen;
 
     private void Awake()
     {
-        if (battleManager == null)
-            battleManager = FindFirstObjectByType<BattleManager>();
+        TryResolveBattleManager();
 
         if (battleHud == null)
             battleHud = FindFirstObjectByType<BattleHud>();
@@ -28,6 +28,7 @@ public class BattleEscapeMenu : MonoBehaviour
         EnsureCanvas();
         CreateEscapeMenuPanel();
         CreatePartySwapPanel();
+        TryInitializePartySwapPanel();
         SetMenuOpen(false);
     }
 
@@ -165,25 +166,26 @@ public class BattleEscapeMenu : MonoBehaviour
 
     private void Update()
     {
-        if (battleManager == null && !hasAttemptedToFindBattleManager)
-        {
-            battleManager = FindFirstObjectByType<BattleManager>();
-            hasAttemptedToFindBattleManager = true;
-        }
-
-        if (battleManager == null)
-        {
-            return;
-        }
+        TryResolveBattleManager();
+        TryInitializePartySwapPanel();
 
         if (partySelectionButton != null)
         {
-            partySelectionButton.interactable = battleManager.IsPartySwapAllowedThisRound();
+            partySelectionButton.interactable = battleManager != null && battleManager.IsPartySwapAllowedThisRound();
         }
     }
 
     private void OnPartySelectionClicked()
     {
+        TryResolveBattleManager();
+        TryInitializePartySwapPanel();
+
+        if (battleManager == null)
+        {
+            Debug.LogWarning("[BattleEscapeMenu] Cannot open Party Selection because BattleManager is missing.");
+            return;
+        }
+
         if (battleManager != null && !battleManager.IsPartySwapAllowedThisRound())
         {
             Debug.Log("[BattleEscapeMenu] Party swapping is only available during the first input round.");
@@ -206,11 +208,7 @@ public class BattleEscapeMenu : MonoBehaviour
 
     private void OnFleeClicked()
     {
-        if (battleManager == null && !hasAttemptedToFindBattleManager)
-        {
-            battleManager = FindFirstObjectByType<BattleManager>();
-            hasAttemptedToFindBattleManager = true;
-        }
+        TryResolveBattleManager();
 
         if (battleManager == null)
         {
@@ -276,8 +274,30 @@ public class BattleEscapeMenu : MonoBehaviour
         CreateButton(partySwapPanel.transform, "Back", new Vector2(0.05f, 0.05f), new Vector2(0.25f, 0.15f), OnBackClicked);
 
         // We'll let PartySwapPanel component handle dynamic content
-        PartySwapPanel swapPanel = partySwapPanel.AddComponent<PartySwapPanel>();
-        swapPanel.Initialize(battleManager);
+        partySwapPanelController = partySwapPanel.AddComponent<PartySwapPanel>();
+    }
+
+    private void TryResolveBattleManager()
+    {
+        if (battleManager == null)
+        {
+            battleManager = FindFirstObjectByType<BattleManager>();
+            if (battleManager != null)
+            {
+                isPartySwapPanelInitialized = false;
+            }
+        }
+    }
+
+    private void TryInitializePartySwapPanel()
+    {
+        if (isPartySwapPanelInitialized || partySwapPanelController == null || battleManager == null)
+        {
+            return;
+        }
+
+        partySwapPanelController.Initialize(battleManager);
+        isPartySwapPanelInitialized = true;
     }
 
     private void OnBackClicked()
