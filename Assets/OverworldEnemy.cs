@@ -12,6 +12,7 @@ public enum EnemyState
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(Collider))]
 public class OverworldEnemy : MonoBehaviour
 {
     [Header("Roaming")]
@@ -81,6 +82,7 @@ public class OverworldEnemy : MonoBehaviour
     private float returnRecoveryRetryCooldownTimer;
     private bool hasReturnRecoveryTarget;
     private int returnRecoveryAttempts;
+    private bool hasTriggeredCombat;
 
     private void Awake()
     {
@@ -599,6 +601,11 @@ public class OverworldEnemy : MonoBehaviour
 
     private void TryTriggerCombat()
     {
+        if (hasTriggeredCombat)
+        {
+            return;
+        }
+
         if (GameStateManager.Instance == null)
         {
             Debug.LogWarning("[OverworldEnemy] GameStateManager.Instance is null. Cannot trigger combat.");
@@ -612,6 +619,8 @@ public class OverworldEnemy : MonoBehaviour
             Debug.LogWarning($"[OverworldEnemy] {name} has no EncounterConfig assigned. Cannot trigger combat.");
             return;
         }
+
+        hasTriggeredCombat = true;
 
         GameStateManager.Instance.PendingEnemyComposition =
             EnemyComposition.FromEncounterConfig(encounterConfig);
@@ -653,6 +662,31 @@ public class OverworldEnemy : MonoBehaviour
         }
 
         Destroy(gameObject, 0.1f);
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision == null || collision.collider == null)
+        {
+            return;
+        }
+
+        if (!IsPlayerCollider(collision.collider))
+        {
+            return;
+        }
+
+        TryTriggerCombat();
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (!IsPlayerCollider(other))
+        {
+            return;
+        }
+
+        TryTriggerCombat();
     }
 
     private void UpdatePuzzleGuardRoamState()
@@ -855,6 +889,21 @@ public class OverworldEnemy : MonoBehaviour
     {
         if (patrolPoints == null || patrolPoints.Length == 0) return false;
         return patrolPoints[patrolIndex] != null;
+    }
+
+    private static bool IsPlayerCollider(Collider collider)
+    {
+        if (collider == null)
+        {
+            return false;
+        }
+
+        if (collider.CompareTag("Player"))
+        {
+            return true;
+        }
+
+        return collider.GetComponentInParent<IsometricPlayer>() != null;
     }
 
     private int FindNearestPatrolIndex()
