@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 [DisallowMultipleComponent]
 public class CombatSceneBootstrap : MonoBehaviour
@@ -412,6 +413,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                     }
 
                     SetUnitColor(unitObject, enemyUnitColor);
+                    EnsureBattleSpriteVisual(unitObject, FuturisticSpriteLibrary.GetEnemyBattleSprite(unit.ElementType), false);
 
                     if (battleManager != null)
                     {
@@ -469,6 +471,69 @@ public class CombatSceneBootstrap : MonoBehaviour
         renderer.material.color = color;
     }
 
+    private static void EnsureBattleSpriteVisual(GameObject unitObject, Sprite sprite, bool faceLeft)
+    {
+        if (unitObject == null || sprite == null)
+        {
+            return;
+        }
+
+        MeshRenderer[] meshRenderers = unitObject.GetComponentsInChildren<MeshRenderer>(true);
+        for (int i = 0; i < meshRenderers.Length; i++)
+        {
+            if (meshRenderers[i] != null)
+            {
+                meshRenderers[i].enabled = false;
+            }
+        }
+
+        Transform visualTransform = unitObject.transform.Find("BattleSpriteVisual");
+        if (visualTransform == null)
+        {
+            GameObject visualObject = new GameObject("BattleSpriteVisual");
+            visualObject.transform.SetParent(unitObject.transform, false);
+            visualObject.transform.localPosition = new Vector3(0f, 1.08f, 0f);
+            visualObject.transform.localScale = new Vector3(2f, 2f, 1f);
+            visualTransform = visualObject.transform;
+        }
+
+        SpriteRenderer spriteRenderer = visualTransform.GetComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = visualTransform.gameObject.AddComponent<SpriteRenderer>();
+        }
+
+        visualTransform.localPosition = new Vector3(0f, 1.08f, 0f);
+        visualTransform.localScale = new Vector3(2f, 2f, 1f);
+        spriteRenderer.sprite = sprite;
+        spriteRenderer.flipX = !faceLeft;
+        spriteRenderer.sortingOrder = 22;
+        spriteRenderer.shadowCastingMode = ShadowCastingMode.Off;
+        spriteRenderer.receiveShadows = false;
+
+        Transform shadowTransform = unitObject.transform.Find("BattleSpriteShadow");
+        if (shadowTransform == null)
+        {
+            GameObject shadowObject = new GameObject("BattleSpriteShadow");
+            shadowObject.transform.SetParent(unitObject.transform, false);
+            shadowObject.transform.localPosition = new Vector3(0f, 0.03f, 0f);
+            shadowObject.transform.localScale = new Vector3(0.9f, 0.48f, 1f);
+            shadowTransform = shadowObject.transform;
+        }
+
+        SpriteRenderer shadowRenderer = shadowTransform.GetComponent<SpriteRenderer>();
+        if (shadowRenderer == null)
+        {
+            shadowRenderer = shadowTransform.gameObject.AddComponent<SpriteRenderer>();
+        }
+
+        shadowRenderer.sprite = FuturisticSpriteLibrary.GetShadowSprite();
+        shadowRenderer.color = new Color(0f, 0f, 0f, 0.28f);
+        shadowRenderer.sortingOrder = 8;
+        shadowRenderer.shadowCastingMode = ShadowCastingMode.Off;
+        shadowRenderer.receiveShadows = false;
+    }
+
     private HeroData[] GetActiveHeroes()
     {
         if (PartyManager.Instance != null && PartyManager.Instance.PartyData != null)
@@ -514,6 +579,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         if (PartyManager.Instance != null)
         {
             PartyManager.Instance.ApplyHeroToUnit(unit, hero);
+            ApplyHeroBattleSprite(unit, hero);
             return;
         }
 
@@ -533,6 +599,24 @@ public class CombatSceneBootstrap : MonoBehaviour
         }
 
         AssignElementTideBreaks(unit, hero);
+        ApplyHeroBattleSprite(unit, hero);
+    }
+
+    private void ApplyHeroBattleSprite(CombatUnit unit, HeroData hero)
+    {
+        if (unit == null || hero == null)
+        {
+            return;
+        }
+
+        string styleId = FuturisticSpriteLibrary.GetDefaultStyleIdForHero(hero);
+        if (hero.isMainCharacter && !string.IsNullOrEmpty(FuturisticSpriteLibrary.CurrentMainPlayerStyleId))
+        {
+            styleId = FuturisticSpriteLibrary.CurrentMainPlayerStyleId;
+        }
+
+        Sprite battleSprite = FuturisticSpriteLibrary.GetPlayerBattleSprite(styleId);
+        EnsureBattleSpriteVisual(unit.gameObject, battleSprite, true);
     }
 
     private static void AssignElementTideBreaks(CombatUnit unit, HeroData hero)
@@ -585,6 +669,9 @@ public class CombatSceneBootstrap : MonoBehaviour
         }
 
         unit.XpReward = enemyData.xpReward;
+
+        Sprite battleSprite = FuturisticSpriteLibrary.GetEnemyBattleSprite(enemyData.element);
+        EnsureBattleSpriteVisual(unit.gameObject, battleSprite, false);
 
         Debug.Log($"[CombatSceneBootstrap] Applied enemy data '{enemyData.displayName}' ({unit.ElementType}, {unit.XpReward} XP) to unit.");
     }

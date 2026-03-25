@@ -60,6 +60,10 @@ public class OverworldEnemy : MonoBehaviour
     [SerializeField] private Vector3 indicatorWorldOffset = new Vector3(0f, 1.8f, 0f);
     [SerializeField] private Vector3 exclamationScale = new Vector3(0.3f, 0.6f, 1f);
     [SerializeField] private float arrowScale = 0.35f;
+    [SerializeField] private bool useFuturisticSpriteVisual = true;
+    [SerializeField] private bool hideLegacyMeshRenderer = true;
+    [SerializeField] private float characterSpriteScale = 1.9f;
+    [SerializeField] private Vector3 characterSpriteLocalOffset = new Vector3(0f, 1.05f, 0f);
 
     private EnemyState currentState = EnemyState.Idle;
     private int patrolIndex;
@@ -71,6 +75,12 @@ public class OverworldEnemy : MonoBehaviour
     private SpriteRenderer exclamationRenderer;
     private GameObject facingArrowObject;
     private SpriteRenderer arrowRenderer;
+    private GameObject enemyBodyObject;
+    private SpriteRenderer enemyBodyRenderer;
+    private GameObject enemyShadowObject;
+    private SpriteRenderer enemyShadowRenderer;
+    private Vector3 enemyBodyBaseLocalPosition;
+    private float walkCycleTimer;
     private Vector3 guardAnchorPosition;
     private Vector3 guardRoamTarget;
     private float guardRoamWaitTimer;
@@ -87,6 +97,7 @@ public class OverworldEnemy : MonoBehaviour
     private bool hasReturnRecoveryTarget;
     private int returnRecoveryAttempts;
     private bool hasTriggeredCombat;
+    private CombatUnit.Element visualElement = CombatUnit.Element.Fire;
 
     private void Awake()
     {
@@ -105,6 +116,9 @@ public class OverworldEnemy : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
+        ResolveVisualElement();
+        EnsureFuturisticVisualSetup();
 
         if (isPuzzleGuard)
         {
@@ -511,6 +525,28 @@ public class OverworldEnemy : MonoBehaviour
 
     private void UpdateVisuals()
     {
+        if (enemyBodyObject != null)
+        {
+            UpdateBillboard(enemyBodyObject.transform);
+
+            float planarSpeed = new Vector2(rb.linearVelocity.x, rb.linearVelocity.z).magnitude;
+            bool isMoving = planarSpeed > 0.05f;
+            float bobMagnitude = isMoving ? 0.05f : 0.015f;
+            float bobFrequency = isMoving ? 8.5f : 2.8f;
+
+            walkCycleTimer += Time.deltaTime * bobFrequency;
+            float bob = Mathf.Sin(walkCycleTimer) * bobMagnitude;
+            enemyBodyObject.transform.localPosition = enemyBodyBaseLocalPosition + new Vector3(0f, bob, 0f);
+        }
+
+        if (enemyShadowObject != null)
+        {
+            enemyShadowObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+
+            float pulse = Mathf.Abs(Mathf.Sin(walkCycleTimer * 0.5f));
+            enemyShadowObject.transform.localScale = new Vector3(0.85f + pulse * 0.06f, 0.45f - pulse * 0.05f, 1f);
+        }
+
         if (exclamationObject != null)
         {
             UpdateBillboard(exclamationObject.transform);
@@ -565,6 +601,83 @@ public class OverworldEnemy : MonoBehaviour
         exclamationRenderer.sortingOrder = 10;
 
         exclamationObject.SetActive(false);
+    }
+
+    private void ResolveVisualElement()
+    {
+        CombatUnit.Element resolved = CombatUnit.Element.Fire;
+
+        if (encounterConfig != null)
+        {
+            EnemyData firstEnemy = encounterConfig.GetEnemy(0);
+            if (firstEnemy != null && firstEnemy.element != CombatUnit.Element.None)
+            {
+                resolved = firstEnemy.element;
+            }
+        }
+
+        visualElement = resolved;
+    }
+
+    private void EnsureFuturisticVisualSetup()
+    {
+        if (!useFuturisticSpriteVisual)
+        {
+            return;
+        }
+
+        if (hideLegacyMeshRenderer)
+        {
+            MeshRenderer[] renderers = GetComponentsInChildren<MeshRenderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] != null)
+                {
+                    renderers[i].enabled = false;
+                }
+            }
+        }
+
+        if (enemyBodyObject == null)
+        {
+            enemyBodyObject = new GameObject("FuturisticEnemyBody");
+            enemyBodyObject.transform.SetParent(transform, false);
+            enemyBodyObject.transform.localPosition = characterSpriteLocalOffset;
+            enemyBodyObject.transform.localScale = new Vector3(characterSpriteScale, characterSpriteScale, 1f);
+
+            enemyBodyBaseLocalPosition = enemyBodyObject.transform.localPosition;
+
+            enemyBodyRenderer = enemyBodyObject.AddComponent<SpriteRenderer>();
+            enemyBodyRenderer.sortingOrder = 12;
+            enemyBodyRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            enemyBodyRenderer.receiveShadows = false;
+            enemyBodyRenderer.color = Color.white;
+        }
+        else
+        {
+            enemyBodyBaseLocalPosition = enemyBodyObject.transform.localPosition;
+        }
+
+        if (enemyBodyRenderer != null)
+        {
+            enemyBodyRenderer.sprite = FuturisticSpriteLibrary.GetEnemyOverworldSprite(visualElement);
+            enemyBodyRenderer.color = Color.white;
+        }
+
+        if (enemyShadowObject == null)
+        {
+            enemyShadowObject = new GameObject("FuturisticEnemyShadow");
+            enemyShadowObject.transform.SetParent(transform, false);
+            enemyShadowObject.transform.localPosition = new Vector3(0f, 0.03f, 0f);
+            enemyShadowObject.transform.localScale = new Vector3(0.85f, 0.45f, 1f);
+
+            enemyShadowRenderer = enemyShadowObject.AddComponent<SpriteRenderer>();
+            enemyShadowRenderer.sprite = FuturisticSpriteLibrary.GetShadowSprite();
+            enemyShadowRenderer.color = new Color(0f, 0f, 0f, 0.3f);
+            enemyShadowRenderer.sortingOrder = 6;
+            enemyShadowRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            enemyShadowRenderer.receiveShadows = false;
+        }
     }
 
     private void CreateFacingArrow()
@@ -1030,6 +1143,16 @@ public class OverworldEnemy : MonoBehaviour
         if (facingArrowObject != null)
         {
             Destroy(facingArrowObject);
+        }
+
+        if (enemyBodyObject != null)
+        {
+            Destroy(enemyBodyObject);
+        }
+
+        if (enemyShadowObject != null)
+        {
+            Destroy(enemyShadowObject);
         }
     }
 

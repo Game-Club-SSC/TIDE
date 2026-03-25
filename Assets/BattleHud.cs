@@ -51,6 +51,11 @@ public class BattleHud : MonoBehaviour
     private Text critLabel;
     private float critDisplayTimer;
 
+    // Battle action FX
+    private readonly Dictionary<Transform, Vector3> spriteBasePositions = new Dictionary<Transform, Vector3>();
+    private readonly Dictionary<Transform, float> spriteAnimPhase = new Dictionary<Transform, float>();
+    private readonly Dictionary<Transform, Vector3> spriteAppliedOffsets = new Dictionary<Transform, Vector3>();
+
     // Momentum
     private Image momentumFill;
     private Text momentumLabel;
@@ -126,6 +131,8 @@ public class BattleHud : MonoBehaviour
         {
             RefreshDisplay();
         }
+
+        UpdateBattleSpriteAnimations();
 
         UpdateWorldBarPositions();
 
@@ -213,6 +220,78 @@ public class BattleHud : MonoBehaviour
         if (isCrit)
         {
             ShowCritAnnouncement(actor);
+        }
+    }
+
+    private void UpdateBattleSpriteAnimations()
+    {
+        if (battleManager == null)
+        {
+            return;
+        }
+
+        IReadOnlyList<CombatUnit> allUnits = battleManager.GetAllUnits();
+        for (int i = 0; i < allUnits.Count; i++)
+        {
+            CombatUnit unit = allUnits[i];
+            if (unit == null || !unit.IsAlive)
+            {
+                continue;
+            }
+
+            Transform visual = unit.transform.Find("BattleSpriteVisual");
+            if (visual == null)
+            {
+                continue;
+            }
+
+            if (!spriteBasePositions.ContainsKey(visual))
+            {
+                spriteBasePositions[visual] = visual.localPosition;
+            }
+
+            if (!spriteAnimPhase.ContainsKey(visual))
+            {
+                spriteAnimPhase[visual] = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+            }
+
+            float phase = spriteAnimPhase[visual] + Time.deltaTime * 5.4f;
+            spriteAnimPhase[visual] = phase;
+
+            bool unitIsActive = battleManager.GetCurrentInputUnit() == unit && battleManager.CurrentPhase == BattlePhase.PlayerInput;
+            float bob = Mathf.Sin(phase) * (unitIsActive ? 0.05f : 0.03f);
+            Vector3 previousOffset = spriteAppliedOffsets.TryGetValue(visual, out Vector3 storedOffset)
+                ? storedOffset
+                : Vector3.zero;
+            Vector3 baseline = visual.localPosition - previousOffset;
+            spriteBasePositions[visual] = baseline;
+
+            Vector3 offset = new Vector3(0f, bob, 0f);
+            visual.localPosition = baseline + offset;
+            spriteAppliedOffsets[visual] = offset;
+
+            Transform shadow = unit.transform.Find("BattleSpriteShadow");
+            if (shadow != null)
+            {
+                float pulse = Mathf.Abs(Mathf.Sin(phase * 0.5f));
+                shadow.localScale = new Vector3(0.9f + pulse * 0.07f, 0.48f - pulse * 0.05f, 1f);
+            }
+        }
+
+        List<Transform> removePositions = new List<Transform>();
+        foreach (KeyValuePair<Transform, Vector3> pair in spriteBasePositions)
+        {
+            if (pair.Key == null)
+            {
+                removePositions.Add(pair.Key);
+            }
+        }
+
+        for (int i = 0; i < removePositions.Count; i++)
+        {
+            spriteBasePositions.Remove(removePositions[i]);
+            spriteAnimPhase.Remove(removePositions[i]);
+            spriteAppliedOffsets.Remove(removePositions[i]);
         }
     }
 

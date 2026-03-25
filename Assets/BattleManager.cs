@@ -1,8 +1,10 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UI;
 
 public enum BattlePhase
@@ -77,6 +79,15 @@ public class BattleManager : MonoBehaviour
 
     [Header("Turn Flow")]
     [SerializeField] private float actionStepDelay = 0.55f;
+
+    [Header("Battle Visual Feedback")]
+    [SerializeField] private bool enableActionAnimations = true;
+    [SerializeField] private float lungeDistance = 0.45f;
+    [SerializeField] private float lungeDuration = 0.1f;
+    [SerializeField] private float hitShakeDuration = 0.14f;
+    [SerializeField] private float hitShakeMagnitude = 0.06f;
+    [SerializeField] private float hitEffectDuration = 0.28f;
+    [SerializeField] private float hitEffectScale = 1f;
 
     [Header("Flee")]
     [SerializeField] [Range(0f, 1f)] private float fleeBaseChance = 0.35f;
@@ -926,6 +937,7 @@ public class BattleManager : MonoBehaviour
 
         momentumState.ShiftForAction(actor, matchup);
         OnDamageDealt?.Invoke(actor, isCrit);
+        TriggerBattleHitFeedback(actor, target, isCrit, false);
 
         Debug.Log(
             $"[BattleManager] {actor.UnitName} attacks {target.UnitName} for {modifiedDamage} (base {baseDamage} x{multiplier:F2}). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
@@ -1010,6 +1022,7 @@ public class BattleManager : MonoBehaviour
 
                     momentumState.ShiftForAction(actor, matchup);
                     OnDamageDealt?.Invoke(actor, isCrit);
+                    TriggerBattleHitFeedback(actor, aoeTarget, isCrit, true);
 
                     Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on {aoeTarget.UnitName} for {modifiedDamage} (base {baseDamage} x{skillMultiplier:F2}, -{skill.mpCost} MP). HP {hpBefore} -> {hpAfter}.{matchupFeedback}", this);
                 }
@@ -1105,6 +1118,7 @@ public class BattleManager : MonoBehaviour
 
         momentumState.ShiftForAction(actor, matchupSingle);
         OnDamageDealt?.Invoke(actor, isCritSingle);
+        TriggerBattleHitFeedback(actor, target, isCritSingle, true);
 
         Debug.Log(
             $"[BattleManager] {actor.UnitName} uses {skill.skillName} on {target.UnitName} for {modifiedDamageSingle} (base {baseDamageSingle} x{skillMultiplierSingle:F2}, -{skill.mpCost} MP). HP {hpBeforeSingle} -> {hpAfterSingle}.{matchupFeedbackSingle}",
@@ -1150,6 +1164,7 @@ public class BattleManager : MonoBehaviour
                 int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * damageMultiplier * elementMultiplier * variance));
                 int hpBefore = target.HP;
                 target.TakeDamage(modifiedDmg);
+                TriggerBattleHitFeedback(actor, target, false, true);
                 totalDamage += modifiedDmg;
                 Debug.Log($"  -> {target.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {target.HP}", this);
             }
@@ -1176,6 +1191,7 @@ public class BattleManager : MonoBehaviour
             int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * damageMultiplier * elementMultiplier * variance));
             int hpBefore = target.HP;
             target.TakeDamage(modifiedDmg);
+            TriggerBattleHitFeedback(actor, target, false, true);
             Debug.Log($"  -> {target.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {target.HP}", this);
         }
 
@@ -1278,6 +1294,194 @@ public class BattleManager : MonoBehaviour
     private bool IsTerminalPhase(BattlePhase phase)
     {
         return phase == BattlePhase.Victory || phase == BattlePhase.Defeat || phase == BattlePhase.Fled;
+    }
+
+    private void TriggerBattleHitFeedback(CombatUnit actor, CombatUnit target, bool isCrit, bool isHeavy)
+    {
+        if (!enableActionAnimations || actor == null || target == null)
+        {
+            return;
+        }
+
+        Transform actorVisual = actor.transform.Find("BattleSpriteVisual");
+        if (actorVisual != null)
+        {
+            float direction = actor.Type == CombatUnit.UnitType.Ally ? 1f : -1f;
+            StartCoroutine(AnimateLunge(actorVisual, direction, isHeavy));
+        }
+
+        Transform targetVisual = target.transform.Find("BattleSpriteVisual");
+        if (targetVisual != null)
+        {
+            StartCoroutine(AnimateHitShake(targetVisual, isCrit));
+        }
+
+        if (isHeavy)
+        {
+            Transform targetShadow = target.transform.Find("BattleSpriteShadow");
+            if (targetShadow != null)
+            {
+                StartCoroutine(AnimateShadowPulse(targetShadow));
+            }
+        }
+
+        SpawnHitEffect(target, actor.ElementType, isCrit, isHeavy);
+    }
+
+    private IEnumerator AnimateLunge(Transform visualTransform, float direction, bool isHeavy)
+    {
+        if (visualTransform == null)
+        {
+            yield break;
+        }
+
+        Vector3 start = visualTransform.localPosition;
+        float distance = Mathf.Max(0.1f, lungeDistance) * (isHeavy ? 1.25f : 1f);
+        Vector3 apex = start + new Vector3(direction * distance, 0f, 0f);
+        float duration = Mathf.Max(0.04f, lungeDuration);
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = Mathf.Sin(t * Mathf.PI * 0.5f);
+            visualTransform.localPosition = Vector3.Lerp(start, apex, eased);
+            yield return null;
+        }
+
+        elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = 1f - Mathf.Pow(1f - t, 2f);
+            visualTransform.localPosition = Vector3.Lerp(apex, start, eased);
+            yield return null;
+        }
+
+        visualTransform.localPosition = start;
+    }
+
+    private IEnumerator AnimateHitShake(Transform visualTransform, bool isCrit)
+    {
+        if (visualTransform == null)
+        {
+            yield break;
+        }
+
+        Vector3 start = visualTransform.localPosition;
+        float duration = Mathf.Max(0.04f, hitShakeDuration) * (isCrit ? 1.2f : 1f);
+        float magnitude = Mathf.Max(0.01f, hitShakeMagnitude) * (isCrit ? 1.6f : 1f);
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float damper = 1f - Mathf.Clamp01(elapsed / duration);
+            float shakeX = (UnityEngine.Random.value * 2f - 1f) * magnitude * damper;
+            float shakeY = (UnityEngine.Random.value * 2f - 1f) * magnitude * 0.55f * damper;
+            visualTransform.localPosition = start + new Vector3(shakeX, shakeY, 0f);
+            yield return null;
+        }
+
+        visualTransform.localPosition = start;
+    }
+
+    private IEnumerator AnimateShadowPulse(Transform shadowTransform)
+    {
+        if (shadowTransform == null)
+        {
+            yield break;
+        }
+
+        Vector3 startScale = shadowTransform.localScale;
+        Vector3 expanded = new Vector3(startScale.x * 1.2f, startScale.y * 0.74f, startScale.z);
+        float duration = 0.11f;
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = Mathf.Sin(t * Mathf.PI);
+            shadowTransform.localScale = Vector3.Lerp(startScale, expanded, eased);
+            yield return null;
+        }
+
+        shadowTransform.localScale = startScale;
+    }
+
+    private void SpawnHitEffect(CombatUnit target, CombatUnit.Element element, bool isCrit, bool isHeavy)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        GameObject effectObject = new GameObject("BattleHitFx");
+        effectObject.transform.SetParent(target.transform, false);
+        effectObject.transform.localPosition = new Vector3(0f, 1.05f, 0f);
+        effectObject.transform.localScale = Vector3.one * Mathf.Max(0.1f, hitEffectScale) * (isHeavy ? 1.2f : 1f) * (isCrit ? 1.2f : 1f);
+
+        SpriteRenderer renderer = effectObject.AddComponent<SpriteRenderer>();
+        renderer.sprite = FuturisticSpriteLibrary.GetHitEffectSprite();
+        renderer.color = Color.Lerp(GetElementFxColor(element), Color.white, isCrit ? 0.4f : 0.2f);
+        renderer.sortingOrder = 48;
+        renderer.shadowCastingMode = ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+
+        StartCoroutine(AnimateHitEffect(effectObject.transform, renderer));
+    }
+
+    private IEnumerator AnimateHitEffect(Transform effectTransform, SpriteRenderer effectRenderer)
+    {
+        if (effectTransform == null || effectRenderer == null)
+        {
+            yield break;
+        }
+
+        Vector3 startScale = effectTransform.localScale;
+        Vector3 endScale = startScale * 1.7f;
+        Color startColor = effectRenderer.color;
+        Color endColor = new Color(startColor.r, startColor.g, startColor.b, 0f);
+        float duration = Mathf.Max(0.08f, hitEffectDuration);
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = 1f - Mathf.Pow(1f - t, 2f);
+
+            effectTransform.localScale = Vector3.Lerp(startScale, endScale, eased);
+            effectRenderer.color = Color.Lerp(startColor, endColor, eased);
+            yield return null;
+        }
+
+        if (effectTransform != null)
+        {
+            Destroy(effectTransform.gameObject);
+        }
+    }
+
+    private static Color GetElementFxColor(CombatUnit.Element element)
+    {
+        switch (element)
+        {
+            case CombatUnit.Element.Fire:
+                return new Color(1f, 0.43f, 0.24f, 1f);
+            case CombatUnit.Element.Water:
+                return new Color(0.36f, 0.78f, 1f, 1f);
+            case CombatUnit.Element.Earth:
+                return new Color(0.66f, 0.86f, 0.45f, 1f);
+            case CombatUnit.Element.Air:
+                return new Color(0.84f, 0.97f, 1f, 1f);
+            case CombatUnit.Element.Space:
+                return new Color(0.78f, 0.66f, 1f, 1f);
+            default:
+                return new Color(1f, 0.75f, 0.35f, 1f);
+        }
     }
 
     private void EnsureDebugLabel() { }

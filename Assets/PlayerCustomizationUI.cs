@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -28,36 +29,8 @@ public class PlayerCustomizationUI : MonoBehaviour
     private bool wasPlayerMoveEnabled = true;
     private bool hasPausedTimeScale;
     private float previousTimeScale = 1f;
-
-    private struct ColorPreset
-    {
-        public string Id;
-        public string Name;
-        public Color Color;
-        public int Cost;
-        public bool IsPremium;
-
-        public ColorPreset(string id, string name, Color color, int cost, bool isPremium)
-        {
-            Id = id;
-            Name = name;
-            Color = color;
-            Cost = Mathf.Max(0, cost);
-            IsPremium = isPremium;
-        }
-    }
-
-    private static readonly ColorPreset[] Presets =
-    {
-        new ColorPreset("forest", "Forest", new Color(0.2f, 0.8f, 0.2f), 0, false),
-        new ColorPreset("ocean", "Ocean", new Color(0.2f, 0.64f, 1f), 0, false),
-        new ColorPreset("ember", "Ember", new Color(1f, 0.4f, 0.24f), 0, false),
-        new ColorPreset("sunlight", "Sunlight", new Color(1f, 0.82f, 0.3f), 0, false),
-        new ColorPreset("void", "Void", new Color(0.35f, 0.3f, 0.52f), 80, true),
-        new ColorPreset("frost", "Frost", new Color(0.62f, 0.92f, 1f), 120, true),
-        new ColorPreset("crimson", "Crimson", new Color(0.82f, 0.18f, 0.26f), 150, true),
-        new ColorPreset("gold", "Gold", new Color(1f, 0.9f, 0.25f), 220, true)
-    };
+    private FuturisticSpriteLibrary.PlayerStyleDefinition[] stylePresets =
+        System.Array.Empty<FuturisticSpriteLibrary.PlayerStyleDefinition>();
 
     private void OnEnable()
     {
@@ -135,9 +108,38 @@ public class PlayerCustomizationUI : MonoBehaviour
             return;
         }
 
+        if (string.IsNullOrEmpty(FuturisticSpriteLibrary.CurrentMainPlayerStyleId))
+        {
+            string defaultStyle = FuturisticSpriteLibrary.GetDefaultStyleIdForElement(CombatUnit.Element.Earth);
+            if (PartyManager.Instance != null)
+            {
+                CombatUnit.Element selectedElement = PartyManager.Instance.GetMainCharacterElement();
+                if (selectedElement != CombatUnit.Element.None)
+                {
+                    defaultStyle = FuturisticSpriteLibrary.GetDefaultStyleIdForElement(selectedElement);
+                }
+            }
+
+            FuturisticSpriteLibrary.SetCurrentMainPlayerStyle(defaultStyle);
+            player.SetPlayerVisualStyle(defaultStyle);
+        }
+
         isOpen = true;
         EnsureCanvas();
         BuildPanel();
+
+        if (string.IsNullOrEmpty(player.CurrentStyleId) && stylePresets.Length > 0)
+        {
+            string styleToApply = FuturisticSpriteLibrary.CurrentMainPlayerStyleId;
+            if (string.IsNullOrEmpty(styleToApply))
+            {
+                styleToApply = stylePresets[0].Id;
+            }
+
+            player.SetPlayerVisualStyle(styleToApply);
+            BuildPanel();
+        }
+
         PauseGameplay();
     }
 
@@ -207,6 +209,13 @@ public class PlayerCustomizationUI : MonoBehaviour
             return;
         }
 
+        IReadOnlyList<FuturisticSpriteLibrary.PlayerStyleDefinition> styles = FuturisticSpriteLibrary.GetPlayerStyles();
+        stylePresets = new FuturisticSpriteLibrary.PlayerStyleDefinition[styles.Count];
+        for (int i = 0; i < styles.Count; i++)
+        {
+            stylePresets[i] = styles[i];
+        }
+
         if (panelRoot != null)
         {
             Destroy(panelRoot);
@@ -227,30 +236,30 @@ public class PlayerCustomizationUI : MonoBehaviour
 
         CreateLabel(panelRoot.transform, "CHARACTER CUSTOMIZATION", new Vector2(24f, -24f), new Vector2(panelSize.x - 48f, 30f), headerColor, 24, FontStyle.Bold);
         currencyLabel = CreateLabel(panelRoot.transform, string.Empty, new Vector2(24f, -58f), new Vector2(panelSize.x - 48f, 22f), textColor, 16, FontStyle.Bold);
-        CreateLabel(panelRoot.transform, "Free and premium color styles. Premium styles cost Cosmetic XP.", new Vector2(24f, -82f), new Vector2(panelSize.x - 48f, 20f), subTextColor, 12, FontStyle.Normal);
+        CreateLabel(panelRoot.transform, "Futuristic element suits. Premium styles cost Cosmetic XP.", new Vector2(24f, -82f), new Vector2(panelSize.x - 48f, 20f), subTextColor, 12, FontStyle.Normal);
 
         RefreshCurrencyLabel();
 
         float startY = 116f;
-        float cardHeight = 74f;
+        float cardHeight = 84f;
         float rowGap = 10f;
         float cardGap = 12f;
         float sidePadding = 20f;
         float cardWidth = (panelSize.x - sidePadding * 2f - cardGap) * 0.5f;
 
-        for (int i = 0; i < Presets.Length; i++)
+        for (int i = 0; i < stylePresets.Length; i++)
         {
             int row = i / 2;
             int column = i % 2;
             float x = sidePadding + (cardWidth + cardGap) * column;
             float y = startY + (cardHeight + rowGap) * row;
-            CreatePresetRow(panelRoot.transform, Presets[i], x, y, cardWidth, cardHeight);
+            CreatePresetRow(panelRoot.transform, stylePresets[i], x, y, cardWidth, cardHeight);
         }
 
         CreateLabel(panelRoot.transform, $"[{toggleKey}] Close", new Vector2(24f, -(panelSize.y - 28f)), new Vector2(panelSize.x - 48f, 20f), subTextColor, 12, FontStyle.Italic);
     }
 
-    private void CreatePresetRow(Transform parent, ColorPreset preset, float x, float y, float width, float height)
+    private void CreatePresetRow(Transform parent, FuturisticSpriteLibrary.PlayerStyleDefinition preset, float x, float y, float width, float height)
     {
         GameObject rowObject = new GameObject($"Preset_{preset.Id}", typeof(RectTransform), typeof(Image));
         rowObject.transform.SetParent(parent, false);
@@ -271,19 +280,27 @@ public class PlayerCustomizationUI : MonoBehaviour
         swatchRect.anchorMin = new Vector2(0f, 0.5f);
         swatchRect.anchorMax = new Vector2(0f, 0.5f);
         swatchRect.pivot = new Vector2(0f, 0.5f);
-        swatchRect.sizeDelta = new Vector2(34f, 34f);
-        swatchRect.anchoredPosition = new Vector2(10f, 0f);
+        swatchRect.sizeDelta = new Vector2(50f, 50f);
+        swatchRect.anchoredPosition = new Vector2(8f, 0f);
         Image swatchImage = swatchObject.GetComponent<Image>();
-        swatchImage.color = preset.Color;
+        swatchImage.sprite = FuturisticSpriteLibrary.GetPlayerStyleIcon(preset.Id);
+        swatchImage.color = Color.white;
+        swatchImage.preserveAspect = true;
 
-        float textWidth = Mathf.Max(80f, width - 152f);
-        CreateLabel(rowObject.transform, preset.Name, new Vector2(52f, -8f), new Vector2(textWidth, 22f), textColor, 14, FontStyle.Bold);
+        float textWidth = Mathf.Max(80f, width - 164f);
+        CreateLabel(rowObject.transform, preset.DisplayName, new Vector2(62f, -10f), new Vector2(textWidth, 22f), textColor, 14, FontStyle.Bold);
+        CreateLabel(rowObject.transform, preset.Element.ToString(), new Vector2(62f, -30f), new Vector2(textWidth, 18f), subTextColor, 11, FontStyle.Italic);
 
         string tag = preset.IsPremium ? $"PREMIUM {preset.Cost} XP" : "FREE";
         Color tagColor = preset.IsPremium ? premiumTagColor : freeTagColor;
-        CreateLabel(rowObject.transform, tag, new Vector2(52f, -30f), new Vector2(textWidth + 20f, 20f), tagColor, 11, FontStyle.Bold);
+        CreateLabel(rowObject.transform, tag, new Vector2(62f, -48f), new Vector2(textWidth + 20f, 20f), tagColor, 11, FontStyle.Bold);
 
         string buttonText = preset.IsPremium && !IsPresetUnlocked(preset) ? "Unlock" : "Apply";
+        if (player != null && player.CurrentStyleId == preset.Id)
+        {
+            buttonText = "Equipped";
+        }
+
         Button applyButton = CreateButton(rowObject.transform, buttonText, new Vector2(0.68f, 0.15f), new Vector2(0.96f, 0.85f));
         applyButton.onClick.AddListener(() => OnPresetSelected(preset));
 
@@ -295,7 +312,7 @@ public class PlayerCustomizationUI : MonoBehaviour
         }
     }
 
-    private void OnPresetSelected(ColorPreset preset)
+    private void OnPresetSelected(FuturisticSpriteLibrary.PlayerStyleDefinition preset)
     {
         if (player == null)
         {
@@ -331,11 +348,11 @@ public class PlayerCustomizationUI : MonoBehaviour
             return;
         }
 
-        player.SetPlayerColor(preset.Color);
+        player.SetPlayerVisualStyle(preset.Id);
         BuildPanel();
     }
 
-    private static bool IsPresetUnlocked(ColorPreset preset)
+    private static bool IsPresetUnlocked(FuturisticSpriteLibrary.PlayerStyleDefinition preset)
     {
         if (!preset.IsPremium)
         {
