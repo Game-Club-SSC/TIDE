@@ -21,9 +21,13 @@ public class PlayerCustomizationUI : MonoBehaviour
 
     private Canvas menuCanvas;
     private GameObject panelRoot;
+    private RectTransform panelRect;
     private bool isOpen;
     private IsometricPlayer player;
     private Text currencyLabel;
+    private bool wasPlayerMoveEnabled = true;
+    private bool hasPausedTimeScale;
+    private float previousTimeScale = 1f;
 
     private struct ColorPreset
     {
@@ -66,6 +70,11 @@ public class PlayerCustomizationUI : MonoBehaviour
 
     private void OnDisable()
     {
+        if (isOpen)
+        {
+            CloseMenu();
+        }
+
         if (HeroProgressionManager.Instance != null)
         {
             HeroProgressionManager.Instance.OnCosmeticXpChanged -= HandleCosmeticXpChanged;
@@ -75,6 +84,12 @@ public class PlayerCustomizationUI : MonoBehaviour
 
     private void Update()
     {
+        if (isOpen && Input.GetMouseButtonDown(0) && IsPointerOutsidePanel())
+        {
+            CloseMenu();
+            return;
+        }
+
         if (!Input.GetKeyDown(toggleKey))
         {
             return;
@@ -123,6 +138,7 @@ public class PlayerCustomizationUI : MonoBehaviour
         isOpen = true;
         EnsureCanvas();
         BuildPanel();
+        PauseGameplay();
     }
 
     private void CloseMenu()
@@ -133,6 +149,7 @@ public class PlayerCustomizationUI : MonoBehaviour
         }
 
         isOpen = false;
+        panelRect = null;
 
         if (panelRoot != null)
         {
@@ -145,6 +162,8 @@ public class PlayerCustomizationUI : MonoBehaviour
             Destroy(menuCanvas.gameObject);
             menuCanvas = null;
         }
+
+        ResumeGameplay();
     }
 
     private void EnsureCanvas()
@@ -196,7 +215,7 @@ public class PlayerCustomizationUI : MonoBehaviour
         panelRoot = new GameObject("CustomizationPanel", typeof(RectTransform), typeof(Image));
         panelRoot.transform.SetParent(menuCanvas.transform, false);
 
-        RectTransform panelRect = panelRoot.GetComponent<RectTransform>();
+        panelRect = panelRoot.GetComponent<RectTransform>();
         panelRect.anchorMin = new Vector2(0.5f, 0.5f);
         panelRect.anchorMax = new Vector2(0.5f, 0.5f);
         panelRect.pivot = new Vector2(0.5f, 0.5f);
@@ -342,6 +361,46 @@ public class PlayerCustomizationUI : MonoBehaviour
     private void HandleCosmeticXpChanged(int _)
     {
         RefreshCurrencyLabel();
+    }
+
+    private bool IsPointerOutsidePanel()
+    {
+        if (panelRect == null)
+        {
+            return false;
+        }
+
+        return !RectTransformUtility.RectangleContainsScreenPoint(panelRect, Input.mousePosition, null);
+    }
+
+    private void PauseGameplay()
+    {
+        if (player != null)
+        {
+            wasPlayerMoveEnabled = player.canMove;
+            player.canMove = false;
+        }
+
+        if (!hasPausedTimeScale)
+        {
+            previousTimeScale = Time.timeScale;
+            Time.timeScale = 0f;
+            hasPausedTimeScale = true;
+        }
+    }
+
+    private void ResumeGameplay()
+    {
+        if (player != null)
+        {
+            player.canMove = wasPlayerMoveEnabled;
+        }
+
+        if (hasPausedTimeScale)
+        {
+            Time.timeScale = previousTimeScale > 0f ? previousTimeScale : 1f;
+            hasPausedTimeScale = false;
+        }
     }
 
     private void RefreshCurrencyLabel()
