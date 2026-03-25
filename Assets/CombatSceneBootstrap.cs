@@ -37,6 +37,8 @@ public class CombatSceneBootstrap : MonoBehaviour
     [SerializeField] private GameObject enemyUnitPrefab;
     [SerializeField] private bool useSpriteBattleVisuals = false;
     [SerializeField] private bool ensureFallback3DUnits = true;
+    [SerializeField] private Vector3 battleModelLocalOffset = Vector3.zero;
+    [SerializeField] private Vector3 battleModelLocalScale = Vector3.one;
 
     [Header("Party")]
     [Tooltip("Fallback party data used when no PartyManager is present (e.g. standalone combat testing).")]
@@ -309,9 +311,9 @@ public class CombatSceneBootstrap : MonoBehaviour
                         Debug.Log($"[CombatSceneBootstrap] No hero data for active slot {i}. Using fallback stats.");
                     }
 
-                    if (!useSpriteBattleVisuals)
+                    if (!useSpriteBattleVisuals && (i >= activeHeroes.Length || activeHeroes[i] == null))
                     {
-                        EnsureUnit3DVisual(unitObject, ResolveUnitDisplayColor(unit, allyUnitColor));
+                        EnsureBattleElementalAllyVisual(unitObject, null, unit.ElementType);
                     }
 
                     if (battleManager != null)
@@ -347,9 +349,9 @@ public class CombatSceneBootstrap : MonoBehaviour
                         Debug.Log($"[CombatSceneBootstrap] No hero data for reserve slot {i}. Using fallback stats.");
                     }
 
-                    if (!useSpriteBattleVisuals)
+                    if (!useSpriteBattleVisuals && (i >= reserveHeroes.Length || reserveHeroes[i] == null))
                     {
-                        EnsureUnit3DVisual(unitObject, ResolveUnitDisplayColor(unit, reserveMarkerColor));
+                        EnsureBattleElementalAllyVisual(unitObject, null, unit.ElementType);
                     }
 
                     reserveUnits.Add(unit);
@@ -432,7 +434,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                     }
                     else
                     {
-                        EnsureUnit3DVisual(unitObject, ResolveUnitDisplayColor(unit, enemyUnitColor));
+                        EnsureBattleElementalEnemyVisual(unitObject, unit.ElementType);
                     }
 
                     if (battleManager != null)
@@ -561,26 +563,73 @@ public class CombatSceneBootstrap : MonoBehaviour
         shadowRenderer.receiveShadows = false;
     }
 
-    private static void EnsureUnit3DVisual(GameObject unitObject, Color color)
+    private void EnsureBattleElementalAllyVisual(GameObject unitObject, HeroData hero, CombatUnit.Element fallbackElement)
     {
         if (unitObject == null)
         {
             return;
         }
 
-        Transform spriteVisual = unitObject.transform.Find("BattleSpriteVisual");
-        if (spriteVisual != null)
+        string styleId = hero != null
+            ? FuturisticSpriteLibrary.GetDefaultStyleIdForHero(hero)
+            : FuturisticSpriteLibrary.GetDefaultStyleIdForElement(fallbackElement);
+
+        if (hero != null && hero.isMainCharacter && !string.IsNullOrEmpty(FuturisticSpriteLibrary.CurrentMainPlayerStyleId))
         {
-            spriteVisual.gameObject.SetActive(false);
-            Destroy(spriteVisual.gameObject);
+            styleId = FuturisticSpriteLibrary.CurrentMainPlayerStyleId;
         }
 
-        Transform spriteShadow = unitObject.transform.Find("BattleSpriteShadow");
-        if (spriteShadow != null)
+        if (!FuturisticSpriteLibrary.TryGetPlayerStyle(styleId, out FuturisticSpriteLibrary.PlayerStyleDefinition style))
         {
-            spriteShadow.gameObject.SetActive(false);
-            Destroy(spriteShadow.gameObject);
+            string defaultStyle = FuturisticSpriteLibrary.GetDefaultStyleIdForElement(fallbackElement);
+            FuturisticSpriteLibrary.TryGetPlayerStyle(defaultStyle, out style);
         }
+
+        if (style == null)
+        {
+            return;
+        }
+
+        CombatUnit.Element modelElement = style != null && style.Element != CombatUnit.Element.None
+            ? style.Element
+            : fallbackElement;
+
+        Transform modelRoot = ElementalCharacterFactory.BuildBattleAllyModel(
+            unitObject.transform,
+            modelElement,
+            style.PrimaryColor,
+            style.AccentColor,
+            style.GlowColor,
+            battleModelLocalOffset,
+            battleModelLocalScale);
+
+        FinalizeBattle3DVisual(unitObject, modelRoot);
+    }
+
+    private void EnsureBattleElementalEnemyVisual(GameObject unitObject, CombatUnit.Element element)
+    {
+        if (unitObject == null)
+        {
+            return;
+        }
+
+        Transform modelRoot = ElementalCharacterFactory.BuildBattleEnemyModel(
+            unitObject.transform,
+            element,
+            battleModelLocalOffset,
+            battleModelLocalScale);
+
+        FinalizeBattle3DVisual(unitObject, modelRoot);
+    }
+
+    private static void FinalizeBattle3DVisual(GameObject unitObject, Transform modelRoot)
+    {
+        if (unitObject == null || modelRoot == null)
+        {
+            return;
+        }
+
+        Transform shadowRoot = unitObject.transform.Find("BattleSpriteShadow");
 
         Renderer[] renderers = unitObject.GetComponentsInChildren<Renderer>(true);
         for (int i = 0; i < renderers.Length; i++)
@@ -591,19 +640,10 @@ public class CombatSceneBootstrap : MonoBehaviour
                 continue;
             }
 
-            renderer.enabled = true;
-            renderer.material.color = color;
+            bool belongsToModel = renderer.transform.IsChildOf(modelRoot);
+            bool belongsToShadow = shadowRoot != null && renderer.transform.IsChildOf(shadowRoot);
+            renderer.enabled = belongsToModel || belongsToShadow;
         }
-    }
-
-    private static Color ResolveUnitDisplayColor(CombatUnit unit, Color fallbackColor)
-    {
-        if (unit == null || unit.ElementType == CombatUnit.Element.None)
-        {
-            return fallbackColor;
-        }
-
-        return GetElementColor(unit.ElementType);
     }
 
     private HeroData[] GetActiveHeroes()
@@ -657,7 +697,7 @@ public class CombatSceneBootstrap : MonoBehaviour
             }
             else
             {
-                ApplyHeroBattleColor(unit, hero);
+                EnsureBattleElementalAllyVisual(unit.gameObject, hero, unit.ElementType);
             }
             return;
         }
@@ -684,25 +724,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         }
         else
         {
-            ApplyHeroBattleColor(unit, hero);
-        }
-    }
-
-    private static void ApplyHeroBattleColor(CombatUnit unit, HeroData hero)
-    {
-        if (unit == null || hero == null)
-        {
-            return;
-        }
-
-        Renderer[] renderers = unit.GetComponentsInChildren<Renderer>(true);
-        Color color = GetElementColor(hero.element);
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            if (renderers[i] != null)
-            {
-                renderers[i].material.color = color;
-            }
+            EnsureBattleElementalAllyVisual(unit.gameObject, hero, unit.ElementType);
         }
     }
 
@@ -779,39 +801,8 @@ public class CombatSceneBootstrap : MonoBehaviour
             Sprite battleSprite = FuturisticSpriteLibrary.GetEnemyBattleSprite(enemyData.element);
             EnsureBattleSpriteVisual(unit.gameObject, battleSprite, false);
         }
-        else
-        {
-            Renderer[] renderers = unit.GetComponentsInChildren<Renderer>(true);
-            Color color = GetElementColor(enemyData.element);
-            for (int i = 0; i < renderers.Length; i++)
-            {
-                if (renderers[i] != null)
-                {
-                    renderers[i].material.color = color;
-                }
-            }
-        }
 
         Debug.Log($"[CombatSceneBootstrap] Applied enemy data '{enemyData.displayName}' ({unit.ElementType}, {unit.XpReward} XP) to unit.");
-    }
-
-    private static Color GetElementColor(CombatUnit.Element element)
-    {
-        switch (element)
-        {
-            case CombatUnit.Element.Fire:
-                return new Color(0.92f, 0.36f, 0.26f, 1f);
-            case CombatUnit.Element.Water:
-                return new Color(0.27f, 0.61f, 0.95f, 1f);
-            case CombatUnit.Element.Earth:
-                return new Color(0.38f, 0.66f, 0.34f, 1f);
-            case CombatUnit.Element.Air:
-                return new Color(0.75f, 0.86f, 0.96f, 1f);
-            case CombatUnit.Element.Space:
-                return new Color(0.5f, 0.42f, 0.77f, 1f);
-            default:
-                return Color.white;
-        }
     }
 
     private void EnsureBattleHud()

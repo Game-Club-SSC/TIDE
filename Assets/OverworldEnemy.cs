@@ -60,9 +60,8 @@ public class OverworldEnemy : MonoBehaviour
     [SerializeField] private Vector3 indicatorWorldOffset = new Vector3(0f, 1.8f, 0f);
     [SerializeField] private Vector3 exclamationScale = new Vector3(0.3f, 0.6f, 1f);
     [SerializeField] private float arrowScale = 0.35f;
-    [SerializeField] private bool ensureFallback3DModel = true;
-    [SerializeField] private Vector3 fallbackModelLocalPosition = new Vector3(0f, 1f, 0f);
-    [SerializeField] private Vector3 fallbackModelLocalScale = new Vector3(0.85f, 1f, 0.85f);
+    [SerializeField] private Vector3 characterModelLocalOffset = Vector3.zero;
+    [SerializeField] private Vector3 characterModelLocalScale = Vector3.one;
 
     private EnemyState currentState = EnemyState.Idle;
     private int patrolIndex;
@@ -74,7 +73,7 @@ public class OverworldEnemy : MonoBehaviour
     private SpriteRenderer exclamationRenderer;
     private GameObject facingArrowObject;
     private SpriteRenderer arrowRenderer;
-    private Renderer[] cachedRenderers = new Renderer[0];
+    private Transform characterModelRoot;
     private Vector3 guardAnchorPosition;
     private Vector3 guardRoamTarget;
     private float guardRoamWaitTimer;
@@ -113,7 +112,6 @@ public class OverworldEnemy : MonoBehaviour
 
         ResolveVisualElement();
         Ensure3DVisualSetup();
-        ApplyEnemyColor();
 
         if (isPuzzleGuard)
         {
@@ -129,6 +127,7 @@ public class OverworldEnemy : MonoBehaviour
 
         CreateExclamationIndicator();
         CreateFacingArrow();
+        ApplyEnemyColor();
         TransitionToState(EnemyState.Roaming);
         Debug.Log($"[OverworldEnemy] Initialized: {name} with {(patrolPoints != null ? patrolPoints.Length : 0)} patrol points.");
     }
@@ -595,30 +594,17 @@ public class OverworldEnemy : MonoBehaviour
     private void Ensure3DVisualSetup()
     {
         RemoveLegacySpriteVisuals();
-
-        cachedRenderers = GetComponentsInChildren<Renderer>(true);
-        if (cachedRenderers.Length > 0 || !ensureFallback3DModel)
-        {
-            return;
-        }
-
-        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        body.name = "Enemy3DVisual";
-        body.transform.SetParent(transform, false);
-        body.transform.localPosition = fallbackModelLocalPosition;
-        body.transform.localScale = fallbackModelLocalScale;
-
-        Collider bodyCollider = body.GetComponent<Collider>();
-        if (bodyCollider != null)
-        {
-            Destroy(bodyCollider);
-        }
-
-        cachedRenderers = GetComponentsInChildren<Renderer>(true);
+        RebuildElementalEnemyModel();
     }
 
     private void RemoveLegacySpriteVisuals()
     {
+        Transform oldFallback = transform.Find("Enemy3DVisual");
+        if (oldFallback != null)
+        {
+            Destroy(oldFallback.gameObject);
+        }
+
         Transform oldBody = transform.Find("FuturisticEnemyBody");
         if (oldBody != null)
         {
@@ -646,32 +632,11 @@ public class OverworldEnemy : MonoBehaviour
 
     private void ApplyEnemyColor()
     {
-        if (cachedRenderers == null || cachedRenderers.Length == 0)
+        enemyColor = ElementalCharacterFactory.GetElementPrimaryColor(visualElement);
+
+        if (characterModelRoot == null)
         {
-            cachedRenderers = GetComponentsInChildren<Renderer>(true);
-        }
-
-        enemyColor = GetElementVisualColor(visualElement);
-
-        for (int i = 0; i < cachedRenderers.Length; i++)
-        {
-            Renderer renderer = cachedRenderers[i];
-            if (renderer == null)
-            {
-                continue;
-            }
-
-            if (exclamationObject != null && renderer.transform.IsChildOf(exclamationObject.transform))
-            {
-                continue;
-            }
-
-            if (facingArrowObject != null && renderer.transform.IsChildOf(facingArrowObject.transform))
-            {
-                continue;
-            }
-
-            renderer.material.color = enemyColor;
+            RebuildElementalEnemyModel();
         }
 
         if (arrowRenderer != null)
@@ -680,22 +645,38 @@ public class OverworldEnemy : MonoBehaviour
         }
     }
 
-    private static Color GetElementVisualColor(CombatUnit.Element element)
+    private void RebuildElementalEnemyModel()
     {
-        switch (element)
+        characterModelRoot = ElementalCharacterFactory.BuildExplorationEnemyModel(
+            transform,
+            visualElement,
+            characterModelLocalOffset,
+            characterModelLocalScale);
+
+        if (characterModelRoot != null)
         {
-            case CombatUnit.Element.Fire:
-                return new Color(0.9f, 0.34f, 0.25f, 1f);
-            case CombatUnit.Element.Water:
-                return new Color(0.26f, 0.58f, 0.95f, 1f);
-            case CombatUnit.Element.Earth:
-                return new Color(0.38f, 0.66f, 0.34f, 1f);
-            case CombatUnit.Element.Air:
-                return new Color(0.72f, 0.85f, 0.95f, 1f);
-            case CombatUnit.Element.Space:
-                return new Color(0.48f, 0.4f, 0.75f, 1f);
-            default:
-                return new Color(0.89f, 0.38f, 0.25f, 1f);
+            characterModelRoot.name = ElementalCharacterFactory.EnemyModelRootName;
+        }
+
+        ConfigureModelRendererVisibility();
+        ApplyEnemyColor();
+    }
+
+    private void ConfigureModelRendererVisibility()
+    {
+        Renderer[] allRenderers = GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < allRenderers.Length; i++)
+        {
+            Renderer renderer = allRenderers[i];
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            bool belongsToModel = characterModelRoot != null && renderer.transform.IsChildOf(characterModelRoot);
+            bool isIndicatorRenderer = (exclamationObject != null && renderer.transform.IsChildOf(exclamationObject.transform))
+                                     || (facingArrowObject != null && renderer.transform.IsChildOf(facingArrowObject.transform));
+            renderer.enabled = belongsToModel || isIndicatorRenderer;
         }
     }
 

@@ -252,6 +252,12 @@ public class BattleHud : MonoBehaviour
                 continue;
             }
 
+            SpriteRenderer visualRenderer = visual.GetComponent<SpriteRenderer>();
+            if (visualRenderer == null || !visualRenderer.enabled)
+            {
+                continue;
+            }
+
             if (!spriteBasePositions.ContainsKey(visual))
             {
                 spriteBasePositions[visual] = visual.localPosition;
@@ -280,6 +286,12 @@ public class BattleHud : MonoBehaviour
             Transform shadow = unit.transform.Find("BattleSpriteShadow");
             if (shadow != null)
             {
+                SpriteRenderer shadowRenderer = shadow.GetComponent<SpriteRenderer>();
+                if (shadowRenderer == null || !shadowRenderer.enabled)
+                {
+                    continue;
+                }
+
                 float pulse = Mathf.Abs(Mathf.Sin(phase * 0.5f));
                 shadow.localScale = new Vector3(0.9f + pulse * 0.07f, 0.48f - pulse * 0.05f, 1f);
             }
@@ -320,7 +332,12 @@ public class BattleHud : MonoBehaviour
 
             if (unit.transform.Find("BattleSpriteVisual") != null)
             {
-                return true;
+                Transform visual = unit.transform.Find("BattleSpriteVisual");
+                SpriteRenderer visualRenderer = visual != null ? visual.GetComponent<SpriteRenderer>() : null;
+                if (visualRenderer != null && visualRenderer.enabled)
+                {
+                    return true;
+                }
             }
         }
 

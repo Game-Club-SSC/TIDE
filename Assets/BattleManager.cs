@@ -1319,7 +1319,8 @@ public class BattleManager : MonoBehaviour
         if (isHeavy)
         {
             Transform targetShadow = target.transform.Find("BattleSpriteShadow");
-            if (targetShadow != null)
+            SpriteRenderer shadowRenderer = targetShadow != null ? targetShadow.GetComponent<SpriteRenderer>() : null;
+            if (targetShadow != null && shadowRenderer != null && shadowRenderer.enabled)
             {
                 StartCoroutine(AnimateShadowPulse(targetShadow));
             }
@@ -1336,7 +1337,8 @@ public class BattleManager : MonoBehaviour
         }
 
         Transform spriteVisual = unit.transform.Find("BattleSpriteVisual");
-        return spriteVisual != null ? spriteVisual : unit.transform;
+        SpriteRenderer spriteRenderer = spriteVisual != null ? spriteVisual.GetComponent<SpriteRenderer>() : null;
+        return spriteRenderer != null && spriteRenderer.enabled ? spriteVisual : unit.transform;
     }
 
     private IEnumerator AnimateLunge(Transform visualTransform, float direction, bool isHeavy)
