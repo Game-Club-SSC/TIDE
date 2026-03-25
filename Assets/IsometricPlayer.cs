@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody))]
 public class IsometricPlayer : MonoBehaviour
 {
@@ -8,122 +9,100 @@ public class IsometricPlayer : MonoBehaviour
     [SerializeField] private float sprintSpeed = 10f;
     [SerializeField] private KeyCode sprintHoldKey = KeyCode.LeftShift;
     [SerializeField] private KeyCode sprintLockToggleKey = KeyCode.CapsLock;
+    [SerializeField] private float turnSmoothing = 12f;
     public bool canMove = true;
 
     [Header("UI")]
     [SerializeField] private bool addExplorationMapOnStart = true;
     [SerializeField] private bool addPlayerCustomizationUiOnStart = true;
 
+    [Header("Visual")]
+    [SerializeField] private Color playerColor = new Color(0.2f, 0.8f, 0.2f, 1f);
+    [SerializeField] private bool ensureFallback3DModel = true;
+    [SerializeField] private Vector3 fallbackModelLocalPosition = new Vector3(0f, 1f, 0f);
+    [SerializeField] private Vector3 fallbackModelLocalScale = new Vector3(0.8f, 1f, 0.8f);
+
     private Rigidbody rb;
     private Camera cachedMainCamera;
     private Vector3 inputVector;
     private float currentSpeed;
     private bool isSprintLockEnabled;
-    private SpriteRenderer futuristicSpriteRenderer;
-    private SpriteRenderer shadowSpriteRenderer;
+    private Renderer[] cachedRenderers = new Renderer[0];
     private string currentStyleId;
-    private Vector3 spriteBaseLocalPosition;
-    private float walkCycleTimer;
-
-    [Header("Visual")]
-    [SerializeField] private Color playerColor = new Color(0.2f, 0.8f, 0.2f, 1f);
-    [SerializeField] private float spriteScale = 1.9f;
-    [SerializeField] private Vector3 spriteLocalOffset = new Vector3(0f, 0.95f, 0f);
-    [SerializeField] private bool hideLegacyMeshRenderer = true;
-    [SerializeField] private bool enableFuturisticSpriteVisual = true;
 
     public Color PlayerColor => playerColor;
     public string CurrentStyleId => currentStyleId;
 
-    void Start()
+    private void Start()
     {
         rb = GetComponent<Rigidbody>();
         cachedMainCamera = Camera.main;
         rb.freezeRotation = true;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         currentSpeed = walkSpeed;
-        ApplyPlayerColor();
-        EnsureFuturisticVisualSetup();
+
+        Ensure3DVisualSetup();
         ApplyCurrentStyleVisual();
+        ApplyPlayerColor();
+
         EnsureExplorationMapUi();
         EnsurePlayerCustomizationUi();
     }
 
-    private void EnsureFuturisticVisualSetup()
+    private void Ensure3DVisualSetup()
     {
-        if (!enableFuturisticSpriteVisual)
+        RemoveLegacySpriteVisuals();
+
+        cachedRenderers = GetComponentsInChildren<Renderer>(true);
+        if (cachedRenderers.Length > 0 || !ensureFallback3DModel)
         {
             return;
         }
 
-        if (hideLegacyMeshRenderer)
+        GameObject fallbackBody = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        fallbackBody.name = "Player3DVisual";
+        fallbackBody.transform.SetParent(transform, false);
+        fallbackBody.transform.localPosition = fallbackModelLocalPosition;
+        fallbackBody.transform.localScale = fallbackModelLocalScale;
+
+        Collider fallbackCollider = fallbackBody.GetComponent<Collider>();
+        if (fallbackCollider != null)
         {
-            MeshRenderer[] renderers = GetComponentsInChildren<MeshRenderer>(true);
-            for (int i = 0; i < renderers.Length; i++)
-            {
-                if (renderers[i] != null)
-                {
-                    renderers[i].enabled = false;
-                }
-            }
+            Destroy(fallbackCollider);
         }
 
-        if (futuristicSpriteRenderer == null)
+        cachedRenderers = GetComponentsInChildren<Renderer>(true);
+    }
+
+    private void RemoveLegacySpriteVisuals()
+    {
+        Transform overworldSprite = transform.Find("FuturisticPlayerVisual");
+        if (overworldSprite != null)
         {
-            Transform existing = transform.Find("FuturisticPlayerVisual");
-            GameObject visualObject = existing != null ? existing.gameObject : new GameObject("FuturisticPlayerVisual");
-            visualObject.transform.SetParent(transform, false);
-            visualObject.transform.localPosition = spriteLocalOffset;
-            visualObject.transform.localScale = new Vector3(spriteScale, spriteScale, 1f);
-
-            futuristicSpriteRenderer = visualObject.GetComponent<SpriteRenderer>();
-            if (futuristicSpriteRenderer == null)
-            {
-                futuristicSpriteRenderer = visualObject.AddComponent<SpriteRenderer>();
-            }
-
-            spriteBaseLocalPosition = visualObject.transform.localPosition;
-
-            futuristicSpriteRenderer.sortingOrder = 20;
-            futuristicSpriteRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            futuristicSpriteRenderer.receiveShadows = false;
-        }
-        else
-        {
-            spriteBaseLocalPosition = futuristicSpriteRenderer.transform.localPosition;
+            Destroy(overworldSprite.gameObject);
         }
 
-        if (shadowSpriteRenderer == null)
+        Transform overworldShadow = transform.Find("FuturisticPlayerShadow");
+        if (overworldShadow != null)
         {
-            Transform existingShadow = transform.Find("FuturisticPlayerShadow");
-            GameObject shadowObject = existingShadow != null ? existingShadow.gameObject : new GameObject("FuturisticPlayerShadow");
-            shadowObject.transform.SetParent(transform, false);
-            shadowObject.transform.localPosition = new Vector3(0f, 0.03f, 0f);
-            shadowObject.transform.localScale = new Vector3(1.05f, 0.45f, 1f);
+            Destroy(overworldShadow.gameObject);
+        }
 
-            shadowSpriteRenderer = shadowObject.GetComponent<SpriteRenderer>();
-            if (shadowSpriteRenderer == null)
-            {
-                shadowSpriteRenderer = shadowObject.AddComponent<SpriteRenderer>();
-            }
+        Transform battleSprite = transform.Find("BattleSpriteVisual");
+        if (battleSprite != null)
+        {
+            Destroy(battleSprite.gameObject);
+        }
 
-            shadowSpriteRenderer.sprite = FuturisticSpriteLibrary.GetShadowSprite();
-            shadowSpriteRenderer.color = new Color(0f, 0f, 0f, 0.28f);
-            shadowSpriteRenderer.sortingOrder = 5;
-            shadowSpriteRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            shadowSpriteRenderer.receiveShadows = false;
+        Transform battleShadow = transform.Find("BattleSpriteShadow");
+        if (battleShadow != null)
+        {
+            Destroy(battleShadow.gameObject);
         }
     }
 
     private void ApplyCurrentStyleVisual()
     {
-        if (!enableFuturisticSpriteVisual)
-        {
-            return;
-        }
-
-        EnsureFuturisticVisualSetup();
-
         if (string.IsNullOrEmpty(currentStyleId))
         {
             CombatUnit.Element defaultElement = CombatUnit.Element.Earth;
@@ -139,10 +118,9 @@ public class IsometricPlayer : MonoBehaviour
             currentStyleId = FuturisticSpriteLibrary.GetDefaultStyleIdForElement(defaultElement);
         }
 
-        if (futuristicSpriteRenderer != null)
+        if (FuturisticSpriteLibrary.TryGetPlayerStyle(currentStyleId, out FuturisticSpriteLibrary.PlayerStyleDefinition style))
         {
-            futuristicSpriteRenderer.sprite = FuturisticSpriteLibrary.GetPlayerOverworldSprite(currentStyleId);
-            futuristicSpriteRenderer.color = Color.white;
+            playerColor = style.PrimaryColor;
         }
 
         FuturisticSpriteLibrary.SetCurrentMainPlayerStyle(currentStyleId);
@@ -192,16 +170,17 @@ public class IsometricPlayer : MonoBehaviour
 
     private void ApplyPlayerColor()
     {
-        Renderer playerRenderer = GetComponentInChildren<Renderer>();
-        if (playerRenderer != null)
+        if (cachedRenderers == null || cachedRenderers.Length == 0)
         {
-            playerRenderer.material.color = playerColor;
-            Debug.Log($"[IsometricPlayer] Player color set to {playerColor}.");
+            cachedRenderers = GetComponentsInChildren<Renderer>(true);
         }
 
-        if (futuristicSpriteRenderer != null)
+        for (int i = 0; i < cachedRenderers.Length; i++)
         {
-            futuristicSpriteRenderer.color = Color.white;
+            if (cachedRenderers[i] != null)
+            {
+                cachedRenderers[i].material.color = playerColor;
+            }
         }
     }
 
@@ -226,13 +205,12 @@ public class IsometricPlayer : MonoBehaviour
         currentStyleId = style.Id;
         playerColor = style.PrimaryColor;
         FuturisticSpriteLibrary.SetCurrentMainPlayerStyle(currentStyleId);
-        ApplyCurrentStyleVisual();
         ApplyPlayerColor();
 
-        Debug.Log($"[IsometricPlayer] Equipped futuristic style: {currentStyleId}.");
+        Debug.Log($"[IsometricPlayer] Equipped 3D style: {currentStyleId}.");
     }
 
-    void Update()
+    private void Update()
     {
         if (!canMove)
         {
@@ -247,32 +225,22 @@ public class IsometricPlayer : MonoBehaviour
             Debug.Log($"[IsometricPlayer] Sprint lock {(isSprintLockEnabled ? "enabled" : "disabled")}." );
         }
 
-        // 1. Gather WASD Input
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         inputVector = new Vector3(h, 0f, v).normalized;
 
-        // 2. Sprinting Check
         bool sprintHeld = Input.GetKey(sprintHoldKey);
         bool shouldSprint = sprintHeld || isSprintLockEnabled;
-        if (shouldSprint)
-        {
-            currentSpeed = sprintSpeed;
-        }
-        else
-        {
-            currentSpeed = walkSpeed;
-        }
+        currentSpeed = shouldSprint ? sprintSpeed : walkSpeed;
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
         if (rb == null)
         {
             return;
         }
 
-        // 3. Camera-relative movement math
         if (cachedMainCamera == null)
         {
             cachedMainCamera = Camera.main;
@@ -282,7 +250,6 @@ public class IsometricPlayer : MonoBehaviour
         Vector3 forward = activeCamera != null ? activeCamera.transform.forward : Vector3.forward;
         Vector3 right = activeCamera != null ? activeCamera.transform.right : Vector3.right;
 
-        // Flatten the camera vectors
         forward.y = 0f;
         right.y = 0f;
 
@@ -298,44 +265,16 @@ public class IsometricPlayer : MonoBehaviour
         forward.Normalize();
         right.Normalize();
 
-        // 4. Apply Velocity (keeping Y velocity intact for normal gravity)
         Vector3 moveDir = forward * inputVector.z + right * inputVector.x;
-        Vector3 targetVelocity = moveDir * currentSpeed; 
-        
+        Vector3 targetVelocity = moveDir * currentSpeed;
+
         rb.linearVelocity = new Vector3(targetVelocity.x, rb.linearVelocity.y, targetVelocity.z);
 
-        if (futuristicSpriteRenderer != null)
+        Vector3 planarVelocity = new Vector3(targetVelocity.x, 0f, targetVelocity.z);
+        if (planarVelocity.sqrMagnitude > 0.0001f)
         {
-            Camera cam = cachedMainCamera != null ? cachedMainCamera : Camera.main;
-            if (cam != null)
-            {
-                Vector3 toCamera = cam.transform.position - futuristicSpriteRenderer.transform.position;
-                if (toCamera.sqrMagnitude > 0.0001f)
-                {
-                    futuristicSpriteRenderer.transform.rotation = Quaternion.LookRotation(toCamera.normalized, cam.transform.up);
-                }
-            }
-
-            float planarSpeed = new Vector2(rb.linearVelocity.x, rb.linearVelocity.z).magnitude;
-            bool isMoving = planarSpeed > 0.05f;
-            float bobMagnitude = isMoving ? 0.06f : 0.02f;
-            float bobFrequency = isMoving ? 10f : 3f;
-
-            walkCycleTimer += Time.fixedDeltaTime * bobFrequency;
-            float bob = Mathf.Sin(walkCycleTimer) * bobMagnitude;
-
-            Vector3 adjustedPosition = spriteBaseLocalPosition + new Vector3(0f, bob, 0f);
-            futuristicSpriteRenderer.transform.localPosition = adjustedPosition;
-
-            if (shadowSpriteRenderer != null)
-            {
-                float flatten = isMoving ? Mathf.Abs(Mathf.Sin(walkCycleTimer * 0.5f)) : 0f;
-                shadowSpriteRenderer.transform.localScale = new Vector3(
-                    1.05f + flatten * 0.08f,
-                    0.45f - flatten * 0.06f,
-                    1f);
-                shadowSpriteRenderer.color = new Color(0f, 0f, 0f, isMoving ? 0.34f : 0.26f);
-            }
+            Quaternion targetRotation = Quaternion.LookRotation(planarVelocity.normalized, Vector3.up);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Mathf.Max(1f, turnSmoothing) * Time.fixedDeltaTime);
         }
     }
 }

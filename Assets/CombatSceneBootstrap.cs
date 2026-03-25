@@ -35,6 +35,8 @@ public class CombatSceneBootstrap : MonoBehaviour
     [Header("Unit Prefabs")]
     [SerializeField] private GameObject playerUnitPrefab;
     [SerializeField] private GameObject enemyUnitPrefab;
+    [SerializeField] private bool useSpriteBattleVisuals = false;
+    [SerializeField] private bool ensureFallback3DUnits = true;
 
     [Header("Party")]
     [Tooltip("Fallback party data used when no PartyManager is present (e.g. standalone combat testing).")]
@@ -307,6 +309,11 @@ public class CombatSceneBootstrap : MonoBehaviour
                         Debug.Log($"[CombatSceneBootstrap] No hero data for active slot {i}. Using fallback stats.");
                     }
 
+                    if (!useSpriteBattleVisuals)
+                    {
+                        EnsureUnit3DVisual(unitObject, ResolveUnitDisplayColor(unit, allyUnitColor));
+                    }
+
                     if (battleManager != null)
                     {
                         battleManager.RegisterUnit(unit);
@@ -338,6 +345,11 @@ public class CombatSceneBootstrap : MonoBehaviour
                     {
                         unit.UnitName = $"Reserve_{i + 1}";
                         Debug.Log($"[CombatSceneBootstrap] No hero data for reserve slot {i}. Using fallback stats.");
+                    }
+
+                    if (!useSpriteBattleVisuals)
+                    {
+                        EnsureUnit3DVisual(unitObject, ResolveUnitDisplayColor(unit, reserveMarkerColor));
                     }
 
                     reserveUnits.Add(unit);
@@ -413,7 +425,15 @@ public class CombatSceneBootstrap : MonoBehaviour
                     }
 
                     SetUnitColor(unitObject, enemyUnitColor);
-                    EnsureBattleSpriteVisual(unitObject, FuturisticSpriteLibrary.GetEnemyBattleSprite(unit.ElementType), false);
+
+                    if (useSpriteBattleVisuals)
+                    {
+                        EnsureBattleSpriteVisual(unitObject, FuturisticSpriteLibrary.GetEnemyBattleSprite(unit.ElementType), false);
+                    }
+                    else
+                    {
+                        EnsureUnit3DVisual(unitObject, ResolveUnitDisplayColor(unit, enemyUnitColor));
+                    }
 
                     if (battleManager != null)
                     {
@@ -446,7 +466,7 @@ public class CombatSceneBootstrap : MonoBehaviour
             unitObject.transform.localPosition = Vector3.zero;
             unitObject.transform.localRotation = Quaternion.identity;
         }
-        else
+        else if (ensureFallback3DUnits)
         {
             unitObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             unitObject.transform.SetParent(spawnPoint, false);
@@ -454,6 +474,13 @@ public class CombatSceneBootstrap : MonoBehaviour
             unitObject.transform.localRotation = Quaternion.identity;
             unitObject.transform.localScale = new Vector3(0.9f, 1.1f, 0.9f);
             SetUnitColor(unitObject, fallbackColor);
+        }
+        else
+        {
+            unitObject = new GameObject();
+            unitObject.transform.SetParent(spawnPoint, false);
+            unitObject.transform.localPosition = Vector3.zero;
+            unitObject.transform.localRotation = Quaternion.identity;
         }
 
         unitObject.name = runtimeName;
@@ -534,6 +561,51 @@ public class CombatSceneBootstrap : MonoBehaviour
         shadowRenderer.receiveShadows = false;
     }
 
+    private static void EnsureUnit3DVisual(GameObject unitObject, Color color)
+    {
+        if (unitObject == null)
+        {
+            return;
+        }
+
+        Transform spriteVisual = unitObject.transform.Find("BattleSpriteVisual");
+        if (spriteVisual != null)
+        {
+            spriteVisual.gameObject.SetActive(false);
+            Destroy(spriteVisual.gameObject);
+        }
+
+        Transform spriteShadow = unitObject.transform.Find("BattleSpriteShadow");
+        if (spriteShadow != null)
+        {
+            spriteShadow.gameObject.SetActive(false);
+            Destroy(spriteShadow.gameObject);
+        }
+
+        Renderer[] renderers = unitObject.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            renderer.enabled = true;
+            renderer.material.color = color;
+        }
+    }
+
+    private static Color ResolveUnitDisplayColor(CombatUnit unit, Color fallbackColor)
+    {
+        if (unit == null || unit.ElementType == CombatUnit.Element.None)
+        {
+            return fallbackColor;
+        }
+
+        return GetElementColor(unit.ElementType);
+    }
+
     private HeroData[] GetActiveHeroes()
     {
         if (PartyManager.Instance != null && PartyManager.Instance.PartyData != null)
@@ -579,7 +651,14 @@ public class CombatSceneBootstrap : MonoBehaviour
         if (PartyManager.Instance != null)
         {
             PartyManager.Instance.ApplyHeroToUnit(unit, hero);
-            ApplyHeroBattleSprite(unit, hero);
+            if (useSpriteBattleVisuals)
+            {
+                ApplyHeroBattleSprite(unit, hero);
+            }
+            else
+            {
+                ApplyHeroBattleColor(unit, hero);
+            }
             return;
         }
 
@@ -599,7 +678,32 @@ public class CombatSceneBootstrap : MonoBehaviour
         }
 
         AssignElementTideBreaks(unit, hero);
-        ApplyHeroBattleSprite(unit, hero);
+        if (useSpriteBattleVisuals)
+        {
+            ApplyHeroBattleSprite(unit, hero);
+        }
+        else
+        {
+            ApplyHeroBattleColor(unit, hero);
+        }
+    }
+
+    private static void ApplyHeroBattleColor(CombatUnit unit, HeroData hero)
+    {
+        if (unit == null || hero == null)
+        {
+            return;
+        }
+
+        Renderer[] renderers = unit.GetComponentsInChildren<Renderer>(true);
+        Color color = GetElementColor(hero.element);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null)
+            {
+                renderers[i].material.color = color;
+            }
+        }
     }
 
     private void ApplyHeroBattleSprite(CombatUnit unit, HeroData hero)
@@ -670,10 +774,44 @@ public class CombatSceneBootstrap : MonoBehaviour
 
         unit.XpReward = enemyData.xpReward;
 
-        Sprite battleSprite = FuturisticSpriteLibrary.GetEnemyBattleSprite(enemyData.element);
-        EnsureBattleSpriteVisual(unit.gameObject, battleSprite, false);
+        if (useSpriteBattleVisuals)
+        {
+            Sprite battleSprite = FuturisticSpriteLibrary.GetEnemyBattleSprite(enemyData.element);
+            EnsureBattleSpriteVisual(unit.gameObject, battleSprite, false);
+        }
+        else
+        {
+            Renderer[] renderers = unit.GetComponentsInChildren<Renderer>(true);
+            Color color = GetElementColor(enemyData.element);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] != null)
+                {
+                    renderers[i].material.color = color;
+                }
+            }
+        }
 
         Debug.Log($"[CombatSceneBootstrap] Applied enemy data '{enemyData.displayName}' ({unit.ElementType}, {unit.XpReward} XP) to unit.");
+    }
+
+    private static Color GetElementColor(CombatUnit.Element element)
+    {
+        switch (element)
+        {
+            case CombatUnit.Element.Fire:
+                return new Color(0.92f, 0.36f, 0.26f, 1f);
+            case CombatUnit.Element.Water:
+                return new Color(0.27f, 0.61f, 0.95f, 1f);
+            case CombatUnit.Element.Earth:
+                return new Color(0.38f, 0.66f, 0.34f, 1f);
+            case CombatUnit.Element.Air:
+                return new Color(0.75f, 0.86f, 0.96f, 1f);
+            case CombatUnit.Element.Space:
+                return new Color(0.5f, 0.42f, 0.77f, 1f);
+            default:
+                return Color.white;
+        }
     }
 
     private void EnsureBattleHud()

@@ -1303,14 +1303,14 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        Transform actorVisual = actor.transform.Find("BattleSpriteVisual");
+        Transform actorVisual = ResolveActionVisualTransform(actor);
         if (actorVisual != null)
         {
             float direction = actor.Type == CombatUnit.UnitType.Ally ? 1f : -1f;
             StartCoroutine(AnimateLunge(actorVisual, direction, isHeavy));
         }
 
-        Transform targetVisual = target.transform.Find("BattleSpriteVisual");
+        Transform targetVisual = ResolveActionVisualTransform(target);
         if (targetVisual != null)
         {
             StartCoroutine(AnimateHitShake(targetVisual, isCrit));
@@ -1326,6 +1326,17 @@ public class BattleManager : MonoBehaviour
         }
 
         SpawnHitEffect(target, actor.ElementType, isCrit, isHeavy);
+    }
+
+    private static Transform ResolveActionVisualTransform(CombatUnit unit)
+    {
+        if (unit == null)
+        {
+            return null;
+        }
+
+        Transform spriteVisual = unit.transform.Find("BattleSpriteVisual");
+        return spriteVisual != null ? spriteVisual : unit.transform;
     }
 
     private IEnumerator AnimateLunge(Transform visualTransform, float direction, bool isHeavy)

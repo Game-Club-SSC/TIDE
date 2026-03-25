@@ -132,7 +132,14 @@ public class BattleHud : MonoBehaviour
             RefreshDisplay();
         }
 
-        UpdateBattleSpriteAnimations();
+        if (HasBattleSpriteVisuals())
+        {
+            UpdateBattleSpriteAnimations();
+        }
+        else
+        {
+            ClearBattleSpriteAnimationCache();
+        }
 
         UpdateWorldBarPositions();
 
@@ -293,6 +300,43 @@ public class BattleHud : MonoBehaviour
             spriteAnimPhase.Remove(removePositions[i]);
             spriteAppliedOffsets.Remove(removePositions[i]);
         }
+    }
+
+    private bool HasBattleSpriteVisuals()
+    {
+        if (battleManager == null)
+        {
+            return false;
+        }
+
+        IReadOnlyList<CombatUnit> allUnits = battleManager.GetAllUnits();
+        for (int i = 0; i < allUnits.Count; i++)
+        {
+            CombatUnit unit = allUnits[i];
+            if (unit == null || !unit.IsAlive)
+            {
+                continue;
+            }
+
+            if (unit.transform.Find("BattleSpriteVisual") != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void ClearBattleSpriteAnimationCache()
+    {
+        if (spriteBasePositions.Count == 0 && spriteAnimPhase.Count == 0 && spriteAppliedOffsets.Count == 0)
+        {
+            return;
+        }
+
+        spriteBasePositions.Clear();
+        spriteAnimPhase.Clear();
+        spriteAppliedOffsets.Clear();
     }
 
     private void ShowCritAnnouncement(CombatUnit actor)
