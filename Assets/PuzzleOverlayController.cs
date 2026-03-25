@@ -181,6 +181,17 @@ public class PuzzleOverlayController : MonoBehaviour
             savedFollowCameraWasEnabled = false;
         }
 
+        if (activeManager != null && activeManager.UsesUiBoard)
+        {
+            cam.transform.position = new Vector3(boardCenter.x, boardCenter.y + 7.5f, boardCenter.z - 8.5f);
+            cam.transform.rotation = Quaternion.Euler(22f, 0f, 0f);
+            cam.orthographic = false;
+            cam.fieldOfView = 50f;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.08f, 0.1f, 0.14f, 1f);
+            return;
+        }
+
         float overlayCameraHeight = Mathf.Max(14f, boardCenter.y + 14f);
         cam.transform.position = new Vector3(boardCenter.x, overlayCameraHeight, boardCenter.z);
         cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);

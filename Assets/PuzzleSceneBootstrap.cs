@@ -8,10 +8,10 @@ public class PuzzleSceneBootstrap : MonoBehaviour
     private void Awake()
     {
         EnsureGameManager();
+        EnsurePuzzleManager();
         EnsureDirectionalLight();
         EnsureGround();
         EnsurePuzzleCamera();
-        EnsurePuzzleManager();
         EnsurePuzzleHud();
     }
 
@@ -46,6 +46,17 @@ public class PuzzleSceneBootstrap : MonoBehaviour
 
     private void EnsureGround()
     {
+        TideManager manager = FindFirstObjectByType<TideManager>();
+        if (manager != null && manager.UsesUiBoard)
+        {
+            GameObject existingGround = GameObject.Find("PuzzleGround");
+            if (existingGround != null)
+            {
+                existingGround.SetActive(false);
+            }
+            return;
+        }
+
         if (GameObject.Find("PuzzleGround") != null)
         {
             return;
@@ -65,9 +76,12 @@ public class PuzzleSceneBootstrap : MonoBehaviour
 
     private void EnsurePuzzleCamera()
     {
+        TideManager existingManager = FindFirstObjectByType<TideManager>();
+        bool useUiBoard = existingManager != null && existingManager.UsesUiBoard;
+
         if (Camera.main != null)
         {
-            ConfigureCamera(Camera.main);
+            ConfigureCamera(Camera.main, useUiBoard);
             return;
         }
 
@@ -76,17 +90,30 @@ public class PuzzleSceneBootstrap : MonoBehaviour
 
         Camera cameraComponent = cameraObject.AddComponent<Camera>();
         cameraObject.AddComponent<AudioListener>();
-        ConfigureCamera(cameraComponent);
+        ConfigureCamera(cameraComponent, useUiBoard);
     }
 
-    private void ConfigureCamera(Camera cameraComponent)
+    private void ConfigureCamera(Camera cameraComponent, bool useUiBoard)
     {
-        cameraComponent.transform.position = new Vector3(0f, 14f, 0f);
-        cameraComponent.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-        cameraComponent.orthographic = true;
-        cameraComponent.orthographicSize = 4.5f;
-        cameraComponent.nearClipPlane = 0.1f;
-        cameraComponent.farClipPlane = 100f;
+        if (useUiBoard)
+        {
+            cameraComponent.transform.position = new Vector3(0f, 8f, -10f);
+            cameraComponent.transform.rotation = Quaternion.Euler(18f, 0f, 0f);
+            cameraComponent.orthographic = false;
+            cameraComponent.fieldOfView = 50f;
+            cameraComponent.nearClipPlane = 0.1f;
+            cameraComponent.farClipPlane = 200f;
+        }
+        else
+        {
+            cameraComponent.transform.position = new Vector3(0f, 14f, 0f);
+            cameraComponent.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            cameraComponent.orthographic = true;
+            cameraComponent.orthographicSize = 4.5f;
+            cameraComponent.nearClipPlane = 0.1f;
+            cameraComponent.farClipPlane = 100f;
+        }
+
         cameraComponent.clearFlags = CameraClearFlags.SolidColor;
         cameraComponent.backgroundColor = cameraBackground;
     }

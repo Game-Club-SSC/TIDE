@@ -2,7 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class TideManager : MonoBehaviour
 {
@@ -14,6 +16,20 @@ public class TideManager : MonoBehaviour
     [SerializeField] private Vector3 boardCenter = new Vector3(0f, 0.35f, 0f);
     [SerializeField] private float tileSpacing = 2.25f;
     [SerializeField] private Vector3 tileScale = new Vector3(1.9f, 0.35f, 1.9f);
+
+    [Header("Board Presentation")]
+    [SerializeField] private bool renderBoardAsUi = true;
+    [SerializeField] private Vector2 uiBoardPanelSize = new Vector2(660f, 720f);
+    [SerializeField] private Color uiPanelColor = new Color(0.09f, 0.12f, 0.18f, 0.94f);
+    [SerializeField] private Color uiGridBackgroundColor = new Color(0.14f, 0.17f, 0.24f, 0.92f);
+    [SerializeField] private Color uiTextColor = new Color(0.92f, 0.94f, 0.98f, 1f);
+    [SerializeField] private Color uiTargetColor = new Color(0.58f, 0.85f, 0.66f, 1f);
+    [SerializeField] private Color uiHighColor = new Color(0.96f, 0.84f, 0.58f, 1f);
+    [SerializeField] private Color uiLowColor = new Color(0.41f, 0.6f, 0.8f, 1f);
+    [SerializeField] private Color uiSealedColor = new Color(0.24f, 0.24f, 0.28f, 1f);
+    [SerializeField] private Color uiSelectedColor = new Color(0.96f, 0.9f, 0.42f, 1f);
+    [SerializeField] private Color uiReachableColor = new Color(0.64f, 0.9f, 0.78f, 1f);
+    [SerializeField] private Color uiUnavailableColor = new Color(0.3f, 0.3f, 0.35f, 1f);
 
     [Header("Completion Flow")]
     [SerializeField] private float completionReturnDelay = 1f;
@@ -48,6 +64,11 @@ public class TideManager : MonoBehaviour
 
     private Transform runtimeBoardRoot;
     private readonly List<GameObject> sealedTileEnemyMarkers = new List<GameObject>();
+    private Canvas boardCanvas;
+    private RectTransform boardPanel;
+    private RectTransform boardGridRoot;
+    private Text boardHeaderLabel;
+    private readonly UiTileView[,] uiTileViews = new UiTileView[3, 3];
     private TideTile hoveredTile;
     private TideTile carryingSource;
     private int carriedAmount;
@@ -76,6 +97,16 @@ public class TideManager : MonoBehaviour
     public bool IsPuzzleSolved => puzzleSolved;
     public bool IsOverlayMode => overlayMode;
     public string OverlayPuzzleBoxId => overlayPuzzleBoxId;
+    public bool UsesUiBoard => renderBoardAsUi;
+
+    private sealed class UiTileView
+    {
+        public int Row;
+        public int Col;
+        public Button Button;
+        public Image Background;
+        public Text Label;
+    }
 
     public void ConfigureOverlaySession(
         PuzzleData data,
@@ -315,6 +346,11 @@ public class TideManager : MonoBehaviour
         isStartingSealedTileCombat = false;
     }
 
+    private void OnDestroy()
+    {
+        TeardownUiBoard();
+    }
+
     private void Update()
     {
         if (overlayMode && Input.GetKeyDown(KeyCode.Escape))
@@ -323,7 +359,7 @@ public class TideManager : MonoBehaviour
             return;
         }
 
-        hoveredTile = GetHoveredTile();
+        hoveredTile = renderBoardAsUi ? null : GetHoveredTile();
 
         if (puzzleSolved)
         {
@@ -331,13 +367,16 @@ public class TideManager : MonoBehaviour
             return;
         }
 
-        if (carriedAmount > 0)
+        if (!renderBoardAsUi)
         {
-            HandleDestinationSelection();
-        }
-        else
-        {
-            HandleSourceSelection();
+            if (carriedAmount > 0)
+            {
+                HandleDestinationSelection();
+            }
+            else
+            {
+                HandleSourceSelection();
+            }
         }
 
         UpdateTileVisuals();
@@ -345,6 +384,14 @@ public class TideManager : MonoBehaviour
 
     private void GenerateBoard()
     {
+        TeardownUiBoard();
+
+        if (renderBoardAsUi)
+        {
+            GenerateBoardUi();
+            return;
+        }
+
         for (int i = 0; i < sealedTileEnemyMarkers.Count; i++)
         {
             if (sealedTileEnemyMarkers[i] != null)
@@ -385,8 +432,159 @@ public class TideManager : MonoBehaviour
         }
     }
 
+    private void GenerateBoardUi()
+    {
+        GenerateHiddenLogicBoard();
+        EnsureUiBoardCanvas();
+
+        if (boardGridRoot != null)
+        {
+            for (int i = boardGridRoot.childCount - 1; i >= 0; i--)
+            {
+                Destroy(boardGridRoot.GetChild(i).gameObject);
+            }
+        }
+
+        for (int i = 0; i < sealedTileEnemyMarkers.Count; i++)
+        {
+            if (sealedTileEnemyMarkers[i] != null)
+            {
+                Destroy(sealedTileEnemyMarkers[i]);
+            }
+        }
+        sealedTileEnemyMarkers.Clear();
+
+        if (runtimeBoardRoot != null)
+        {
+            // Keep hidden logic board root active in UI mode.
+        }
+
+        if (boardGridRoot == null)
+        {
+            return;
+        }
+
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                GameObject tileObject = new GameObject(
+                    $"UiTideTile_{row}_{col}",
+                    typeof(RectTransform),
+                    typeof(Image),
+                    typeof(Button));
+                tileObject.transform.SetParent(boardGridRoot, false);
+
+                RectTransform tileRect = tileObject.GetComponent<RectTransform>();
+                tileRect.anchorMin = new Vector2(col / 3f, 1f - (row + 1) / 3f);
+                tileRect.anchorMax = new Vector2((col + 1) / 3f, 1f - row / 3f);
+                tileRect.offsetMin = new Vector2(8f, 8f);
+                tileRect.offsetMax = new Vector2(-8f, -8f);
+
+                Image tileImage = tileObject.GetComponent<Image>();
+                tileImage.color = uiGridBackgroundColor;
+
+                Button button = tileObject.GetComponent<Button>();
+                button.transition = Selectable.Transition.ColorTint;
+                button.onClick.RemoveAllListeners();
+
+                ColorBlock colors = button.colors;
+                colors.normalColor = Color.white;
+                colors.highlightedColor = new Color(1f, 1f, 1f, 0.94f);
+                colors.pressedColor = new Color(0.85f, 0.85f, 0.85f, 0.96f);
+                colors.selectedColor = colors.highlightedColor;
+                colors.fadeDuration = 0.05f;
+                button.colors = colors;
+
+                GameObject labelObject = new GameObject("ValueLabel", typeof(RectTransform), typeof(Text));
+                labelObject.transform.SetParent(tileObject.transform, false);
+
+                RectTransform labelRect = labelObject.GetComponent<RectTransform>();
+                labelRect.anchorMin = Vector2.zero;
+                labelRect.anchorMax = Vector2.one;
+                labelRect.offsetMin = Vector2.zero;
+                labelRect.offsetMax = Vector2.zero;
+
+                Text valueLabel = labelObject.GetComponent<Text>();
+                valueLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                valueLabel.alignment = TextAnchor.MiddleCenter;
+                valueLabel.fontSize = 46;
+                valueLabel.fontStyle = FontStyle.Bold;
+                valueLabel.color = uiTextColor;
+                valueLabel.raycastTarget = false;
+
+                UiTileView view = new UiTileView
+                {
+                    Row = row,
+                    Col = col,
+                    Button = button,
+                    Background = tileImage,
+                    Label = valueLabel
+                };
+                uiTileViews[row, col] = view;
+
+                int capturedRow = row;
+                int capturedCol = col;
+                button.onClick.AddListener(() => OnUiTileClicked(capturedRow, capturedCol));
+            }
+        }
+
+        UpdateUiHeader();
+    }
+
+    private void GenerateHiddenLogicBoard()
+    {
+        if (runtimeBoardRoot != null)
+        {
+            Destroy(runtimeBoardRoot.gameObject);
+        }
+
+        runtimeBoardRoot = new GameObject("RuntimeTideBoard").transform;
+        runtimeBoardRoot.SetParent(transform, false);
+
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                GameObject tileObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                tileObject.name = $"TideTile_{row}_{col}";
+                tileObject.transform.SetParent(runtimeBoardRoot, false);
+                tileObject.transform.position = GetWorldPosition(row, col);
+                tileObject.transform.localScale = tileScale;
+                tileObject.layer = gameObject.layer;
+
+                TideTile tile = tileObject.AddComponent<TideTile>();
+                tile.Configure(new Vector2Int(col, row), puzzleValues[row, col], sealedTiles[row, col]);
+                activeTiles[row, col] = tile;
+
+                Collider tileCollider = tileObject.GetComponent<Collider>();
+                if (tileCollider != null)
+                {
+                    tileCollider.enabled = false;
+                }
+
+                Renderer tileRenderer = tileObject.GetComponent<Renderer>();
+                if (tileRenderer != null)
+                {
+                    tileRenderer.enabled = false;
+                }
+
+                Transform labelTransform = tileObject.transform.Find("ValueLabel");
+                if (labelTransform != null)
+                {
+                    labelTransform.gameObject.SetActive(false);
+                }
+            }
+        }
+    }
+
     private void CreateSealedTileEnemyMarker(Transform tileTransform)
     {
+        if (renderBoardAsUi)
+        {
+            return;
+        }
+
         if (tileTransform == null)
         {
             return;
@@ -432,6 +630,113 @@ public class TideManager : MonoBehaviour
         sealedTileEnemyMarkers.Add(marker);
     }
 
+    private void EnsureUiBoardCanvas()
+    {
+        EnsureEventSystemExists();
+
+        if (boardCanvas != null && boardPanel != null && boardGridRoot != null)
+        {
+            return;
+        }
+
+        GameObject canvasObject = new GameObject("TidePuzzleBoardCanvas", typeof(RectTransform));
+        canvasObject.transform.SetParent(transform, false);
+
+        boardCanvas = canvasObject.AddComponent<Canvas>();
+        boardCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        boardCanvas.sortingOrder = 720;
+
+        CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        canvasObject.AddComponent<GraphicRaycaster>();
+
+        GameObject panelObject = new GameObject("BoardPanel", typeof(RectTransform), typeof(Image));
+        panelObject.transform.SetParent(canvasObject.transform, false);
+
+        boardPanel = panelObject.GetComponent<RectTransform>();
+        boardPanel.anchorMin = new Vector2(0.5f, 0.5f);
+        boardPanel.anchorMax = new Vector2(0.5f, 0.5f);
+        boardPanel.pivot = new Vector2(0.5f, 0.5f);
+        boardPanel.sizeDelta = uiBoardPanelSize;
+        boardPanel.anchoredPosition = new Vector2(0f, -24f);
+
+        Image panelImage = panelObject.GetComponent<Image>();
+        panelImage.color = uiPanelColor;
+
+        boardHeaderLabel = CreateBoardHeaderLabel(panelObject.transform);
+
+        GameObject gridObject = new GameObject("BoardGrid", typeof(RectTransform), typeof(Image));
+        gridObject.transform.SetParent(panelObject.transform, false);
+
+        boardGridRoot = gridObject.GetComponent<RectTransform>();
+        boardGridRoot.anchorMin = new Vector2(0f, 0f);
+        boardGridRoot.anchorMax = new Vector2(1f, 1f);
+        boardGridRoot.offsetMin = new Vector2(36f, 44f);
+        boardGridRoot.offsetMax = new Vector2(-36f, -112f);
+
+        Image gridImage = gridObject.GetComponent<Image>();
+        gridImage.color = uiGridBackgroundColor;
+    }
+
+    private static void EnsureEventSystemExists()
+    {
+        if (FindFirstObjectByType<EventSystem>() != null)
+        {
+            return;
+        }
+
+        GameObject eventSystemObject = new GameObject("EventSystem");
+        eventSystemObject.AddComponent<EventSystem>();
+        eventSystemObject.AddComponent<StandaloneInputModule>();
+    }
+
+    private void TeardownUiBoard()
+    {
+        for (int row = 0; row < 3; row++)
+        {
+            for (int col = 0; col < 3; col++)
+            {
+                uiTileViews[row, col] = null;
+            }
+        }
+
+        if (boardCanvas != null)
+        {
+            Destroy(boardCanvas.gameObject);
+        }
+
+        boardCanvas = null;
+        boardPanel = null;
+        boardGridRoot = null;
+        boardHeaderLabel = null;
+    }
+
+    private Text CreateBoardHeaderLabel(Transform parent)
+    {
+        GameObject labelObject = new GameObject("BoardHeader", typeof(RectTransform), typeof(Text));
+        labelObject.transform.SetParent(parent, false);
+
+        RectTransform labelRect = labelObject.GetComponent<RectTransform>();
+        labelRect.anchorMin = new Vector2(0f, 1f);
+        labelRect.anchorMax = new Vector2(1f, 1f);
+        labelRect.pivot = new Vector2(0.5f, 1f);
+        labelRect.offsetMin = new Vector2(22f, -86f);
+        labelRect.offsetMax = new Vector2(-22f, -20f);
+
+        Text label = labelObject.GetComponent<Text>();
+        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.fontSize = 26;
+        label.fontStyle = FontStyle.Bold;
+        label.color = uiTextColor;
+        label.alignment = TextAnchor.MiddleCenter;
+        label.raycastTarget = false;
+        label.text = "TIDE STABILIZATION";
+        return label;
+    }
+
     private void StoreInitialValues()
     {
         initialPuzzleValues = new int[3, 3];
@@ -464,14 +769,18 @@ public class TideManager : MonoBehaviour
         {
             for (int col = 0; col < 3; col++)
             {
-                if (!activeTiles[row, col].IsSealed)
+                TideTile tile = activeTiles[row, col];
+                if (tile == null || tile.IsSealed)
                 {
-                    activeTiles[row, col].currentTideValue = initialPuzzleValues[row, col];
-                    activeTiles[row, col].RefreshVisuals();
+                    continue;
                 }
+
+                tile.currentTideValue = initialPuzzleValues[row, col];
+                tile.RefreshVisuals();
             }
         }
 
+        UpdateUiHeader();
         OnPuzzleReset?.Invoke();
     }
 
@@ -500,7 +809,12 @@ public class TideManager : MonoBehaviour
 
     private void HandleSourceSelection()
     {
-        if (!Input.GetMouseButtonDown(0) || hoveredTile == null)
+        if (hoveredTile == null)
+        {
+            return;
+        }
+
+        if (!renderBoardAsUi && !Input.GetMouseButtonDown(0))
         {
             return;
         }
@@ -589,6 +903,43 @@ public class TideManager : MonoBehaviour
         GameStateManager.Instance.EnterCombatSceneFromPuzzle(islandScope, completionEncounterId, sealedTileCombatRestorationValue);
     }
 
+    private void OnUiTileClicked(int row, int col)
+    {
+        if (!renderBoardAsUi || row < 0 || row >= 3 || col < 0 || col >= 3)
+        {
+            return;
+        }
+
+        TideTile clickedTile = activeTiles[row, col];
+        if (clickedTile == null)
+        {
+            return;
+        }
+
+        hoveredTile = clickedTile;
+        if (boardGridRoot != null)
+        {
+            EventSystem.current?.SetSelectedGameObject(null);
+        }
+
+        if (puzzleSolved)
+        {
+            UpdateTileVisuals();
+            return;
+        }
+
+        if (carriedAmount > 0)
+        {
+            HandleDestinationSelection();
+        }
+        else
+        {
+            HandleSourceSelection();
+        }
+
+        UpdateTileVisuals();
+    }
+
     private string GetSealedTileEncounterId(Vector2Int tilePosition)
     {
         if (tilePosition == lockedPosition && !string.IsNullOrEmpty(lockedEncounterId))
@@ -637,7 +988,12 @@ public class TideManager : MonoBehaviour
 
     private void HandleDestinationSelection()
     {
-        if (!Input.GetMouseButtonDown(0) || hoveredTile == null)
+        if (hoveredTile == null)
+        {
+            return;
+        }
+
+        if (!renderBoardAsUi && !Input.GetMouseButtonDown(0))
         {
             return;
         }
@@ -675,6 +1031,11 @@ public class TideManager : MonoBehaviour
             for (int col = 0; col < 3; col++)
             {
                 TideTile tile = activeTiles[row, col];
+                if (tile == null)
+                {
+                    continue;
+                }
+
                 if (!tile.IsSealed && tile.CurrentTideValue > 5)
                 {
                     countAbove5++;
@@ -692,7 +1053,13 @@ public class TideManager : MonoBehaviour
         {
             for (int col = 0; col < 3; col++)
             {
-                activeTiles[row, col].ApplyDecay(decay);
+                TideTile tile = activeTiles[row, col];
+                if (tile == null)
+                {
+                    continue;
+                }
+
+                tile.ApplyDecay(decay);
             }
         }
     }
@@ -704,7 +1071,13 @@ public class TideManager : MonoBehaviour
         {
             for (int col = 0; col < 3; col++)
             {
-                grid[row, col] = activeTiles[row, col].CurrentTideValue;
+                TideTile tile = activeTiles[row, col];
+                if (tile == null)
+                {
+                    return;
+                }
+
+                grid[row, col] = tile.CurrentTideValue;
             }
         }
 
@@ -741,9 +1114,15 @@ public class TideManager : MonoBehaviour
         {
             for (int col = 0; col < 3; col++)
             {
-                if (!activeTiles[row, col].IsSealed)
+                TideTile tile = activeTiles[row, col];
+                if (tile == null)
                 {
-                    activeTiles[row, col].FlashComplete();
+                    continue;
+                }
+
+                if (!tile.IsSealed)
+                {
+                    tile.FlashComplete();
                 }
             }
         }
@@ -772,6 +1151,16 @@ public class TideManager : MonoBehaviour
     private bool CanReachWithinCarrySteps(TideTile startTile, TideTile endTile)
     {
         if (startTile == null || endTile == null)
+        {
+            return false;
+        }
+
+        if (startTile == endTile)
+        {
+            return false;
+        }
+
+        if (startTile.IsSealed || endTile.IsSealed)
         {
             return false;
         }
@@ -850,6 +1239,11 @@ public class TideManager : MonoBehaviour
             for (int col = 0; col < 3; col++)
             {
                 TideTile tile = activeTiles[row, col];
+                if (tile == null)
+                {
+                    continue;
+                }
+
                 bool isSelected = tile == carryingSource;
                 bool isHovered = tile == hoveredTile;
                 bool isReachable = false;
@@ -868,8 +1262,11 @@ public class TideManager : MonoBehaviour
                 }
 
                 tile.SetVisualState(isSelected, isReachable, isHovered, isUnavailable);
+                SyncUiTileVisual(row, col, tile, isSelected, isReachable, isHovered, isUnavailable);
             }
         }
+
+        UpdateUiHeader();
     }
 
     private void TrySetSealedTile(Vector2Int position, bool isSealed)
@@ -976,5 +1373,95 @@ public class TideManager : MonoBehaviour
                 puzzleValues[row, col] = Mathf.Clamp(runtimeGrid[row, col], 1, 10);
             }
         }
+    }
+
+    private void SyncUiTileVisual(
+        int row,
+        int col,
+        TideTile tile,
+        bool isSelected,
+        bool isReachable,
+        bool isHovered,
+        bool isUnavailable)
+    {
+        if (!renderBoardAsUi)
+        {
+            return;
+        }
+
+        UiTileView view = uiTileViews[row, col];
+        if (view == null || view.Background == null || view.Label == null)
+        {
+            return;
+        }
+
+        int value = tile.CurrentTideValue;
+        bool sealedTile = tile.IsSealed;
+        Color baseColor = GetUiBaseColorForTile(value, sealedTile);
+        Color displayColor = baseColor;
+
+        if (isUnavailable)
+        {
+            displayColor = Color.Lerp(displayColor, uiUnavailableColor, 0.45f);
+        }
+
+        if (isReachable)
+        {
+            displayColor = Color.Lerp(displayColor, uiReachableColor, 0.5f);
+        }
+
+        if (isHovered)
+        {
+            displayColor = Color.Lerp(displayColor, Color.white, 0.28f);
+        }
+
+        if (isSelected)
+        {
+            displayColor = Color.Lerp(displayColor, uiSelectedColor, 0.72f);
+        }
+
+        view.Background.color = displayColor;
+        view.Label.text = sealedTile ? "X" : value.ToString();
+        view.Label.color = sealedTile ? new Color(0.95f, 0.95f, 0.98f, 1f) : new Color(0.08f, 0.1f, 0.14f, 1f);
+
+        if (view.Button != null)
+        {
+            view.Button.interactable = !puzzleSolved;
+        }
+    }
+
+    private Color GetUiBaseColorForTile(int value, bool sealedTile)
+    {
+        if (sealedTile)
+        {
+            return uiSealedColor;
+        }
+
+        if (value == 5)
+        {
+            return uiTargetColor;
+        }
+
+        if (value > 5)
+        {
+            float t = Mathf.InverseLerp(6f, 10f, value);
+            return Color.Lerp(uiHighColor * 0.88f, uiHighColor, t);
+        }
+
+        float d = Mathf.InverseLerp(4f, 1f, value);
+        return Color.Lerp(uiLowColor * 0.92f, uiLowColor * 0.74f, d);
+    }
+
+    private void UpdateUiHeader()
+    {
+        if (!renderBoardAsUi || boardHeaderLabel == null)
+        {
+            return;
+        }
+
+        string carryText = carriedAmount > 0 ? $"Carry {carriedAmount}" : "Carry -";
+        string targetText = "Goal: stabilize all open tiles to 5";
+        string modeText = overlayMode ? "Esc: Exit Overlay" : "Reset available";
+        boardHeaderLabel.text = $"TIDE STABILIZATION   |   {targetText}   |   {carryText}   |   {modeText}";
     }
 }

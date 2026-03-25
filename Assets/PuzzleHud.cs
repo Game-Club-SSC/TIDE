@@ -4,6 +4,7 @@ using UnityEngine.UI;
 public class PuzzleHud : MonoBehaviour
 {
     private const string CanvasName = "PuzzleHudCanvas";
+    private const int CanvasSortingOrder = 760;
 
     [Header("Display")]
     [SerializeField] private int fontSize = 20;
@@ -93,13 +94,22 @@ public class PuzzleHud : MonoBehaviour
         {
             carriedLabel.text = $"Carrying: {tideManager.CarriedAmount}";
             carriedLabel.color = carriedColor;
-            hintLabel.text = tideManager.IsOverlayMode ? "Click tile to place Tide | Esc to exit" : "Click a tile to place Tide";
+            hintLabel.text = tideManager.IsOverlayMode
+                ? "Click a tile to place Tide | Esc to exit"
+                : "Click a tile to place Tide";
         }
         else
         {
             carriedLabel.text = "Carrying: -";
             carriedLabel.color = Color.white;
-            hintLabel.text = tideManager.IsOverlayMode ? "Click tile to pick up Tide | Esc to exit" : "Click a tile to pick up Tide";
+            hintLabel.text = tideManager.IsOverlayMode
+                ? "Click a tile to pick up Tide | Esc to exit"
+                : "Click a tile to pick up Tide";
+        }
+
+        if (tideManager.UsesUiBoard)
+        {
+            hintLabel.text += " | T to reset";
         }
     }
 
@@ -117,7 +127,7 @@ public class PuzzleHud : MonoBehaviour
 
         Canvas canvas = canvasObject.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 100;
+        canvas.sortingOrder = CanvasSortingOrder;
 
         CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
