@@ -1,23 +1,8 @@
 using UnityEngine;
 using NUnit.Framework;
 
-public class PartySetupVerificationTest : MonoBehaviour
+public class PartySetupTestSuite
 {
-    [ContextMenu("Run Party Setup Tests")]
-    public void RunTests()
-    {
-        Debug.Log("=== Starting Party Setup Verification Tests ===");
-
-        TestToggleHeroActive();
-        TestMaxActiveEnforced();
-        TestValidateActiveParty();
-        TestReserveTrackedSeparately();
-        TestPartyStatePersistsAcrossToggles();
-        TestSetActiveParty();
-
-        Debug.Log("=== Party Setup Verification Tests Complete ===");
-    }
-
     private PartyData CreateTestParty()
     {
         PartyData party = ScriptableObject.CreateInstance<PartyData>();
@@ -46,10 +31,9 @@ public class PartySetupVerificationTest : MonoBehaviour
         return hero;
     }
 
-    private void TestToggleHeroActive()
+    [Test]
+    public void ToggleHeroActive()
     {
-        Debug.Log("Testing toggle hero active/reserve...");
-
         PartyData party = CreateTestParty();
         Assert.AreEqual(3, party.GetActiveCount(), "Should start with 3 active");
         Assert.AreEqual(2, party.GetReserveCount(), "Should start with 2 reserve");
@@ -60,10 +44,9 @@ public class PartySetupVerificationTest : MonoBehaviour
         Assert.IsTrue(party.IsHeroInReserve("hero_1"), "hero_1 should now be in reserve (moved to make room)");
     }
 
-    private void TestMaxActiveEnforced()
+    [Test]
+    public void MaxActiveEnforced()
     {
-        Debug.Log("Testing max 3 active enforced...");
-
         PartyData party = CreateTestParty();
         Assert.AreEqual(3, party.GetActiveCount());
 
@@ -80,10 +63,9 @@ public class PartySetupVerificationTest : MonoBehaviour
         Assert.AreEqual(3, party.GetActiveCount(), "Should have 3 active again");
     }
 
-    private void TestValidateActiveParty()
+    [Test]
+    public void ValidateActiveParty()
     {
-        Debug.Log("Testing validate active party...");
-
         PartyData party = CreateTestParty();
         Assert.AreEqual(3, party.GetActiveCount(), "Full party should have 3 active");
 
@@ -91,10 +73,9 @@ public class PartySetupVerificationTest : MonoBehaviour
         Assert.AreEqual(2, party.GetActiveCount(), "After removing one, should have 2 active");
     }
 
-    private void TestReserveTrackedSeparately()
+    [Test]
+    public void ReserveTrackedSeparately()
     {
-        Debug.Log("Testing reserve tracked separately...");
-
         PartyData party = CreateTestParty();
 
         Assert.IsTrue(party.IsHeroActive("hero_1"));
@@ -112,10 +93,9 @@ public class PartySetupVerificationTest : MonoBehaviour
         Assert.IsFalse(party.IsHeroInReserve("hero_4"), "hero_4 should no longer be in reserve");
     }
 
-    private void TestPartyStatePersistsAcrossToggles()
+    [Test]
+    public void PartyStatePersistsAcrossToggles()
     {
-        Debug.Log("Testing party state persists across toggles...");
-
         PartyData party = CreateTestParty();
         party.ToggleHeroActive("hero_4");
 
@@ -140,10 +120,9 @@ public class PartySetupVerificationTest : MonoBehaviour
         Assert.AreEqual(2, reserveCount, "All 2 reserve slots should be filled");
     }
 
-    private void TestSetActiveParty()
+    [Test]
+    public void SetActiveParty()
     {
-        Debug.Log("Testing SetActiveParty...");
-
         PartyData party = CreateTestParty();
 
         bool set = party.SetActiveParty(new string[] { "hero_4", "hero_5", "hero_1" });

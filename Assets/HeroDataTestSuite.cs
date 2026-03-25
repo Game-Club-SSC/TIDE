@@ -2,36 +2,22 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 
-[DisallowMultipleComponent]
-public class HeroDataVerificationTest : MonoBehaviour
+public class HeroDataTestSuite
 {
-    [Header("Assign in Inspector")]
-    [SerializeField] private HeroDatabase heroDatabase;
-    [SerializeField] private PartyData partyData;
+    private HeroDatabase heroDatabase;
+    private PartyData partyData;
 
-    [ContextMenu("Run All Hero Data Tests")]
-    public void RunAllTests()
+    [SetUp]
+    public void SetUp()
     {
-        Debug.Log("=== Starting Hero Data Verification Tests ===");
-
-        TestAllHeroesLoaded();
-        TestHeroStatRanges();
-        TestElementCoverage();
-        TestMainCharacterFlag();
-        TestStarterSkillsNotNull();
-        TestPartyDataIntegrity();
-        TestPartyDataNoDuplicates();
-        TestApplyHeroToCombatUnit();
-        TestMainCharacterElementOverride();
-
-        Debug.Log("=== Hero Data Verification Tests Complete ===");
+        heroDatabase = Resources.Load<HeroDatabase>("TideBreakData/HeroDatabase");
+        partyData = Resources.Load<PartyData>("TideBreakData/PartyData");
     }
 
-    private void TestAllHeroesLoaded()
+    [Test]
+    public void AllHeroesLoaded()
     {
-        Debug.Log("Testing all heroes loaded...");
-
-        Assert.IsNotNull(heroDatabase, "HeroDatabase must be assigned.");
+        Assert.IsNotNull(heroDatabase, "HeroDatabase must be loaded.");
         Assert.AreEqual(5, heroDatabase.allHeroes.Length, "HeroDatabase must contain exactly 5 heroes.");
 
         for (int i = 0; i < heroDatabase.allHeroes.Length; i++)
@@ -41,14 +27,11 @@ public class HeroDataVerificationTest : MonoBehaviour
             Assert.IsFalse(string.IsNullOrEmpty(hero.heroId), $"Hero slot {i} must have a heroId.");
             Assert.IsFalse(string.IsNullOrEmpty(hero.displayName), $"Hero slot {i} must have a displayName.");
         }
-
-        Debug.Log("  [PASS] All heroes loaded");
     }
 
-    private void TestHeroStatRanges()
+    [Test]
+    public void HeroStatRanges()
     {
-        Debug.Log("Testing hero stat ranges...");
-
         for (int i = 0; i < heroDatabase.allHeroes.Length; i++)
         {
             HeroData hero = heroDatabase.allHeroes[i];
@@ -58,14 +41,11 @@ public class HeroDataVerificationTest : MonoBehaviour
             Assert.GreaterOrEqual(hero.baseDefense, 0, $"{hero.displayName}: baseDefense must be >= 0.");
             Assert.GreaterOrEqual(hero.baseSpeed, 0, $"{hero.displayName}: baseSpeed must be >= 0.");
         }
-
-        Debug.Log("  [PASS] Hero stat ranges valid");
     }
 
-    private void TestElementCoverage()
+    [Test]
+    public void ElementCoverage()
     {
-        Debug.Log("Testing element coverage...");
-
         HashSet<CombatUnit.Element> elements = new HashSet<CombatUnit.Element>();
         for (int i = 0; i < heroDatabase.allHeroes.Length; i++)
         {
@@ -80,14 +60,11 @@ public class HeroDataVerificationTest : MonoBehaviour
         Assert.IsTrue(elements.Contains(CombatUnit.Element.Earth), "Missing Earth element hero.");
         Assert.IsTrue(elements.Contains(CombatUnit.Element.Air), "Missing Air element hero.");
         Assert.IsTrue(elements.Contains(CombatUnit.Element.Space), "Missing Space element hero.");
-
-        Debug.Log("  [PASS] Element coverage complete");
     }
 
-    private void TestMainCharacterFlag()
+    [Test]
+    public void MainCharacterFlag()
     {
-        Debug.Log("Testing main character flag...");
-
         int mainCharCount = 0;
         for (int i = 0; i < heroDatabase.allHeroes.Length; i++)
         {
@@ -97,15 +74,12 @@ public class HeroDataVerificationTest : MonoBehaviour
             }
         }
 
-        Assert.AreEqual(0, mainCharCount, "No heroes should be marked as main character with fixed elements.");
-
-        Debug.Log("  [PASS] Main character flag correct");
+        Assert.AreEqual(1, mainCharCount, "Exactly 1 hero should be marked as main character.");
     }
 
-    private void TestStarterSkillsNotNull()
+    [Test]
+    public void StarterSkillsNotNull()
     {
-        Debug.Log("Testing starter skills...");
-
         for (int i = 0; i < heroDatabase.allHeroes.Length; i++)
         {
             HeroData hero = heroDatabase.allHeroes[i];
@@ -121,14 +95,11 @@ public class HeroDataVerificationTest : MonoBehaviour
                 Assert.Greater(skill.damageMultiplier, 0f, $"{hero.displayName}: skill [{s}] damageMultiplier must be > 0.");
             }
         }
-
-        Debug.Log("  [PASS] Starter skills valid");
     }
 
-    private void TestPartyDataIntegrity()
+    [Test]
+    public void PartyDataIntegrity()
     {
-        Debug.Log("Testing party data integrity...");
-
         Assert.IsNotNull(partyData, "PartyData must be assigned.");
         Assert.AreEqual(3, partyData.activeSlots.Length, "Active party must have 3 slots.");
         Assert.AreEqual(2, partyData.reserveSlots.Length, "Reserve party must have 2 slots.");
@@ -137,14 +108,11 @@ public class HeroDataVerificationTest : MonoBehaviour
 
         HeroData[] allHeroes = partyData.GetAllHeroes();
         Assert.AreEqual(5, allHeroes.Length, "Party must contain all 5 heroes.");
-
-        Debug.Log("  [PASS] Party data integrity valid");
     }
 
-    private void TestPartyDataNoDuplicates()
+    [Test]
+    public void PartyDataNoDuplicates()
     {
-        Debug.Log("Testing party data for duplicates...");
-
         HashSet<string> heroIds = new HashSet<string>();
         HeroData[] allHeroes = partyData.GetAllHeroes();
 
@@ -153,14 +121,11 @@ public class HeroDataVerificationTest : MonoBehaviour
             Assert.IsTrue(heroIds.Add(allHeroes[i].heroId),
                 $"Duplicate heroId found: {allHeroes[i].heroId}");
         }
-
-        Debug.Log("  [PASS] No duplicate heroes in party");
     }
 
-    private void TestApplyHeroToCombatUnit()
+    [Test]
+    public void ApplyHeroToCombatUnit()
     {
-        Debug.Log("Testing ApplyHeroToUnit...");
-
         GameObject testObject = new GameObject("TestHeroUnit");
         CombatUnit unit = testObject.AddComponent<CombatUnit>();
         HeroData hero = heroDatabase.allHeroes[0];
@@ -176,15 +141,13 @@ public class HeroDataVerificationTest : MonoBehaviour
         Assert.AreEqual(hero.baseSpeed, unit.Speed, "Unit Speed should match hero baseSpeed.");
         Assert.AreEqual(hero.starterSkills.Length, unit.Skills.Length, "Unit skills count should match hero starterSkills count.");
 
-        DestroyImmediate(testObject);
-        Debug.Log("  [PASS] ApplyHeroToUnit works correctly");
+        Object.DestroyImmediate(testObject);
     }
 
-    private void TestMainCharacterElementOverride()
+    [Test]
+    public void MainCharacterElementOverride()
     {
-        Debug.Log("Testing main character element override...");
-
-        HeroData mainChar = heroDatabase.GetHero(partyData.GetMainCharacter().heroId);
+        HeroData mainChar = partyData.GetMainCharacter();
         Assert.IsNotNull(mainChar, "Main character must exist in database.");
         Assert.IsTrue(mainChar.isMainCharacter, "Hero must be marked as main character.");
 
@@ -205,7 +168,6 @@ public class HeroDataVerificationTest : MonoBehaviour
         PartyManager.ApplyHeroToUnitWithElement(unit, mainChar, chosenElement);
         Assert.AreEqual(chosenElement, unit.ElementType, "With chosen element, should override default.");
 
-        DestroyImmediate(testObject);
-        Debug.Log("  [PASS] Main character element override works");
+        Object.DestroyImmediate(testObject);
     }
 }

@@ -1,47 +1,33 @@
 using UnityEngine;
 using NUnit.Framework;
-using System.Collections;
 
 /// <summary>
-/// Verification test for CombatUnit functionality.
-/// This test can be run in Edit Mode to verify the CombatUnit works correctly.
+/// Edit Mode test for CombatUnit functionality.
 /// </summary>
-public class CombatUnitVerificationTest : MonoBehaviour
+public class CombatUnitTestSuite
 {
+    private GameObject testObject;
     private CombatUnit testUnit;
     
-    [ContextMenu("Run Combat Unit Tests")]
-    public void RunTests()
+    [SetUp]
+    public void SetUp()
     {
-        // Create a test GameObject with CombatUnit component
-        GameObject testObject = new GameObject("TestCombatUnit");
-        try
+        testObject = new GameObject("TestCombatUnit");
+        testUnit = testObject.AddComponent<CombatUnit>();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        if (testObject != null)
         {
-            testUnit = testObject.AddComponent<CombatUnit>();
-
-            Debug.Log("=== Starting Combat Unit Verification Tests ===");
-
-            TestInitialState();
-            TestTakingDamage();
-            TestHealing();
-            TestMpManagement();
-            TestDeathState();
-            TestReviveLogic();
-
-            Debug.Log("=== Combat Unit Verification Tests Complete ===");
-        }
-        finally
-        {
-            DestroyImmediate(testObject);
-            testUnit = null;
+            Object.DestroyImmediate(testObject);
         }
     }
     
-    private void TestInitialState()
+    [Test]
+    public void InitialState()
     {
-        Debug.Log("Testing initial state...");
-        
-        // Test default values
         Assert.AreEqual(100, testUnit.MaxHP, "Default max HP should be 100");
         Assert.AreEqual(100, testUnit.HP, "Default HP should be 100");
         Assert.AreEqual(50, testUnit.MaxMP, "Default max MP should be 50");
@@ -52,14 +38,11 @@ public class CombatUnitVerificationTest : MonoBehaviour
         Assert.AreEqual(CombatUnit.Element.None, testUnit.ElementType, "Default element should be None");
         Assert.AreEqual("Combat Unit", testUnit.UnitName, "Default unit name should be 'Combat Unit'");
         Assert.IsTrue(testUnit.IsAlive, "Unit should be alive by default");
-        
-        Debug.Log("✓ Initial state test passed");
     }
     
-    private void TestTakingDamage()
+    [Test]
+    public void TakingDamage()
     {
-        Debug.Log("Testing damage taking...");
-        
         // Reset to known state
         testUnit.DebugHP = 100;
         testUnit.DebugIsAlive = true;
@@ -81,14 +64,11 @@ public class CombatUnitVerificationTest : MonoBehaviour
         testUnit.TakeDamage(1000);
         Assert.AreEqual(0, testUnit.HP, "HP should be 0 after lethal damage");
         Assert.IsFalse(testUnit.IsAlive, "Unit should be dead after lethal damage");
-        
-        Debug.Log("✓ Damage taking test passed");
     }
     
-    private void TestHealing()
+    [Test]
+    public void Healing()
     {
-        Debug.Log("Testing healing...");
-        
         // Set up damaged unit
         testUnit.DebugHP = 50;
         testUnit.DebugMaxHP = 100;
@@ -107,14 +87,11 @@ public class CombatUnitVerificationTest : MonoBehaviour
         testUnit.DebugHP = 0;
         testUnit.Heal(50);
         Assert.AreEqual(0, testUnit.HP, "HP should remain 0 when healing dead unit");
-        
-        Debug.Log("✓ Healing test passed");
     }
     
-    private void TestMpManagement()
+    [Test]
+    public void MpManagement()
     {
-        Debug.Log("Testing MP management...");
-        
         // Reset to known state
         testUnit.DebugMP = 50;
         testUnit.DebugMaxMP = 50;
@@ -146,14 +123,11 @@ public class CombatUnitVerificationTest : MonoBehaviour
         
         testUnit.RestoreMp(10);
         Assert.AreEqual(50, testUnit.MP, "MP should remain unchanged when trying to restore while dead");
-        
-        Debug.Log("✓ MP management test passed");
     }
     
-    private void TestDeathState()
+    [Test]
+    public void DeathState()
     {
-        Debug.Log("Testing death state...");
-        
         // Test explicit death check
         testUnit.DebugHP = 0;
         testUnit.DebugIsAlive = true; // Manually set to alive to test CheckDeathState
@@ -172,14 +146,11 @@ public class CombatUnitVerificationTest : MonoBehaviour
         testUnit.DebugIsAlive = true;
         testUnit.CheckDeathState();
         Assert.IsTrue(testUnit.IsAlive, "Unit with 50 HP should remain alive");
-        
-        Debug.Log("✓ Death state test passed");
     }
     
-    private void TestReviveLogic()
+    [Test]
+    public void ReviveLogic()
     {
-        Debug.Log("Testing revive logic...");
-        
         // Dead unit with 0 HP
         testUnit.DebugHP = 0;
         testUnit.DebugIsAlive = false;
@@ -191,7 +162,5 @@ public class CombatUnitVerificationTest : MonoBehaviour
         testUnit.CheckDeathState(); // Should revive
         Assert.IsTrue(testUnit.IsAlive, "Unit should revive when HP > 0 and CheckDeathState is called");
         Assert.AreEqual(25, testUnit.HP, "HP should remain 25 after revive");
-        
-        Debug.Log("✓ Revive logic test passed");
     }
 }
