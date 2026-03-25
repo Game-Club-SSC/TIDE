@@ -1,27 +1,11 @@
 using UnityEngine;
 using NUnit.Framework;
 
-public class EnemyDataVerificationTest : MonoBehaviour
+public class EnemyDataTestSuite
 {
-    [ContextMenu("Run Enemy Data Tests")]
-    public void RunTests()
+    [Test]
+    public void EnemyDataAssetsLoad()
     {
-        Debug.Log("=== Starting Enemy Data Verification Tests ===");
-
-        TestEnemyDataAssetsLoad();
-        TestEnemyDataValidation();
-        TestEncounterConfigAssetsLoad();
-        TestEncounterConfigValidation();
-        TestEnemyCompositionFromEncounterConfig();
-        TestEnemyCompositionHasEnemyDataSlots();
-
-        Debug.Log("=== Enemy Data Verification Tests Complete ===");
-    }
-
-    private void TestEnemyDataAssetsLoad()
-    {
-        Debug.Log("Testing enemy data assets load from Resources...");
-
         string[] enemyIds = { "enemy_imp", "enemy_orc", "enemy_troll", "enemy_sprite", "enemy_wraith", "enemy_golem" };
         for (int i = 0; i < enemyIds.Length; i++)
         {
@@ -29,14 +13,11 @@ public class EnemyDataVerificationTest : MonoBehaviour
             Assert.IsNotNull(enemy, $"EnemyData asset '{enemyIds[i]}' should load from Resources/EnemyData/");
             Assert.AreEqual(enemyIds[i], enemy.enemyId, $"EnemyData '{enemyIds[i]}' enemyId should match filename");
         }
-
-        Debug.Log("  All 6 enemy data assets loaded successfully.");
     }
 
-    private void TestEnemyDataValidation()
+    [Test]
+    public void EnemyDataValidation()
     {
-        Debug.Log("Testing enemy data validation...");
-
         EnemyData imp = Resources.Load<EnemyData>("EnemyData/enemy_imp");
         Assert.IsNotNull(imp);
         Assert.IsTrue(imp.IsValid(), "Imp should be valid");
@@ -55,28 +36,22 @@ public class EnemyDataVerificationTest : MonoBehaviour
         Assert.AreEqual(150, golem.baseMaxHP);
         Assert.AreEqual(0, golem.baseMaxMP);
         Assert.AreEqual(15, golem.baseDefense);
-
-        Debug.Log("  Enemy data validation passed.");
     }
 
-    private void TestEncounterConfigAssetsLoad()
+    [Test]
+    public void EncounterConfigAssetsLoad()
     {
-        Debug.Log("Testing encounter config assets load from Resources...");
-
         string[] encounterIds = { "encounter_imp_trio", "encounter_orc_patrol", "encounter_troll_guard", "encounter_wraith_ambush", "encounter_golem_warden" };
         for (int i = 0; i < encounterIds.Length; i++)
         {
             EncounterConfig encounter = Resources.Load<EncounterConfig>($"Encounters/{encounterIds[i]}");
             Assert.IsNotNull(encounter, $"EncounterConfig asset '{encounterIds[i]}' should load from Resources/Encounters/");
         }
-
-        Debug.Log("  All 5 encounter config assets loaded successfully.");
     }
 
-    private void TestEncounterConfigValidation()
+    [Test]
+    public void EncounterConfigValidation()
     {
-        Debug.Log("Testing encounter config validation...");
-
         EncounterConfig impTrio = Resources.Load<EncounterConfig>("Encounters/encounter_imp_trio");
         Assert.IsNotNull(impTrio);
         Assert.IsTrue(impTrio.IsValid(), "Imp trio encounter should be valid");
@@ -89,14 +64,11 @@ public class EnemyDataVerificationTest : MonoBehaviour
         Assert.IsNotNull(orcPatrol);
         Assert.IsTrue(orcPatrol.IsValid(), "Orc patrol should be valid");
         Assert.AreEqual(2, orcPatrol.EnemyCount, "Orc patrol should have 2 enemies");
-
-        Debug.Log("  Encounter config validation passed.");
     }
 
-    private void TestEnemyCompositionFromEncounterConfig()
+    [Test]
+    public void EnemyCompositionFromEncounterConfig()
     {
-        Debug.Log("Testing EnemyComposition.FromEncounterConfig...");
-
         EncounterConfig trollGuard = Resources.Load<EncounterConfig>("Encounters/encounter_troll_guard");
         Assert.IsNotNull(trollGuard);
 
@@ -115,21 +87,16 @@ public class EnemyDataVerificationTest : MonoBehaviour
         EnemyData second = comp.GetEnemyData(1);
         Assert.IsNotNull(second);
         Assert.AreEqual("enemy_sprite", second.enemyId);
-
-        Debug.Log("  EnemyComposition.FromEncounterConfig passed.");
     }
 
-    private void TestEnemyCompositionHasEnemyDataSlots()
+    [Test]
+    public void EnemyCompositionHasEnemyDataSlots()
     {
-        Debug.Log("Testing EnemyComposition.HasEnemyDataSlots...");
-
         EnemyComposition empty = new EnemyComposition();
         Assert.IsFalse(empty.HasEnemyDataSlots, "Empty composition should not have enemy data slots");
 
         EncounterConfig wraithAmbush = Resources.Load<EncounterConfig>("Encounters/encounter_wraith_ambush");
         EnemyComposition withData = EnemyComposition.FromEncounterConfig(wraithAmbush);
         Assert.IsTrue(withData.HasEnemyDataSlots, "Composition with data should report true");
-
-        Debug.Log("  EnemyComposition.HasEnemyDataSlots passed.");
     }
 }
