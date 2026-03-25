@@ -13,6 +13,7 @@ public class BattleEscapeMenu : MonoBehaviour
     private GameObject partySwapPanel;
     private Button partySelectionButton;
     private bool isMenuOpen = false;
+    private bool hasAttemptedToFindBattleManager = false;
 
     public bool IsMenuOpen => isMenuOpen;
 
@@ -20,6 +21,7 @@ public class BattleEscapeMenu : MonoBehaviour
     {
         if (battleManager == null)
             battleManager = FindFirstObjectByType<BattleManager>();
+
         if (battleHud == null)
             battleHud = FindFirstObjectByType<BattleHud>();
 
@@ -163,12 +165,18 @@ public class BattleEscapeMenu : MonoBehaviour
 
     private void Update()
     {
-        if (battleManager == null)
+        if (battleManager == null && !hasAttemptedToFindBattleManager)
         {
             battleManager = FindFirstObjectByType<BattleManager>();
+            hasAttemptedToFindBattleManager = true;
         }
 
-        if (partySelectionButton != null && battleManager != null)
+        if (battleManager == null)
+        {
+            return;
+        }
+
+        if (partySelectionButton != null)
         {
             partySelectionButton.interactable = battleManager.IsPartySwapAllowedThisRound();
         }
@@ -198,9 +206,10 @@ public class BattleEscapeMenu : MonoBehaviour
 
     private void OnFleeClicked()
     {
-        if (battleManager == null)
+        if (battleManager == null && !hasAttemptedToFindBattleManager)
         {
             battleManager = FindFirstObjectByType<BattleManager>();
+            hasAttemptedToFindBattleManager = true;
         }
 
         if (battleManager == null)
