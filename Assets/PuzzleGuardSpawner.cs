@@ -9,6 +9,7 @@ public class PuzzleGuardSpawner : MonoBehaviour
     [SerializeField] private Vector3 guardScale = new Vector3(0.9f, 1.2f, 0.9f);
 
     private readonly Dictionary<string, OverworldEnemy> activeGuards = new Dictionary<string, OverworldEnemy>();
+    private readonly Dictionary<string, string> encounterIslandLookup = new Dictionary<string, string>();
 
     public void RefreshGuards()
     {
@@ -16,11 +17,35 @@ public class PuzzleGuardSpawner : MonoBehaviour
         HashSet<string> validEncounterIds = new HashSet<string>();
         GameStateManager gsm = GameStateManager.Instance;
 
-        PuzzleBoxInteractable[] puzzleBoxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsSortMode.None);
+        List<string> clearedEncounterIds = new List<string>();
+        foreach (KeyValuePair<string, OverworldEnemy> pair in activeGuards)
+        {
+            string encounterId = pair.Key;
+            if (string.IsNullOrEmpty(encounterId))
+            {
+                continue;
+            }
+
+            string islandId = encounterIslandLookup.TryGetValue(encounterId, out string storedIslandId)
+                ? storedIslandId
+                : "default";
+
+            if (IsEncounterCleared(islandId, encounterId))
+            {
+                clearedEncounterIds.Add(encounterId);
+            }
+        }
+
+        for (int i = 0; i < clearedEncounterIds.Count; i++)
+        {
+            RemoveGuard(clearedEncounterIds[i]);
+        }
+
+        PuzzleBoxInteractable[] puzzleBoxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < puzzleBoxes.Length; i++)
         {
             PuzzleBoxInteractable box = puzzleBoxes[i];
-            if (box == null || !box.isActiveAndEnabled)
+            if (box == null)
             {
                 continue;
             }
@@ -30,18 +55,35 @@ public class PuzzleGuardSpawner : MonoBehaviour
                 continue;
             }
 
-            if (gsm != null && gsm.IsPuzzleBoxSolved(box.GetPuzzleBoxId()))
+            if (string.IsNullOrEmpty(encounterId))
             {
-                box.MarkSolved();
-                RemoveGuard(encounterId);
+                continue;
+            }
+
+            string boxId = box.GetPuzzleBoxId();
+            bool isBoxSolved = gsm != null && gsm.IsPuzzleBoxSolved(boxId);
+            if (!box.isActiveAndEnabled && !isBoxSolved)
+            {
                 continue;
             }
 
             string scopedIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+            encounterIslandLookup[encounterId] = scopedIslandId;
             validEncounterIds.Add(encounterId);
 
-            if (IslandRestorationTracker.Instance != null
-                && IslandRestorationTracker.Instance.HasClearedEncounter(scopedIslandId, encounterId))
+            if (isBoxSolved)
+            {
+                box.MarkSolved();
+
+                if (IsEncounterCleared(scopedIslandId, encounterId))
+                {
+                    RemoveGuard(encounterId);
+                }
+
+                continue;
+            }
+
+            if (IsEncounterCleared(scopedIslandId, encounterId))
             {
                 RemoveGuard(encounterId);
                 continue;
@@ -113,6 +155,7 @@ public class PuzzleGuardSpawner : MonoBehaviour
             6f);
 
         activeGuards[encounterId] = enemy;
+        encounterIslandLookup[encounterId] = islandId;
     }
 
     private void RemoveGuard(string encounterId)
@@ -133,6 +176,7 @@ public class PuzzleGuardSpawner : MonoBehaviour
         }
 
         activeGuards.Remove(encounterId);
+        encounterIslandLookup.Remove(encounterId);
     }
 
     private void CleanupDestroyedGuards()
@@ -149,7 +193,19 @@ public class PuzzleGuardSpawner : MonoBehaviour
         for (int i = 0; i < staleKeys.Count; i++)
         {
             activeGuards.Remove(staleKeys[i]);
+            encounterIslandLookup.Remove(staleKeys[i]);
         }
+    }
+
+    private static bool IsEncounterCleared(string islandId, string encounterId)
+    {
+        if (IslandRestorationTracker.Instance == null || string.IsNullOrEmpty(encounterId))
+        {
+            return false;
+        }
+
+        string scopedIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        return IslandRestorationTracker.Instance.HasClearedEncounter(scopedIslandId, encounterId);
     }
 
     private static EncounterConfig LoadEncounterById(string encounterId)

@@ -30,6 +30,7 @@ public class TideManager : MonoBehaviour
     [SerializeField] private Color uiSelectedColor = new Color(0.96f, 0.9f, 0.42f, 1f);
     [SerializeField] private Color uiReachableColor = new Color(0.64f, 0.9f, 0.78f, 1f);
     [SerializeField] private Color uiUnavailableColor = new Color(0.3f, 0.3f, 0.35f, 1f);
+    [SerializeField] private float uiSolvedDismissDuration = 0.38f;
 
     [Header("Completion Flow")]
     [SerializeField] private float completionReturnDelay = 1f;
@@ -67,6 +68,7 @@ public class TideManager : MonoBehaviour
     private Canvas boardCanvas;
     private RectTransform boardPanel;
     private RectTransform boardGridRoot;
+    private CanvasGroup boardCanvasGroup;
     private Text boardHeaderLabel;
     private readonly UiTileView[,] uiTileViews = new UiTileView[3, 3];
     private TideTile hoveredTile;
@@ -74,6 +76,7 @@ public class TideManager : MonoBehaviour
     private int carriedAmount;
     private bool puzzleSolved;
     private bool isStartingSealedTileCombat;
+    private bool isClosingBoardUi;
     private bool overlayMode;
     private bool overlayClosing;
     private string overlayPuzzleBoxId = string.Empty;
@@ -353,6 +356,11 @@ public class TideManager : MonoBehaviour
 
     private void Update()
     {
+        if (isClosingBoardUi)
+        {
+            return;
+        }
+
         if (overlayMode && Input.GetKeyDown(KeyCode.Escape))
         {
             RequestOverlayClose();
@@ -646,6 +654,11 @@ public class TideManager : MonoBehaviour
         boardCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
         boardCanvas.sortingOrder = 720;
 
+        boardCanvasGroup = canvasObject.AddComponent<CanvasGroup>();
+        boardCanvasGroup.alpha = 1f;
+        boardCanvasGroup.blocksRaycasts = true;
+        boardCanvasGroup.interactable = true;
+
         CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
@@ -695,6 +708,8 @@ public class TideManager : MonoBehaviour
 
     private void TeardownUiBoard()
     {
+        isClosingBoardUi = false;
+
         for (int row = 0; row < 3; row++)
         {
             for (int col = 0; col < 3; col++)
@@ -711,6 +726,7 @@ public class TideManager : MonoBehaviour
         boardCanvas = null;
         boardPanel = null;
         boardGridRoot = null;
+        boardCanvasGroup = null;
         boardHeaderLabel = null;
     }
 
@@ -1097,8 +1113,7 @@ public class TideManager : MonoBehaviour
                     overlayIslandId,
                     overlayEncounterId,
                     overlayRestorationValue);
-                StartCoroutine(FlashAllTilesComplete());
-                OverlayPuzzleSolved?.Invoke();
+                StartCoroutine(FinishOverlayPuzzleRoutine());
                 return;
             }
 
@@ -1106,6 +1121,12 @@ public class TideManager : MonoBehaviour
             StartCoroutine(FlashAllTilesComplete());
             StartCoroutine(ReturnToMainSceneAfterDelay());
         }
+    }
+
+    private IEnumerator FinishOverlayPuzzleRoutine()
+    {
+        yield return StartCoroutine(FlashAllTilesComplete());
+        OverlayPuzzleSolved?.Invoke();
     }
 
     private IEnumerator FlashAllTilesComplete()
@@ -1128,6 +1149,48 @@ public class TideManager : MonoBehaviour
         }
 
         yield return null;
+
+        if (renderBoardAsUi)
+        {
+            yield return StartCoroutine(AnimateSolvedBoardDismiss());
+        }
+    }
+
+    private IEnumerator AnimateSolvedBoardDismiss()
+    {
+        if (!renderBoardAsUi || boardCanvasGroup == null)
+        {
+            yield break;
+        }
+
+        isClosingBoardUi = true;
+        boardCanvasGroup.blocksRaycasts = false;
+        boardCanvasGroup.interactable = false;
+
+        float duration = Mathf.Max(0.08f, uiSolvedDismissDuration);
+        float elapsed = 0f;
+
+        Vector2 startSize = boardPanel != null ? boardPanel.sizeDelta : uiBoardPanelSize;
+        Vector2 endSize = startSize * 0.82f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = 1f - Mathf.Pow(1f - t, 3f);
+
+            boardCanvasGroup.alpha = Mathf.Lerp(1f, 0f, eased);
+
+            if (boardPanel != null)
+            {
+                boardPanel.sizeDelta = Vector2.Lerp(startSize, endSize, eased);
+                boardPanel.anchoredPosition = new Vector2(0f, Mathf.Lerp(-24f, -6f, eased));
+            }
+
+            yield return null;
+        }
+
+        boardCanvasGroup.alpha = 0f;
     }
 
     private IEnumerator ReturnToMainSceneAfterDelay()
