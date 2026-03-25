@@ -256,6 +256,9 @@ public class BattleHud : MonoBehaviour
             case BattlePhase.Defeat:
                 turnLabel.text = "";
                 break;
+            case BattlePhase.Fled:
+                turnLabel.text = "";
+                break;
             default:
                 turnLabel.text = phase.ToString();
                 turnLabel.color = Color.white;
@@ -743,7 +746,29 @@ public class BattleHud : MonoBehaviour
         }
 
         if (defeatOverlay != null)
-            defeatOverlay.SetActive(battleManager.CurrentPhase == BattlePhase.Defeat);
+        {
+            bool isDefeat = battleManager.CurrentPhase == BattlePhase.Defeat;
+            bool isFled = battleManager.CurrentPhase == BattlePhase.Fled;
+            defeatOverlay.SetActive(isDefeat || isFled);
+
+            if (defeatOverlay.activeSelf)
+            {
+                Text defeatText = defeatOverlay.GetComponentInChildren<Text>();
+                if (defeatText != null)
+                {
+                    if (isFled)
+                    {
+                        defeatText.text = "RETREATED";
+                        defeatText.color = new Color(1f, 0.85f, 0.3f);
+                    }
+                    else
+                    {
+                        defeatText.text = "DEFEAT...";
+                        defeatText.color = new Color(1f, 0.3f, 0.3f);
+                    }
+                }
+            }
+        }
     }
 
     // --- Button callbacks ---

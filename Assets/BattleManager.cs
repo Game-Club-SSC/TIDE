@@ -12,7 +12,8 @@ public enum BattlePhase
     ActionExecution,
     EndTurn,
     Victory,
-    Defeat
+    Defeat,
+    Fled
 }
 
 public enum CombatActionType
@@ -21,7 +22,8 @@ public enum CombatActionType
     Defend,
     Skill,
     TideBreak,
-    Swap
+    Swap,
+    Pass
 }
 
 public struct PlannedAction
@@ -75,6 +77,13 @@ public class BattleManager : MonoBehaviour
 
     [Header("Turn Flow")]
     [SerializeField] private float actionStepDelay = 0.55f;
+
+    [Header("Flee")]
+    [SerializeField] [Range(0f, 1f)] private float fleeBaseChance = 0.35f;
+    [SerializeField] private float fleeSpeedDifferenceMultiplier = 0.03f;
+    [SerializeField] [Range(0f, 1f)] private float fleeFailureBonusPerAttempt = 0.15f;
+    [SerializeField] [Range(0f, 1f)] private float fleeMinimumChance = 0.1f;
+    [SerializeField] [Range(0f, 1f)] private float fleeMaximumChance = 0.95f;
 
     [SerializeField] private BattlePhase currentPhase;
 
@@ -228,6 +237,7 @@ public class BattleManager : MonoBehaviour
     private BattleHud cachedBattleHud;
     private string debugText = "";
     private bool canSwapDuringPlayerInput = true;
+    private int failedFleeAttemptsThisBattle;
 
     private void Awake()
     {
@@ -266,6 +276,7 @@ public class BattleManager : MonoBehaviour
     public void StartBattle()
     {
         canSwapDuringPlayerInput = true;
+        failedFleeAttemptsThisBattle = 0;
         TransitionToPhase(BattlePhase.StartBattle, "StartBattle");
     }
 
@@ -372,14 +383,17 @@ public class BattleManager : MonoBehaviour
             case BattlePhase.Defeat:
                 NotifyCombatEnded(false);
                 break;
+            case BattlePhase.Fled:
+                NotifyCombatEnded(false, true);
+                break;
         }
     }
 
-    private static void NotifyCombatEnded(bool playerWon)
+    private static void NotifyCombatEnded(bool playerWon, bool playerFled = false)
     {
         if (GameStateManager.Instance != null)
         {
-            GameStateManager.Instance.OnCombatEnded(playerWon);
+            GameStateManager.Instance.OnCombatEnded(playerWon, playerFled);
         }
     }
 
@@ -464,6 +478,93 @@ public class BattleManager : MonoBehaviour
         }
 
         Debug.Log($"[BattleManager] Player input started for {playerInputUnits.Count} allies.", this);
+    }
+
+    public bool TryAttemptFleeFromMenu(out bool fledSuccessfully, out float fleeChance, out float fleeRoll)
+    {
+        fledSuccessfully = false;
+        fleeChance = 0f;
+        fleeRoll = 0f;
+
+        if (!hasActivePhase || currentPhase != BattlePhase.PlayerInput || IsTerminalPhase(currentPhase))
+        {
+            return false;
+        }
+
+        if (CheckBattleOutcome())
+        {
+            return false;
+        }
+
+        CombatUnit actor = GetCurrentPlayerInputUnit();
+        if (actor == null || !actor.IsAlive)
+        {
+            return false;
+        }
+
+        fleeChance = CalculateFleeSuccessChance(actor);
+        fleeRoll = UnityEngine.Random.value;
+        fledSuccessfully = fleeRoll <= fleeChance;
+
+        if (fledSuccessfully)
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} fled successfully ({fleeRoll * 100f:F1}% <= {fleeChance * 100f:F1}%).");
+            selectedPlayerActions.Clear();
+            enemyPlannedActions.Clear();
+            actionExecutionActive = false;
+            isAwaitingTargetSelection = false;
+            pendingSkillData = null;
+            pendingTideBreak = null;
+            currentActingUnit = null;
+
+            TransitionToPhase(BattlePhase.Fled, "FleeSuccess");
+            return true;
+        }
+
+        failedFleeAttemptsThisBattle++;
+        Debug.LogWarning($"[BattleManager] {actor.UnitName} failed to flee ({fleeRoll * 100f:F1}% > {fleeChance * 100f:F1}%). Action consumed.");
+
+        AssignPlayerAction(actor, CombatActionType.Pass, null);
+        TryAutoConfirmPlayerActions();
+        return true;
+    }
+
+    private float CalculateFleeSuccessChance(CombatUnit actor)
+    {
+        if (actor == null)
+        {
+            return 0f;
+        }
+
+        float minChance = Mathf.Clamp01(Mathf.Min(fleeMinimumChance, fleeMaximumChance));
+        float maxChance = Mathf.Clamp01(Mathf.Max(fleeMinimumChance, fleeMaximumChance));
+        float baseChance = Mathf.Clamp01(fleeBaseChance);
+        float failureBonus = Mathf.Max(0f, fleeFailureBonusPerAttempt);
+        float speedDelta = actor.Speed - GetAverageLivingEnemySpeed();
+
+        float chance =
+            baseChance
+            + speedDelta * fleeSpeedDifferenceMultiplier
+            + failedFleeAttemptsThisBattle * failureBonus;
+
+        return Mathf.Clamp(chance, minChance, maxChance);
+    }
+
+    private float GetAverageLivingEnemySpeed()
+    {
+        IReadOnlyList<CombatUnit> livingEnemies = GetAliveUnits(CombatUnit.UnitType.Enemy);
+        if (livingEnemies.Count == 0)
+        {
+            return 0f;
+        }
+
+        float totalSpeed = 0f;
+        for (int i = 0; i < livingEnemies.Count; i++)
+        {
+            totalSpeed += livingEnemies[i].Speed;
+        }
+
+        return totalSpeed / livingEnemies.Count;
     }
 
     private void RefreshPlayerInputUnits()
@@ -739,6 +840,10 @@ public class BattleManager : MonoBehaviour
         else if (plannedAction.ActionType == CombatActionType.Defend)
         {
             actor.StartDefend();
+        }
+        else if (plannedAction.ActionType == CombatActionType.Pass)
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} passes after a failed flee attempt.", this);
         }
         else
         {
@@ -1164,6 +1269,7 @@ public class BattleManager : MonoBehaviour
                 return BattlePhase.PlayerInput;
             case BattlePhase.Victory:
             case BattlePhase.Defeat:
+            case BattlePhase.Fled:
             default:
                 return phase;
         }
@@ -1171,7 +1277,7 @@ public class BattleManager : MonoBehaviour
 
     private bool IsTerminalPhase(BattlePhase phase)
     {
-        return phase == BattlePhase.Victory || phase == BattlePhase.Defeat;
+        return phase == BattlePhase.Victory || phase == BattlePhase.Defeat || phase == BattlePhase.Fled;
     }
 
     private void EnsureDebugLabel() { }

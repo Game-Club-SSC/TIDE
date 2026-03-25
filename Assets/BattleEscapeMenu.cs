@@ -198,7 +198,35 @@ public class BattleEscapeMenu : MonoBehaviour
 
     private void OnFleeClicked()
     {
-        Debug.Log("[BattleEscapeMenu] Flee not implemented.");
+        if (battleManager == null)
+        {
+            battleManager = FindFirstObjectByType<BattleManager>();
+        }
+
+        if (battleManager == null)
+        {
+            Debug.LogWarning("[BattleEscapeMenu] Cannot flee because BattleManager is missing.");
+            return;
+        }
+
+        bool accepted = battleManager.TryAttemptFleeFromMenu(out bool fledSuccessfully, out float fleeChance, out float fleeRoll);
+        if (!accepted)
+        {
+            Debug.LogWarning("[BattleEscapeMenu] Flee attempt ignored because battle state does not allow it.");
+            SetMenuOpen(false);
+            return;
+        }
+
+        if (fledSuccessfully)
+        {
+            Debug.Log($"[BattleEscapeMenu] Flee success ({fleeRoll * 100f:F1}% <= {fleeChance * 100f:F1}%).");
+        }
+        else
+        {
+            Debug.LogWarning($"[BattleEscapeMenu] Flee failed ({fleeRoll * 100f:F1}% > {fleeChance * 100f:F1}%).");
+        }
+
+        SetMenuOpen(false);
     }
 
     // Party Swap Panel

@@ -774,7 +774,12 @@ public class GameStateManager : MonoBehaviour
 
     public void OnCombatEnded(bool playerWon)
     {
-        if (!playerWon)
+        OnCombatEnded(playerWon, false);
+    }
+
+    public void OnCombatEnded(bool playerWon, bool playerFled)
+    {
+        if (!playerWon && !playerFled)
         {
             NotifyBossDefeatAttempt();
         }
@@ -799,6 +804,11 @@ public class GameStateManager : MonoBehaviour
         if (playerWon)
         {
             SaveWorldState();
+        }
+
+        if (playerFled)
+        {
+            Debug.Log("[GameStateManager] Player fled combat. No restoration, rewards, or defeat penalties applied.");
         }
 
         if (HasActiveFlowController)
