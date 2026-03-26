@@ -107,7 +107,7 @@ public class TideMovementTest
     {
         if (IslandRestorationTracker.Instance != null)
         {
-            DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
+            Object.DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
         }
 
         GameObject trackerObject = new GameObject(trackerName);
