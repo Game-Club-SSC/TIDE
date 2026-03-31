@@ -78,9 +78,8 @@ public class PuzzleGuardSpawner : MonoBehaviour
                 if (IsEncounterCleared(scopedIslandId, encounterId))
                 {
                     RemoveGuard(encounterId);
+                    continue;
                 }
-
-                continue;
             }
 
             if (IsEncounterCleared(scopedIslandId, encounterId))
