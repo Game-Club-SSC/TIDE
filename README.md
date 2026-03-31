@@ -15,13 +15,13 @@ The game is set in a world of five elemental forces: Fire, Water, Earth, Air, an
 ## 🗺️ Roadmap
 
 ### Phase 1: Core Mechanics & Prototyping
-- [ ] Implement foundational grid-movement system.
-- [ ] Develop basic Tide Puzzle logic (balancing to 5).
-- [ ] Create initial Turn-Based combat skeleton.
+- [x] Implement foundational grid-movement system.
+- [x] Develop basic Tide Puzzle logic (balancing to 5).
+- [x] Create initial Turn-Based combat skeleton.
 
 ### Phase 2: Combat System & Elemental Balancing
-- [ ] Finalize the Rock-Paper-Scissors elemental clash system.
-- [ ] Implement the Tug-of-War Momentum bar mechanics.
+- [x] Finalize the Rock-Paper-Scissors elemental clash system.
+- [x] Implement the Tug-of-War Momentum bar mechanics.
 - [ ] Add devastating Tide Break ultimate abilities.
 
 ### Phase 3: World Building & Art Integration
