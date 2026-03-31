@@ -12,27 +12,33 @@ The game is set in a world of five elemental forces: Fire, Water, Earth, Air, an
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ Development Timeline & Roadmap
 
-### Phase 1: Core Mechanics & Prototyping
-- [x] Implement foundational grid-movement system.
-- [x] Develop basic Tide Puzzle logic (balancing to 5).
-- [x] Create initial Turn-Based combat skeleton.
+> *Automated Roadmap updates are synchronized weekly based on commit history.*
 
-### Phase 2: Combat System & Elemental Balancing
-- [x] Finalize the Rock-Paper-Scissors elemental clash system.
-- [x] Implement the Tug-of-War Momentum bar mechanics.
-- [ ] Add devastating Tide Break ultimate abilities.
+### 📅 Phase 1: Core Mechanics & Prototyping (March 2026)
+- [x] **[Mar 25]** Implement foundational grid-movement system & puzzle board UI.
+- [x] **[Mar 25]** Develop basic Tide Puzzle logic (balancing to 5).
+- [x] **[Mar 22]** Create initial Turn-Based combat skeleton.
+- [x] **[Mar 25]** Convert verification scripts to automated NUnit test coverage.
 
-### Phase 3: World Building & Art Integration
+### 📅 Phase 2: Combat System & Elemental Balancing (Late March - April 2026)
+- [x] **[Mar 25]** Finalize the Rock-Paper-Scissors elemental clash system.
+- [x] **[Mar 25]** Implement the Tug-of-War Momentum bar mechanics.
+- [x] **[Mar 25]** Add devastating Tide Break ultimate abilities and clear-cache logic.
+- [x] **[Mar 25]** Build elemental 3D character models and grounded 3D combat visuals.
+- [ ] Implement varied elemental enemy types with distinct AI patterns.
+- [ ] Balance element scaling (Fire > Air > Earth > Water > Fire).
+
+### 📅 Phase 3: World Building & Art Integration (May 2026)
 - [ ] Design and map out the six corrupted islands.
-- [ ] Integrate character sprites, enemy models, and environments.
+- [ ] Integrate full character sprites, boss models, and environments.
 - [ ] Add boat travel mechanics between islands.
 
-### Phase 4: Polish, Audio & Narrative
+### 📅 Phase 4: Polish, Audio & Narrative (June 2026)
 - [ ] Integrate background music and sound effects.
 - [ ] Finalize dialogue, story events, and world lore.
-- [ ] Bug fixing, UI/UX polish, and game balancing.
+- [ ] Bug fixing, UI/UX polish, and final game balancing.
 
 ---
 
