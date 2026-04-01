@@ -4,7 +4,7 @@ using UnityEngine.Events;
 public class RestorationThresholdGate : MonoBehaviour
 {
     [Header("Threshold")]
-    [SerializeField] private string islandId = "";
+    [SerializeField] private string islandId = "island_lust";
     [SerializeField] [Range(0f, 100f)] private float thresholdPercent = 80f;
 
     [Header("Targets")]
@@ -47,7 +47,8 @@ public class RestorationThresholdGate : MonoBehaviour
 
     private void HandleRestorationChanged(string changedIslandId, float progress)
     {
-        if (!string.IsNullOrEmpty(islandId) && changedIslandId != islandId)
+        string targetIsland = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (changedIslandId != targetIsland)
         {
             return;
         }
@@ -62,7 +63,7 @@ public class RestorationThresholdGate : MonoBehaviour
             return;
         }
 
-        string targetIsland = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        string targetIsland = IslandThemeRegistry.ResolveIslandId(islandId);
         float percent = tracker.GetRestorationPercent(targetIsland);
         bool nowMet = percent >= thresholdPercent;
         bool stateChanged = nowMet != thresholdMet;

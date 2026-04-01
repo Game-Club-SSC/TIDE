@@ -17,6 +17,14 @@ public class CombatSceneBootstrap : MonoBehaviour
     [SerializeField] private Color enemyUnitColor = new Color(0.89f, 0.38f, 0.25f);
     [SerializeField] private float lightIntensity = 1.15f;
 
+    [Header("Vice Theme Blend")]
+    [Range(0f, 1f)]
+    [SerializeField] private float viceBattlefieldBlend = 0.38f;
+    [Range(0f, 1f)]
+    [SerializeField] private float viceBackgroundBlend = 0.46f;
+    [Range(0f, 1f)]
+    [SerializeField] private float viceEnemyColorBlend = 0.52f;
+
     [Header("Layout")]
     [SerializeField] private float playerSideX = -4f;
     [SerializeField] private float enemySideX = 4f;
@@ -44,6 +52,10 @@ public class CombatSceneBootstrap : MonoBehaviour
     [Tooltip("Fallback party data used when no PartyManager is present (e.g. standalone combat testing).")]
     [SerializeField] private PartyData partyData;
 
+    private Color themedBattlefieldColor;
+    private Color themedCameraBackground;
+    private Color themedEnemyColor;
+
     private void Awake()
     {
         EnsureGameManager();
@@ -53,6 +65,8 @@ public class CombatSceneBootstrap : MonoBehaviour
             enemyComposition = GameStateManager.Instance.PendingEnemyComposition;
             GameStateManager.Instance.PendingEnemyComposition = null;
         }
+
+        ResolveViceThemeColors();
 
         EnsureDirectionalLight();
         EnsureBattlefield();
@@ -133,7 +147,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         Renderer groundRenderer = groundTransform.GetComponent<Renderer>();
         if (groundRenderer != null)
         {
-            groundRenderer.material.color = battlefieldColor;
+            groundRenderer.material.color = themedBattlefieldColor;
         }
     }
 
@@ -184,7 +198,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         combatCamera.nearClipPlane = 0.1f;
         combatCamera.farClipPlane = 100f;
         combatCamera.clearFlags = CameraClearFlags.SolidColor;
-        combatCamera.backgroundColor = cameraBackground;
+        combatCamera.backgroundColor = themedCameraBackground;
     }
 
     private Transform[] playerSpawnPoints;
@@ -377,7 +391,7 @@ public class CombatSceneBootstrap : MonoBehaviour
             {
                 if (enemySpawnPoints[i] != null)
                 {
-                    GameObject unitObject = SpawnOrCreateUnit(enemyUnitPrefab, enemySpawnPoints[i], $"EnemyUnit_{i + 1}", enemyUnitColor);
+                    GameObject unitObject = SpawnOrCreateUnit(enemyUnitPrefab, enemySpawnPoints[i], $"EnemyUnit_{i + 1}", themedEnemyColor);
                     CombatUnit unit = GetOrAddCombatUnit(unitObject);
                     unit.Type = CombatUnit.UnitType.Enemy;
 
@@ -426,7 +440,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                         unit.HP = unit.MaxHP;
                     }
 
-                    SetUnitColor(unitObject, enemyUnitColor);
+                    SetUnitColor(unitObject, themedEnemyColor);
 
                     if (useSpriteBattleVisuals)
                     {
@@ -498,6 +512,40 @@ public class CombatSceneBootstrap : MonoBehaviour
         }
 
         renderer.material.color = color;
+    }
+
+    private void ResolveViceThemeColors()
+    {
+        themedBattlefieldColor = battlefieldColor;
+        themedCameraBackground = cameraBackground;
+        themedEnemyColor = enemyUnitColor;
+
+        string islandId = IslandThemeRegistry.GetActiveIslandId();
+        if (GameStateManager.Instance != null && !string.IsNullOrEmpty(GameStateManager.Instance.PendingCombatIslandId))
+        {
+            islandId = IslandThemeRegistry.ResolveIslandId(GameStateManager.Instance.PendingCombatIslandId);
+        }
+
+        IslandConfig activeIsland = IslandThemeRegistry.GetConfig(islandId);
+        if (activeIsland == null)
+        {
+            return;
+        }
+
+        themedBattlefieldColor = Color.Lerp(
+            battlefieldColor,
+            activeIsland.viceSecondaryColor,
+            Mathf.Clamp01(viceBattlefieldBlend));
+
+        themedCameraBackground = Color.Lerp(
+            cameraBackground,
+            activeIsland.vicePrimaryColor,
+            Mathf.Clamp01(viceBackgroundBlend));
+
+        themedEnemyColor = Color.Lerp(
+            enemyUnitColor,
+            activeIsland.vicePrimaryColor,
+            Mathf.Clamp01(viceEnemyColorBlend));
     }
 
     private static void EnsureBattleSpriteVisual(GameObject unitObject, Sprite sprite, bool faceLeft)

@@ -18,7 +18,7 @@ public class IslandRestorationTracker : MonoBehaviour
     private readonly Dictionary<string, IslandRestorationState> islandStates =
         new Dictionary<string, IslandRestorationState>();
 
-    private const string DefaultIslandId = "default";
+    private const string DefaultIslandId = "island_lust";
     private const string LegacyEncounterId = "__legacy_complete_encounter__";
 
     private void OnEnable()
@@ -54,10 +54,7 @@ public class IslandRestorationTracker : MonoBehaviour
 
     public void RecordEncounterCompletion(string islandId, string encounterId, EncounterType type, float value)
     {
-        if (string.IsNullOrEmpty(islandId))
-        {
-            islandId = DefaultIslandId;
-        }
+        islandId = ResolveIslandId(islandId);
 
         if (string.IsNullOrEmpty(encounterId))
         {
@@ -107,10 +104,7 @@ public class IslandRestorationTracker : MonoBehaviour
 
     public void ResetIsland(string islandId)
     {
-        if (string.IsNullOrEmpty(islandId))
-        {
-            islandId = DefaultIslandId;
-        }
+        islandId = ResolveIslandId(islandId);
 
         IslandRestorationState state = GetOrCreateState(islandId);
         state.Reset();
@@ -124,10 +118,7 @@ public class IslandRestorationTracker : MonoBehaviour
 
     public float GetRestorationPercent(string islandId)
     {
-        if (string.IsNullOrEmpty(islandId))
-        {
-            islandId = DefaultIslandId;
-        }
+        islandId = ResolveIslandId(islandId);
 
         if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
         {
@@ -139,10 +130,7 @@ public class IslandRestorationTracker : MonoBehaviour
 
     public IslandRestorationState GetRestorationState(string islandId)
     {
-        if (string.IsNullOrEmpty(islandId))
-        {
-            islandId = DefaultIslandId;
-        }
+        islandId = ResolveIslandId(islandId);
 
         if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
         {
@@ -159,10 +147,7 @@ public class IslandRestorationTracker : MonoBehaviour
 
     public bool IsIslandRestored(string islandId)
     {
-        if (string.IsNullOrEmpty(islandId))
-        {
-            islandId = DefaultIslandId;
-        }
+        islandId = ResolveIslandId(islandId);
 
         if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
         {
@@ -197,10 +182,7 @@ public class IslandRestorationTracker : MonoBehaviour
             return false;
         }
 
-        if (string.IsNullOrEmpty(islandId))
-        {
-            islandId = DefaultIslandId;
-        }
+        islandId = ResolveIslandId(islandId);
 
         if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
         {
@@ -243,7 +225,7 @@ public class IslandRestorationTracker : MonoBehaviour
                     continue;
                 }
 
-                string scopedIslandId = string.IsNullOrEmpty(stateSnapshot.islandId) ? DefaultIslandId : stateSnapshot.islandId;
+                string scopedIslandId = ResolveIslandId(stateSnapshot.islandId);
                 IslandRestorationState state = new IslandRestorationState(scopedIslandId);
                 state.ApplySnapshot(stateSnapshot);
                 islandStates[scopedIslandId] = state;
@@ -262,6 +244,8 @@ public class IslandRestorationTracker : MonoBehaviour
 
     private IslandRestorationState GetOrCreateState(string islandId)
     {
+        islandId = ResolveIslandId(islandId);
+
         if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
         {
             state = new IslandRestorationState(islandId);
@@ -269,5 +253,10 @@ public class IslandRestorationTracker : MonoBehaviour
         }
 
         return state;
+    }
+
+    private static string ResolveIslandId(string islandId)
+    {
+        return IslandThemeRegistry.ResolveIslandId(islandId);
     }
 }

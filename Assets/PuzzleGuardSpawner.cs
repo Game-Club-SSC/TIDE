@@ -28,7 +28,7 @@ public class PuzzleGuardSpawner : MonoBehaviour
 
             string islandId = encounterIslandLookup.TryGetValue(encounterId, out string storedIslandId)
                 ? storedIslandId
-                : "default";
+                : "island_lust";
 
             if (IsEncounterCleared(islandId, encounterId))
             {
@@ -67,7 +67,7 @@ public class PuzzleGuardSpawner : MonoBehaviour
                 continue;
             }
 
-            string scopedIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+            string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
             encounterIslandLookup[encounterId] = scopedIslandId;
             validEncounterIds.Add(encounterId);
 
@@ -203,7 +203,7 @@ public class PuzzleGuardSpawner : MonoBehaviour
             return false;
         }
 
-        string scopedIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
         return IslandRestorationTracker.Instance.HasClearedEncounter(scopedIslandId, encounterId);
     }
 

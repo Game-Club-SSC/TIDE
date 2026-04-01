@@ -8,8 +8,9 @@ public class IslandFlowController : MonoBehaviour
     private int currentEncounterIndex;
     private bool isActive;
     private bool awaitingEncounterResolution;
+    private string activeIslandId;
 
-    public string IslandId => islandConfig != null ? islandConfig.islandId : string.Empty;
+    public string IslandId => activeIslandId;
 
     public bool IsActive => isActive;
     public int CurrentEncounterIndex => currentEncounterIndex;
@@ -62,6 +63,7 @@ public class IslandFlowController : MonoBehaviour
         }
 
         isActive = false;
+        activeIslandId = string.Empty;
     }
 
     public void StartIsland(IslandConfig config)
@@ -80,6 +82,7 @@ public class IslandFlowController : MonoBehaviour
         }
 
         islandConfig = config;
+        activeIslandId = IslandThemeRegistry.ResolveIslandId(islandConfig.islandId);
         if (islandConfig.encounters == null || islandConfig.encounters.Length == 0)
         {
             Debug.LogError($"[IslandFlowController] Island '{islandConfig.viceName}' has no encounters configured.");
@@ -120,13 +123,12 @@ public class IslandFlowController : MonoBehaviour
 
         EncounterDefinition encounter = islandConfig.encounters[currentEncounterIndex];
         string encounterId = GetEncounterId(encounter, currentEncounterIndex);
-        tracker.RecordEncounterCompletion(islandConfig.islandId, encounterId, encounter.type, encounter.restorationValue);
+        tracker.RecordEncounterCompletion(activeIslandId, encounterId, encounter.type, encounter.restorationValue);
 
         int subsection = currentEncounterIndex / 2;
-        Debug.Log($"[IslandFlowController] Subsection {subsection + 1} {encounter.type} complete. Restoration: {tracker.GetRestorationPercent(islandConfig.islandId):F1}%");
+        Debug.Log($"[IslandFlowController] Subsection {subsection + 1} {encounter.type} complete. Restoration: {tracker.GetRestorationPercent(activeIslandId):F1}%");
 
-        currentEncounterIndex++;
-
+        currentEncounterIndex = GetNextIncompleteEncounterIndex();
         if (currentEncounterIndex >= islandConfig.encounters.Length)
         {
             OnIslandComplete();
@@ -180,8 +182,24 @@ public class IslandFlowController : MonoBehaviour
         }
 
         EncounterDefinition encounter = islandConfig.encounters[currentEncounterIndex];
+        if (IsBossEncounter(encounter) && !IsBossUnlocked())
+        {
+            int fallbackIndex = FindNextIncompleteNonBossEncounterIndex();
+            if (fallbackIndex >= 0)
+            {
+                currentEncounterIndex = fallbackIndex;
+                encounter = islandConfig.encounters[currentEncounterIndex];
+            }
+            else
+            {
+                Debug.Log($"[IslandFlowController] Boss encounter for '{activeIslandId}' remains locked until 75% restoration.");
+                awaitingEncounterResolution = false;
+                return;
+            }
+        }
+
         string encounterId = GetEncounterId(encounter, currentEncounterIndex);
-        if (tracker != null && tracker.HasClearedEncounter(islandConfig.islandId, encounterId))
+        if (tracker != null && tracker.HasClearedEncounter(activeIslandId, encounterId))
         {
             currentEncounterIndex++;
             LoadCurrentEncounter();
@@ -230,6 +248,8 @@ public class IslandFlowController : MonoBehaviour
         {
             GameStateManager.Instance.PendingPuzzleData = encounter.puzzleData;
             GameStateManager.Instance.PendingPuzzleIslandId = IslandId;
+            GameStateManager.Instance.PendingPuzzleEncounterId = encounter.encounterId;
+            GameStateManager.Instance.PendingPuzzleRestorationValue = encounter.restorationValue;
         }
 
         if (GameStateManager.Instance != null)
@@ -243,7 +263,7 @@ public class IslandFlowController : MonoBehaviour
     private void OnIslandComplete()
     {
         isActive = false;
-        Debug.Log($"[IslandFlowController] Island {islandConfig.viceName} fully restored! ({tracker.GetRestorationPercent(islandConfig.islandId):F1}%)");
+        Debug.Log($"[IslandFlowController] Island {islandConfig.viceName} fully restored! ({tracker.GetRestorationPercent(activeIslandId):F1}%)");
     }
 
     private static string GetEncounterId(EncounterDefinition encounter, int index)
@@ -265,16 +285,98 @@ public class IslandFlowController : MonoBehaviour
             return 0;
         }
 
+        int nonBossFallback = -1;
+        int lockedBossIndex = -1;
+
         for (int i = 0; i < islandConfig.encounters.Length; i++)
         {
             EncounterDefinition encounter = islandConfig.encounters[i];
             string encounterId = GetEncounterId(encounter, i);
-            if (!tracker.HasClearedEncounter(islandConfig.islandId, encounterId))
+            if (!tracker.HasClearedEncounter(activeIslandId, encounterId))
+            {
+                if (IsBossEncounter(encounter))
+                {
+                    if (IsBossUnlocked())
+                    {
+                        return i;
+                    }
+
+                    if (lockedBossIndex < 0)
+                    {
+                        lockedBossIndex = i;
+                    }
+
+                    continue;
+                }
+
+                if (nonBossFallback < 0)
+                {
+                    nonBossFallback = i;
+                }
+            }
+        }
+
+        if (nonBossFallback >= 0)
+        {
+            return nonBossFallback;
+        }
+
+        if (lockedBossIndex >= 0)
+        {
+            return lockedBossIndex;
+        }
+
+        return islandConfig.encounters.Length;
+    }
+
+    private int FindNextIncompleteNonBossEncounterIndex()
+    {
+        if (tracker == null || islandConfig == null || islandConfig.encounters == null)
+        {
+            return -1;
+        }
+
+        for (int i = 0; i < islandConfig.encounters.Length; i++)
+        {
+            EncounterDefinition encounter = islandConfig.encounters[i];
+            if (IsBossEncounter(encounter))
+            {
+                continue;
+            }
+
+            string encounterId = GetEncounterId(encounter, i);
+            if (!tracker.HasClearedEncounter(activeIslandId, encounterId))
             {
                 return i;
             }
         }
 
-        return islandConfig.encounters.Length;
+        return -1;
+    }
+
+    private bool IsBossUnlocked()
+    {
+        if (tracker == null || islandConfig == null)
+        {
+            return false;
+        }
+
+        return tracker.IsRestorationAtOrAbove(activeIslandId, 75f);
+    }
+
+    private static bool IsBossEncounter(EncounterDefinition encounter)
+    {
+        if (encounter == null)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(encounter.encounterId)
+            && encounter.encounterId.IndexOf("boss", System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return true;
+        }
+
+        return false;
     }
 }

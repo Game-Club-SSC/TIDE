@@ -17,7 +17,7 @@ public class CombatBoxInteractable : MonoBehaviour
     [Header("Interaction")]
     [SerializeField] private Vector3 triggerSize = new Vector3(3.25f, 2.25f, 3.25f);
     [SerializeField] private Color boxColor = new Color(0.8f, 0.15f, 0.15f);
-    [SerializeField] private string islandId = "default";
+    [SerializeField] private string islandId = "island_lust";
     [SerializeField] private string encounterId = "";
     [SerializeField] private float restorationValue = 0.001f;
 
@@ -26,6 +26,7 @@ public class CombatBoxInteractable : MonoBehaviour
     private GameObject promptRoot;
     private bool playerInRange;
     private Sprite runtimePromptSprite;
+    private bool startupClearCheckComplete;
 
     private void Awake()
     {
@@ -39,15 +40,19 @@ public class CombatBoxInteractable : MonoBehaviour
         ApplyBoxColor();
         SetPromptVisible(false);
 
-        if (ShouldDisableAsClearedEncounter())
+        if (TryDisableAsClearedEncounter())
         {
-            gameObject.SetActive(false);
             return;
         }
     }
 
     private void Update()
     {
+        if (!startupClearCheckComplete && TryDisableAsClearedEncounter())
+        {
+            return;
+        }
+
         UpdatePromptFacing();
 
         GameStateManager gsm = GameStateManager.Instance;
@@ -71,7 +76,7 @@ public class CombatBoxInteractable : MonoBehaviour
         if (!string.IsNullOrEmpty(encounterId))
         {
             gsm.EnterCombatSceneFromExploration(
-                string.IsNullOrEmpty(islandId) ? "default" : islandId,
+                IslandThemeRegistry.ResolveIslandId(islandId),
                 encounterId,
                 Mathf.Max(0.001f, restorationValue),
                 transform.position);
@@ -89,8 +94,31 @@ public class CombatBoxInteractable : MonoBehaviour
             return false;
         }
 
-        string scopedIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
         return IslandRestorationTracker.Instance.HasClearedEncounter(scopedIslandId, encounterId);
+    }
+
+    private bool TryDisableAsClearedEncounter()
+    {
+        if (string.IsNullOrEmpty(encounterId))
+        {
+            startupClearCheckComplete = true;
+            return false;
+        }
+
+        if (IslandRestorationTracker.Instance == null)
+        {
+            return false;
+        }
+
+        startupClearCheckComplete = true;
+        if (!ShouldDisableAsClearedEncounter())
+        {
+            return false;
+        }
+
+        gameObject.SetActive(false);
+        return true;
     }
 
     private void OnTriggerEnter(Collider other)

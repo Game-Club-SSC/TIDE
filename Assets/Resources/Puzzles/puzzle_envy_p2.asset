@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20740f15e9428a642b716ea9874803b1, type: 3}
+  m_Name: puzzle_envy_p2
+  m_EditorClassIdentifier:
+  tileValues:
+  - 8
+  - 3
+  - 9
+  - 10
+  - 2
+  - 4
+  - 1
+  - 5
+  - 7
+  sealedPosition: {x: 0, y: 1}
+  lockedPosition: {x: -1, y: -1}
+  lockedTileEncounterId: 
+  lockedTileIslandId: island_envy
+  winCondition:
+    type: 1
+    targetValue: 5
+    requiredPercent: 0.75
+  instabilityThreshold: 3

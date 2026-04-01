@@ -8,6 +8,8 @@ using UnityEngine.UI;
 
 public class TideManager : MonoBehaviour
 {
+    private const string ViceIslandPrefix = "island_";
+
     [Header("Interaction")]
     public LayerMask tileLayer = ~0;
     [SerializeField] private int maxCarrySteps = 2;
@@ -267,21 +269,22 @@ public class TideManager : MonoBehaviour
     {
         if (!string.IsNullOrEmpty(lockedEncounterIslandId))
         {
-            return lockedEncounterIslandId;
+            return IslandThemeRegistry.ResolveIslandId(lockedEncounterIslandId);
         }
 
         if (!string.IsNullOrEmpty(puzzleIslandId))
         {
-            return puzzleIslandId;
+            return IslandThemeRegistry.ResolveIslandId(puzzleIslandId);
         }
 
-        return string.Empty;
+        return IslandThemeRegistry.GetActiveIslandId();
     }
 
     private void Start()
     {
         if (overlayMode)
         {
+            ApplyIslandVisualTheme(overlayIslandId);
             InitializeOverlaySession();
             return;
         }
@@ -295,11 +298,13 @@ public class TideManager : MonoBehaviour
         if (GameStateManager.Instance != null && GameStateManager.Instance.PendingPuzzleData != null)
         {
             puzzleIslandId = GameStateManager.Instance.PendingPuzzleIslandId;
+            ApplyIslandVisualTheme(puzzleIslandId);
             InitializePuzzle(GameStateManager.Instance.PendingPuzzleData);
         }
         else if (GameStateManager.Instance != null && GameStateManager.Instance.PendingPuzzleLayout != null)
         {
             puzzleIslandId = GameStateManager.Instance.PendingPuzzleIslandId;
+            ApplyIslandVisualTheme(puzzleIslandId);
             InitializePuzzle(GameStateManager.Instance.PendingPuzzleLayout, GameStateManager.Instance.PendingPuzzleSealedTile);
         }
         else
@@ -309,6 +314,7 @@ public class TideManager : MonoBehaviour
                 puzzleIslandId = GameStateManager.Instance.PendingPuzzleIslandId;
             }
 
+            ApplyIslandVisualTheme(puzzleIslandId);
             InitializePuzzle(puzzleValues, sealedPosition);
         }
 
@@ -321,6 +327,45 @@ public class TideManager : MonoBehaviour
         {
             GameStateManager.Instance.EnterPuzzle();
         }
+    }
+
+    private void ApplyIslandVisualTheme(string islandId)
+    {
+        if (string.IsNullOrEmpty(islandId) || !islandId.StartsWith(ViceIslandPrefix, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        IslandConfig[] configs = Resources.LoadAll<IslandConfig>("Islands");
+        if (configs == null || configs.Length == 0)
+        {
+            return;
+        }
+
+        IslandConfig config = null;
+        for (int i = 0; i < configs.Length; i++)
+        {
+            IslandConfig candidate = configs[i];
+            if (candidate != null && string.Equals(candidate.islandId, islandId, StringComparison.Ordinal))
+            {
+                config = candidate;
+                break;
+            }
+        }
+
+        if (config == null)
+        {
+            return;
+        }
+
+        uiPanelColor = Color.Lerp(new Color(0.06f, 0.08f, 0.12f, 0.94f), config.viceSecondaryColor, 0.38f);
+        uiGridBackgroundColor = Color.Lerp(new Color(0.13f, 0.16f, 0.23f, 0.92f), config.viceSecondaryColor, 0.22f);
+        uiTargetColor = Color.Lerp(new Color(0.58f, 0.85f, 0.66f, 1f), config.vicePrimaryColor, 0.28f);
+        uiSelectedColor = Color.Lerp(new Color(0.96f, 0.9f, 0.42f, 1f), config.vicePrimaryColor, 0.42f);
+        uiReachableColor = Color.Lerp(new Color(0.64f, 0.9f, 0.78f, 1f), config.vicePrimaryColor, 0.2f);
+        uiHighColor = Color.Lerp(new Color(0.96f, 0.84f, 0.58f, 1f), config.vicePrimaryColor, 0.25f);
+
+        Debug.Log($"[TideManager] Applied vice puzzle palette for '{config.viceName}' ({islandId}).");
     }
 
     private void InitializeOverlaySession()
@@ -880,7 +925,11 @@ public class TideManager : MonoBehaviour
         string islandScope = GetPuzzleIslandIdForLookup();
         if (string.IsNullOrEmpty(islandScope))
         {
-            islandScope = "default";
+            islandScope = "island_lust";
+        }
+        else
+        {
+            islandScope = IslandThemeRegistry.ResolveIslandId(islandScope);
         }
 
         if (IslandRestorationTracker.Instance != null

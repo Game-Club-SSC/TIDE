@@ -11,7 +11,7 @@ public class NarrativeBeatDirector : MonoBehaviour
     [Header("Timing")]
     [SerializeField] private float introDelaySeconds = 1.2f;
     [SerializeField] private float beatRepeatCooldown = 6f;
-    [SerializeField] private string primaryIslandId = "default";
+    [SerializeField] private string primaryIslandId = "island_lust";
     [SerializeField] private float preCombatTriggerDistance = 6f;
     [SerializeField] private float minimumPlayerTravelBeforePreCombatBeat = 1.5f;
 
@@ -188,7 +188,7 @@ public class NarrativeBeatDirector : MonoBehaviour
             return false;
         }
 
-        string islandId = string.IsNullOrEmpty(primaryIslandId) ? "default" : primaryIslandId;
+        string islandId = IslandThemeRegistry.ResolveIslandId(primaryIslandId);
         float restorationPercent = IslandRestorationTracker.Instance.GetRestorationPercent(islandId);
         return restorationPercent >= 60f;
     }

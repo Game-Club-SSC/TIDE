@@ -133,10 +133,10 @@ public class RestorationTrackerTest : MonoBehaviour
         tracker.CompleteEncounter(0.2f);
         tracker.CompleteEncounter(0.4f);
 
-        float percent = tracker.GetRestorationPercent("default");
+        float percent = tracker.GetRestorationPercent("island_lust");
         Assert.AreEqual(20f, percent, 0.01f, "Legacy CompleteEncounter should only count once without a real encounter id.");
 
-        IslandRestorationState state = tracker.GetRestorationState("default");
+        IslandRestorationState state = tracker.GetRestorationState("island_lust");
         Assert.AreEqual(1, state.CombatEncountersCompleted, "Legacy CompleteEncounter should not stack duplicate combat completions.");
         Assert.AreEqual(1, state.CompletedEncounterIds.Count, "Legacy path should register a stable encounter id for duplicate protection.");
 
@@ -152,12 +152,12 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Buckets");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_1", "combat_a", EncounterType.Combat, 0.2f);
-        tracker.RecordEncounterCompletion("island_1", "puzzle_a", EncounterType.Puzzle, 0.3f);
-        tracker.RecordEncounterCompletion("island_1", "combat_b", EncounterType.Combat, 0.2f);
-        tracker.RecordEncounterCompletion("island_1", "puzzle_b", EncounterType.Puzzle, 0.3f);
+        tracker.RecordEncounterCompletion("island_lust", "combat_a", EncounterType.Combat, 0.2f);
+        tracker.RecordEncounterCompletion("island_lust", "puzzle_a", EncounterType.Puzzle, 0.3f);
+        tracker.RecordEncounterCompletion("island_lust", "combat_b", EncounterType.Combat, 0.2f);
+        tracker.RecordEncounterCompletion("island_lust", "puzzle_b", EncounterType.Puzzle, 0.3f);
 
-        IslandRestorationState state = tracker.GetRestorationState("island_1");
+        IslandRestorationState state = tracker.GetRestorationState("island_lust");
         Assert.AreEqual(0.4f, state.CombatContribution, 0.001f, "Combat bucket should be 0.4 (20% + 20%).");
         Assert.AreEqual(0.6f, state.PuzzleContribution, 0.001f, "Puzzle bucket should be 0.6 (30% + 30%).");
         Assert.AreEqual(100f, state.RestorationPercent, 0.01f, "Total should be 100%.");

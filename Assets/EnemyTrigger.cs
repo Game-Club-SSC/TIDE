@@ -5,22 +5,28 @@ using UnityEngine;
 public class EnemyTrigger : MonoBehaviour
 {
     [SerializeField] private EncounterConfig encounterConfig;
-    [SerializeField] private string islandId = "default";
+    [SerializeField] private string islandId = "island_lust";
     [SerializeField] private string encounterIdOverride = "";
     [SerializeField] private float restorationValue = 0.001f;
 
+    private bool startupClearCheckComplete;
+
     private void Start()
     {
-        if (ShouldDisableAsClearedEncounter())
+        if (TryDisableAsClearedEncounter())
         {
-            Collider triggerCollider = GetComponent<Collider>();
-            if (triggerCollider != null)
-            {
-                triggerCollider.enabled = false;
-            }
-
-            Destroy(gameObject);
+            return;
         }
+    }
+
+    private void Update()
+    {
+        if (startupClearCheckComplete)
+        {
+            return;
+        }
+
+        TryDisableAsClearedEncounter();
     }
 
     private void OnTriggerEnter(Collider other)
@@ -92,6 +98,36 @@ public class EnemyTrigger : MonoBehaviour
         return IslandRestorationTracker.Instance.HasClearedEncounter(ResolveTrackingIslandId(), trackedEncounterId);
     }
 
+    private bool TryDisableAsClearedEncounter()
+    {
+        string trackedEncounterId = ResolveTrackingEncounterId();
+        if (string.IsNullOrEmpty(trackedEncounterId))
+        {
+            startupClearCheckComplete = true;
+            return false;
+        }
+
+        if (IslandRestorationTracker.Instance == null)
+        {
+            return false;
+        }
+
+        startupClearCheckComplete = true;
+        if (!ShouldDisableAsClearedEncounter())
+        {
+            return false;
+        }
+
+        Collider triggerCollider = GetComponent<Collider>();
+        if (triggerCollider != null)
+        {
+            triggerCollider.enabled = false;
+        }
+
+        Destroy(gameObject);
+        return true;
+    }
+
     private string ResolveTrackingEncounterId()
     {
         if (!string.IsNullOrEmpty(encounterIdOverride))
@@ -109,6 +145,6 @@ public class EnemyTrigger : MonoBehaviour
 
     private string ResolveTrackingIslandId()
     {
-        return string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        return IslandThemeRegistry.ResolveIslandId(islandId);
     }
 }

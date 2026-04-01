@@ -67,7 +67,7 @@ public class PuzzleOverlayController : MonoBehaviour
             legacySealed,
             hasRuntimeLayout ? runtimeGrid : null,
             puzzleBoxId,
-            sourceBox.GetIslandId(),
+            IslandThemeRegistry.ResolveIslandId(sourceBox.GetIslandId()),
             sourceBox.GetEncounterId(),
             sourceBox.GetRestorationValue(),
             boardCenter);

@@ -5,8 +5,18 @@ public class PuzzleSceneBootstrap : MonoBehaviour
     [SerializeField] private Color groundColor = new Color(0.22f, 0.24f, 0.28f);
     [SerializeField] private Color cameraBackground = new Color(0.11f, 0.12f, 0.15f);
 
+    [Header("Vice Theme Blend")]
+    [Range(0f, 1f)]
+    [SerializeField] private float viceGroundBlend = 0.42f;
+    [Range(0f, 1f)]
+    [SerializeField] private float viceCameraBlend = 0.35f;
+
+    private Color themedGroundColor;
+    private Color themedCameraBackground;
+
     private void Awake()
     {
+        ResolveViceThemeColors();
         EnsureGameManager();
         EnsurePuzzleManager();
         EnsureDirectionalLight();
@@ -71,6 +81,7 @@ public class PuzzleSceneBootstrap : MonoBehaviour
         if (groundRenderer != null)
         {
             groundRenderer.material.color = groundColor;
+            groundRenderer.material.color = themedGroundColor;
         }
     }
 
@@ -115,7 +126,7 @@ public class PuzzleSceneBootstrap : MonoBehaviour
         }
 
         cameraComponent.clearFlags = CameraClearFlags.SolidColor;
-        cameraComponent.backgroundColor = cameraBackground;
+        cameraComponent.backgroundColor = themedCameraBackground;
     }
 
     private void EnsurePuzzleManager()
@@ -135,5 +146,26 @@ public class PuzzleSceneBootstrap : MonoBehaviour
 
         GameObject hudObject = new GameObject("PuzzleHud");
         hudObject.AddComponent<PuzzleHud>();
+    }
+
+    private void ResolveViceThemeColors()
+    {
+        themedGroundColor = groundColor;
+        themedCameraBackground = cameraBackground;
+
+        string islandId = IslandThemeRegistry.GetActiveIslandId();
+        if (GameStateManager.Instance != null && !string.IsNullOrEmpty(GameStateManager.Instance.PendingPuzzleIslandId))
+        {
+            islandId = IslandThemeRegistry.ResolveIslandId(GameStateManager.Instance.PendingPuzzleIslandId);
+        }
+
+        IslandConfig activeIsland = IslandThemeRegistry.GetConfig(islandId);
+        if (activeIsland == null)
+        {
+            return;
+        }
+
+        themedGroundColor = Color.Lerp(groundColor, activeIsland.vicePrimaryColor, Mathf.Clamp01(viceGroundBlend));
+        themedCameraBackground = Color.Lerp(cameraBackground, activeIsland.viceSecondaryColor, Mathf.Clamp01(viceCameraBlend));
     }
 }

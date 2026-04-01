@@ -7,7 +7,7 @@ public class IslandRestorationHud : MonoBehaviour
     private const string LabelName = "RestorationLabel";
 
     [Header("Display")]
-    [SerializeField] private string islandId = "";
+    [SerializeField] private string islandId = "island_lust";
     [SerializeField] private string islandName = "Island";
     [SerializeField] private string viceName = "";
     [SerializeField] private Vector2 labelPosition = new Vector2(-24f, -24f);
@@ -68,7 +68,7 @@ public class IslandRestorationHud : MonoBehaviour
 
     private void HandleRestorationChanged(string changedIslandId, float progress)
     {
-        if (!string.IsNullOrEmpty(islandId) && changedIslandId != islandId)
+        if (changedIslandId != ResolveTargetIslandId())
         {
             return;
         }
@@ -78,7 +78,7 @@ public class IslandRestorationHud : MonoBehaviour
 
     private void HandleIslandRestored(string restoredIslandId)
     {
-        if (!string.IsNullOrEmpty(islandId) && restoredIslandId != islandId)
+        if (restoredIslandId != ResolveTargetIslandId())
         {
             return;
         }
@@ -93,7 +93,7 @@ public class IslandRestorationHud : MonoBehaviour
             return;
         }
 
-        string targetIsland = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        string targetIsland = ResolveTargetIslandId();
 
         if (tracker == null)
         {
@@ -170,5 +170,15 @@ public class IslandRestorationHud : MonoBehaviour
         restorationLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
         restorationLabel.verticalOverflow = VerticalWrapMode.Overflow;
         restorationLabel.raycastTarget = false;
+    }
+
+    private string ResolveTargetIslandId()
+    {
+        if (!string.IsNullOrEmpty(islandId))
+        {
+            return IslandThemeRegistry.ResolveIslandId(islandId);
+        }
+
+        return IslandThemeRegistry.GetActiveIslandId();
     }
 }

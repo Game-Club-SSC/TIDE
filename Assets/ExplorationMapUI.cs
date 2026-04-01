@@ -13,7 +13,7 @@ public class ExplorationMapUI : MonoBehaviour
     [SerializeField] private KeyCode loreLogKey = KeyCode.L;
 
     [Header("Tracking")]
-    [SerializeField] private string islandId = "island_1";
+    [SerializeField] private string islandId = "island_lust";
 
     [Header("Mini Map Layout")]
     [SerializeField] private Vector2 miniMapSize = new Vector2(300f, 200f);
@@ -597,7 +597,7 @@ public class ExplorationMapUI : MonoBehaviour
             return;
         }
 
-        string targetIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        string targetIslandId = ResolveTrackedIslandId();
 
         if (IslandRestorationTracker.Instance == null)
         {
@@ -837,5 +837,15 @@ public class ExplorationMapUI : MonoBehaviour
         {
             logUi.ShowDiscoveredLog();
         }
+    }
+
+    private string ResolveTrackedIslandId()
+    {
+        if (!string.IsNullOrEmpty(islandId))
+        {
+            return IslandThemeRegistry.ResolveIslandId(islandId);
+        }
+
+        return IslandThemeRegistry.GetActiveIslandId();
     }
 }

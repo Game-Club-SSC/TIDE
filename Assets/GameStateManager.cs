@@ -135,17 +135,18 @@ public class GameStateManager : MonoBehaviour
             return 0f;
         }
 
-        return IslandRestorationTracker.Instance.GetRestorationPercent(islandId);
+        return IslandRestorationTracker.Instance.GetRestorationPercent(IslandThemeRegistry.ResolveIslandId(islandId));
     }
 
     public IslandRestorationState GetIslandRestorationState(string islandId)
     {
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
         if (IslandRestorationTracker.Instance == null)
         {
-            return new IslandRestorationState(islandId);
+            return new IslandRestorationState(scopedIslandId);
         }
 
-        return IslandRestorationTracker.Instance.GetRestorationState(islandId);
+        return IslandRestorationTracker.Instance.GetRestorationState(scopedIslandId);
     }
 
     private void Awake()
@@ -237,7 +238,7 @@ public class GameStateManager : MonoBehaviour
         }
 
         returnToPuzzleAfterCombat = false;
-        PendingCombatIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        PendingCombatIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
         PendingCombatEncounterId = encounterId;
         PendingCombatRestorationValue = Mathf.Max(0.001f, restorationValue);
         pendingReturnPosition = returnPosition;
@@ -256,7 +257,7 @@ public class GameStateManager : MonoBehaviour
         }
 
         returnToPuzzleAfterCombat = true;
-        PendingCombatIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        PendingCombatIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
         PendingCombatEncounterId = encounterId;
         PendingCombatRestorationValue = Mathf.Max(0.001f, restorationValue);
         hasPendingCombatReturnPosition = false;
@@ -742,7 +743,7 @@ public class GameStateManager : MonoBehaviour
     {
         MarkPuzzleBoxSolved(puzzleBoxId);
 
-        string scopedIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
         string scopedEncounterId = string.IsNullOrEmpty(encounterId) ? "__puzzle_complete__" : encounterId;
         float contribution = restorationValue > 0f ? restorationValue : 0.2f;
 
@@ -786,7 +787,7 @@ public class GameStateManager : MonoBehaviour
 
         if (playerWon && IslandRestorationTracker.Instance != null && !string.IsNullOrEmpty(PendingCombatEncounterId))
         {
-            string islandId = string.IsNullOrEmpty(PendingCombatIslandId) ? "default" : PendingCombatIslandId;
+            string islandId = IslandThemeRegistry.ResolveIslandId(PendingCombatIslandId);
             float contribution = PendingCombatRestorationValue > 0f ? PendingCombatRestorationValue : 0.001f;
             IslandRestorationTracker.Instance.RecordEncounterCompletion(
                 islandId,
@@ -976,14 +977,14 @@ public class GameStateManager : MonoBehaviour
                     }
                 }
 
-                // Record restoration if island ID provided
-                if (IslandRestorationTracker.Instance != null)
+                // Flow-controlled island encounters record restoration in IslandFlowController.OnEncounterComplete.
+                // Avoid double-counting puzzle restoration here when returning from a flow puzzle.
+                bool flowControlsPuzzleCompletion = HasActiveFlowController && returnedFromPuzzleScene;
+
+                if (!flowControlsPuzzleCompletion && IslandRestorationTracker.Instance != null)
                 {
                     string islandId = PendingPuzzleIslandId;
-                    if (string.IsNullOrEmpty(islandId))
-                    {
-                        islandId = "default";
-                    }
+                    islandId = IslandThemeRegistry.ResolveIslandId(islandId);
 
                     string encounterId = PendingPuzzleEncounterId;
                     if (string.IsNullOrEmpty(encounterId))
@@ -1200,13 +1201,17 @@ public class GameStateManager : MonoBehaviour
 
     private void EnsureProgressionManager()
     {
-        if (HeroProgressionManager.Instance != null)
+        if (HeroProgressionManager.Instance == null)
         {
-            return;
+            GameObject managerObject = new GameObject("HeroProgressionManager");
+            managerObject.AddComponent<HeroProgressionManager>();
         }
 
-        GameObject managerObject = new GameObject("HeroProgressionManager");
-        managerObject.AddComponent<HeroProgressionManager>();
+        if (IslandProgressionManager.Instance == null)
+        {
+            GameObject progressionObject = new GameObject("IslandProgressionManager");
+            progressionObject.AddComponent<IslandProgressionManager>();
+        }
     }
 
     private void ApplySolvedPuzzleBoxesInScene()
@@ -1419,7 +1424,7 @@ public class GameStateManager : MonoBehaviour
                     continue;
                 }
 
-                string scopedEntryIsland = string.IsNullOrEmpty(entry.islandId) ? "default" : entry.islandId;
+                string scopedEntryIsland = IslandThemeRegistry.ResolveIslandId(entry.islandId);
                 if (scopedEntryIsland == gate.TrackedIslandId)
                 {
                     gate.SetDefeatCount(entry.defeats);

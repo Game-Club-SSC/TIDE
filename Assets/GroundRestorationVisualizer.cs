@@ -11,8 +11,8 @@ public class GroundRestorationVisualizer : MonoBehaviour
     [Tooltip("Color when restoration is 100% (Excess Good - White distortion).")]
     [SerializeField] private Color maxColor = Color.white;
 
-    [Tooltip("Island ID to track. Leave empty to track default island.")]
-    [SerializeField] private string islandId = "";
+    [Tooltip("Island ID to track. Leave empty to track active progression island.")]
+    [SerializeField] private string islandId = "island_lust";
 
     private IslandRestorationTracker tracker;
 
@@ -57,9 +57,7 @@ public class GroundRestorationVisualizer : MonoBehaviour
             return;
         }
 
-        // Instantly set ground to max color (white) when puzzle is completed
-        groundRenderer.material.color = maxColor;
-        Debug.Log($"[GroundRestorationVisualizer] Puzzle completed! Ground changed to {maxColor}.");
+        RefreshColor();
     }
 
     private void TryFindTracker()
@@ -104,7 +102,7 @@ public class GroundRestorationVisualizer : MonoBehaviour
 
     private void HandleRestorationChanged(string changedIslandId, float progress)
     {
-        if (!string.IsNullOrEmpty(islandId) && changedIslandId != islandId)
+        if (changedIslandId != ResolveIslandIdForDisplay())
         {
             return;
         }
@@ -114,7 +112,7 @@ public class GroundRestorationVisualizer : MonoBehaviour
 
     private void HandleIslandRestored(string restoredIslandId)
     {
-        if (!string.IsNullOrEmpty(islandId) && restoredIslandId != islandId)
+        if (restoredIslandId != ResolveIslandIdForDisplay())
         {
             return;
         }
@@ -132,14 +130,15 @@ public class GroundRestorationVisualizer : MonoBehaviour
         float percent = 0f;
         if (tracker != null)
         {
-            string targetIsland = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+            string targetIsland = ResolveIslandIdForDisplay();
             percent = tracker.GetRestorationPercent(targetIsland) / 100f;
-        }
 
-        // Check if puzzle was just completed - instantly set to max color
-        if (GameStateManager.Instance != null && GameStateManager.Instance.HasActiveFlowController)
-        {
-            // For flow-controlled puzzles, use tracker percentage
+            IslandConfig islandConfig = IslandThemeRegistry.GetConfig(targetIsland);
+            if (islandConfig != null)
+            {
+                minColor = Color.Lerp(Color.black, islandConfig.viceSecondaryColor, 0.58f);
+                maxColor = Color.Lerp(Color.white, islandConfig.vicePrimaryColor, 0.2f);
+            }
         }
 
         Color targetColor = Color.Lerp(minColor, maxColor, percent);
@@ -153,5 +152,15 @@ public class GroundRestorationVisualizer : MonoBehaviour
         {
             TryFindTracker();
         }
+    }
+
+    private string ResolveIslandIdForDisplay()
+    {
+        if (!string.IsNullOrEmpty(islandId))
+        {
+            return IslandThemeRegistry.ResolveIslandId(islandId);
+        }
+
+        return IslandThemeRegistry.GetActiveIslandId();
     }
 }

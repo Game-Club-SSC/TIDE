@@ -9,7 +9,7 @@ public class BossEncounterGate : MonoBehaviour
     private static readonly Dictionary<string, int> runtimeDefeatCounts = new Dictionary<string, int>();
 
     [Header("Threshold")]
-    [SerializeField] private string islandId = "";
+    [SerializeField] private string islandId = "island_lust";
     [SerializeField] [Range(0f, 100f)] private float bossUnlockThresholdPercent = 75f;
 
     [Header("Boss Targets")]
@@ -31,7 +31,7 @@ public class BossEncounterGate : MonoBehaviour
 
     public bool IsBossUnlocked => isBossUnlocked;
     public bool IsTrackedFinalBoss => treatAsFinalBoss;
-    public string TrackedIslandId => string.IsNullOrEmpty(islandId) ? "default" : islandId;
+    public string TrackedIslandId => IslandThemeRegistry.ResolveIslandId(islandId);
 
     public bool MatchesIslandForDefeatTracking(string candidateIslandId)
     {
@@ -40,8 +40,8 @@ public class BossEncounterGate : MonoBehaviour
             return false;
         }
 
-        string scopedSelfIsland = string.IsNullOrEmpty(islandId) ? "default" : islandId;
-        string scopedCandidate = string.IsNullOrEmpty(candidateIslandId) ? "default" : candidateIslandId;
+        string scopedSelfIsland = IslandThemeRegistry.ResolveIslandId(islandId);
+        string scopedCandidate = IslandThemeRegistry.ResolveIslandId(candidateIslandId);
         return scopedSelfIsland == scopedCandidate;
     }
 
@@ -158,7 +158,8 @@ public class BossEncounterGate : MonoBehaviour
 
     private void HandleRestorationChanged(string changedIslandId, float progress)
     {
-        if (!string.IsNullOrEmpty(islandId) && changedIslandId != islandId)
+        string targetIsland = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (changedIslandId != targetIsland)
         {
             return;
         }
@@ -173,7 +174,7 @@ public class BossEncounterGate : MonoBehaviour
             return;
         }
 
-        string targetIsland = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        string targetIsland = IslandThemeRegistry.ResolveIslandId(islandId);
         float percent = tracker.GetRestorationPercent(targetIsland);
         bool nowUnlocked = percent >= bossUnlockThresholdPercent;
         bool stateChanged = nowUnlocked != isBossUnlocked;
@@ -232,7 +233,7 @@ public class BossEncounterGate : MonoBehaviour
 
     private string GetDefeatsKey()
     {
-        string scopedIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
         return DefeatsKeyPrefix + scopedIslandId;
     }
 }

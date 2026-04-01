@@ -190,7 +190,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
 
     public string GetIslandId()
     {
-        return islandId;
+        return IslandThemeRegistry.ResolveIslandId(islandId);
     }
 
     public string GetEncounterId()
@@ -212,7 +212,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
     {
         lockedTilePosition = new Vector2Int(-1, -1);
         lockedTileEncounterId = string.Empty;
-        lockedTileIslandId = islandId;
+        lockedTileIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
 
         if (puzzleData != null)
         {
@@ -225,7 +225,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
             lockedTileEncounterId = puzzleData.lockedTileEncounterId;
             if (!string.IsNullOrEmpty(puzzleData.lockedTileIslandId))
             {
-                lockedTileIslandId = puzzleData.lockedTileIslandId;
+                lockedTileIslandId = IslandThemeRegistry.ResolveIslandId(puzzleData.lockedTileIslandId);
             }
 
             if (string.IsNullOrEmpty(lockedTileEncounterId))

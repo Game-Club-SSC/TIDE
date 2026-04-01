@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b436287634dc4e8fa90a52dd3c0d1fe3, type: 3}
+  m_Name: encounter_greed_boss
+  m_EditorClassIdentifier:
+  encounterId: greed_boss
+  displayName: Hoard Tyrant
+  enemies:
+  - {fileID: 11400000, guid: 3a605523e4dc4cc4ae4a21d5c7abf89e, type: 2}
+  - {fileID: 11400000, guid: 956230fc7b274eec9a2426ef8718c5ea, type: 2}
+  - {fileID: 11400000, guid: 0dc7e8caad43495e9dffe9dc877ec226, type: 2}

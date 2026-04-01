@@ -45,7 +45,7 @@ public class OverworldEnemy : MonoBehaviour
 
     [Header("Combat")]
     [SerializeField] private EncounterConfig encounterConfig;
-    [SerializeField] private string islandId = "default";
+    [SerializeField] private string islandId = "island_lust";
     [SerializeField] private string encounterIdOverride = "";
     [SerializeField] private float restorationValue = 0.001f;
 
@@ -78,7 +78,7 @@ public class OverworldEnemy : MonoBehaviour
     private Vector3 guardRoamTarget;
     private float guardRoamWaitTimer;
     private bool hasGuardRoamTarget;
-    private string puzzleGuardIslandId = "default";
+    private string puzzleGuardIslandId = "island_lust";
     private string puzzleGuardEncounterId;
     private float puzzleGuardRestorationValue = 0.001f;
     private Vector2 returnLastPlanarPosition;
@@ -91,6 +91,7 @@ public class OverworldEnemy : MonoBehaviour
     private int returnRecoveryAttempts;
     private bool hasTriggeredCombat;
     private CombatUnit.Element visualElement = CombatUnit.Element.Fire;
+    private bool startupClearCheckComplete;
 
     private void Awake()
     {
@@ -104,9 +105,8 @@ public class OverworldEnemy : MonoBehaviour
     {
         playerTransform = FindPlayer();
 
-        if (ShouldDespawnAsClearedEncounter())
+        if (TryDespawnAsClearedEncounter())
         {
-            Destroy(gameObject);
             return;
         }
 
@@ -148,7 +148,7 @@ public class OverworldEnemy : MonoBehaviour
         guardAnchorPosition = anchorPosition;
         puzzleGuardRoamRadius = Mathf.Max(0.25f, microRoamRadius);
         puzzleGuardLeashRadius = Mathf.Max(1f, leashRadius);
-        puzzleGuardIslandId = string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        puzzleGuardIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
         puzzleGuardEncounterId = encounterId;
         puzzleGuardRestorationValue = Mathf.Max(0.001f, restorationValue);
         roamSpeed = Mathf.Max(0.1f, roamSpeedOverride);
@@ -159,6 +159,11 @@ public class OverworldEnemy : MonoBehaviour
 
     private void Update()
     {
+        if (!startupClearCheckComplete && TryDespawnAsClearedEncounter())
+        {
+            return;
+        }
+
         if (!CanOperate()) return;
         if (playerTransform == null) playerTransform = FindPlayer();
 
@@ -532,6 +537,16 @@ public class OverworldEnemy : MonoBehaviour
             vel.y = 0f;
             if (vel.sqrMagnitude > 0.01f)
             {
+                if (mainCamera == null)
+                {
+                    mainCamera = Camera.main;
+                }
+
+                if (mainCamera == null)
+                {
+                    return;
+                }
+
                 Vector3 toCamera = mainCamera.transform.position - facingArrowObject.transform.position;
                 toCamera.y = 0f;
                 if (toCamera.sqrMagnitude > 0.001f)
@@ -1101,6 +1116,30 @@ public class OverworldEnemy : MonoBehaviour
         return false;
     }
 
+    private bool TryDespawnAsClearedEncounter()
+    {
+        string scopedEncounterId = ResolveTrackingEncounterId();
+        if (string.IsNullOrEmpty(scopedEncounterId))
+        {
+            startupClearCheckComplete = true;
+            return false;
+        }
+
+        if (IslandRestorationTracker.Instance == null)
+        {
+            return false;
+        }
+
+        startupClearCheckComplete = true;
+        if (!ShouldDespawnAsClearedEncounter())
+        {
+            return false;
+        }
+
+        Destroy(gameObject);
+        return true;
+    }
+
     private string ResolveTrackingEncounterId()
     {
         if (isPuzzleGuard)
@@ -1125,10 +1164,10 @@ public class OverworldEnemy : MonoBehaviour
     {
         if (isPuzzleGuard)
         {
-            return string.IsNullOrEmpty(puzzleGuardIslandId) ? "default" : puzzleGuardIslandId;
+            return IslandThemeRegistry.ResolveIslandId(puzzleGuardIslandId);
         }
 
-        return string.IsNullOrEmpty(islandId) ? "default" : islandId;
+        return IslandThemeRegistry.ResolveIslandId(islandId);
     }
 
     // ========== LIFECYCLE ==========

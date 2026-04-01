@@ -5,6 +5,7 @@ public class AncientTextSceneBootstrap : MonoBehaviour
 {
     [Header("Auto Spawn")]
     [SerializeField] private bool spawnDefaultTextNode = true;
+    [SerializeField] private bool useActiveIslandDefaults = true;
     [SerializeField] private Vector3 defaultNodePosition = new Vector3(8f, 32f, 6f);
     [SerializeField] private string defaultNodeObjectName = "AncientTextNode_IslandIntro";
 
@@ -23,9 +24,14 @@ public class AncientTextSceneBootstrap : MonoBehaviour
     [SerializeField] private Color markerColor = new Color(0.86f, 0.75f, 0.47f, 1f);
     [SerializeField] private Vector3 markerScale = new Vector3(1.3f, 2f, 1.3f);
 
+    private string activeIslandId;
+    private AncientTextData activeTextData;
+
     private void OnEnable()
     {
         EnsureAncientTextLogUi();
+
+        ResolveIslandDefaults();
 
         if (!spawnDefaultTextNode)
         {
@@ -77,10 +83,7 @@ public class AncientTextSceneBootstrap : MonoBehaviour
             return;
         }
 
-        AncientTextData data = ScriptableObject.CreateInstance<AncientTextData>();
-        data.textId = string.IsNullOrEmpty(defaultTextId) ? "island1_intro_fragment" : defaultTextId;
-        data.title = string.IsNullOrEmpty(defaultTitle) ? "Fragment" : defaultTitle;
-        data.body = defaultBody;
+        AncientTextData data = BuildRuntimeTextData();
 
         GameObject node = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         node.name = string.IsNullOrEmpty(defaultNodeObjectName) ? "AncientTextNode" : defaultNodeObjectName;
@@ -102,5 +105,69 @@ public class AncientTextSceneBootstrap : MonoBehaviour
         }
 
         Debug.Log($"[AncientTextSceneBootstrap] Spawned default ancient text node '{node.name}'.");
+    }
+
+    private void ResolveIslandDefaults()
+    {
+        activeIslandId = useActiveIslandDefaults
+            ? IslandThemeRegistry.GetActiveIslandId()
+            : IslandThemeRegistry.ResolveIslandId(string.Empty);
+
+        if (useActiveIslandDefaults
+            && GameStateManager.Instance != null
+            && !string.IsNullOrEmpty(GameStateManager.Instance.PendingPuzzleIslandId))
+        {
+            activeIslandId = IslandThemeRegistry.ResolveIslandId(GameStateManager.Instance.PendingPuzzleIslandId);
+        }
+
+        IslandConfig activeIsland = IslandThemeRegistry.GetConfig(activeIslandId);
+        if (activeIsland != null)
+        {
+            markerColor = Color.Lerp(markerColor, activeIsland.vicePrimaryColor, 0.52f);
+        }
+
+        string viceSuffix = GetViceSuffix(activeIslandId);
+        AncientTextData loadedData = Resources.Load<AncientTextData>($"AncientTexts/text_{viceSuffix}_intro");
+        if (loadedData != null && loadedData.IsValid())
+        {
+            activeTextData = loadedData;
+            defaultTextId = loadedData.textId;
+            defaultTitle = loadedData.title;
+            defaultBody = loadedData.body;
+        }
+
+        if (string.IsNullOrEmpty(defaultNodeObjectName) || useActiveIslandDefaults)
+        {
+            defaultNodeObjectName = $"AncientTextNode_{activeIslandId}_Intro";
+        }
+    }
+
+    private AncientTextData BuildRuntimeTextData()
+    {
+        AncientTextData runtimeData = ScriptableObject.CreateInstance<AncientTextData>();
+        if (activeTextData != null)
+        {
+            runtimeData.textId = activeTextData.textId;
+            runtimeData.title = activeTextData.title;
+            runtimeData.body = activeTextData.body;
+            return runtimeData;
+        }
+
+        runtimeData.textId = string.IsNullOrEmpty(defaultTextId) ? "island_intro_fragment" : defaultTextId;
+        runtimeData.title = string.IsNullOrEmpty(defaultTitle) ? "Fragment" : defaultTitle;
+        runtimeData.body = defaultBody;
+        return runtimeData;
+    }
+
+    private static string GetViceSuffix(string islandId)
+    {
+        string resolved = IslandThemeRegistry.ResolveIslandId(islandId);
+        const string prefix = "island_";
+        if (resolved.StartsWith(prefix, System.StringComparison.Ordinal))
+        {
+            return resolved.Substring(prefix.Length);
+        }
+
+        return "lust";
     }
 }
