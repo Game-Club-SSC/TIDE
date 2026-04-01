@@ -954,7 +954,8 @@ public class BattleHud : MonoBehaviour
                 battleManager.TryAssignActionFromHud(CombatActionType.Skill, null);
                 break;
             case SkillTarget.SingleAlly:
-                Debug.Log("[BattleHud] SingleAlly skill target not implemented. Skipping.");
+                battleManager.SetPendingSkill(skill);
+                ShowAllySelection(CombatActionType.Skill);
                 break;
             case SkillTarget.Self:
                 battleManager.SetPendingSkill(skill);
@@ -1168,6 +1169,13 @@ public class BattleHud : MonoBehaviour
         targetPanel.SetActive(true);
         IReadOnlyList<CombatUnit> enemies = battleManager.GetAliveUnits(CombatUnit.UnitType.Enemy);
 
+        Text title = targetPanel.GetComponentInChildren<Text>();
+        if (title != null)
+        {
+            title.text = "Select Target";
+            title.color = new Color(1f, 0.85f, 0.5f);
+        }
+
         for (int i = 0; i < targetButtons.Count; i++)
         {
             if (i < enemies.Count)
@@ -1183,6 +1191,53 @@ public class BattleHud : MonoBehaviour
                 targetButtons[i].gameObject.SetActive(false);
             }
         }
+    }
+
+    private void ShowAllySelection(CombatActionType actionType)
+    {
+        if (battleManager == null || targetPanel == null) return;
+
+        if (tideBreakPanel != null) tideBreakPanel.SetActive(false);
+        targetPanel.SetActive(true);
+        IReadOnlyList<CombatUnit> allies = battleManager.GetAliveUnits(CombatUnit.UnitType.Ally);
+
+        Text title = targetPanel.GetComponentInChildren<Text>();
+        if (title != null)
+        {
+            title.text = "Select Ally";
+            title.color = new Color(0.5f, 0.9f, 1f);
+        }
+
+        for (int i = 0; i < targetButtons.Count; i++)
+        {
+            if (i < allies.Count)
+            {
+                int index = i;
+                targetButtons[i].gameObject.SetActive(true);
+                targetButtons[i].GetComponentInChildren<Text>().text = allies[i].UnitName;
+                targetButtons[i].onClick.RemoveAllListeners();
+                targetButtons[i].onClick.AddListener(() => OnAllySelected(actionType, allies[index]));
+            }
+            else
+            {
+                targetButtons[i].gameObject.SetActive(false);
+            }
+        }
+    }
+
+    private void OnAllySelected(CombatActionType actionType, CombatUnit target)
+    {
+        targetPanel.SetActive(false);
+        if (battleManager == null) return;
+
+        Text title = targetPanel.GetComponentInChildren<Text>();
+        if (title != null)
+        {
+            title.text = "Select Target";
+            title.color = new Color(1f, 0.85f, 0.5f);
+        }
+
+        battleManager.TryAssignActionFromHud(actionType, target);
     }
 
     private void OnTargetSelected(CombatActionType actionType, CombatUnit target)
