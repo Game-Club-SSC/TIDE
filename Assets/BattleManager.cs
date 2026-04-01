@@ -626,7 +626,28 @@ public class BattleManager : MonoBehaviour
             SkillData skill = actor.Skills[0];
             if (actor.CanUseSkill(skill))
             {
-                return new PlannedAction(CombatActionType.Skill, actor, target, skill);
+                if (skill.target == SkillTarget.SingleAlly)
+                {
+                    IReadOnlyList<CombatUnit> allies = GetAliveUnits(actor.Type);
+                    CombatUnit woundedAlly = null;
+                    int lowestHpRatio = int.MaxValue;
+                    for (int i = 0; i < allies.Count; i++)
+                    {
+                        if (allies[i].HP < allies[i].MaxHP && allies[i].HP < lowestHpRatio)
+                        {
+                            woundedAlly = allies[i];
+                            lowestHpRatio = allies[i].HP;
+                        }
+                    }
+                    if (woundedAlly != null)
+                    {
+                        return new PlannedAction(CombatActionType.Skill, actor, woundedAlly, skill);
+                    }
+                }
+                else
+                {
+                    return new PlannedAction(CombatActionType.Skill, actor, target, skill);
+                }
             }
         }
 
@@ -1035,8 +1056,48 @@ public class BattleManager : MonoBehaviour
             return;
 
             case SkillTarget.SingleAlly:
-                Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} targeting ally (not implemented). Attacking instead.", this);
-                ResolveAttack(actor, requestedTarget);
+                if (!actor.CanUseSkill(skill))
+                {
+                    Debug.Log($"[BattleManager] {actor.UnitName} lacks MP for {skill.skillName}. Attacking instead.", this);
+                    ResolveAttack(actor, requestedTarget);
+                    return;
+                }
+
+                CombatUnit allyTarget = requestedTarget;
+                if (allyTarget == null || !allyTarget.IsAlive || allyTarget.Type != actor.Type)
+                {
+                    IReadOnlyList<CombatUnit> livingAllies = GetAliveUnits(actor.Type);
+                    if (livingAllies.Count > 0)
+                    {
+                        allyTarget = livingAllies[UnityEngine.Random.Range(0, livingAllies.Count)];
+                    }
+                }
+
+                if (allyTarget == null || !allyTarget.IsAlive)
+                {
+                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} but has no valid ally target.", this);
+                    return;
+                }
+
+                actor.SpendMp(skill.mpCost);
+
+                float allyAttackMod = actor.GetAttackModifier();
+                int baseHeal = Mathf.RoundToInt(actor.Attack * (1f + allyAttackMod) * Mathf.Abs(skill.damageMultiplier));
+                int healAmount = Mathf.Max(1, baseHeal);
+                int hpBefore = allyTarget.HP;
+                allyTarget.Heal(healAmount);
+                int hpAfter = allyTarget.HP;
+
+                if (skill.appliedEffectType != StatusEffectType.None)
+                {
+                    StatusEffect allyEffect = new StatusEffect(skill.appliedEffectType, skill.effectDuration, skill.effectMagnitude, actor.UnitName);
+                    allyTarget.ApplyStatusEffect(allyEffect);
+                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on {allyTarget.UnitName}. Healed {hpBefore} -> {hpAfter} (+{hpAfter - hpBefore}). Applied {skill.appliedEffectType}. -{skill.mpCost} MP.", this);
+                }
+                else
+                {
+                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on {allyTarget.UnitName}. Healed {hpBefore} -> {hpAfter} (+{hpAfter - hpBefore}). -{skill.mpCost} MP.", this);
+                }
                 return;
 
             case SkillTarget.Self:
@@ -1625,7 +1686,9 @@ public class BattleManager : MonoBehaviour
                                 AssignPlayerAction(currentInputUnit, CombatActionType.Skill, null, skill);
                                 break;
                             case SkillTarget.SingleAlly:
-                                Debug.Log("[BattleManager] SingleAlly skill target not implemented. Skipping.");
+                                pendingInputActionType = CombatActionType.Skill;
+                                pendingSkillData = skill;
+                                isAwaitingTargetSelection = true;
                                 break;
                             case SkillTarget.Self:
                                 Debug.Log("[BattleManager] Self skill target not implemented. Skipping.");
@@ -1642,15 +1705,20 @@ public class BattleManager : MonoBehaviour
             }
             else
             {
+                bool isAllyTarget = pendingInputActionType == CombatActionType.Skill
+                    && pendingSkillData != null
+                    && pendingSkillData.target == SkillTarget.SingleAlly;
                 string targetPrompt = pendingInputActionType == CombatActionType.Skill
-                    ? "Select Skill Target:"
+                    ? (isAllyTarget ? "Select Ally Target:" : "Select Skill Target:")
                     : pendingInputActionType == CombatActionType.TideBreak
                         ? "Select Tide Break Target:"
                         : "Select Attack Target:";
                 GUI.Label(new Rect(panelRect.x + 12f, y, panelRect.width - 24f, 22f), targetPrompt);
                 y += 26f;
 
-                IReadOnlyList<CombatUnit> targets = GetAliveUnits(CombatUnit.UnitType.Enemy);
+                IReadOnlyList<CombatUnit> targets = isAllyTarget
+                    ? GetAliveUnits(CombatUnit.UnitType.Ally)
+                    : GetAliveUnits(CombatUnit.UnitType.Enemy);
                 for (int i = 0; i < targets.Count; i++)
                 {
                     CombatUnit target = targets[i];
@@ -1792,8 +1860,21 @@ public class BattleManager : MonoBehaviour
                     TryAutoConfirmPlayerActions();
                     return true;
                 }
+
+                // For single-ally skills, require valid living ally target
+                if (skill.target == SkillTarget.SingleAlly)
+                {
+                    if (target == null || !target.IsAlive || target.Type != actor.Type)
+                    {
+                        return false;
+                    }
+                    AssignPlayerAction(actor, CombatActionType.Skill, target, skill);
+                    pendingSkillData = null;
+                    TryAutoConfirmPlayerActions();
+                    return true;
+                }
                 
-                // For single-target skills, require valid target
+                // For single-enemy skills, require valid enemy target
                 if (!IsValidTarget(actor, target))
                 {
                     return false;
