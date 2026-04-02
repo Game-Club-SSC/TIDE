@@ -86,6 +86,10 @@ public class BattleHud : MonoBehaviour
     // State display
     private Text turnLabel;
 
+    private bool targetPanelRequestedOpen;
+    private bool tideBreakPanelRequestedOpen;
+    private bool skillPanelRequestedOpen;
+
     private void Awake()
     {
         EnsureCanvas();
@@ -111,11 +115,11 @@ public class BattleHud : MonoBehaviour
         if (actionPanel != null)
             actionPanel.SetActive(!isMenuOpen && battleManager != null && battleManager.CurrentPhase == BattlePhase.PlayerInput);
         if (targetPanel != null)
-            targetPanel.SetActive(!isMenuOpen && targetPanel.activeSelf); // Keep its previous state but hide if menu open
+            targetPanel.SetActive(!isMenuOpen && targetPanelRequestedOpen);
         if (tideBreakPanel != null)
-            tideBreakPanel.SetActive(!isMenuOpen && tideBreakPanel.activeSelf);
+            tideBreakPanel.SetActive(!isMenuOpen && tideBreakPanelRequestedOpen);
         if (skillPanel != null)
-            skillPanel.SetActive(!isMenuOpen && skillPanel.activeSelf);
+            skillPanel.SetActive(!isMenuOpen && skillPanelRequestedOpen);
 
         if (battleManager == null)
         {
@@ -776,6 +780,10 @@ public class BattleHud : MonoBehaviour
 
         if (!isPlayerInput || isMenuOpen)
         {
+            targetPanelRequestedOpen = false;
+            tideBreakPanelRequestedOpen = false;
+            skillPanelRequestedOpen = false;
+
             if (targetPanel != null)
             {
                 targetPanel.SetActive(false);
@@ -792,18 +800,28 @@ public class BattleHud : MonoBehaviour
         }
 
         CombatUnit currentInput = battleManager.GetCurrentInputUnit();
-        if (currentInput != null && currentInput.Skills != null && currentInput.Skills.Length > 0)
+        if (currentInput != null)
         {
-            SkillData skill = currentInput.Skills[0];
+            SkillData skill = battleManager.GetFirstSupportedSkillForCurrentSlice(currentInput);
+            SkillData usableSkill = battleManager.GetFirstUsableSupportedSkillForCurrentSlice(currentInput);
             if (skillButtonText != null)
             {
-                skillButtonText.text = currentInput.CanUseSkill(skill)
-                    ? $"{skill.skillName} ({skill.mpCost} MP)"
-                    : $"No MP ({skill.mpCost})";
+                if (usableSkill != null)
+                {
+                    skillButtonText.text = $"{usableSkill.skillName} ({usableSkill.mpCost} MP)";
+                }
+                else if (skill != null)
+                {
+                    skillButtonText.text = $"No MP ({skill.mpCost})";
+                }
+                else
+                {
+                    skillButtonText.text = "No Skill";
+                }
             }
             if (skillButton != null)
             {
-                skillButton.interactable = currentInput.CanUseSkill(skill);
+                skillButton.interactable = usableSkill != null;
             }
         }
         else
@@ -935,66 +953,101 @@ public class BattleHud : MonoBehaviour
             return;
         }
 
-        if (currentInput.Skills.Length > 1)
+        int supportedSkillCount = 0;
+        for (int i = 0; i < currentInput.Skills.Length; i++)
+        {
+            SkillData candidate = currentInput.Skills[i];
+            if (battleManager.IsSkillSupportedForCurrentSlice(candidate))
+            {
+                supportedSkillCount++;
+            }
+        }
+
+        if (supportedSkillCount <= 0)
+        {
+            Debug.Log("[BattleHud] All available skills are deferred for this milestone.");
+            return;
+        }
+
+        if (supportedSkillCount > 1)
         {
             ShowSkillSelectionPanel(currentInput);
             return;
         }
 
-        selectedSkillData = currentInput.Skills[0];
+        selectedSkillData = battleManager.GetFirstSupportedSkillForCurrentSlice(currentInput);
+        if (selectedSkillData == null)
+        {
+            Debug.Log("[BattleHud] No supported skill available for current unit.");
+            return;
+        }
+
         HandleSkillTargetType(selectedSkillData);
     }
 
     private void HandleSkillTargetType(SkillData skill)
     {
-        switch (skill.target)
+        if (battleManager == null || skill == null)
         {
-            case SkillTarget.AllEnemies:
-                battleManager.SetPendingSkill(skill);
-                battleManager.TryAssignActionFromHud(CombatActionType.Skill, null);
-                break;
-            case SkillTarget.SingleAlly:
-                battleManager.SetPendingSkill(skill);
-                ShowAllySelection(CombatActionType.Skill);
-                break;
-            case SkillTarget.Self:
-                battleManager.SetPendingSkill(skill);
-                battleManager.TryAssignActionFromHud(CombatActionType.Skill, null);
-                break;
-            case SkillTarget.SingleEnemy:
-            default:
-                battleManager.SetPendingSkill(skill);
-                ShowTargetSelection(CombatActionType.Skill);
-                break;
+            return;
         }
+
+        if (!battleManager.IsSkillSupportedForCurrentSlice(skill))
+        {
+            Debug.Log($"[BattleHud] {skill.skillName} target {skill.target} is deferred for this milestone.");
+            return;
+        }
+
+        battleManager.SetPendingSkill(skill);
+        ShowTargetSelection(CombatActionType.Skill);
     }
 
     private void ShowSkillSelectionPanel(CombatUnit actor)
     {
         if (battleManager == null || skillPanel == null) return;
 
+        targetPanelRequestedOpen = false;
         targetPanel.SetActive(false);
         foreach (Button btn in skillButtons) { Destroy(btn.gameObject); }
         skillButtons.Clear();
 
         if (actor.Skills == null || actor.Skills.Length == 0)
         {
+            skillPanelRequestedOpen = false;
             skillPanel.SetActive(false);
             return;
         }
 
+        int supportedSkillCount = 0;
+        for (int i = 0; i < actor.Skills.Length; i++)
+        {
+            if (battleManager.IsSkillSupportedForCurrentSlice(actor.Skills[i]))
+            {
+                supportedSkillCount++;
+            }
+        }
+
+        if (supportedSkillCount <= 0)
+        {
+            skillPanelRequestedOpen = false;
+            skillPanel.SetActive(false);
+            return;
+        }
+
+        skillPanelRequestedOpen = true;
         skillPanel.SetActive(true);
+        int visibleIndex = 0;
         for (int i = 0; i < actor.Skills.Length; i++)
         {
             SkillData skill = actor.Skills[i];
-            if (skill == null) continue;
+            if (!battleManager.IsSkillSupportedForCurrentSlice(skill)) continue;
 
             GameObject btnObj = new GameObject($"Skill_{i}", typeof(RectTransform));
             btnObj.transform.SetParent(skillPanel.transform, false);
 
             RectTransform rect = btnObj.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.1f, 0.55f - i * 0.25f);
-            rect.anchorMax = new Vector2(0.9f, 0.75f - i * 0.25f);
+            rect.anchorMin = new Vector2(0.1f, 0.55f - visibleIndex * 0.25f);
+            rect.anchorMax = new Vector2(0.9f, 0.75f - visibleIndex * 0.25f);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
 
@@ -1028,11 +1081,13 @@ public class BattleHud : MonoBehaviour
             SkillData capturedSkill = skill;
             btn.onClick.AddListener(() => OnSkillSelected(capturedSkill));
             skillButtons.Add(btn);
+            visibleIndex++;
         }
     }
 
     private void OnSkillSelected(SkillData skill)
     {
+        skillPanelRequestedOpen = false;
         skillPanel.SetActive(false);
         if (battleManager == null || skill == null) return;
 
@@ -1045,6 +1100,7 @@ public class BattleHud : MonoBehaviour
         if (battleManager == null || tideBreakPanel == null) return;
         
         // Hide target panel if open
+        targetPanelRequestedOpen = false;
         targetPanel.SetActive(false);
         // Clear previous buttons
         foreach (Button btn in tideBreakButtons) { Destroy(btn.gameObject); }
@@ -1054,15 +1110,34 @@ public class BattleHud : MonoBehaviour
         if (abilities == null || abilities.Count == 0)
         {
             Debug.LogWarning("[BattleHud] No TideBreak abilities available.");
+            tideBreakPanelRequestedOpen = false;
             tideBreakPanel.SetActive(false);
             return;
         }
-        
-        tideBreakPanel.SetActive(true);
-        // Create buttons for each ability
+
+        List<TideBreakData> supportedAbilities = new List<TideBreakData>();
         for (int i = 0; i < abilities.Count; i++)
         {
             TideBreakData ability = abilities[i];
+            if (battleManager.IsTideBreakSupportedForCurrentSlice(ability))
+            {
+                supportedAbilities.Add(ability);
+            }
+        }
+
+        if (supportedAbilities.Count == 0)
+        {
+            Debug.LogWarning("[BattleHud] All TideBreak abilities are deferred for this milestone.");
+            tideBreakPanelRequestedOpen = false;
+            tideBreakPanel.SetActive(false);
+            return;
+        }
+
+        tideBreakPanelRequestedOpen = true;
+        tideBreakPanel.SetActive(true);
+        for (int i = 0; i < supportedAbilities.Count; i++)
+        {
+            TideBreakData ability = supportedAbilities[i];
             GameObject btnObj = new GameObject($"TB_{i}", typeof(RectTransform));
             btnObj.transform.SetParent(tideBreakPanel.transform, false);
             
@@ -1096,7 +1171,6 @@ public class BattleHud : MonoBehaviour
             text.text = $"{ability.abilityName} ({ability.damageMultiplier}x)";
             text.raycastTarget = false;
             
-            int index = i;
             btn.onClick.AddListener(() => OnTideBreakSelected(ability));
             tideBreakButtons.Add(btn);
         }
@@ -1104,60 +1178,76 @@ public class BattleHud : MonoBehaviour
 
     private void OnTideBreakSelected(TideBreakData ability)
     {
+        tideBreakPanelRequestedOpen = false;
         tideBreakPanel.SetActive(false);
         if (battleManager == null) return;
+
+        if (!battleManager.IsTideBreakSupportedForCurrentSlice(ability))
+        {
+            Debug.LogWarning($"[BattleHud] {ability.abilityName} target {ability.targetType} is deferred for this milestone.");
+            return;
+        }
         
         battleManager.SetPendingTideBreak(ability);
         
-        // Determine if target selection needed
         if (ability.targetType == SkillTarget.AllEnemies)
         {
-            // No target selection needed, assign action directly
             battleManager.TryAssignActionFromHud(CombatActionType.TideBreak, null);
+        }
+        else if (ability.targetType == SkillTarget.SingleEnemy)
+        {
+            ShowTargetSelection(CombatActionType.TideBreak);
         }
         else
         {
-            // Show target selection for SingleEnemy
-            ShowTargetSelection(CombatActionType.TideBreak);
+            Debug.LogWarning($"[BattleHud] {ability.abilityName} has unsupported Tide Break target type {ability.targetType} for this milestone.");
         }
     }
 
     private void OnTideBreakClicked()
     {
+        if (battleManager == null) return;
+
         CombatUnit currentInput = battleManager.GetCurrentInputUnit();
         if (currentInput == null) return;
-        
+
+        List<TideBreakData> supportedAbilities = new List<TideBreakData>();
         IReadOnlyList<TideBreakData> abilities = currentInput.TideBreakAbilities;
-        if (abilities != null && abilities.Count > 1)
+        if (abilities != null)
+        {
+            for (int i = 0; i < abilities.Count; i++)
+            {
+                TideBreakData ability = abilities[i];
+                if (battleManager.IsTideBreakSupportedForCurrentSlice(ability))
+                {
+                    supportedAbilities.Add(ability);
+                }
+            }
+        }
+
+        if (supportedAbilities.Count > 1)
         {
             ShowTBSelectionPanel(currentInput);
         }
         else
         {
-            // Auto-select first ability if available, else null (will fallback to default)
-            TideBreakData autoSelect = (abilities != null && abilities.Count == 1) ? abilities[0] : null;
+            TideBreakData autoSelect = supportedAbilities.Count == 1 ? supportedAbilities[0] : null;
             battleManager.SetPendingTideBreak(autoSelect);
-            
-            bool targetRequired = true;
-            if (autoSelect != null)
-            {
-                targetRequired = autoSelect.targetType != SkillTarget.AllEnemies;
-            }
-            else
-            {
-                // No abilities, fallback to default (player -> AllEnemies)
-                targetRequired = false;
-            }
-            
-            if (targetRequired)
+
+            if (autoSelect != null && autoSelect.targetType == SkillTarget.SingleEnemy)
             {
                 ShowTargetSelection(CombatActionType.TideBreak);
+                return;
             }
-            else
+
+            if (autoSelect != null && autoSelect.targetType != SkillTarget.AllEnemies)
             {
-                // Assign directly with null target
-                battleManager.TryAssignActionFromHud(CombatActionType.TideBreak, null);
+                Debug.LogWarning($"[BattleHud] {autoSelect.abilityName} has unsupported Tide Break target type {autoSelect.targetType} for this milestone.");
+                return;
             }
+
+            // No supported custom ability available falls back to default player Tide Break (AllEnemies).
+            battleManager.TryAssignActionFromHud(CombatActionType.TideBreak, null);
         }
     }
 
@@ -1165,7 +1255,12 @@ public class BattleHud : MonoBehaviour
     {
         if (battleManager == null || targetPanel == null) return;
 
+        tideBreakPanelRequestedOpen = false;
         if (tideBreakPanel != null) tideBreakPanel.SetActive(false);
+        skillPanelRequestedOpen = false;
+        if (skillPanel != null) skillPanel.SetActive(false);
+
+        targetPanelRequestedOpen = true;
         targetPanel.SetActive(true);
         IReadOnlyList<CombatUnit> enemies = battleManager.GetAliveUnits(CombatUnit.UnitType.Enemy);
 
@@ -1197,7 +1292,12 @@ public class BattleHud : MonoBehaviour
     {
         if (battleManager == null || targetPanel == null) return;
 
+        tideBreakPanelRequestedOpen = false;
         if (tideBreakPanel != null) tideBreakPanel.SetActive(false);
+        skillPanelRequestedOpen = false;
+        if (skillPanel != null) skillPanel.SetActive(false);
+
+        targetPanelRequestedOpen = true;
         targetPanel.SetActive(true);
         IReadOnlyList<CombatUnit> allies = battleManager.GetAliveUnits(CombatUnit.UnitType.Ally);
 
@@ -1227,6 +1327,7 @@ public class BattleHud : MonoBehaviour
 
     private void OnAllySelected(CombatActionType actionType, CombatUnit target)
     {
+        targetPanelRequestedOpen = false;
         targetPanel.SetActive(false);
         if (battleManager == null) return;
 
@@ -1242,6 +1343,7 @@ public class BattleHud : MonoBehaviour
 
     private void OnTargetSelected(CombatActionType actionType, CombatUnit target)
     {
+        targetPanelRequestedOpen = false;
         targetPanel.SetActive(false);
         if (battleManager == null) return;
         battleManager.TryAssignActionFromHud(actionType, target);
