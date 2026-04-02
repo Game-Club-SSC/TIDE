@@ -29,16 +29,13 @@ public class PlayerCustomizationUI : MonoBehaviour
     private bool wasPlayerMoveEnabled = true;
     private bool hasPausedTimeScale;
     private float previousTimeScale = 1f;
+    private HeroProgressionManager subscribedProgressionManager;
     private FuturisticSpriteLibrary.PlayerStyleDefinition[] stylePresets =
         System.Array.Empty<FuturisticSpriteLibrary.PlayerStyleDefinition>();
 
     private void OnEnable()
     {
-        if (HeroProgressionManager.Instance != null)
-        {
-            HeroProgressionManager.Instance.OnCosmeticXpChanged += HandleCosmeticXpChanged;
-            HeroProgressionManager.Instance.OnPlayerColorPresetUnlocked += HandlePresetUnlocked;
-        }
+        TrySubscribeToProgressionManager();
     }
 
     private void OnDisable()
@@ -48,15 +45,13 @@ public class PlayerCustomizationUI : MonoBehaviour
             CloseMenu();
         }
 
-        if (HeroProgressionManager.Instance != null)
-        {
-            HeroProgressionManager.Instance.OnCosmeticXpChanged -= HandleCosmeticXpChanged;
-            HeroProgressionManager.Instance.OnPlayerColorPresetUnlocked -= HandlePresetUnlocked;
-        }
+        UnsubscribeFromProgressionManager();
     }
 
     private void Update()
     {
+        TrySubscribeToProgressionManager();
+
         if (isOpen && Input.GetMouseButtonDown(0) && IsPointerOutsidePanel())
         {
             CloseMenu();
@@ -209,6 +204,8 @@ public class PlayerCustomizationUI : MonoBehaviour
             return;
         }
 
+        bool cosmeticEconomyEnabled = IsCosmeticEconomyEnabled();
+
         IReadOnlyList<FuturisticSpriteLibrary.PlayerStyleDefinition> styles = FuturisticSpriteLibrary.GetPlayerStyles();
         stylePresets = new FuturisticSpriteLibrary.PlayerStyleDefinition[styles.Count];
         for (int i = 0; i < styles.Count; i++)
@@ -236,7 +233,10 @@ public class PlayerCustomizationUI : MonoBehaviour
 
         CreateLabel(panelRoot.transform, "CHARACTER CUSTOMIZATION", new Vector2(24f, -24f), new Vector2(panelSize.x - 48f, 30f), headerColor, 24, FontStyle.Bold);
         currencyLabel = CreateLabel(panelRoot.transform, string.Empty, new Vector2(24f, -58f), new Vector2(panelSize.x - 48f, 22f), textColor, 16, FontStyle.Bold);
-        CreateLabel(panelRoot.transform, "Futuristic element suits. Premium styles cost Cosmetic XP.", new Vector2(24f, -82f), new Vector2(panelSize.x - 48f, 20f), subTextColor, 12, FontStyle.Normal);
+        string description = cosmeticEconomyEnabled
+            ? "Futuristic element suits. Premium styles cost Cosmetic XP."
+            : "Futuristic element suits. Cosmetic economy is disabled for this slice.";
+        CreateLabel(panelRoot.transform, description, new Vector2(24f, -82f), new Vector2(panelSize.x - 48f, 20f), subTextColor, 12, FontStyle.Normal);
 
         RefreshCurrencyLabel();
 
@@ -253,13 +253,13 @@ public class PlayerCustomizationUI : MonoBehaviour
             int column = i % 2;
             float x = sidePadding + (cardWidth + cardGap) * column;
             float y = startY + (cardHeight + rowGap) * row;
-            CreatePresetRow(panelRoot.transform, stylePresets[i], x, y, cardWidth, cardHeight);
+            CreatePresetRow(panelRoot.transform, stylePresets[i], x, y, cardWidth, cardHeight, cosmeticEconomyEnabled);
         }
 
         CreateLabel(panelRoot.transform, $"[{toggleKey}] Close", new Vector2(24f, -(panelSize.y - 28f)), new Vector2(panelSize.x - 48f, 20f), subTextColor, 12, FontStyle.Italic);
     }
 
-    private void CreatePresetRow(Transform parent, FuturisticSpriteLibrary.PlayerStyleDefinition preset, float x, float y, float width, float height)
+    private void CreatePresetRow(Transform parent, FuturisticSpriteLibrary.PlayerStyleDefinition preset, float x, float y, float width, float height, bool cosmeticEconomyEnabled)
     {
         GameObject rowObject = new GameObject($"Preset_{preset.Id}", typeof(RectTransform), typeof(Image));
         rowObject.transform.SetParent(parent, false);
@@ -291,11 +291,12 @@ public class PlayerCustomizationUI : MonoBehaviour
         CreateLabel(rowObject.transform, preset.DisplayName, new Vector2(62f, -10f), new Vector2(textWidth, 22f), textColor, 14, FontStyle.Bold);
         CreateLabel(rowObject.transform, preset.Element.ToString(), new Vector2(62f, -30f), new Vector2(textWidth, 18f), subTextColor, 11, FontStyle.Italic);
 
-        string tag = preset.IsPremium ? $"PREMIUM {preset.Cost} XP" : "FREE";
-        Color tagColor = preset.IsPremium ? premiumTagColor : freeTagColor;
+        bool requiresUnlock = cosmeticEconomyEnabled && preset.IsPremium;
+        string tag = requiresUnlock ? $"PREMIUM {preset.Cost} XP" : "AVAILABLE";
+        Color tagColor = requiresUnlock ? premiumTagColor : freeTagColor;
         CreateLabel(rowObject.transform, tag, new Vector2(62f, -48f), new Vector2(textWidth + 20f, 20f), tagColor, 11, FontStyle.Bold);
 
-        string buttonText = preset.IsPremium && !IsPresetUnlocked(preset) ? "Unlock" : "Apply";
+        string buttonText = requiresUnlock && !IsPresetUnlocked(preset) ? "Unlock" : "Apply";
         if (player != null && player.CurrentStyleId == preset.Id)
         {
             buttonText = "Equipped";
@@ -314,6 +315,11 @@ public class PlayerCustomizationUI : MonoBehaviour
 
     private void OnPresetSelected(FuturisticSpriteLibrary.PlayerStyleDefinition preset)
     {
+        if (preset == null)
+        {
+            return;
+        }
+
         if (player == null)
         {
             player = FindFirstObjectByType<IsometricPlayer>();
@@ -324,6 +330,7 @@ public class PlayerCustomizationUI : MonoBehaviour
             return;
         }
 
+        bool cosmeticEconomyEnabled = IsCosmeticEconomyEnabled();
         bool unlocked = IsPresetUnlocked(preset);
         if (!unlocked)
         {
@@ -334,7 +341,7 @@ public class PlayerCustomizationUI : MonoBehaviour
                 return;
             }
 
-            if (!manager.TryUnlockPlayerColorPreset(preset.Id, preset.Cost))
+            if (cosmeticEconomyEnabled && !manager.TryUnlockPlayerColorPreset(preset.Id, preset.Cost))
             {
                 Debug.Log("[PlayerCustomizationUI] Not enough Cosmetic XP for this style.");
                 return;
@@ -354,17 +361,23 @@ public class PlayerCustomizationUI : MonoBehaviour
 
     private static bool IsPresetUnlocked(FuturisticSpriteLibrary.PlayerStyleDefinition preset)
     {
-        if (!preset.IsPremium)
-        {
-            return true;
-        }
-
-        if (HeroProgressionManager.Instance == null)
+        if (preset == null)
         {
             return false;
         }
 
-        return HeroProgressionManager.Instance.IsPlayerColorPresetUnlocked(preset.Id);
+        if (!preset.IsPremium || !IsCosmeticEconomyEnabled())
+        {
+            return true;
+        }
+
+        HeroProgressionManager manager = HeroProgressionManager.Instance;
+        if (manager == null)
+        {
+            return false;
+        }
+
+        return manager.IsPlayerColorPresetUnlocked(preset.Id);
     }
 
     private void HandlePresetUnlocked(string _)
@@ -427,10 +440,54 @@ public class PlayerCustomizationUI : MonoBehaviour
             return;
         }
 
+        if (!IsCosmeticEconomyEnabled())
+        {
+            currencyLabel.text = "Cosmetic XP: Disabled";
+            return;
+        }
+
         int xp = HeroProgressionManager.Instance != null
             ? HeroProgressionManager.Instance.GetCosmeticXp()
             : 0;
         currencyLabel.text = $"Cosmetic XP: {xp}";
+    }
+
+    private static bool IsCosmeticEconomyEnabled()
+    {
+        HeroProgressionManager manager = HeroProgressionManager.Instance;
+        if (manager != null)
+        {
+            return manager.IsCosmeticProgressionEnabled;
+        }
+
+        return HeroProgressionManager.IsRuntimeCosmeticProgressionEconomyEnabled;
+    }
+
+    private void TrySubscribeToProgressionManager()
+    {
+        HeroProgressionManager manager = HeroProgressionManager.Instance;
+        if (manager == null || manager == subscribedProgressionManager)
+        {
+            return;
+        }
+
+        UnsubscribeFromProgressionManager();
+        subscribedProgressionManager = manager;
+        subscribedProgressionManager.OnCosmeticXpChanged += HandleCosmeticXpChanged;
+        subscribedProgressionManager.OnPlayerColorPresetUnlocked += HandlePresetUnlocked;
+        RefreshCurrencyLabel();
+    }
+
+    private void UnsubscribeFromProgressionManager()
+    {
+        if (subscribedProgressionManager == null)
+        {
+            return;
+        }
+
+        subscribedProgressionManager.OnCosmeticXpChanged -= HandleCosmeticXpChanged;
+        subscribedProgressionManager.OnPlayerColorPresetUnlocked -= HandlePresetUnlocked;
+        subscribedProgressionManager = null;
     }
 
     private static Text CreateLabel(Transform parent, string text, Vector2 anchoredPosition, Vector2 size, Color color, int fontSize, FontStyle fontStyle)
