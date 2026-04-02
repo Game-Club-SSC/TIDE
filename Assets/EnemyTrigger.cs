@@ -31,7 +31,7 @@ public class EnemyTrigger : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Player"))
+        if (!IsPlayerCollider(other))
         {
             return;
         }
@@ -61,7 +61,8 @@ public class EnemyTrigger : MonoBehaviour
         string trackedEncounterId = ResolveTrackingEncounterId();
         if (!string.IsNullOrEmpty(trackedEncounterId))
         {
-            Vector3 returnPosition = other.transform.position;
+            Transform playerTransform = ResolvePlayerTransform(other);
+            Vector3 returnPosition = playerTransform != null ? playerTransform.position : other.transform.position;
             GameStateManager.Instance.EnterCombatSceneFromExploration(
                 ResolveTrackingIslandId(),
                 trackedEncounterId,
@@ -146,5 +147,36 @@ public class EnemyTrigger : MonoBehaviour
     private string ResolveTrackingIslandId()
     {
         return IslandThemeRegistry.ResolveIslandId(islandId);
+    }
+
+    private static bool IsPlayerCollider(Collider collider)
+    {
+        if (collider == null)
+        {
+            return false;
+        }
+
+        if (collider.CompareTag("Player"))
+        {
+            return true;
+        }
+
+        return collider.GetComponentInParent<IsometricPlayer>() != null;
+    }
+
+    private static Transform ResolvePlayerTransform(Collider collider)
+    {
+        if (collider == null)
+        {
+            return null;
+        }
+
+        IsometricPlayer player = collider.GetComponentInParent<IsometricPlayer>();
+        if (player != null)
+        {
+            return player.transform;
+        }
+
+        return collider.transform;
     }
 }

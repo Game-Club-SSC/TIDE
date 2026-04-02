@@ -123,7 +123,7 @@ public class CombatBoxInteractable : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Player"))
+        if (!IsPlayerCollider(other))
         {
             return;
         }
@@ -133,7 +133,7 @@ public class CombatBoxInteractable : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag("Player"))
+        if (!IsPlayerCollider(other))
         {
             return;
         }
@@ -249,5 +249,20 @@ public class CombatBoxInteractable : MonoBehaviour
             Destroy(runtimePromptSprite);
             runtimePromptSprite = null;
         }
+    }
+
+    private static bool IsPlayerCollider(Collider collider)
+    {
+        if (collider == null)
+        {
+            return false;
+        }
+
+        if (collider.CompareTag("Player"))
+        {
+            return true;
+        }
+
+        return collider.GetComponentInParent<IsometricPlayer>() != null;
     }
 }

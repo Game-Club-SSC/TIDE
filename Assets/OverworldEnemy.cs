@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -5,7 +6,6 @@ public enum EnemyState
 {
     Idle,
     Roaming,
-    Alert,
     Chasing,
     Returning
 }
@@ -21,27 +21,17 @@ public class OverworldEnemy : MonoBehaviour
     [SerializeField] private float waitTimeAtPoint = 1.5f;
     [SerializeField] private float arrivalThreshold = 0.3f;
 
-    [Header("Vision")]
-    [SerializeField] private float visionRange = 6f;
-    [SerializeField] private float visionHalfAngle = 30f;
-    [SerializeField] private LayerMask visionBlockMask;
-    [SerializeField] private float eyeHeight = 0.5f;
-
     [Header("Aggro")]
     [SerializeField] private float proximityAggroRange = 7.5f;
-    [SerializeField] private bool allowLineOfSightAggro = true;
+    [SerializeField] private float chaseBreakMultiplier = 1.5f;
+
+    [Header("Detection")]
+    [SerializeField] private bool requireLineOfSightForAggro;
+    [SerializeField] private float aggroLineOfSightHeight = 0.6f;
+    [SerializeField] private LayerMask aggroLineOfSightMask = ~0;
 
     [Header("Chase")]
     [SerializeField] private float chaseSpeed = 6f;
-
-    [Header("Returning Recovery")]
-    [SerializeField] private float stuckCheckInterval = 0.35f;
-    [SerializeField] private float minimumReturnMovement = 0.08f;
-    [SerializeField] private float recoveryBypassDistance = 1.4f;
-    [SerializeField] private float recoveryDuration = 1.1f;
-    [SerializeField] private float recoverySpeedMultiplier = 1.2f;
-    [SerializeField] private float recoveryRetryCooldown = 0.4f;
-    [SerializeField] private int maxRecoveryAttemptsBeforeEscalation = 3;
 
     [Header("Combat")]
     [SerializeField] private EncounterConfig encounterConfig;
@@ -51,8 +41,11 @@ public class OverworldEnemy : MonoBehaviour
 
     [Header("Puzzle Guard")]
     [SerializeField] private bool isPuzzleGuard;
-    [SerializeField] private float puzzleGuardRoamRadius = 1.5f;
     [SerializeField] private float puzzleGuardLeashRadius = 8f;
+    [SerializeField] private float puzzleGuardLeashReengageBuffer = 1f;
+    [SerializeField] private float puzzleGuardReturnChaseDelay = 0.35f;
+    [SerializeField] private float puzzleGuardReturnStuckTimeout = 1.2f;
+    [SerializeField] private float puzzleGuardReturnProgressThreshold = 0.05f;
 
     [Header("Visual")]
     [SerializeField] private Color enemyColor = new Color(0.89f, 0.38f, 0.25f);
@@ -75,23 +68,16 @@ public class OverworldEnemy : MonoBehaviour
     private SpriteRenderer arrowRenderer;
     private Transform characterModelRoot;
     private Vector3 guardAnchorPosition;
-    private Vector3 guardRoamTarget;
-    private float guardRoamWaitTimer;
-    private bool hasGuardRoamTarget;
     private string puzzleGuardIslandId = "island_lust";
     private string puzzleGuardEncounterId;
     private float puzzleGuardRestorationValue = 0.001f;
-    private Vector2 returnLastPlanarPosition;
-    private float returnStuckCheckTimer;
-    private bool returnStuckTrackingInitialized;
-    private Vector3 returnRecoveryTarget;
-    private float returnRecoveryTimer;
-    private float returnRecoveryRetryCooldownTimer;
-    private bool hasReturnRecoveryTarget;
-    private int returnRecoveryAttempts;
     private bool hasTriggeredCombat;
     private CombatUnit.Element visualElement = CombatUnit.Element.Fire;
     private bool startupClearCheckComplete;
+    private bool isRebuildingModel;
+    private float puzzleGuardChaseLockUntilTime;
+    private float puzzleGuardReturnStuckTimer;
+    private float puzzleGuardLastReturnDistance;
 
     private void Awake()
     {
@@ -121,8 +107,6 @@ public class OverworldEnemy : MonoBehaviour
             }
 
             transform.position = guardAnchorPosition;
-            hasGuardRoamTarget = false;
-            guardRoamWaitTimer = 0f;
         }
 
         CreateExclamationIndicator();
@@ -138,7 +122,6 @@ public class OverworldEnemy : MonoBehaviour
         string encounterId,
         float restorationValue,
         Vector3 anchorPosition,
-        float microRoamRadius,
         float leashRadius,
         float roamSpeedOverride,
         float chaseSpeedOverride)
@@ -146,13 +129,13 @@ public class OverworldEnemy : MonoBehaviour
         encounterConfig = config;
         isPuzzleGuard = true;
         guardAnchorPosition = anchorPosition;
-        puzzleGuardRoamRadius = Mathf.Max(0.25f, microRoamRadius);
         puzzleGuardLeashRadius = Mathf.Max(1f, leashRadius);
         puzzleGuardIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
         puzzleGuardEncounterId = encounterId;
         puzzleGuardRestorationValue = Mathf.Max(0.001f, restorationValue);
         roamSpeed = Mathf.Max(0.1f, roamSpeedOverride);
         chaseSpeed = Mathf.Max(roamSpeed, chaseSpeedOverride);
+        requireLineOfSightForAggro = true;
         patrolPoints = null;
         transform.position = guardAnchorPosition;
     }
@@ -181,9 +164,6 @@ public class OverworldEnemy : MonoBehaviour
         {
             case EnemyState.Roaming:
                 UpdateRoaming();
-                break;
-            case EnemyState.Alert:
-                UpdateAlert();
                 break;
             case EnemyState.Chasing:
                 UpdateChasing();
@@ -216,7 +196,6 @@ public class OverworldEnemy : MonoBehaviour
                 FixedReturning();
                 break;
             case EnemyState.Idle:
-            case EnemyState.Alert:
                 rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
                 break;
         }
@@ -235,21 +214,17 @@ public class OverworldEnemy : MonoBehaviour
                 stateTimer = 0f;
                 SetExclamationVisible(false);
                 break;
-            case EnemyState.Alert:
-                stateTimer = 0.5f;
-                SetExclamationVisible(true);
-                break;
             case EnemyState.Chasing:
                 SetExclamationVisible(true);
                 break;
             case EnemyState.Returning:
                 SetExclamationVisible(false);
-                ResetReturnRecoveryTracking();
 
                 if (isPuzzleGuard)
                 {
-                    hasGuardRoamTarget = false;
-                    guardRoamWaitTimer = 0f;
+                    puzzleGuardChaseLockUntilTime = Time.time + Mathf.Max(0f, puzzleGuardReturnChaseDelay);
+                    puzzleGuardReturnStuckTimer = 0f;
+                    puzzleGuardLastReturnDistance = GetPlanarDistance(transform.position, guardAnchorPosition);
                     break;
                 }
 
@@ -266,7 +241,7 @@ public class OverworldEnemy : MonoBehaviour
     {
         if (ShouldStartChase())
         {
-            TransitionToState(EnemyState.Alert);
+            TransitionToState(EnemyState.Chasing);
             return;
         }
 
@@ -326,17 +301,6 @@ public class OverworldEnemy : MonoBehaviour
         MoveToward(target.position, roamSpeed);
     }
 
-    // ========== ALERT ==========
-
-    private void UpdateAlert()
-    {
-        stateTimer -= Time.deltaTime;
-        if (stateTimer <= 0f)
-        {
-            TransitionToState(EnemyState.Chasing);
-        }
-    }
-
     // ========== CHASING ==========
 
     private void UpdateChasing()
@@ -353,6 +317,11 @@ public class OverworldEnemy : MonoBehaviour
         {
             TryTriggerCombat();
             return;
+        }
+
+        if (ShouldStopChasing(distanceToPlayer))
+        {
+            TransitionToState(EnemyState.Returning);
         }
     }
 
@@ -371,23 +340,15 @@ public class OverworldEnemy : MonoBehaviour
 
     private void UpdateReturning()
     {
-        if (ShouldStartChase())
+        if (isPuzzleGuard)
         {
-            TransitionToState(EnemyState.Alert);
+            UpdatePuzzleGuardReturning();
             return;
         }
 
-        UpdateReturnRecoveryTimer();
-
-        if (isPuzzleGuard)
+        if (ShouldStartChase())
         {
-            EvaluateReturningStuck(guardAnchorPosition);
-
-            float distanceToAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
-            if (distanceToAnchor <= arrivalThreshold)
-            {
-                TransitionToState(EnemyState.Roaming);
-            }
+            TransitionToState(EnemyState.Chasing);
             return;
         }
 
@@ -404,8 +365,6 @@ public class OverworldEnemy : MonoBehaviour
             return;
         }
 
-        EvaluateReturningStuck(target.position);
-
         float distance = GetPlanarDistance(transform.position, target.position);
         if (distance <= arrivalThreshold)
         {
@@ -415,20 +374,6 @@ public class OverworldEnemy : MonoBehaviour
 
     private void FixedReturning()
     {
-        if (hasReturnRecoveryTarget)
-        {
-            MoveToward(returnRecoveryTarget, roamSpeed * Mathf.Max(1f, recoverySpeedMultiplier));
-
-            float recoveryDistance = GetPlanarDistance(transform.position, returnRecoveryTarget);
-            if (recoveryDistance <= Mathf.Max(arrivalThreshold, 0.2f))
-            {
-                hasReturnRecoveryTarget = false;
-                returnRecoveryTimer = 0f;
-            }
-
-            return;
-        }
-
         if (isPuzzleGuard)
         {
             MoveToward(guardAnchorPosition, roamSpeed);
@@ -451,39 +396,6 @@ public class OverworldEnemy : MonoBehaviour
         MoveToward(target.position, roamSpeed);
     }
 
-    // ========== VISION ==========
-
-    private bool CanSeePlayer()
-    {
-        if (playerTransform == null) return false;
-
-        Vector3 toPlayer = playerTransform.position - transform.position;
-        toPlayer.y = 0f;
-
-        float distance = toPlayer.magnitude;
-        if (distance > visionRange) return false;
-
-        if (distance < 0.01f) return true;
-
-        Vector3 forward = transform.forward;
-        forward.y = 0f;
-        if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
-
-        float angle = Vector3.Angle(forward, toPlayer.normalized);
-        if (angle > visionHalfAngle) return false;
-
-        Vector3 eyePos = transform.position + Vector3.up * eyeHeight;
-        Vector3 playerCenter = playerTransform.position + Vector3.up * eyeHeight;
-        Vector3 direction = playerCenter - eyePos;
-
-        if (Physics.Raycast(eyePos, direction.normalized, distance, visionBlockMask))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
     private bool ShouldStartChase()
     {
         if (playerTransform == null)
@@ -491,13 +403,47 @@ public class OverworldEnemy : MonoBehaviour
             return false;
         }
 
+        if (isPuzzleGuard && currentState == EnemyState.Returning)
+        {
+            if (Time.time < puzzleGuardChaseLockUntilTime)
+            {
+                return false;
+            }
+
+            float distanceFromAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
+            float reengageRadius = Mathf.Max(
+                arrivalThreshold + 0.5f,
+                puzzleGuardLeashRadius - Mathf.Max(0.25f, puzzleGuardLeashReengageBuffer));
+            if (distanceFromAnchor > reengageRadius)
+            {
+                return false;
+            }
+        }
+
         float distance = GetPlanarDistance(transform.position, playerTransform.position);
         if (distance <= Mathf.Max(arrivalThreshold, proximityAggroRange))
+        {
+            return HasAggroLineOfSightToPlayer();
+        }
+
+        return false;
+    }
+
+    private bool ShouldStopChasing(float distanceToPlayer)
+    {
+        float breakDistance = Mathf.Max(proximityAggroRange + 1f, proximityAggroRange * Mathf.Max(1.1f, chaseBreakMultiplier));
+        if (distanceToPlayer > breakDistance)
         {
             return true;
         }
 
-        return allowLineOfSightAggro && CanSeePlayer();
+        if (!isPuzzleGuard)
+        {
+            return false;
+        }
+
+        float distanceFromAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
+        return distanceFromAnchor > Mathf.Max(arrivalThreshold + 0.5f, puzzleGuardLeashRadius);
     }
 
     // ========== MOVEMENT ==========
@@ -649,11 +595,6 @@ public class OverworldEnemy : MonoBehaviour
     {
         enemyColor = ElementalCharacterFactory.GetElementPrimaryColor(visualElement);
 
-        if (characterModelRoot == null)
-        {
-            RebuildElementalEnemyModel();
-        }
-
         if (arrowRenderer != null)
         {
             arrowRenderer.color = enemyColor;
@@ -662,6 +603,12 @@ public class OverworldEnemy : MonoBehaviour
 
     private void RebuildElementalEnemyModel()
     {
+        if (isRebuildingModel)
+        {
+            return;
+        }
+
+        isRebuildingModel = true;
         characterModelRoot = ElementalCharacterFactory.BuildExplorationEnemyModel(
             transform,
             visualElement,
@@ -672,9 +619,14 @@ public class OverworldEnemy : MonoBehaviour
         {
             characterModelRoot.name = ElementalCharacterFactory.EnemyModelRootName;
         }
+        else
+        {
+            Debug.LogWarning($"[OverworldEnemy] Could not build model root for {name}.");
+        }
 
         ConfigureModelRendererVisibility();
         ApplyEnemyColor();
+        isRebuildingModel = false;
     }
 
     private void ConfigureModelRendererVisibility()
@@ -845,175 +797,56 @@ public class OverworldEnemy : MonoBehaviour
 
     private void UpdatePuzzleGuardRoamState()
     {
-        if (guardRoamWaitTimer > 0f)
+        if (GetPlanarDistance(transform.position, guardAnchorPosition) > arrivalThreshold)
         {
-            guardRoamWaitTimer -= Time.deltaTime;
+            TransitionToState(EnemyState.Returning);
+        }
+    }
+
+    private void UpdatePuzzleGuardReturning()
+    {
+        float distanceToAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
+        if (distanceToAnchor <= arrivalThreshold)
+        {
+            TransitionToState(EnemyState.Roaming);
             return;
         }
 
-        if (!hasGuardRoamTarget)
+        if (distanceToAnchor < puzzleGuardLastReturnDistance - Mathf.Max(0.01f, puzzleGuardReturnProgressThreshold))
         {
-            AssignNewGuardRoamTarget();
+            puzzleGuardReturnStuckTimer = 0f;
+            puzzleGuardLastReturnDistance = distanceToAnchor;
+        }
+        else
+        {
+            puzzleGuardReturnStuckTimer += Time.deltaTime;
+        }
+
+        if (puzzleGuardReturnStuckTimer >= Mathf.Max(0.1f, puzzleGuardReturnStuckTimeout))
+        {
+            Debug.LogWarning($"[OverworldEnemy] {name} return fallback: snapping puzzle guard to anchor.");
+            transform.position = guardAnchorPosition;
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            TransitionToState(EnemyState.Roaming);
             return;
         }
 
-        float distance = GetPlanarDistance(transform.position, guardRoamTarget);
-        if (distance <= arrivalThreshold)
+        if (ShouldStartChase())
         {
-            guardRoamWaitTimer = Mathf.Max(0.25f, waitTimeAtPoint * 0.8f);
-            AssignNewGuardRoamTarget();
+            TransitionToState(EnemyState.Chasing);
         }
     }
 
     private void FixedPuzzleGuardRoam()
     {
-        if (!hasGuardRoamTarget || guardRoamWaitTimer > 0f)
+        float distanceToAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
+        if (distanceToAnchor <= arrivalThreshold)
         {
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
             return;
         }
 
-        MoveToward(guardRoamTarget, roamSpeed);
-    }
-
-    private void AssignNewGuardRoamTarget()
-    {
-        Vector2 offset = Random.insideUnitCircle * puzzleGuardRoamRadius;
-        guardRoamTarget = new Vector3(
-            guardAnchorPosition.x + offset.x,
-            transform.position.y,
-            guardAnchorPosition.z + offset.y);
-        hasGuardRoamTarget = true;
-    }
-
-    private void ResetReturnRecoveryTracking()
-    {
-        returnLastPlanarPosition = GetPlanarPosition(transform.position);
-        returnStuckCheckTimer = 0f;
-        returnStuckTrackingInitialized = true;
-        returnRecoveryTimer = 0f;
-        returnRecoveryRetryCooldownTimer = 0f;
-        hasReturnRecoveryTarget = false;
-        returnRecoveryAttempts = 0;
-    }
-
-    private void UpdateReturnRecoveryTimer()
-    {
-        if (!hasReturnRecoveryTarget)
-        {
-            if (returnRecoveryRetryCooldownTimer > 0f)
-            {
-                returnRecoveryRetryCooldownTimer -= Time.deltaTime;
-            }
-
-            return;
-        }
-
-        returnRecoveryTimer -= Time.deltaTime;
-        if (returnRecoveryTimer <= 0f)
-        {
-            hasReturnRecoveryTarget = false;
-            returnRecoveryTimer = 0f;
-        }
-    }
-
-    private void EvaluateReturningStuck(Vector3 finalTarget)
-    {
-        if (!returnStuckTrackingInitialized)
-        {
-            returnLastPlanarPosition = GetPlanarPosition(transform.position);
-            returnStuckTrackingInitialized = true;
-        }
-
-        if (hasReturnRecoveryTarget)
-        {
-            return;
-        }
-
-        if (returnRecoveryRetryCooldownTimer > 0f)
-        {
-            return;
-        }
-
-        float interval = Mathf.Max(0.1f, stuckCheckInterval);
-        returnStuckCheckTimer += Time.deltaTime;
-        if (returnStuckCheckTimer < interval)
-        {
-            return;
-        }
-
-        Vector2 currentPlanarPosition = GetPlanarPosition(transform.position);
-        float movedDistance = Vector2.Distance(currentPlanarPosition, returnLastPlanarPosition);
-        float distanceToGoal = GetPlanarDistance(transform.position, finalTarget);
-
-        returnLastPlanarPosition = currentPlanarPosition;
-        returnStuckCheckTimer = 0f;
-
-        if (distanceToGoal <= Mathf.Max(arrivalThreshold * 2f, 0.5f))
-        {
-            returnRecoveryAttempts = 0;
-            return;
-        }
-
-        float expectedMovement = Mathf.Max(0.01f, roamSpeed) * interval;
-        float requiredMovement = Mathf.Min(
-            Mathf.Max(0.01f, minimumReturnMovement),
-            Mathf.Max(0.01f, expectedMovement * 0.6f));
-
-        if (movedDistance >= requiredMovement)
-        {
-            returnRecoveryAttempts = 0;
-            return;
-        }
-
-        BeginReturnRecovery(finalTarget);
-    }
-
-    private void BeginReturnRecovery(Vector3 finalTarget)
-    {
-        Vector3 toTarget = finalTarget - transform.position;
-        toTarget.y = 0f;
-        if (toTarget.sqrMagnitude <= 0.001f)
-        {
-            return;
-        }
-
-        returnRecoveryAttempts++;
-        float scaledBypassDistance = Mathf.Max(0.5f, recoveryBypassDistance) * (1f + Mathf.Max(0, returnRecoveryAttempts - 1) * 0.45f);
-
-        if (returnRecoveryAttempts >= Mathf.Max(1, maxRecoveryAttemptsBeforeEscalation))
-        {
-            Vector3 fallbackTarget = transform.position + (toTarget.normalized * scaledBypassDistance);
-            returnRecoveryTarget = new Vector3(fallbackTarget.x, transform.position.y, fallbackTarget.z);
-            returnRecoveryTimer = Mathf.Max(0.2f, recoveryDuration * 0.8f);
-            hasReturnRecoveryTarget = true;
-            returnRecoveryRetryCooldownTimer = Mathf.Max(0.1f, recoveryRetryCooldown);
-            Debug.LogWarning($"[OverworldEnemy] {name} required repeated return recovery. Escalating direct step toward patrol target.");
-            return;
-        }
-
-        Vector3 forward = toTarget.normalized;
-        Vector3 side = Vector3.Cross(Vector3.up, forward);
-        float sideSign = Random.value < 0.5f ? -1f : 1f;
-        float bypassDistance = scaledBypassDistance;
-        Vector3 candidate = transform.position + (side * sideSign * bypassDistance) + (forward * (bypassDistance * 0.5f));
-
-        if (isPuzzleGuard)
-        {
-            Vector3 fromAnchor = candidate - guardAnchorPosition;
-            fromAnchor.y = 0f;
-            float maxLeash = Mathf.Max(1f, puzzleGuardLeashRadius * 0.9f);
-            if (fromAnchor.magnitude > maxLeash)
-            {
-                candidate = guardAnchorPosition + fromAnchor.normalized * maxLeash;
-            }
-        }
-
-        returnRecoveryTarget = new Vector3(candidate.x, transform.position.y, candidate.z);
-        returnRecoveryTimer = Mathf.Max(0.2f, recoveryDuration);
-        returnRecoveryRetryCooldownTimer = Mathf.Max(0.1f, recoveryRetryCooldown);
-        hasReturnRecoveryTarget = true;
-        Debug.Log($"[OverworldEnemy] {name} detected as stuck while returning. Applying bypass movement.");
+        MoveToward(guardAnchorPosition, roamSpeed);
     }
 
     // ========== HELPERS ==========
@@ -1060,6 +893,53 @@ public class OverworldEnemy : MonoBehaviour
         return collider.GetComponentInParent<IsometricPlayer>() != null;
     }
 
+    private bool HasAggroLineOfSightToPlayer()
+    {
+        if (!requireLineOfSightForAggro || playerTransform == null)
+        {
+            return true;
+        }
+
+        Vector3 origin = transform.position + (Vector3.up * Mathf.Max(0.1f, aggroLineOfSightHeight));
+        Vector3 target = playerTransform.position + (Vector3.up * Mathf.Max(0.1f, aggroLineOfSightHeight));
+        Vector3 direction = target - origin;
+        float distance = direction.magnitude;
+        if (distance <= 0.001f)
+        {
+            return true;
+        }
+
+        RaycastHit[] hits = Physics.RaycastAll(
+            origin,
+            direction / distance,
+            distance,
+            aggroLineOfSightMask,
+            QueryTriggerInteraction.Ignore);
+        if (hits == null || hits.Length == 0)
+        {
+            return true;
+        }
+
+        Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider hitCollider = hits[i].collider;
+            if (hitCollider == null)
+            {
+                continue;
+            }
+
+            if (hitCollider.transform == transform || hitCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            return IsPlayerCollider(hitCollider);
+        }
+
+        return true;
+    }
+
     private int FindNearestPatrolIndex()
     {
         if (patrolPoints == null || patrolPoints.Length == 0) return 0;
@@ -1086,11 +966,6 @@ public class OverworldEnemy : MonoBehaviour
         float dx = a.x - b.x;
         float dz = a.z - b.z;
         return Mathf.Sqrt(dx * dx + dz * dz);
-    }
-
-    private static Vector2 GetPlanarPosition(Vector3 position)
-    {
-        return new Vector2(position.x, position.z);
     }
 
     private bool ShouldDespawnAsClearedEncounter()
@@ -1207,22 +1082,8 @@ public class OverworldEnemy : MonoBehaviour
             }
         }
 
-        // Vision cone
-        Gizmos.color = currentState == EnemyState.Alert || currentState == EnemyState.Chasing
-            ? Color.red
-            : Color.yellow;
-
-        Vector3 origin = transform.position + Vector3.up * eyeHeight;
-        Vector3 forward = Application.isPlaying ? transform.forward : Vector3.forward;
-        forward.y = 0f;
-        forward.Normalize();
-
-        Vector3 leftBound = Quaternion.Euler(0f, -visionHalfAngle, 0f) * forward;
-        Vector3 rightBound = Quaternion.Euler(0f, visionHalfAngle, 0f) * forward;
-
-        Gizmos.DrawRay(origin, leftBound * visionRange);
-        Gizmos.DrawRay(origin, rightBound * visionRange);
-        Gizmos.DrawWireSphere(origin, visionRange);
+        Gizmos.color = currentState == EnemyState.Chasing ? Color.red : Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, Mathf.Max(arrivalThreshold, proximityAggroRange));
 
     }
 #endif
