@@ -10,11 +10,7 @@ public class BattleEscapeMenu : MonoBehaviour
     [SerializeField] private BattleHud battleHud;
 
     private GameObject escapeMenuPanel;
-    private GameObject partySwapPanel;
-    private PartySwapPanel partySwapPanelController;
-    private Button partySelectionButton;
     private bool isMenuOpen = false;
-    private bool isPartySwapPanelInitialized;
 
     public bool IsMenuOpen => isMenuOpen;
 
@@ -27,8 +23,6 @@ public class BattleEscapeMenu : MonoBehaviour
 
         EnsureCanvas();
         CreateEscapeMenuPanel();
-        CreatePartySwapPanel();
-        TryInitializePartySwapPanel();
         SetMenuOpen(false);
     }
 
@@ -45,15 +39,6 @@ public class BattleEscapeMenu : MonoBehaviour
         if (escapeMenuPanel != null)
             escapeMenuPanel.SetActive(open);
 
-        if (!open)
-        {
-            if (partySwapPanel != null)
-            {
-                partySwapPanel.SetActive(false);
-            }
-            return;
-        }
-
         // Hide other UI elements when menu is open
         if (battleHud != null)
         {
@@ -64,8 +49,6 @@ public class BattleEscapeMenu : MonoBehaviour
             // We'll implement later.
         }
 
-        // If opening menu, also close any sub-panels
-        SetPartySwapPanelOpen(false);
     }
 
     private void EnsureCanvas()
@@ -117,10 +100,9 @@ public class BattleEscapeMenu : MonoBehaviour
         title.raycastTarget = false;
 
         // Buttons
-        partySelectionButton = CreateButton(escapeMenuPanel.transform, "Party Selection", new Vector2(0.1f, 0.6f), new Vector2(0.9f, 0.75f), OnPartySelectionClicked);
-        CreateButton(escapeMenuPanel.transform, "Items", new Vector2(0.1f, 0.4f), new Vector2(0.9f, 0.55f), OnItemsClicked);
-        CreateButton(escapeMenuPanel.transform, "Abilities", new Vector2(0.1f, 0.2f), new Vector2(0.9f, 0.35f), OnAbilitiesClicked);
-        CreateButton(escapeMenuPanel.transform, "Flee", new Vector2(0.1f, 0.0f), new Vector2(0.9f, 0.15f), OnFleeClicked);
+        CreateButton(escapeMenuPanel.transform, "Items", new Vector2(0.1f, 0.5f), new Vector2(0.9f, 0.68f), OnItemsClicked);
+        CreateButton(escapeMenuPanel.transform, "Abilities", new Vector2(0.1f, 0.28f), new Vector2(0.9f, 0.46f), OnAbilitiesClicked);
+        CreateButton(escapeMenuPanel.transform, "Flee", new Vector2(0.1f, 0.06f), new Vector2(0.9f, 0.24f), OnFleeClicked);
     }
 
     private Button CreateButton(Transform parent, string label, Vector2 anchorMin, Vector2 anchorMax, UnityEngine.Events.UnityAction onClick)
@@ -167,33 +149,6 @@ public class BattleEscapeMenu : MonoBehaviour
     private void Update()
     {
         TryResolveBattleManager();
-        TryInitializePartySwapPanel();
-
-        if (partySelectionButton != null)
-        {
-            partySelectionButton.interactable = battleManager != null && battleManager.IsPartySwapAllowedThisRound();
-        }
-    }
-
-    private void OnPartySelectionClicked()
-    {
-        TryResolveBattleManager();
-        TryInitializePartySwapPanel();
-
-        if (battleManager == null)
-        {
-            Debug.LogWarning("[BattleEscapeMenu] Cannot open Party Selection because BattleManager is missing.");
-            return;
-        }
-
-        if (battleManager != null && !battleManager.IsPartySwapAllowedThisRound())
-        {
-            Debug.Log("[BattleEscapeMenu] Party swapping is only available during the first input round.");
-            return;
-        }
-
-        Debug.Log("[BattleEscapeMenu] Party Selection clicked.");
-        SetPartySwapPanelOpen(true);
     }
 
     private void OnItemsClicked()
@@ -236,81 +191,11 @@ public class BattleEscapeMenu : MonoBehaviour
         SetMenuOpen(false);
     }
 
-    // Party Swap Panel
-    private void CreatePartySwapPanel()
-    {
-        Canvas canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null) return;
-
-        partySwapPanel = new GameObject("PartySwapPanel", typeof(RectTransform));
-        partySwapPanel.transform.SetParent(canvas.transform, false);
-        RectTransform rect = partySwapPanel.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.1f, 0.1f);
-        rect.anchorMax = new Vector2(0.9f, 0.9f);
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-
-        Image bg = partySwapPanel.AddComponent<Image>();
-        bg.color = new Color(0.15f, 0.15f, 0.2f, 0.98f);
-
-        // Title
-        GameObject titleObj = new GameObject("Title", typeof(RectTransform));
-        titleObj.transform.SetParent(partySwapPanel.transform, false);
-        Text title = titleObj.AddComponent<Text>();
-        RectTransform titleRect = title.rectTransform;
-        titleRect.anchorMin = new Vector2(0f, 0.85f);
-        titleRect.anchorMax = new Vector2(1f, 1f);
-        titleRect.offsetMin = Vector2.zero;
-        titleRect.offsetMax = Vector2.zero;
-        title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        title.fontSize = 28;
-        title.fontStyle = FontStyle.Bold;
-        title.alignment = TextAnchor.MiddleCenter;
-        title.color = Color.white;
-        title.text = "Party Selection";
-        title.raycastTarget = false;
-
-        // Back button
-        CreateButton(partySwapPanel.transform, "Back", new Vector2(0.05f, 0.05f), new Vector2(0.25f, 0.15f), OnBackClicked);
-
-        // We'll let PartySwapPanel component handle dynamic content
-        partySwapPanelController = partySwapPanel.AddComponent<PartySwapPanel>();
-    }
-
     private void TryResolveBattleManager()
     {
         if (battleManager == null)
         {
             battleManager = FindFirstObjectByType<BattleManager>();
-            if (battleManager != null)
-            {
-                isPartySwapPanelInitialized = false;
-            }
         }
-    }
-
-    private void TryInitializePartySwapPanel()
-    {
-        if (isPartySwapPanelInitialized || partySwapPanelController == null || battleManager == null)
-        {
-            return;
-        }
-
-        partySwapPanelController.Initialize(battleManager);
-        isPartySwapPanelInitialized = true;
-    }
-
-    private void OnBackClicked()
-    {
-        SetPartySwapPanelOpen(false);
-    }
-
-    private void SetPartySwapPanelOpen(bool open)
-    {
-        if (partySwapPanel != null)
-            partySwapPanel.SetActive(open);
-        // When opening party swap, hide escape menu panel
-        if (escapeMenuPanel != null)
-            escapeMenuPanel.SetActive(!open);
     }
 }
