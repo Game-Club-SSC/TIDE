@@ -944,10 +944,6 @@ public class TideManager : MonoBehaviour
         if (encounterConfig == null && !string.IsNullOrEmpty(fallbackSealedTileEncounterId))
         {
             encounterConfig = LoadEncounterConfigById(fallbackSealedTileEncounterId);
-            if (encounterConfig != null)
-            {
-                Debug.LogWarning($"[TideManager] Missing sealed tile encounter '{completionEncounterId}'. Falling back to '{fallbackSealedTileEncounterId}'.");
-            }
         }
 
         if (encounterConfig == null)
