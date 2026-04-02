@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,6 +13,9 @@ public class ExplorationMapUI : MonoBehaviour
     [SerializeField] private KeyCode toggleKey = KeyCode.M;
     [SerializeField] private KeyCode loreLogKey = KeyCode.L;
 
+    [Header("Map Visibility")]
+    [SerializeField] private bool showMiniMapByDefault = true;
+
     [Header("Tracking")]
     [SerializeField] private string islandId = "island_lust";
 
@@ -19,29 +23,14 @@ public class ExplorationMapUI : MonoBehaviour
     [SerializeField] private Vector2 miniMapSize = new Vector2(300f, 200f);
     [SerializeField] private Vector2 miniMapOffset = new Vector2(-24f, 24f);
 
-    [Header("Expanded Layout")]
-    [Range(0.5f, 1f)]
-    [SerializeField] private float expandedWidthPercent = 0.9f;
-    [Range(0.5f, 1f)]
-    [SerializeField] private float expandedHeightPercent = 0.9f;
-
-    [Header("Expanded Zoom")]
-    [SerializeField] private KeyCode zoomInKey = KeyCode.Equals;
-    [SerializeField] private KeyCode zoomOutKey = KeyCode.Minus;
-    [SerializeField] private bool enableScrollWheelZoom = true;
-    [SerializeField] private float zoomStep = 0.25f;
-    [SerializeField] [Range(1f, 8f)] private float minExpandedZoom = 1f;
-    [SerializeField] [Range(1f, 8f)] private float maxExpandedZoom = 3f;
-
     [Header("World Bounds")]
     [SerializeField] private string worldBoundsObjectName = "Ground";
     [SerializeField] private Vector2 fallbackWorldCenter = new Vector2(12.5f, 0f);
     [SerializeField] private Vector2 fallbackWorldSize = new Vector2(200f, 200f);
 
     [Header("Colors")]
-    [SerializeField] private Color panelColor = new Color(0.07f, 0.1f, 0.14f, 0.93f);
+    [SerializeField] private Color panelColor = new Color(0.07f, 0.1f, 0.14f, 0.82f);
     [SerializeField] private Color mapColor = new Color(0.16f, 0.22f, 0.28f, 0.96f);
-    [SerializeField] private Color dimColor = new Color(0f, 0f, 0f, 0.58f);
     [SerializeField] private Color miniMapBorderColor = new Color(0.23f, 0.34f, 0.45f, 0.95f);
     [SerializeField] private Color playerMarkerColor = new Color(0.2f, 0.9f, 0.85f, 1f);
     [SerializeField] private Color puzzleMarkerColor = new Color(1f, 0.6f, 0.25f, 1f);
@@ -55,6 +44,8 @@ public class ExplorationMapUI : MonoBehaviour
     [SerializeField] private float playerMarkerSize = 14f;
     [SerializeField] private float pointMarkerSize = 9f;
     [SerializeField] private float markerRefreshInterval = 1f;
+    [SerializeField] private bool showEnemyMarkersInMiniMap = true;
+    [SerializeField] [Range(-180f, 180f)] private float playerHeadingOffsetDegrees = 45f;
 
     private sealed class MapMarker
     {
@@ -64,13 +55,12 @@ public class ExplorationMapUI : MonoBehaviour
 
     private readonly List<MapMarker> mapMarkers = new List<MapMarker>();
 
-    private bool isExpanded;
-    private bool isVisible = true;
+    private bool isMapOpen;
+    private bool isInExplorationState = true;
     private float markerRefreshTimer;
 
     private IsometricPlayer player;
     private Canvas mapCanvas;
-    private GameObject dimBackground;
     private RectTransform panelRoot;
     private Image panelImage;
     private RectTransform mapRect;
@@ -85,10 +75,10 @@ public class ExplorationMapUI : MonoBehaviour
     private Image playerMarker;
     private Vector2 worldCenter;
     private Vector2 worldSize;
-    private float expandedZoom = 1f;
-
     private void Awake()
     {
+        isMapOpen = showMiniMapByDefault;
+        isInExplorationState = CanDisplayMap();
         ResolvePlayer();
         ResolveWorldBounds();
         EnsureCanvas();
@@ -100,9 +90,9 @@ public class ExplorationMapUI : MonoBehaviour
     private void Update()
     {
         bool shouldDisplay = CanDisplayMap();
-        if (shouldDisplay != isVisible)
+        if (shouldDisplay != isInExplorationState)
         {
-            SetMapVisible(shouldDisplay);
+            SetExplorationVisibility(shouldDisplay);
         }
 
         if (!shouldDisplay)
@@ -112,12 +102,11 @@ public class ExplorationMapUI : MonoBehaviour
 
         if (Input.GetKeyDown(toggleKey))
         {
-            ToggleMapSize();
+            ToggleMapVisibility();
         }
 
-        HandleExpandedZoomInput();
-
-        if (Input.GetKeyDown(loreLogKey))
+        // Keep lore access map-scoped so this hotkey does not unexpectedly trigger while the map is hidden.
+        if (isMapOpen && Input.GetKeyDown(loreLogKey))
         {
             OpenAncientTextLog();
         }
@@ -164,35 +153,19 @@ public class ExplorationMapUI : MonoBehaviour
             && !manager.IsTransitioning;
     }
 
-    private void SetMapVisible(bool visible)
+    private void SetExplorationVisibility(bool visible)
     {
-        bool shouldCollapseToMini = !visible && isExpanded;
-        if (shouldCollapseToMini)
-        {
-            isExpanded = false;
-        }
-
-        isVisible = visible;
+        isInExplorationState = visible;
 
         if (panelRoot != null)
         {
-            panelRoot.gameObject.SetActive(visible);
-        }
-
-        if (dimBackground != null)
-        {
-            dimBackground.SetActive(visible && isExpanded);
-        }
-
-        if (shouldCollapseToMini)
-        {
-            ApplyLayout();
+            panelRoot.gameObject.SetActive(visible && isMapOpen);
         }
     }
 
-    private void ToggleMapSize()
+    private void ToggleMapVisibility()
     {
-        isExpanded = !isExpanded;
+        isMapOpen = !isMapOpen;
         ApplyLayout();
     }
 
@@ -243,27 +216,7 @@ public class ExplorationMapUI : MonoBehaviour
 
         canvasObject.AddComponent<GraphicRaycaster>();
 
-        CreateDimBackground(canvasObject.transform);
         CreateMapPanel(canvasObject.transform);
-    }
-
-    private void CreateDimBackground(Transform parent)
-    {
-        GameObject dimObject = new GameObject("MapDimBackground", typeof(RectTransform));
-        dimObject.transform.SetParent(parent, false);
-
-        RectTransform dimRect = dimObject.GetComponent<RectTransform>();
-        dimRect.anchorMin = Vector2.zero;
-        dimRect.anchorMax = Vector2.one;
-        dimRect.offsetMin = Vector2.zero;
-        dimRect.offsetMax = Vector2.zero;
-
-        Image dimImage = dimObject.AddComponent<Image>();
-        dimImage.color = dimColor;
-        dimImage.raycastTarget = false;
-
-        dimObject.SetActive(false);
-        dimBackground = dimObject;
     }
 
     private void CreateMapPanel(Transform parent)
@@ -402,51 +355,7 @@ public class ExplorationMapUI : MonoBehaviour
             clampedSize);
     }
 
-    private void HandleExpandedZoomInput()
-    {
-        if (!isExpanded)
-        {
-            return;
-        }
-
-        float step = Mathf.Max(0.05f, zoomStep);
-        float zoomDelta = 0f;
-
-        if (Input.GetKeyDown(zoomInKey))
-        {
-            zoomDelta += step;
-        }
-
-        if (Input.GetKeyDown(zoomOutKey))
-        {
-            zoomDelta -= step;
-        }
-
-        if (enableScrollWheelZoom)
-        {
-            zoomDelta += Input.mouseScrollDelta.y * step;
-        }
-
-        if (Mathf.Approximately(zoomDelta, 0f))
-        {
-            return;
-        }
-
-        float minZoom = Mathf.Max(1f, minExpandedZoom);
-        float maxZoom = Mathf.Max(minZoom, maxExpandedZoom);
-        float nextZoom = Mathf.Clamp(expandedZoom + zoomDelta, minZoom, maxZoom);
-        if (Mathf.Approximately(nextZoom, expandedZoom))
-        {
-            return;
-        }
-
-        expandedZoom = nextZoom;
-        RefreshRestorationLabel();
-        UpdatePlayerMarkerPosition();
-        UpdateMarkerPositions();
-    }
-
-    private void ApplyMapShape()
+    private void ApplyMiniMapShape()
     {
         if (mapRect == null)
         {
@@ -456,19 +365,6 @@ public class ExplorationMapUI : MonoBehaviour
         Image mapImage = mapRect.GetComponent<Image>();
         if (mapImage == null)
         {
-            return;
-        }
-
-        if (isExpanded)
-        {
-            mapImage.sprite = null;
-            mapImage.preserveAspect = false;
-
-            if (mapMask != null)
-            {
-                mapMask.enabled = false;
-            }
-
             return;
         }
 
@@ -488,101 +384,58 @@ public class ExplorationMapUI : MonoBehaviour
             return;
         }
 
-        if (isExpanded)
+        if (panelImage != null)
         {
-            if (panelImage != null)
-            {
-                panelImage.sprite = null;
-                panelImage.preserveAspect = false;
-                panelImage.color = panelColor;
-            }
-
-            if (miniMapBorderRect != null)
-            {
-                miniMapBorderRect.gameObject.SetActive(false);
-            }
-
-            float halfWidth = Mathf.Clamp(expandedWidthPercent, 0.5f, 1f) * 0.5f;
-            float halfHeight = Mathf.Clamp(expandedHeightPercent, 0.5f, 1f) * 0.5f;
-
-            panelRoot.anchorMin = new Vector2(0.5f - halfWidth, 0.5f - halfHeight);
-            panelRoot.anchorMax = new Vector2(0.5f + halfWidth, 0.5f + halfHeight);
-            panelRoot.pivot = new Vector2(0.5f, 0.5f);
-            panelRoot.anchoredPosition = Vector2.zero;
-            panelRoot.sizeDelta = Vector2.zero;
-
-            mapRect.anchorMin = new Vector2(0.03f, 0.1f);
-            mapRect.anchorMax = new Vector2(0.97f, 0.86f);
-            mapRect.offsetMin = Vector2.zero;
-            mapRect.offsetMax = Vector2.zero;
-
-            if (titleLabel != null)
-            {
-                titleLabel.text = "WORLD MAP";
-            }
-
-            if (hintLabel != null)
-            {
-                string wheelHint = enableScrollWheelZoom ? "  [Wheel] Zoom" : string.Empty;
-                hintLabel.text =
-                    $"[{toggleKey}] Minimize  [{loreLogKey}] Lore  [{zoomOutKey}/{zoomInKey}] Zoom{wheelHint}";
-            }
-        }
-        else
-        {
-            if (panelImage != null)
-            {
-                panelImage.sprite = null;
-                panelImage.preserveAspect = false;
-                panelImage.color = Color.clear;
-            }
-
-            panelRoot.anchorMin = new Vector2(1f, 0f);
-            panelRoot.anchorMax = new Vector2(1f, 0f);
-            panelRoot.pivot = new Vector2(1f, 0f);
-            panelRoot.sizeDelta = miniMapSize;
-            panelRoot.anchoredPosition = miniMapOffset;
-
-            float miniMapDiameter = Mathf.Min(panelRoot.sizeDelta.x * 0.8f, panelRoot.sizeDelta.y * 0.64f);
-
-            if (miniMapBorderRect != null)
-            {
-                float borderDiameter = miniMapDiameter + Mathf.Max(0f, miniMapBorderPadding) * 2f;
-                miniMapBorderRect.anchorMin = new Vector2(0.5f, 0.52f);
-                miniMapBorderRect.anchorMax = new Vector2(0.5f, 0.52f);
-                miniMapBorderRect.pivot = new Vector2(0.5f, 0.5f);
-                miniMapBorderRect.sizeDelta = new Vector2(borderDiameter, borderDiameter);
-                miniMapBorderRect.anchoredPosition = new Vector2(0f, 2f);
-                miniMapBorderRect.gameObject.SetActive(true);
-            }
-
-            if (miniMapBorderImage != null)
-            {
-                miniMapBorderImage.color = miniMapBorderColor;
-            }
-
-            mapRect.anchorMin = new Vector2(0.5f, 0.52f);
-            mapRect.anchorMax = new Vector2(0.5f, 0.52f);
-            mapRect.pivot = new Vector2(0.5f, 0.5f);
-            mapRect.sizeDelta = new Vector2(miniMapDiameter, miniMapDiameter);
-            mapRect.anchoredPosition = new Vector2(0f, 2f);
-
-            if (titleLabel != null)
-            {
-                titleLabel.text = "MINIMAP";
-            }
-
-            if (hintLabel != null)
-            {
-                hintLabel.text = $"[{toggleKey}] Expand  [{loreLogKey}] Lore";
-            }
+            panelImage.sprite = null;
+            panelImage.preserveAspect = false;
+            panelImage.color = panelColor;
         }
 
-        ApplyMapShape();
+        panelRoot.anchorMin = new Vector2(1f, 0f);
+        panelRoot.anchorMax = new Vector2(1f, 0f);
+        panelRoot.pivot = new Vector2(1f, 0f);
+        panelRoot.sizeDelta = miniMapSize;
+        panelRoot.anchoredPosition = miniMapOffset;
 
-        if (dimBackground != null)
+        float miniMapDiameter = Mathf.Min(panelRoot.sizeDelta.x * 0.8f, panelRoot.sizeDelta.y * 0.64f);
+
+        if (miniMapBorderRect != null)
         {
-            dimBackground.SetActive(isExpanded && isVisible);
+            float borderDiameter = miniMapDiameter + Mathf.Max(0f, miniMapBorderPadding) * 2f;
+            miniMapBorderRect.anchorMin = new Vector2(0.5f, 0.52f);
+            miniMapBorderRect.anchorMax = new Vector2(0.5f, 0.52f);
+            miniMapBorderRect.pivot = new Vector2(0.5f, 0.5f);
+            miniMapBorderRect.sizeDelta = new Vector2(borderDiameter, borderDiameter);
+            miniMapBorderRect.anchoredPosition = new Vector2(0f, 2f);
+            miniMapBorderRect.gameObject.SetActive(true);
+        }
+
+        if (miniMapBorderImage != null)
+        {
+            miniMapBorderImage.color = miniMapBorderColor;
+        }
+
+        mapRect.anchorMin = new Vector2(0.5f, 0.52f);
+        mapRect.anchorMax = new Vector2(0.5f, 0.52f);
+        mapRect.pivot = new Vector2(0.5f, 0.5f);
+        mapRect.sizeDelta = new Vector2(miniMapDiameter, miniMapDiameter);
+        mapRect.anchoredPosition = new Vector2(0f, 2f);
+
+        if (titleLabel != null)
+        {
+            titleLabel.text = "MINIMAP";
+        }
+
+        if (hintLabel != null)
+        {
+            hintLabel.text = $"[{toggleKey}] {(isMapOpen ? "Hide" : "Show")}  [{loreLogKey}] Lore";
+        }
+
+        ApplyMiniMapShape();
+
+        if (panelRoot != null)
+        {
+            panelRoot.gameObject.SetActive(isMapOpen && isInExplorationState);
         }
 
         RefreshRestorationLabel();
@@ -606,18 +459,7 @@ public class ExplorationMapUI : MonoBehaviour
         }
 
         IslandRestorationState state = IslandRestorationTracker.Instance.GetRestorationState(targetIslandId);
-        if (isExpanded)
-        {
-            restorationLabel.text =
-                $"{targetIslandId}  {state.RestorationPercent:F1}%  " +
-                $"Combat {state.CombatEncountersCompleted}  " +
-                $"Puzzle {state.PuzzleEncountersCompleted}  " +
-                $"Zoom {expandedZoom:F1}x";
-        }
-        else
-        {
-            restorationLabel.text = $"Restoration {state.RestorationPercent:F1}%";
-        }
+        restorationLabel.text = $"Restoration: {GetIslandDisplayName(targetIslandId)} {state.RestorationPercent:F1}%";
     }
 
     private void RebuildMapMarkers()
@@ -649,16 +491,19 @@ public class ExplorationMapUI : MonoBehaviour
             TryCreateMapMarker(combatBoxes[i] != null ? combatBoxes[i].transform : null, combatMarkerColor);
         }
 
-        EnemyTrigger[] enemyTriggers = FindObjectsByType<EnemyTrigger>(FindObjectsSortMode.None);
-        for (int i = 0; i < enemyTriggers.Length; i++)
+        if (showEnemyMarkersInMiniMap)
         {
-            TryCreateMapMarker(enemyTriggers[i] != null ? enemyTriggers[i].transform : null, enemyMarkerColor);
-        }
+            EnemyTrigger[] enemyTriggers = FindObjectsByType<EnemyTrigger>(FindObjectsSortMode.None);
+            for (int i = 0; i < enemyTriggers.Length; i++)
+            {
+                TryCreateMapMarker(enemyTriggers[i] != null ? enemyTriggers[i].transform : null, enemyMarkerColor);
+            }
 
-        OverworldEnemy[] roamingEnemies = FindObjectsByType<OverworldEnemy>(FindObjectsSortMode.None);
-        for (int i = 0; i < roamingEnemies.Length; i++)
-        {
-            TryCreateMapMarker(roamingEnemies[i] != null ? roamingEnemies[i].transform : null, enemyMarkerColor);
+            OverworldEnemy[] roamingEnemies = FindObjectsByType<OverworldEnemy>(FindObjectsSortMode.None);
+            for (int i = 0; i < roamingEnemies.Length; i++)
+            {
+                TryCreateMapMarker(roamingEnemies[i] != null ? roamingEnemies[i].transform : null, enemyMarkerColor);
+            }
         }
 
         UpdateMarkerPositions();
@@ -697,6 +542,7 @@ public class ExplorationMapUI : MonoBehaviour
 
         playerMarker.gameObject.SetActive(true);
         playerMarker.rectTransform.anchoredPosition = WorldToMapPosition(player.transform.position);
+        playerMarker.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -player.transform.eulerAngles.y + playerHeadingOffsetDegrees);
     }
 
     private void UpdateMarkerPositions()
@@ -743,50 +589,6 @@ public class ExplorationMapUI : MonoBehaviour
 
         Vector2 visibleCenter = worldCenter;
         Vector2 visibleSize = worldSize;
-
-        if (isExpanded)
-        {
-            float minZoom = Mathf.Max(1f, minExpandedZoom);
-            float maxZoom = Mathf.Max(minZoom, maxExpandedZoom);
-            float zoom = Mathf.Clamp(expandedZoom, minZoom, maxZoom);
-
-            visibleSize = new Vector2(
-                Mathf.Max(1f, worldSize.x / zoom),
-                Mathf.Max(1f, worldSize.y / zoom));
-
-            if (player != null)
-            {
-                visibleCenter = new Vector2(player.transform.position.x, player.transform.position.z);
-            }
-
-            float worldHalfX = worldSize.x * 0.5f;
-            float worldHalfY = worldSize.y * 0.5f;
-            float visibleHalfX = visibleSize.x * 0.5f;
-            float visibleHalfY = visibleSize.y * 0.5f;
-
-            float minCenterX = worldCenter.x - worldHalfX + visibleHalfX;
-            float maxCenterX = worldCenter.x + worldHalfX - visibleHalfX;
-            float minCenterY = worldCenter.y - worldHalfY + visibleHalfY;
-            float maxCenterY = worldCenter.y + worldHalfY - visibleHalfY;
-
-            if (minCenterX <= maxCenterX)
-            {
-                visibleCenter.x = Mathf.Clamp(visibleCenter.x, minCenterX, maxCenterX);
-            }
-            else
-            {
-                visibleCenter.x = worldCenter.x;
-            }
-
-            if (minCenterY <= maxCenterY)
-            {
-                visibleCenter.y = Mathf.Clamp(visibleCenter.y, minCenterY, maxCenterY);
-            }
-            else
-            {
-                visibleCenter.y = worldCenter.y;
-            }
-        }
 
         float minX = visibleCenter.x - visibleSize.x * 0.5f;
         float maxX = visibleCenter.x + visibleSize.x * 0.5f;
@@ -847,5 +649,45 @@ public class ExplorationMapUI : MonoBehaviour
         }
 
         return IslandThemeRegistry.GetActiveIslandId();
+    }
+
+    private static string GetIslandDisplayName(string resolvedIslandId)
+    {
+        IslandConfig config = IslandThemeRegistry.GetConfig(resolvedIslandId);
+        if (config != null && !string.IsNullOrEmpty(config.viceName))
+        {
+            return config.viceName;
+        }
+
+        if (string.IsNullOrEmpty(resolvedIslandId))
+        {
+            return "Island";
+        }
+
+        const string islandPrefix = "island_";
+        string trimmedId = resolvedIslandId.StartsWith(islandPrefix, StringComparison.Ordinal)
+            ? resolvedIslandId.Substring(islandPrefix.Length)
+            : resolvedIslandId;
+
+        string[] words = trimmedId.Split(new[] { '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
+        {
+            return "Island";
+        }
+
+        for (int i = 0; i < words.Length; i++)
+        {
+            string word = words[i];
+            if (string.IsNullOrEmpty(word))
+            {
+                continue;
+            }
+
+            words[i] = word.Length == 1
+                ? char.ToUpperInvariant(word[0]).ToString()
+                : char.ToUpperInvariant(word[0]) + word.Substring(1).ToLowerInvariant();
+        }
+
+        return string.Join(" ", words);
     }
 }
