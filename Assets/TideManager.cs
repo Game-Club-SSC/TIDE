@@ -257,12 +257,8 @@ public class TideManager : MonoBehaviour
         }
 
         string islandScope = GetPuzzleIslandIdForLookup();
-        if (!string.IsNullOrEmpty(islandScope))
-        {
-            return IslandRestorationTracker.Instance.HasClearedEncounter(islandScope, lockedEncounterId);
-        }
-
-        return IslandRestorationTracker.Instance.HasClearedEncounter(lockedEncounterId);
+        return !string.IsNullOrEmpty(islandScope)
+            && IslandRestorationTracker.Instance.HasClearedEncounter(islandScope, lockedEncounterId);
     }
 
     private string GetPuzzleIslandIdForLookup()

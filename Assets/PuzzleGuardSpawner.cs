@@ -9,36 +9,56 @@ public class PuzzleGuardSpawner : MonoBehaviour
     [SerializeField] private Vector3 guardScale = new Vector3(0.9f, 1.2f, 0.9f);
 
     private readonly Dictionary<string, OverworldEnemy> activeGuards = new Dictionary<string, OverworldEnemy>();
-    private readonly Dictionary<string, string> encounterIslandLookup = new Dictionary<string, string>();
+    private readonly Dictionary<string, GuardTrackingInfo> guardTrackingLookup = new Dictionary<string, GuardTrackingInfo>();
+
+    private struct GuardTrackingInfo
+    {
+        public readonly string IslandId;
+        public readonly string EncounterId;
+
+        public GuardTrackingInfo(string islandId, string encounterId)
+        {
+            IslandId = islandId;
+            EncounterId = encounterId;
+        }
+    }
 
     public void RefreshGuards()
     {
         CleanupDestroyedGuards();
-        HashSet<string> validEncounterIds = new HashSet<string>();
+        HashSet<string> validGuardKeys = new HashSet<string>();
         GameStateManager gsm = GameStateManager.Instance;
 
-        List<string> clearedEncounterIds = new List<string>();
+        List<string> clearedGuardKeys = new List<string>();
+        List<string> missingTrackingGuardKeys = new List<string>();
         foreach (KeyValuePair<string, OverworldEnemy> pair in activeGuards)
         {
-            string encounterId = pair.Key;
-            if (string.IsNullOrEmpty(encounterId))
+            string guardKey = pair.Key;
+            if (string.IsNullOrEmpty(guardKey))
             {
                 continue;
             }
 
-            string islandId = encounterIslandLookup.TryGetValue(encounterId, out string storedIslandId)
-                ? storedIslandId
-                : "island_lust";
-
-            if (IsEncounterCleared(islandId, encounterId))
+            if (!guardTrackingLookup.TryGetValue(guardKey, out GuardTrackingInfo trackingInfo))
             {
-                clearedEncounterIds.Add(encounterId);
+                missingTrackingGuardKeys.Add(guardKey);
+                continue;
+            }
+
+            if (IsEncounterCleared(trackingInfo.IslandId, trackingInfo.EncounterId))
+            {
+                clearedGuardKeys.Add(guardKey);
             }
         }
 
-        for (int i = 0; i < clearedEncounterIds.Count; i++)
+        for (int i = 0; i < clearedGuardKeys.Count; i++)
         {
-            RemoveGuard(clearedEncounterIds[i]);
+            RemoveGuard(clearedGuardKeys[i]);
+        }
+
+        for (int i = 0; i < missingTrackingGuardKeys.Count; i++)
+        {
+            RemoveGuard(missingTrackingGuardKeys[i]);
         }
 
         PuzzleBoxInteractable[] puzzleBoxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -68,8 +88,9 @@ public class PuzzleGuardSpawner : MonoBehaviour
             }
 
             string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
-            encounterIslandLookup[encounterId] = scopedIslandId;
-            validEncounterIds.Add(encounterId);
+            string stableBoxId = GetStableBoxIdentifier(box, lockedTilePosition);
+            string guardKey = BuildGuardKey(scopedIslandId, encounterId, stableBoxId);
+            validGuardKeys.Add(guardKey);
 
             if (isBoxSolved)
             {
@@ -77,41 +98,41 @@ public class PuzzleGuardSpawner : MonoBehaviour
 
                 if (IsEncounterCleared(scopedIslandId, encounterId))
                 {
-                    RemoveGuard(encounterId);
+                    RemoveGuard(guardKey);
                     continue;
                 }
             }
 
             if (IsEncounterCleared(scopedIslandId, encounterId))
             {
-                RemoveGuard(encounterId);
+                RemoveGuard(guardKey);
                 continue;
             }
 
-            if (activeGuards.ContainsKey(encounterId) && activeGuards[encounterId] != null)
+            if (activeGuards.ContainsKey(guardKey) && activeGuards[guardKey] != null)
             {
                 continue;
             }
 
-            SpawnGuard(box, lockedTilePosition, encounterId, scopedIslandId);
+            SpawnGuard(box, lockedTilePosition, encounterId, scopedIslandId, guardKey);
         }
 
-        List<string> staleEncounterIds = new List<string>();
+        List<string> staleGuardKeys = new List<string>();
         foreach (KeyValuePair<string, OverworldEnemy> pair in activeGuards)
         {
-            if (!validEncounterIds.Contains(pair.Key))
+            if (!validGuardKeys.Contains(pair.Key))
             {
-                staleEncounterIds.Add(pair.Key);
+                staleGuardKeys.Add(pair.Key);
             }
         }
 
-        for (int i = 0; i < staleEncounterIds.Count; i++)
+        for (int i = 0; i < staleGuardKeys.Count; i++)
         {
-            RemoveGuard(staleEncounterIds[i]);
+            RemoveGuard(staleGuardKeys[i]);
         }
     }
 
-    private void SpawnGuard(PuzzleBoxInteractable box, Vector2Int lockedTilePosition, string encounterId, string islandId)
+    private void SpawnGuard(PuzzleBoxInteractable box, Vector2Int lockedTilePosition, string encounterId, string islandId, string guardKey)
     {
         Vector3 anchorPosition = box.GetOverlayBoardCenterWorldPosition() + GetTileOffset(lockedTilePosition) + spawnOffset;
 
@@ -148,34 +169,28 @@ public class PuzzleGuardSpawner : MonoBehaviour
             encounterId,
             box.GetSealedTileCombatRestorationValue(),
             anchorPosition,
-            1.5f,
             8f,
             1.6f,
             6f);
 
-        activeGuards[encounterId] = enemy;
-        encounterIslandLookup[encounterId] = islandId;
+        activeGuards[guardKey] = enemy;
+        guardTrackingLookup[guardKey] = new GuardTrackingInfo(islandId, encounterId);
     }
 
-    private void RemoveGuard(string encounterId)
+    private void RemoveGuard(string guardKey)
     {
-        if (string.IsNullOrEmpty(encounterId))
+        if (string.IsNullOrEmpty(guardKey))
         {
             return;
         }
 
-        if (!activeGuards.TryGetValue(encounterId, out OverworldEnemy guard))
-        {
-            return;
-        }
-
-        if (guard != null)
+        if (activeGuards.TryGetValue(guardKey, out OverworldEnemy guard) && guard != null)
         {
             Destroy(guard.gameObject);
         }
 
-        activeGuards.Remove(encounterId);
-        encounterIslandLookup.Remove(encounterId);
+        activeGuards.Remove(guardKey);
+        guardTrackingLookup.Remove(guardKey);
     }
 
     private void CleanupDestroyedGuards()
@@ -192,8 +207,68 @@ public class PuzzleGuardSpawner : MonoBehaviour
         for (int i = 0; i < staleKeys.Count; i++)
         {
             activeGuards.Remove(staleKeys[i]);
-            encounterIslandLookup.Remove(staleKeys[i]);
+            guardTrackingLookup.Remove(staleKeys[i]);
         }
+    }
+
+    private static string BuildGuardKey(string islandId, string encounterId, string boxId)
+    {
+        if (string.IsNullOrEmpty(encounterId))
+        {
+            return string.Empty;
+        }
+
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        string stableBoxId = string.IsNullOrEmpty(boxId) ? "unknown_box" : boxId;
+        return $"{scopedIslandId}::{encounterId}::{stableBoxId}";
+    }
+
+    private static string GetStableBoxIdentifier(PuzzleBoxInteractable box, Vector2Int lockedTilePosition)
+    {
+        if (box == null)
+        {
+            return $"fallback_{lockedTilePosition.x}_{lockedTilePosition.y}";
+        }
+
+        string boxId = box.GetPuzzleBoxId();
+        if (!string.IsNullOrEmpty(boxId))
+        {
+            return $"{boxId}@{lockedTilePosition.x}_{lockedTilePosition.y}";
+        }
+
+        string scenePath = box.gameObject.scene.path;
+        if (string.IsNullOrEmpty(scenePath))
+        {
+            scenePath = box.gameObject.scene.name;
+        }
+
+        if (string.IsNullOrEmpty(scenePath))
+        {
+            scenePath = "unknown_scene";
+        }
+
+        string hierarchyPath = BuildHierarchyPath(box.transform);
+        return $"{scenePath}/{hierarchyPath}@{lockedTilePosition.x}_{lockedTilePosition.y}";
+    }
+
+    private static string BuildHierarchyPath(Transform current)
+    {
+        if (current == null)
+        {
+            return "unknown_transform";
+        }
+
+        List<string> pathParts = new List<string>();
+        Transform walker = current;
+        while (walker != null)
+        {
+            int siblingIndex = walker.GetSiblingIndex();
+            pathParts.Add($"{walker.name}[{siblingIndex}]");
+            walker = walker.parent;
+        }
+
+        pathParts.Reverse();
+        return string.Join("/", pathParts);
     }
 
     private static bool IsEncounterCleared(string islandId, string encounterId)
