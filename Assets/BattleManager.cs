@@ -159,6 +159,12 @@ public class BattleManager : MonoBehaviour
 
     public void SwapUnits(CombatUnit activeUnit, CombatUnit reserveUnit)
     {
+        if (!AllowInBattlePartySwap)
+        {
+            Debug.LogWarning("[BattleManager] In-battle party swapping is disabled by design.");
+            return;
+        }
+
         if (activeUnit == null || reserveUnit == null)
         {
             Debug.LogWarning("[BattleManager] SwapUnits called with null unit.");
@@ -247,6 +253,7 @@ public class BattleManager : MonoBehaviour
     private bool actionExecutionActive;
     private BattleHud cachedBattleHud;
     private string debugText = "";
+    private const bool AllowInBattlePartySwap = false;
     private bool canSwapDuringPlayerInput = true;
     private int failedFleeAttemptsThisBattle;
 
@@ -1924,32 +1931,8 @@ public class BattleManager : MonoBehaviour
                 return true;
 
             case CombatActionType.Swap:
-                if (!canSwapDuringPlayerInput)
-                {
-                    return false;
-                }
-
-                // target is the reserve unit to swap IN
-                if (target == null || !allyReserveUnits.Contains(target))
-                {
-                    return false;
-                }
-                if (!target.IsAlive)
-                {
-                    return false;
-                }
-                // Perform swap instantly (no turn consumed)
-                // Assign swap action for the outgoing unit
-                AssignPlayerAction(actor, CombatActionType.Swap, target);
-                // Swap units
-                SwapUnits(actor, target);
-                // Mark incoming unit to skip turn this round
-                target.SkipTurnThisRound = true;
-                // Refresh player input units to reflect new composition
-                RefreshPlayerInputUnits();
-                // Since swap consumes the outgoing unit's turn (they are removed), we can consider action assigned.
-                // No need to auto-confirm because there may be other units needing actions.
-                return true;
+                Debug.LogWarning("[BattleManager] Swap action rejected. In-battle party swapping is disabled by design.");
+                return false;
         }
 
         return false;
@@ -1957,6 +1940,12 @@ public class BattleManager : MonoBehaviour
 
     public bool TrySwapWithReserve(CombatUnit activeUnit, CombatUnit reserveUnit)
     {
+        if (!AllowInBattlePartySwap)
+        {
+            Debug.LogWarning("[BattleManager] TrySwapWithReserve rejected. In-battle party swapping is disabled by design.");
+            return false;
+        }
+
         if (!canSwapDuringPlayerInput)
         {
             Debug.LogWarning("[BattleManager] Party swapping is only allowed during the first input round.");
@@ -2013,7 +2002,7 @@ public class BattleManager : MonoBehaviour
 
     public bool IsPartySwapAllowedThisRound()
     {
-        return canSwapDuringPlayerInput && hasActivePhase && currentPhase == BattlePhase.PlayerInput;
+        return AllowInBattlePartySwap && canSwapDuringPlayerInput && hasActivePhase && currentPhase == BattlePhase.PlayerInput;
     }
 
     public void SetPendingTideBreak(TideBreakData tb)
