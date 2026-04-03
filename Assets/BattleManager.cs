@@ -618,7 +618,8 @@ public class BattleManager : MonoBehaviour
             if (tbTarget != null)
             {
                 TideBreakData tbData = GetTideBreakForActor(actor);
-                return new PlannedAction(CombatActionType.TideBreak, actor, tbTarget, tbData);
+                bool requiresTarget = TideBreakRequiresExplicitTarget(tbData, actor);
+                return new PlannedAction(CombatActionType.TideBreak, actor, requiresTarget ? tbTarget : null, tbData);
             }
         }
 
@@ -628,33 +629,12 @@ public class BattleManager : MonoBehaviour
             return new PlannedAction(CombatActionType.Attack, actor, null);
         }
 
-        if (actor.Skills != null && actor.Skills.Length > 0)
+        SkillData skill = GetFirstSupportedSkillForCurrentSlice(actor);
+        if (skill != null)
         {
-            SkillData skill = actor.Skills[0];
             if (actor.CanUseSkill(skill))
             {
-                if (skill.target == SkillTarget.SingleAlly)
-                {
-                    IReadOnlyList<CombatUnit> allies = GetAliveUnits(actor.Type);
-                    CombatUnit woundedAlly = null;
-                    int lowestHpRatio = int.MaxValue;
-                    for (int i = 0; i < allies.Count; i++)
-                    {
-                        if (allies[i].HP < allies[i].MaxHP && allies[i].HP < lowestHpRatio)
-                        {
-                            woundedAlly = allies[i];
-                            lowestHpRatio = allies[i].HP;
-                        }
-                    }
-                    if (woundedAlly != null)
-                    {
-                        return new PlannedAction(CombatActionType.Skill, actor, woundedAlly, skill);
-                    }
-                }
-                else
-                {
-                    return new PlannedAction(CombatActionType.Skill, actor, target, skill);
-                }
+                return new PlannedAction(CombatActionType.Skill, actor, target, skill);
             }
         }
 
@@ -665,10 +645,25 @@ public class BattleManager : MonoBehaviour
     {
         if (actor.TideBreakAbilities != null && actor.TideBreakAbilities.Count > 0)
         {
-            // Pick random
-            int index = UnityEngine.Random.Range(0, actor.TideBreakAbilities.Count);
-            return actor.TideBreakAbilities[index];
+            List<TideBreakData> supported = new List<TideBreakData>();
+            for (int i = 0; i < actor.TideBreakAbilities.Count; i++)
+            {
+                TideBreakData candidate = actor.TideBreakAbilities[i];
+                if (IsTideBreakSupportedForCurrentSlice(candidate))
+                {
+                    supported.Add(candidate);
+                }
+            }
+
+            if (supported.Count > 0)
+            {
+                int index = UnityEngine.Random.Range(0, supported.Count);
+                return supported[index];
+            }
+
+            Debug.LogWarning($"[BattleManager] {actor.UnitName} has no supported Tide Break target types for this milestone. Using default Tide Break.");
         }
+
         return null;
     }
 
@@ -992,150 +987,12 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        // Handle different skill target types
-        switch (skill.target)
+        if (!IsSkillSupportedForCurrentSlice(skill))
         {
-            case SkillTarget.AllEnemies:
-            {
-                // AoE skill: apply to all living enemies (opposite faction)
-                CombatUnit.UnitType targetType = actor.Type == CombatUnit.UnitType.Ally ? CombatUnit.UnitType.Enemy : CombatUnit.UnitType.Ally;
-                List<CombatUnit> aoeTargets = GetAliveUnits(targetType).ToList();
-                if (aoeTargets.Count == 0)
-                {
-                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} but there are no living targets.", this);
-                    return;
-                }
-
-                actor.SpendMp(skill.mpCost);
-                int totalDamage = 0;
-                float aoeAttackMod = actor.GetAttackModifier();
-                int baseDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + aoeAttackMod)));
-
-                foreach (CombatUnit aoeTarget in aoeTargets)
-                {
-                    if (!aoeTarget.IsAlive) continue;
-
-                    float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, aoeTarget.ElementType);
-                    float skillMultiplier = elementMultiplier * skill.damageMultiplier;
-                    float variance = UnityEngine.Random.Range(0.8f, 1.2f);
-                    float modifiedDamageFloat = baseDamage * skillMultiplier * variance;
-
-                    bool isCrit = UnityEngine.Random.value < actor.CritRate;
-                    if (isCrit)
-                    {
-                        modifiedDamageFloat *= actor.CritDamage;
-                        Debug.Log($"[BattleManager] CRITICAL HIT! {actor.UnitName} crits {aoeTarget.UnitName} with {skill.skillName}!");
-                    }
-
-                    int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageFloat));
-                    MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, aoeTarget.ElementType);
-
-                    int hpBefore = aoeTarget.HP;
-                    aoeTarget.TakeDamage(modifiedDamage);
-                    int hpAfter = aoeTarget.HP;
-                    totalDamage += modifiedDamage;
-
-                    if (skill.appliedEffectType != StatusEffectType.None && aoeTarget.IsAlive)
-                    {
-                        StatusEffect effect = new StatusEffect(skill.appliedEffectType, skill.effectDuration, skill.effectMagnitude, actor.UnitName);
-                        aoeTarget.ApplyStatusEffect(effect);
-                    }
-
-                    string matchupFeedback = "";
-                    switch (matchup)
-                    {
-                        case MatchupResult.Strong:
-                            matchupFeedback = " Super effective!";
-                            break;
-                        case MatchupResult.Weak:
-                            matchupFeedback = " Not very effective...";
-                            break;
-                    }
-
-                    momentumState.ShiftForAction(actor, matchup);
-                    OnDamageDealt?.Invoke(actor, isCrit);
-                    TriggerBattleHitFeedback(actor, aoeTarget, isCrit, true);
-
-                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on {aoeTarget.UnitName} for {modifiedDamage} (base {baseDamage} x{skillMultiplier:F2}, -{skill.mpCost} MP). HP {hpBefore} -> {hpAfter}.{matchupFeedback}", this);
-                }
-                Debug.Log($"[BattleManager] {skill.skillName} hits {aoeTargets.Count} targets for {totalDamage} total.", this);
-            }
+            Debug.Log($"[BattleManager] {skill.skillName} target {skill.target} is deferred for this milestone. Attacking instead.", this);
+            ResolveAttack(actor, requestedTarget);
             return;
-
-            case SkillTarget.SingleAlly:
-                if (!actor.CanUseSkill(skill))
-                {
-                    Debug.Log($"[BattleManager] {actor.UnitName} lacks MP for {skill.skillName}. Attacking instead.", this);
-                    ResolveAttack(actor, requestedTarget);
-                    return;
-                }
-
-                CombatUnit allyTarget = requestedTarget;
-                if (allyTarget == null || !allyTarget.IsAlive || allyTarget.Type != actor.Type)
-                {
-                    IReadOnlyList<CombatUnit> livingAllies = GetAliveUnits(actor.Type);
-                    if (livingAllies.Count > 0)
-                    {
-                        allyTarget = livingAllies[UnityEngine.Random.Range(0, livingAllies.Count)];
-                    }
-                }
-
-                if (allyTarget == null || !allyTarget.IsAlive)
-                {
-                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} but has no valid ally target.", this);
-                    return;
-                }
-
-                actor.SpendMp(skill.mpCost);
-
-                float allyAttackMod = actor.GetAttackModifier();
-                int baseHeal = Mathf.RoundToInt(actor.Attack * (1f + allyAttackMod) * Mathf.Abs(skill.damageMultiplier));
-                int healAmount = Mathf.Max(1, baseHeal);
-                int hpBefore = allyTarget.HP;
-                allyTarget.Heal(healAmount);
-                int hpAfter = allyTarget.HP;
-
-                if (skill.appliedEffectType != StatusEffectType.None)
-                {
-                    StatusEffect allyEffect = new StatusEffect(skill.appliedEffectType, skill.effectDuration, skill.effectMagnitude, actor.UnitName);
-                    allyTarget.ApplyStatusEffect(allyEffect);
-                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on {allyTarget.UnitName}. Healed {hpBefore} -> {hpAfter} (+{hpAfter - hpBefore}). Applied {skill.appliedEffectType}. -{skill.mpCost} MP.", this);
-                }
-                else
-                {
-                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on {allyTarget.UnitName}. Healed {hpBefore} -> {hpAfter} (+{hpAfter - hpBefore}). -{skill.mpCost} MP.", this);
-                }
-                return;
-
-            case SkillTarget.Self:
-                if (!actor.CanUseSkill(skill))
-                {
-                    Debug.Log($"[BattleManager] {actor.UnitName} lacks MP for {skill.skillName}. Attacking instead.", this);
-                    ResolveAttack(actor, requestedTarget);
-                    return;
-                }
-
-                actor.SpendMp(skill.mpCost);
-
-                if (skill.appliedEffectType != StatusEffectType.None)
-                {
-                    StatusEffect selfEffect = new StatusEffect(skill.appliedEffectType, skill.effectDuration, skill.effectMagnitude, actor.UnitName);
-                    actor.ApplyStatusEffect(selfEffect);
-                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on self. Applied {skill.appliedEffectType}.", this);
-                }
-                else
-                {
-                    Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} on self.", this);
-                }
-                return;
-
-            case SkillTarget.SingleEnemy:
-            default:
-                // Single-target skill (existing behavior)
-                break;
         }
-
-        // Single-target logic (original code)
         CombatUnit target = requestedTarget;
         if (!IsValidTarget(actor, target))
         {
@@ -1171,12 +1028,6 @@ public class BattleManager : MonoBehaviour
         target.TakeDamage(modifiedDamageSingle);
         int hpAfterSingle = target.HP;
 
-        if (skill.appliedEffectType != StatusEffectType.None && target.IsAlive)
-        {
-            StatusEffect effect = new StatusEffect(skill.appliedEffectType, skill.effectDuration, skill.effectMagnitude, actor.UnitName);
-            target.ApplyStatusEffect(effect);
-        }
-
         string matchupFeedbackSingle = "";
         switch (matchupSingle)
         {
@@ -1189,6 +1040,7 @@ public class BattleManager : MonoBehaviour
         }
 
         momentumState.ShiftForAction(actor, matchupSingle);
+        TryApplySkillStatusEffect(actor, target, skill);
         OnDamageDealt?.Invoke(actor, isCritSingle);
         TriggerBattleHitFeedback(actor, target, isCritSingle, true);
 
@@ -1209,8 +1061,15 @@ public class BattleManager : MonoBehaviour
             abilityName = tideBreak.abilityName;
             damageMultiplier = tideBreak.damageMultiplier;
             targetType = tideBreak.targetType;
+
+            if (!IsTideBreakSupportedForCurrentSlice(tideBreak))
+            {
+                Debug.LogWarning($"[BattleManager] {abilityName} target {targetType} is deferred for this milestone. Using default Tide Break targeting.");
+                tideBreak = null;
+            }
         }
-        else
+
+        if (tideBreak == null)
         {
             // Fallback to static defaults
             TideBreakAbility tb = actor.Type == CombatUnit.UnitType.Ally
@@ -1680,52 +1539,26 @@ public class BattleManager : MonoBehaviour
 
                 if (GUI.Button(new Rect(panelRect.x + 276f, y, 120f, 28f), GetSkillButtonLabel(currentInputUnit)))
                 {
-                    SkillData skill = currentInputUnit.Skills != null && currentInputUnit.Skills.Length > 0
-                        ? currentInputUnit.Skills[0]
-                        : null;
+                    SkillData skill = GetFirstSupportedSkillForCurrentSlice(currentInputUnit);
                     if (skill != null && currentInputUnit.CanUseSkill(skill))
                     {
-                        // Check skill target type
-                        switch (skill.target)
-                        {
-                            case SkillTarget.AllEnemies:
-                                // AoE skill: skip target selection, assign with null target
-                                AssignPlayerAction(currentInputUnit, CombatActionType.Skill, null, skill);
-                                break;
-                            case SkillTarget.SingleAlly:
-                                pendingInputActionType = CombatActionType.Skill;
-                                pendingSkillData = skill;
-                                isAwaitingTargetSelection = true;
-                                break;
-                            case SkillTarget.Self:
-                                Debug.Log("[BattleManager] Self skill target not implemented. Skipping.");
-                                break;
-                            case SkillTarget.SingleEnemy:
-                            default:
-                                pendingInputActionType = CombatActionType.Skill;
-                                pendingSkillData = skill;
-                                isAwaitingTargetSelection = true;
-                                break;
-                        }
+                        pendingInputActionType = CombatActionType.Skill;
+                        pendingSkillData = skill;
+                        isAwaitingTargetSelection = true;
                     }
                 }
             }
             else
             {
-                bool isAllyTarget = pendingInputActionType == CombatActionType.Skill
-                    && pendingSkillData != null
-                    && pendingSkillData.target == SkillTarget.SingleAlly;
                 string targetPrompt = pendingInputActionType == CombatActionType.Skill
-                    ? (isAllyTarget ? "Select Ally Target:" : "Select Skill Target:")
+                    ? "Select Skill Target:"
                     : pendingInputActionType == CombatActionType.TideBreak
                         ? "Select Tide Break Target:"
                         : "Select Attack Target:";
                 GUI.Label(new Rect(panelRect.x + 12f, y, panelRect.width - 24f, 22f), targetPrompt);
                 y += 26f;
 
-                IReadOnlyList<CombatUnit> targets = isAllyTarget
-                    ? GetAliveUnits(CombatUnit.UnitType.Ally)
-                    : GetAliveUnits(CombatUnit.UnitType.Enemy);
+                IReadOnlyList<CombatUnit> targets = GetAliveUnits(CombatUnit.UnitType.Enemy);
                 for (int i = 0; i < targets.Count; i++)
                 {
                     CombatUnit target = targets[i];
@@ -1839,54 +1672,27 @@ public class BattleManager : MonoBehaviour
                 return true;
 
             case CombatActionType.Skill:
-                if (actor.Skills == null || actor.Skills.Length == 0)
+                SkillData skill = pendingSkillData;
+                if (skill == null)
+                {
+                    skill = GetFirstSupportedSkillForCurrentSlice(actor);
+                }
+
+                if (!IsSkillSupportedForCurrentSlice(skill))
                 {
                     return false;
                 }
-                SkillData skill = pendingSkillData ?? actor.Skills[0];
+
                 if (!actor.CanUseSkill(skill))
                 {
                     return false;
                 }
-                
-                // For AoE skills, target can be null
-                if (skill.target == SkillTarget.AllEnemies)
-                {
-                    // target can be null, we still assign action
-                    AssignPlayerAction(actor, CombatActionType.Skill, target, skill);
-                    pendingSkillData = null;
-                    TryAutoConfirmPlayerActions();
-                    return true;
-                }
 
-                // For self-target skills, target can be null
-                if (skill.target == SkillTarget.Self)
-                {
-                    AssignPlayerAction(actor, CombatActionType.Skill, null, skill);
-                    pendingSkillData = null;
-                    TryAutoConfirmPlayerActions();
-                    return true;
-                }
-
-                // For single-ally skills, require valid living ally target
-                if (skill.target == SkillTarget.SingleAlly)
-                {
-                    if (target == null || !target.IsAlive || target.Type != actor.Type)
-                    {
-                        return false;
-                    }
-                    AssignPlayerAction(actor, CombatActionType.Skill, target, skill);
-                    pendingSkillData = null;
-                    TryAutoConfirmPlayerActions();
-                    return true;
-                }
-                
-                // For single-enemy skills, require valid enemy target
                 if (!IsValidTarget(actor, target))
                 {
                     return false;
                 }
-                
+
                 AssignPlayerAction(actor, CombatActionType.Skill, target, skill);
                 pendingSkillData = null;
                 TryAutoConfirmPlayerActions();
@@ -1901,30 +1707,22 @@ public class BattleManager : MonoBehaviour
                 TideBreakData tbData = pendingTideBreak;
                 if (tbData == null)
                 {
-                    // No pending TB selected; pick first if available, else fallback to default
-                    if (actor.TideBreakAbilities != null && actor.TideBreakAbilities.Count > 0)
-                        tbData = actor.TideBreakAbilities[0];
-                    // else keep null, will fallback to default in ResolveTideBreak
+                    tbData = GetFirstSupportedTideBreakForCurrentSlice(actor);
                 }
-                
-                // Determine if target is required based on targetType
-                bool targetRequired = true;
-                if (tbData != null)
-                {
-                    targetRequired = tbData.targetType != SkillTarget.AllEnemies;
-                }
-                else
-                {
-                    // Fallback defaults: player -> AllEnemies, enemy -> SingleEnemy
-                    // Since this is player input, actor is always Ally (player)
-                    targetRequired = false; // AllEnemies fallback, target not required
-                }
-                
-                if (targetRequired && !IsValidTarget(actor, target))
+
+                if (tbData != null && !IsTideBreakSupportedForCurrentSlice(tbData))
                 {
                     return false;
                 }
                 
+                // Determine if target is required based on targetType
+                bool targetRequired = TideBreakRequiresExplicitTarget(tbData, actor);
+
+                if (targetRequired && !IsValidTarget(actor, target))
+                {
+                    return false;
+                }
+
                 AssignPlayerAction(actor, CombatActionType.TideBreak, target, tbData);
                 pendingTideBreak = null; // Clear after use
                 TryAutoConfirmPlayerActions();
@@ -2015,6 +1813,127 @@ public class BattleManager : MonoBehaviour
         pendingSkillData = skill;
     }
 
+    public bool IsSkillSupportedForCurrentSlice(SkillData skill)
+    {
+        return skill != null && skill.target == SkillTarget.SingleEnemy;
+    }
+
+    public SkillData GetFirstUsableSupportedSkillForCurrentSlice(CombatUnit actor)
+    {
+        if (actor == null || actor.Skills == null || actor.Skills.Length == 0)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < actor.Skills.Length; i++)
+        {
+            SkillData skill = actor.Skills[i];
+            if (IsSkillSupportedForCurrentSlice(skill) && actor.CanUseSkill(skill))
+            {
+                return skill;
+            }
+        }
+
+        return null;
+    }
+
+    public bool IsTideBreakSupportedForCurrentSlice(TideBreakData tideBreak)
+    {
+        if (tideBreak == null)
+        {
+            return false;
+        }
+
+        return tideBreak.targetType == SkillTarget.SingleEnemy
+            || tideBreak.targetType == SkillTarget.AllEnemies;
+    }
+
+    public TideBreakData GetFirstSupportedTideBreakForCurrentSlice(CombatUnit actor)
+    {
+        if (actor == null || actor.TideBreakAbilities == null || actor.TideBreakAbilities.Count == 0)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < actor.TideBreakAbilities.Count; i++)
+        {
+            TideBreakData tideBreak = actor.TideBreakAbilities[i];
+            if (IsTideBreakSupportedForCurrentSlice(tideBreak))
+            {
+                return tideBreak;
+            }
+        }
+
+        return null;
+    }
+
+    public SkillData GetFirstSupportedSkillForCurrentSlice(CombatUnit actor)
+    {
+        if (actor == null || actor.Skills == null || actor.Skills.Length == 0)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < actor.Skills.Length; i++)
+        {
+            SkillData skill = actor.Skills[i];
+            if (IsSkillSupportedForCurrentSlice(skill))
+            {
+                return skill;
+            }
+        }
+
+        return null;
+    }
+
+    private bool TideBreakRequiresExplicitTarget(TideBreakData tideBreak, CombatUnit actor)
+    {
+        if (tideBreak != null)
+        {
+            if (!IsTideBreakSupportedForCurrentSlice(tideBreak))
+            {
+                return false;
+            }
+
+            return tideBreak.targetType == SkillTarget.SingleEnemy;
+        }
+
+        return actor != null && actor.Type == CombatUnit.UnitType.Enemy;
+    }
+
+    private void TryApplySkillStatusEffect(CombatUnit actor, CombatUnit target, SkillData skill)
+    {
+        if (actor == null || target == null || skill == null)
+        {
+            return;
+        }
+
+        if (!target.IsAlive)
+        {
+            return;
+        }
+
+        if (skill.appliedEffectType == StatusEffectType.None)
+        {
+            return;
+        }
+
+        if (skill.effectDuration <= 0)
+        {
+            Debug.LogWarning($"[BattleManager] {skill.skillName} has {skill.appliedEffectType} configured with non-positive duration. Effect skipped.");
+            return;
+        }
+
+        StatusEffect effect = new StatusEffect(
+            skill.appliedEffectType,
+            skill.effectDuration,
+            skill.effectMagnitude,
+            actor.UnitName);
+
+        target.ApplyStatusEffect(effect);
+        Debug.Log($"[BattleManager] {actor.UnitName} applied {skill.appliedEffectType} to {target.UnitName} via {skill.skillName} ({skill.effectDuration} turns).", this);
+    }
+
     private void TryAutoConfirmPlayerActions()
     {
         if (AreAllPlayerActionsAssigned() && currentPhase == BattlePhase.PlayerInput)
@@ -2079,12 +1998,13 @@ public class BattleManager : MonoBehaviour
     private string GetSkillButtonLabel(CombatUnit unit)
     {
         if (unit == null) return "No Skill";
-        if (unit.Skills == null || unit.Skills.Length == 0)
+
+        SkillData skill = GetFirstSupportedSkillForCurrentSlice(unit);
+        if (skill == null)
         {
             return "No Skill";
         }
 
-        SkillData skill = unit.Skills[0];
         if (!unit.CanUseSkill(skill))
         {
             return $"No MP ({skill.mpCost})";
