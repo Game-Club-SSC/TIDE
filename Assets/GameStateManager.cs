@@ -113,6 +113,9 @@ public class GameStateManager : MonoBehaviour
     private bool isSavingWorldState;
     private bool isLoadingWorldState;
 
+    [Header("Feature Gates")]
+    [SerializeField] private bool enableCosmeticProgressionEconomyForCurrentSlice;
+
     [Serializable]
     private sealed class FinalBossDefeatSaveEntry
     {
@@ -160,10 +163,16 @@ public class GameStateManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         SceneManager.sceneLoaded += HandleSceneLoaded;
+        ApplyRuntimeFeatureGates();
         EnsureRestorationTracker();
         EnsureProgressionManager();
         EnsureFadeCanvas();
         LoadWorldState();
+    }
+
+    private void ApplyRuntimeFeatureGates()
+    {
+        HeroProgressionManager.ConfigureRuntimeCosmeticProgressionEconomy(enableCosmeticProgressionEconomyForCurrentSlice);
     }
 
     private void Start()

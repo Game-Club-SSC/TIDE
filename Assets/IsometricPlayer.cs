@@ -91,6 +91,11 @@ public class IsometricPlayer : MonoBehaviour
     {
         if (string.IsNullOrEmpty(currentStyleId))
         {
+            if (!string.IsNullOrEmpty(FuturisticSpriteLibrary.CurrentMainPlayerStyleId))
+            {
+                currentStyleId = FuturisticSpriteLibrary.CurrentMainPlayerStyleId;
+            }
+
             CombatUnit.Element defaultElement = CombatUnit.Element.Earth;
             if (PartyManager.Instance != null)
             {
@@ -101,7 +106,11 @@ public class IsometricPlayer : MonoBehaviour
                 }
             }
 
-            currentStyleId = FuturisticSpriteLibrary.GetDefaultStyleIdForElement(defaultElement);
+            if (string.IsNullOrEmpty(currentStyleId)
+                || !FuturisticSpriteLibrary.TryGetPlayerStyle(currentStyleId, out FuturisticSpriteLibrary.PlayerStyleDefinition _))
+            {
+                currentStyleId = FuturisticSpriteLibrary.GetDefaultStyleIdForElement(defaultElement);
+            }
         }
 
         if (FuturisticSpriteLibrary.TryGetPlayerStyle(currentStyleId, out FuturisticSpriteLibrary.PlayerStyleDefinition style))

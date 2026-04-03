@@ -5,12 +5,17 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class HeroProgressionManager : MonoBehaviour
 {
+    private const bool DefaultCosmeticProgressionEconomyEnabled = false;
     private const string CosmeticCurrencyHeroId = "__cosmetic_currency__";
+    private static bool runtimeCosmeticProgressionEconomyEnabled = DefaultCosmeticProgressionEconomyEnabled;
 
     public static HeroProgressionManager Instance { get; private set; }
 
     [Header("Configuration")]
     [SerializeField] private LevelingConfig levelingConfig;
+
+    [Header("Feature Gates")]
+    [SerializeField] private bool enableCosmeticProgressionEconomy = DefaultCosmeticProgressionEconomyEnabled;
 
     [Header("Gear")]
     [SerializeField] private GearSetData[] availableGearSets = System.Array.Empty<GearSetData>();
@@ -26,6 +31,18 @@ public class HeroProgressionManager : MonoBehaviour
 
     public LevelingConfig LevelingConfig => levelingConfig;
     public GearSetData[] AvailableGearSets => availableGearSets;
+    public bool IsCosmeticProgressionEnabled => enableCosmeticProgressionEconomy;
+    public static bool IsRuntimeCosmeticProgressionEconomyEnabled => runtimeCosmeticProgressionEconomyEnabled;
+
+    public static void ConfigureRuntimeCosmeticProgressionEconomy(bool isEnabled)
+    {
+        runtimeCosmeticProgressionEconomyEnabled = isEnabled;
+
+        if (Instance != null)
+        {
+            Instance.enableCosmeticProgressionEconomy = runtimeCosmeticProgressionEconomyEnabled;
+        }
+    }
 
     public class HeroProgressionState
     {
@@ -49,6 +66,7 @@ public class HeroProgressionManager : MonoBehaviour
         }
 
         Instance = this;
+        enableCosmeticProgressionEconomy = runtimeCosmeticProgressionEconomyEnabled;
         DontDestroyOnLoad(gameObject);
     }
 
@@ -259,12 +277,22 @@ public class HeroProgressionManager : MonoBehaviour
 
     public int GetCosmeticXp()
     {
+        if (!enableCosmeticProgressionEconomy)
+        {
+            return 0;
+        }
+
         HeroProgressionState state = GetState(CosmeticCurrencyHeroId);
         return state != null ? Mathf.Max(0, state.currentXp) : 0;
     }
 
     public void GrantCosmeticXp(int xpAmount)
     {
+        if (!enableCosmeticProgressionEconomy)
+        {
+            return;
+        }
+
         int amount = Mathf.Max(0, xpAmount);
         if (amount <= 0)
         {
@@ -280,6 +308,11 @@ public class HeroProgressionManager : MonoBehaviour
 
     public bool TrySpendCosmeticXp(int xpCost)
     {
+        if (!enableCosmeticProgressionEconomy)
+        {
+            return true;
+        }
+
         int cost = Mathf.Max(0, xpCost);
         if (cost <= 0)
         {
@@ -306,6 +339,11 @@ public class HeroProgressionManager : MonoBehaviour
             return false;
         }
 
+        if (!enableCosmeticProgressionEconomy)
+        {
+            return true;
+        }
+
         return unlockedPlayerColorPresetIds.Contains(presetId);
     }
 
@@ -314,6 +352,11 @@ public class HeroProgressionManager : MonoBehaviour
         if (string.IsNullOrEmpty(presetId))
         {
             return false;
+        }
+
+        if (!enableCosmeticProgressionEconomy)
+        {
+            return true;
         }
 
         if (IsPlayerColorPresetUnlocked(presetId))
@@ -338,7 +381,10 @@ public class HeroProgressionManager : MonoBehaviour
             return;
         }
 
-        GrantCosmeticXp(totalXp);
+        if (enableCosmeticProgressionEconomy)
+        {
+            GrantCosmeticXp(totalXp);
+        }
 
         int reserveXp = Mathf.RoundToInt(totalXp * levelingConfig.reserveXpMultiplier);
 
