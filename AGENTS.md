@@ -1,6 +1,8 @@
 # AGENTS.md - TIDE Project Guide
 
 ## Project Overview
+
+For an exhaustive technical deep-dive (architecture, data flow, patterns, pitfalls, system interactions), see: `Assets/Docs/REPO_UNDERSTANDING
 Unity 6 (6000.3.7f1) Turn-Based Fantasy RPG. Five elements (Fire, Water, Earth, Air, Space) with combat and puzzle mechanics.
 
 ## Contributors
