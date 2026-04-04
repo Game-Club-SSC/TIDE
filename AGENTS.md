@@ -26,19 +26,26 @@ The bot account `OpenCode-SSC-T` is **shadowbanned by GitHub for issue/PR creati
 
 **To create visible issues, switch to a human account token first:**
 ```bash
-# Save the bot token for restoring later (it's in ~/.config/gh/hosts.yml)
-# Switch to human account
-echo "HUMAN_ACCOUNT_PAT" | gh auth login --with-token
+# Switch to a human account using a secure token source.
+# Do not paste literal tokens into docs, commits, or chat.
+printf '%s' "$HUMAN_ACCOUNT_PAT" | gh auth login --with-token
 gh api user --jq '.login'  # verify it's NOT OpenCode-SSC-T
 
 # Create issues using gh issue create
 gh issue create --repo Game-Club-SSC/TIDE -l <label> -m "Vertical Slice" -t "Title" -b "Body"
 
 # After all issues are created, switch back to bot for git commits
-echo "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" | gh auth login --with-token
+# Read the bot token from your secret manager or local secure env var.
+printf '%s' "$OPENCODE_BOT_PAT" | gh auth login --with-token
+gh api user --jq '.login'  # verify it IS OpenCode-SSC-T
 ```
 
-**Always switch back to the bot account after creating issues** so git push continues to work. The bot token is in `~/.config/gh/hosts.yml`.
+**Always switch back to the bot account after creating issues** so git push continues to work.
+
+Security notes:
+- Never store PATs in tracked files or commit history.
+- If a token is exposed, revoke/rotate it immediately and replace it via secure secret handling.
+- Prefer short-lived credentials where possible.
 
 ## Pre-Work Protocol
 ```bash
