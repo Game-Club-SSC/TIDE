@@ -1,4 +1,3 @@
-using System;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -54,7 +53,7 @@ public class BattleFlowTestSuite
         allyFast.DebugHP = 0;
         allyFast.DebugIsAlive = false;
 
-        CombatUnit nextActor = (CombatUnit)InvokePrivate(manager, "TryGetNextActingUnit", new object[] { null });
+        CombatUnit nextActor = (CombatUnit)InvokePrivate(manager, "TryGetNextActingUnit");
         Assert.IsNotNull(nextActor, "Queue should produce a valid actor after skipping dead units.");
         Assert.AreEqual("EnemyMid", nextActor.UnitName, "Dead queued units should be skipped before their turn.");
 
@@ -72,7 +71,273 @@ public class BattleFlowTestSuite
         Assert.Less(enemyMid.HP, enemyMidBefore, "Attack should retarget to living enemyMid.");
     }
 
-    private static CombatUnit CreateUnit(Transform parent, string name, CombatUnit.UnitType type, int speed, int attack, int defense, int hp)
+    [Test]
+    public void NeutralClashQteRuntimeSuccessShiftsMomentumToPlayer()
+    {
+        CombatUnit ally = CreateUnit(
+            unitsRoot.transform,
+            "AllyQteSuccess",
+            CombatUnit.UnitType.Ally,
+            speed: 14,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Fire);
+        CombatUnit enemy = CreateUnit(
+            unitsRoot.transform,
+            "EnemyQteSuccess",
+            CombatUnit.UnitType.Enemy,
+            speed: 10,
+            attack: 18,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Fire);
+
+        manager.RegisterUnit(ally);
+        manager.RegisterUnit(enemy);
+
+        BattleManager.ClashResult? resolved = null;
+        manager.OnClashResolved += result => resolved = result;
+        manager.OnNeutralClashQteRequested += (requestedAlly, requestedEnemy) =>
+        {
+            Assert.AreSame(ally, requestedAlly, "Neutral clash QTE should pass ally participant first.");
+            Assert.AreSame(enemy, requestedEnemy, "Neutral clash QTE should pass enemy participant second.");
+            return true;
+        };
+
+        InvokePrivate(manager, "ExecuteNeutralClash", ally, enemy);
+
+        Assert.IsTrue(resolved.HasValue, "Clash should emit OnClashResolved.");
+        BattleManager.ClashResult resultData = resolved.Value;
+        Assert.IsTrue(resultData.HasWinner, "QTE-triggered neutral clash should resolve with a winner.");
+        Assert.IsTrue(resultData.NeutralQteTriggered, "Neutral clash should report QTE trigger state.");
+        Assert.IsTrue(resultData.NeutralQteSuccess, "Runtime success should be recorded.");
+        Assert.AreEqual("Runtime", resultData.NeutralQteResolution, "Runtime callback should be marked as the resolution source.");
+        Assert.AreSame(ally, resultData.Winner, "QTE success should grant ally advantage.");
+        Assert.AreSame(enemy, resultData.Loser, "QTE success should set enemy as loser.");
+        Assert.AreEqual(91, ally.HP, "Ally should take loser clash damage (0.5x enemy ATK).");
+        Assert.AreEqual(70, enemy.HP, "Enemy should take winner clash damage (1.5x ally ATK).");
+        Assert.That(manager.Momentum.Value, Is.EqualTo(0.15f).Within(0.0001f), "QTE success should shift momentum toward player.");
+    }
+
+    [Test]
+    public void NeutralClashQteRuntimeFailShiftsMomentumToEnemy()
+    {
+        CombatUnit ally = CreateUnit(
+            unitsRoot.transform,
+            "AllyQteFail",
+            CombatUnit.UnitType.Ally,
+            speed: 14,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Water);
+        CombatUnit enemy = CreateUnit(
+            unitsRoot.transform,
+            "EnemyQteFail",
+            CombatUnit.UnitType.Enemy,
+            speed: 10,
+            attack: 18,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Water);
+
+        manager.RegisterUnit(ally);
+        manager.RegisterUnit(enemy);
+
+        BattleManager.ClashResult? resolved = null;
+        manager.OnClashResolved += result => resolved = result;
+        manager.OnNeutralClashQteRequested += (_, _) => false;
+
+        InvokePrivate(manager, "ExecuteNeutralClash", ally, enemy);
+
+        Assert.IsTrue(resolved.HasValue, "Clash should emit OnClashResolved.");
+        BattleManager.ClashResult resultData = resolved.Value;
+        Assert.IsTrue(resultData.HasWinner, "QTE-triggered neutral clash should resolve with a winner.");
+        Assert.IsTrue(resultData.NeutralQteTriggered, "Neutral clash should report QTE trigger state.");
+        Assert.IsFalse(resultData.NeutralQteSuccess, "Runtime fail should be recorded.");
+        Assert.AreEqual("Runtime", resultData.NeutralQteResolution, "Runtime callback should be marked as the resolution source.");
+        Assert.AreSame(enemy, resultData.Winner, "QTE fail should grant enemy advantage.");
+        Assert.AreSame(ally, resultData.Loser, "QTE fail should set ally as loser.");
+        Assert.AreEqual(73, ally.HP, "Ally should take winner clash damage (1.5x enemy ATK).");
+        Assert.AreEqual(90, enemy.HP, "Enemy should take loser clash damage (0.5x ally ATK).");
+        Assert.That(manager.Momentum.Value, Is.EqualTo(-0.15f).Within(0.0001f), "QTE fail should shift momentum toward enemy.");
+    }
+
+    [Test]
+    public void NeutralClashQteFallbackWithoutRuntimeIsDeterministic()
+    {
+        CombatUnit ally = CreateUnit(
+            unitsRoot.transform,
+            "AllyFallback",
+            CombatUnit.UnitType.Ally,
+            speed: 17,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Earth);
+        CombatUnit enemy = CreateUnit(
+            unitsRoot.transform,
+            "EnemyFallback",
+            CombatUnit.UnitType.Enemy,
+            speed: 12,
+            attack: 18,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Earth);
+
+        manager.RegisterUnit(ally);
+        manager.RegisterUnit(enemy);
+
+        BattleManager.ClashResult? resolved = null;
+        manager.OnClashResolved += result => resolved = result;
+
+        InvokePrivate(manager, "ExecuteNeutralClash", ally, enemy);
+
+        Assert.IsTrue(resolved.HasValue, "Clash should emit OnClashResolved.");
+        BattleManager.ClashResult resultData = resolved.Value;
+        Assert.IsTrue(resultData.HasWinner, "Fallback QTE should still resolve to a winner.");
+        Assert.IsTrue(resultData.NeutralQteTriggered, "Fallback QTE should be marked as triggered.");
+        Assert.IsTrue(resultData.NeutralQteSuccess, "Higher-speed ally should win deterministic fallback.");
+        Assert.AreEqual("Fallback", resultData.NeutralQteResolution, "Missing runtime should use deterministic fallback.");
+        Assert.AreSame(ally, resultData.Winner, "Fallback winner should be ally due to higher speed.");
+        Assert.That(manager.Momentum.Value, Is.EqualTo(0.15f).Within(0.0001f), "Fallback success should still shift momentum toward player.");
+    }
+
+    [Test]
+    public void NeutralClashQteFallbackTieUsesRegistrationOrder()
+    {
+        CombatUnit enemy = CreateUnit(
+            unitsRoot.transform,
+            "EnemyTieFallback",
+            CombatUnit.UnitType.Enemy,
+            speed: 12,
+            attack: 18,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Space);
+        CombatUnit ally = CreateUnit(
+            unitsRoot.transform,
+            "AllyTieFallback",
+            CombatUnit.UnitType.Ally,
+            speed: 12,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Space);
+
+        manager.RegisterUnit(enemy);
+        manager.RegisterUnit(ally);
+
+        BattleManager.ClashResult? resolved = null;
+        manager.OnClashResolved += result => resolved = result;
+
+        InvokePrivate(manager, "ExecuteNeutralClash", ally, enemy);
+
+        Assert.IsTrue(resolved.HasValue, "Clash should emit OnClashResolved.");
+        BattleManager.ClashResult resultData = resolved.Value;
+        Assert.IsTrue(resultData.HasWinner, "Fallback tie should still resolve to a winner.");
+        Assert.IsFalse(resultData.NeutralQteSuccess, "Earlier-registered enemy should win fallback tie-break.");
+        Assert.AreEqual("Fallback", resultData.NeutralQteResolution, "Missing runtime should use deterministic fallback tie-break.");
+        Assert.AreSame(enemy, resultData.Winner, "Fallback tie should resolve to earlier registration order.");
+        Assert.That(manager.Momentum.Value, Is.EqualTo(-0.15f).Within(0.0001f), "Fallback tie loss should shift momentum toward enemy.");
+    }
+
+    [Test]
+    public void NeutralClashQteMissingRuntimeWithFallbackDisabledUsesNeutralResolution()
+    {
+        CombatUnit ally = CreateUnit(
+            unitsRoot.transform,
+            "AllyNoFallback",
+            CombatUnit.UnitType.Ally,
+            speed: 17,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Air);
+        CombatUnit enemy = CreateUnit(
+            unitsRoot.transform,
+            "EnemyNoFallback",
+            CombatUnit.UnitType.Enemy,
+            speed: 12,
+            attack: 18,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Air);
+
+        manager.RegisterUnit(ally);
+        manager.RegisterUnit(enemy);
+        SetPrivateField(manager, "allowNeutralClashQteFallbackWhenRuntimeMissing", false);
+
+        BattleManager.ClashResult? resolved = null;
+        manager.OnClashResolved += result => resolved = result;
+
+        InvokePrivate(manager, "ExecuteNeutralClash", ally, enemy);
+
+        Assert.IsTrue(resolved.HasValue, "Clash should emit OnClashResolved.");
+        BattleManager.ClashResult resultData = resolved.Value;
+        Assert.IsFalse(resultData.HasWinner, "With fallback disabled and no runtime, clash should remain neutral.");
+        Assert.IsFalse(resultData.NeutralQteTriggered, "QTE should report as not triggered when runtime is unavailable and fallback disabled.");
+        Assert.AreEqual("RuntimeUnavailable", resultData.NeutralQteResolution, "Resolution should document missing runtime path.");
+        Assert.AreEqual(89, ally.HP, "Neutral clash should apply 0.6x enemy damage to ally.");
+        Assert.AreEqual(88, enemy.HP, "Neutral clash should apply 0.6x ally damage to enemy.");
+        Assert.That(manager.Momentum.Value, Is.EqualTo(0f).Within(0.0001f), "Neutral fallback path should not shift momentum.");
+    }
+
+    [Test]
+    public void NeutralClashQteNotTriggeredWhenElementIsNone()
+    {
+        CombatUnit ally = CreateUnit(
+            unitsRoot.transform,
+            "AllyNoneElement",
+            CombatUnit.UnitType.Ally,
+            speed: 14,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.None);
+        CombatUnit enemy = CreateUnit(
+            unitsRoot.transform,
+            "EnemyNoneElement",
+            CombatUnit.UnitType.Enemy,
+            speed: 12,
+            attack: 18,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Fire);
+
+        manager.RegisterUnit(ally);
+        manager.RegisterUnit(enemy);
+
+        bool qteRequested = false;
+        manager.OnNeutralClashQteRequested += (_, _) =>
+        {
+            qteRequested = true;
+            return true;
+        };
+
+        BattleManager.ClashResult? resolved = null;
+        manager.OnClashResolved += result => resolved = result;
+
+        InvokePrivate(manager, "ExecuteNeutralClash", ally, enemy);
+
+        Assert.IsFalse(qteRequested, "QTE should not trigger when either unit has Element.None.");
+        Assert.IsTrue(resolved.HasValue, "Clash should emit OnClashResolved.");
+        BattleManager.ClashResult resultData = resolved.Value;
+        Assert.IsFalse(resultData.HasWinner, "Element.None should force neutral resolution.");
+        Assert.AreEqual("Ineligible", resultData.NeutralQteResolution, "Resolution should document ineligible trigger conditions.");
+        Assert.That(manager.Momentum.Value, Is.EqualTo(0f).Within(0.0001f), "Ineligible neutral clash should not shift momentum.");
+    }
+
+    private static CombatUnit CreateUnit(
+        Transform parent,
+        string name,
+        CombatUnit.UnitType type,
+        int speed,
+        int attack,
+        int defense,
+        int hp,
+        CombatUnit.Element element = CombatUnit.Element.None)
     {
         GameObject unitObject = new GameObject(name);
         unitObject.transform.SetParent(parent, false);
@@ -83,24 +348,36 @@ public class BattleFlowTestSuite
         unit.Speed = speed;
         unit.Attack = attack;
         unit.Defense = defense;
+        unit.ElementType = element;
         unit.MaxHP = Mathf.Max(1, hp);
         unit.HP = Mathf.Clamp(hp, 0, unit.MaxHP);
         unit.DebugIsAlive = unit.HP > 0;
         return unit;
     }
 
-    private static object InvokePrivate(BattleManager manager, string methodName, params object[] args)
+    private static object InvokePrivate(object target, string methodName, params object[] args)
     {
-        MethodInfo method = typeof(BattleManager).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(target, "Reflection target should not be null.");
+
+        MethodInfo method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.IsNotNull(method, $"Method '{methodName}' should exist for verification.");
 
-        if (methodName == "TryGetNextActingUnit")
+        if (target is BattleManager manager && methodName == "TryGetNextActingUnit")
         {
             object[] invokeArgs = new object[] { null };
             bool result = (bool)method.Invoke(manager, invokeArgs);
             return result ? (CombatUnit)invokeArgs[0] : null;
         }
 
-        return method.Invoke(manager, args);
+        return method.Invoke(target, args);
+    }
+
+    private static void SetPrivateField(object target, string fieldName, object value)
+    {
+        Assert.IsNotNull(target, "Reflection target should not be null.");
+
+        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"Field '{fieldName}' should exist for verification.");
+        field.SetValue(target, value);
     }
 }

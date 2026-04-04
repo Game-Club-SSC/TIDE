@@ -101,6 +101,9 @@ When a player and enemy target each other simultaneously:
 - Winner deals 1.5x attack, loser deals 0.5x attack
 - Neutral clash: both deal 0.6x attack
 - Shifts momentum bar
+- Neutral elemental clashes can trigger a QTE when both units are alive, opposite factions, and both have non-`None` elements
+- QTE success gives ally clash advantage (+0.15 momentum); QTE fail gives enemy clash advantage (-0.15 momentum)
+- If no runtime QTE responder exists, fallback is deterministic: higher Speed wins, then earlier registration order; fallback can also be disabled to keep legacy neutral resolution
 
 ### Momentum / Tide Break
 - `MomentumState` ranges from -1.0 (enemy) to +1.0 (player)
@@ -304,7 +307,7 @@ All tests are **MonoBehaviour scripts** with `[ContextMenu]` methods (no NUnit C
 
 | Test File | What It Tests |
 |---|---|
-| `BattleFlowTestSuite.cs` | Battle phase transitions, clash resolution, momentum |
+| `BattleFlowTestSuite.cs` | Battle phase transitions, clash resolution, momentum, neutral clash QTE runtime/fallback/guard paths |
 | `CombatUnitTest.cs` / `CombatUnitTestSuite.cs` | Unit stats, damage, healing, death, status effects |
 | `RestorationTrackerTest.cs` | Island restoration tracking |
 | `BossEncounterGateTest.cs` | Boss unlock at 75% restoration |

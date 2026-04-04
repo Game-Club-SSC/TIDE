@@ -204,24 +204,51 @@ public class BattleHud : MonoBehaviour
 
     private void ShowClashAnnouncement(BattleManager.ClashResult result)
     {
-        if (clashOverlay == null) return;
+        if (clashOverlay == null || clashTitle == null || clashSubtitle == null)
+        {
+            Debug.LogWarning("[BattleHud] Clash announcement skipped because UI references are missing.", this);
+            return;
+        }
 
         clashOverlay.SetActive(true);
         clashDisplayTimer = 2.5f;
 
-        if (result.HasWinner)
+        if (result.HasWinner && result.Winner != null && result.Loser != null)
         {
             bool winnerIsAlly = result.Winner.Type == CombatUnit.UnitType.Ally;
-            clashTitle.text = "CLASH!";
-            clashTitle.color = winnerIsAlly ? new Color(0.3f, 1f, 0.5f) : new Color(1f, 0.3f, 0.3f);
-            clashSubtitle.text = $"{result.Winner.UnitName} beats {result.Loser.UnitName}!";
-            clashSubtitle.color = winnerIsAlly ? new Color(0.5f, 1f, 0.7f) : new Color(1f, 0.5f, 0.5f);
+
+            if (result.NeutralQteTriggered)
+            {
+                clashTitle.text = result.NeutralQteSuccess ? "QTE CLASH SUCCESS!" : "QTE CLASH FAIL!";
+                clashTitle.color = winnerIsAlly ? new Color(0.3f, 1f, 0.5f) : new Color(1f, 0.3f, 0.3f);
+
+                string resolutionSuffix = string.IsNullOrEmpty(result.NeutralQteResolution)
+                    ? ""
+                    : $" [{result.NeutralQteResolution}]";
+                clashSubtitle.text = $"{result.Winner.UnitName} wins neutral clash.{resolutionSuffix}";
+                clashSubtitle.color = winnerIsAlly ? new Color(0.5f, 1f, 0.7f) : new Color(1f, 0.5f, 0.5f);
+            }
+            else
+            {
+                clashTitle.text = "CLASH!";
+                clashTitle.color = winnerIsAlly ? new Color(0.3f, 1f, 0.5f) : new Color(1f, 0.3f, 0.3f);
+                clashSubtitle.text = $"{result.Winner.UnitName} beats {result.Loser.UnitName}!";
+                clashSubtitle.color = winnerIsAlly ? new Color(0.5f, 1f, 0.7f) : new Color(1f, 0.5f, 0.5f);
+            }
         }
         else
         {
+            if (result.HasWinner)
+            {
+                Debug.LogWarning("[BattleHud] Clash winner announcement missing unit references. Showing neutral fallback text.", this);
+            }
+
+            string unitAName = result.UnitA != null ? result.UnitA.UnitName : "Unknown A";
+            string unitBName = result.UnitB != null ? result.UnitB.UnitName : "Unknown B";
+
             clashTitle.text = "CLASH!";
             clashTitle.color = new Color(1f, 0.9f, 0.4f);
-            clashSubtitle.text = $"{result.UnitA.UnitName} vs {result.UnitB.UnitName} — Neutral!";
+            clashSubtitle.text = $"{unitAName} vs {unitBName} — Neutral!";
             clashSubtitle.color = new Color(1f, 0.85f, 0.5f);
         }
     }
