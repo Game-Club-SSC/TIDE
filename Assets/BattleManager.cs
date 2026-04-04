@@ -261,7 +261,7 @@ public class BattleManager : MonoBehaviour
     private bool actionExecutionActive;
     private BattleHud cachedBattleHud;
     private string debugText = "";
-    private const bool AllowInBattlePartySwap = false;
+    private static readonly bool AllowInBattlePartySwap = false;
     private bool canSwapDuringPlayerInput = true;
     private int failedFleeAttemptsThisBattle;
 
@@ -1271,26 +1271,30 @@ public class BattleManager : MonoBehaviour
 
     private void ResolveTideBreak(CombatUnit actor, CombatUnit requestedTarget, TideBreakData tideBreak)
     {
+        if (actor == null || !actor.IsAlive)
+        {
+            return;
+        }
+
         // Determine which TideBreak data to use
         string abilityName;
         float damageMultiplier;
         SkillTarget targetType;
-        
-        if (tideBreak != null)
+
+        bool hasSupportedCustomTideBreak = tideBreak != null && IsTideBreakSupportedForCurrentSlice(tideBreak);
+        if (hasSupportedCustomTideBreak)
         {
             abilityName = tideBreak.abilityName;
             damageMultiplier = tideBreak.damageMultiplier;
             targetType = tideBreak.targetType;
-
-            if (!IsTideBreakSupportedForCurrentSlice(tideBreak))
-            {
-                Debug.LogWarning($"[BattleManager] {abilityName} target {targetType} is deferred for this milestone. Using default Tide Break targeting.");
-                tideBreak = null;
-            }
         }
-
-        if (tideBreak == null)
+        else
         {
+            if (tideBreak != null)
+            {
+                Debug.LogWarning($"[BattleManager] {tideBreak.abilityName} target {tideBreak.targetType} is deferred for this milestone. Using default Tide Break targeting.");
+            }
+
             // Fallback to static defaults
             TideBreakAbility tb = actor.Type == CombatUnit.UnitType.Ally
                 ? TideBreakAbility.PlayerDefault
