@@ -549,7 +549,7 @@ MonoBehaviour:
   puzzleValues: 
   sealedRow: 1
   sealedCol: 1
-  islandId: island_1
+  islandId: island_lust
   encounterId: puzzle_1
   puzzleBoxId: puzzle_1
   restorationValue: 0.2
@@ -808,7 +808,7 @@ MonoBehaviour:
   groundRenderer: {fileID: 709761153}
   minColor: {r: 1, g: 0.4509804, b: 0.12156863, a: 1}
   maxColor: {r: 1, g: 1, b: 1, a: 1}
-  islandId: island_1
+  islandId: island_lust
 --- !u!1001 &1011202614
 PrefabInstance:
   m_ObjectHideFlags: 0

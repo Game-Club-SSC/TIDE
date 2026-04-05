@@ -25,7 +25,7 @@ MonoBehaviour:
   sealedPosition: {x: -1, y: -1}
   lockedPosition: {x: 1, y: 1}
   lockedTileEncounterId: puzzle_1_sealed_1_1_guard
-  lockedTileIslandId: island_1
+  lockedTileIslandId: island_lust
   winCondition:
     type: 0
     targetValue: 5

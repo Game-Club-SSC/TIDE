@@ -47,6 +47,7 @@ public class GameStateManager : MonoBehaviour
         public List<string> completedNarrativeBeatIds = new List<string>();
         public IslandRestorationTracker.TrackerSnapshot restorationSnapshot;
         public GearProgressionSaveData gearProgression;
+        public IslandProgressionManager.ProgressionSnapshot progressionSnapshot;
     }
 
     public enum GameState
@@ -69,9 +70,13 @@ public class GameStateManager : MonoBehaviour
     public bool HasLoadedWorldState => hasLoadedWorldState;
 
     private const float FadeDuration = 0.2f;
+    private const float ExplorationPositionSyncInterval = 0.2f;
     private const string WorldStateSaveKey = "TIDE_WORLD_STATE_V1";
     private static readonly Vector3 DefaultSmithyPosition = new Vector3(15f, 31.54f, 2.69f);
     private static readonly Vector3 DefaultSmithyScale = new Vector3(1.4f, 1.1f, 1.4f);
+    private static readonly Vector3 DefaultBoatPosition = new Vector3(8.5f, 31.54f, 2.69f);
+    private static readonly Vector3 DefaultBoatScale = new Vector3(2.2f, 0.75f, 1.25f);
+    private static readonly Vector3 DefaultExplorationSpawnPosition = new Vector3(12f, 31.54f, 2.69f);
 
     private CanvasGroup fadeCanvasGroup;
     private IsometricPlayer player;
@@ -82,6 +87,9 @@ public class GameStateManager : MonoBehaviour
     private bool hasPendingCameraTransform;
     private bool isTransitioning;
     private bool hasHandledSceneLoad;
+    private float explorationPositionSyncTimer;
+    private Vector3 lastKnownExplorationPlayerPosition;
+    private bool hasLastKnownExplorationPlayerPosition;
 
     public PuzzleData PendingPuzzleData { get; set; }
     public int[,] PendingPuzzleLayout { get; set; }
@@ -169,6 +177,7 @@ public class GameStateManager : MonoBehaviour
         ApplyRuntimeFeatureGates();
         EnsureRestorationTracker();
         EnsureProgressionManager();
+        IslandProgressionManager.Instance?.ReconcileStateFromRestoration();
         EnsureFadeCanvas();
         LoadWorldState();
     }
@@ -183,6 +192,43 @@ public class GameStateManager : MonoBehaviour
         if (!hasHandledSceneLoad)
         {
             HandleSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+        }
+    }
+
+    private void Update()
+    {
+        if (isTransitioning || currentState != GameState.Exploration)
+        {
+            return;
+        }
+
+        explorationPositionSyncTimer -= Time.unscaledDeltaTime;
+        if (explorationPositionSyncTimer > 0f)
+        {
+            return;
+        }
+
+        explorationPositionSyncTimer = ExplorationPositionSyncInterval;
+        CachePlayer();
+        if (player == null)
+        {
+            return;
+        }
+
+        Vector3 playerPosition = player.transform.position;
+        if (!IsFiniteVector(playerPosition))
+        {
+            return;
+        }
+
+        lastKnownExplorationPlayerPosition = playerPosition;
+        hasLastKnownExplorationPlayerPosition = true;
+
+        if (IslandProgressionManager.Instance != null)
+        {
+            IslandProgressionManager.Instance.RecordIslandReturnPosition(
+                IslandProgressionManager.Instance.ActiveIslandId,
+                playerPosition);
         }
     }
 
@@ -253,7 +299,7 @@ public class GameStateManager : MonoBehaviour
         PendingCombatIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
         PendingCombatEncounterId = encounterId;
         PendingCombatRestorationValue = Mathf.Max(0.001f, restorationValue);
-        pendingReturnPosition = returnPosition;
+        pendingReturnPosition = ResolveSafeReturnPosition(returnPosition);
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = true;
         pendingBossIslandIdForDefeatTracking = PendingCombatIslandId;
@@ -315,7 +361,7 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
-        pendingReturnPosition = returnPosition;
+        pendingReturnPosition = ResolveSafeReturnPosition(returnPosition);
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = false;
         pendingBossIslandIdForDefeatTracking = null;
@@ -330,7 +376,7 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
-        pendingReturnPosition = returnPosition;
+        pendingReturnPosition = ResolveSafeReturnPosition(returnPosition);
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = false;
         pendingBossIslandIdForDefeatTracking = null;
@@ -629,6 +675,11 @@ public class GameStateManager : MonoBehaviour
                 saveData.gearProgression = HeroProgressionManager.Instance.CaptureGearSnapshot();
             }
 
+            if (IslandProgressionManager.Instance != null)
+            {
+                saveData.progressionSnapshot = IslandProgressionManager.Instance.CaptureSnapshot();
+            }
+
             string payload = JsonUtility.ToJson(saveData);
             PlayerPrefs.SetString(WorldStateSaveKey, payload);
             PlayerPrefs.Save();
@@ -747,6 +798,11 @@ public class GameStateManager : MonoBehaviour
             if (HeroProgressionManager.Instance != null && saveData.gearProgression != null)
             {
                 HeroProgressionManager.Instance.ApplyGearSnapshot(saveData.gearProgression);
+            }
+
+            if (IslandProgressionManager.Instance != null)
+            {
+                IslandProgressionManager.Instance.ApplySnapshot(saveData.progressionSnapshot);
             }
 
             PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
@@ -1048,14 +1104,24 @@ public class GameStateManager : MonoBehaviour
                 PendingPuzzleRestorationValue = 0f;
             }
 
-            if (hasPendingReturnPosition && player != null)
+            if (player != null && TryResolveSafeExplorationSpawnPosition(out Vector3 safeExplorationSpawn))
             {
-                player.transform.position = pendingReturnPosition;
+                player.transform.position = safeExplorationSpawn;
                 Rigidbody playerBody = player.GetComponent<Rigidbody>();
                 if (playerBody != null)
                 {
                     playerBody.linearVelocity = Vector3.zero;
                     playerBody.angularVelocity = Vector3.zero;
+                }
+
+                lastKnownExplorationPlayerPosition = safeExplorationSpawn;
+                hasLastKnownExplorationPlayerPosition = true;
+
+                if (IslandProgressionManager.Instance != null)
+                {
+                    IslandProgressionManager.Instance.RecordIslandReturnPosition(
+                        IslandProgressionManager.Instance.ActiveIslandId,
+                        safeExplorationSpawn);
                 }
             }
 
@@ -1191,7 +1257,7 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
-        pendingReturnPosition = player.transform.position;
+        pendingReturnPosition = ResolveSafeReturnPosition(player.transform.position);
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = true;
         CaptureExplorationCameraTransform();
@@ -1287,6 +1353,7 @@ public class GameStateManager : MonoBehaviour
         }
 
         EnsureSmithyInteractable();
+        EnsureIslandBoatInteractable();
     }
 
     private static void EnsureSmithyInteractable()
@@ -1302,6 +1369,27 @@ public class GameStateManager : MonoBehaviour
         smithyObject.transform.localScale = DefaultSmithyScale;
 
         smithyObject.AddComponent<SmithyInteractable>();
+    }
+
+    private static void EnsureIslandBoatInteractable()
+    {
+        if (FindFirstObjectByType<IslandBoatInteractable>() != null)
+        {
+            return;
+        }
+
+        GameObject boatObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        boatObject.name = "IslandBoat";
+        boatObject.transform.position = DefaultBoatPosition;
+        boatObject.transform.localScale = DefaultBoatScale;
+
+        Renderer renderer = boatObject.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            renderer.material.color = new Color(0.18f, 0.36f, 0.52f, 1f);
+        }
+
+        boatObject.AddComponent<IslandBoatInteractable>();
     }
 
     private void SnapFollowCameraToPlayer()
@@ -1390,6 +1478,133 @@ public class GameStateManager : MonoBehaviour
                 SaveFinalBossDefeatState();
             }
         }
+    }
+
+    private bool TryResolveSafeExplorationSpawnPosition(out Vector3 spawnPosition)
+    {
+        if (TryGetPendingReturnPosition(out spawnPosition))
+        {
+            return true;
+        }
+
+        if (TryGetProgressionReturnPosition(out spawnPosition))
+        {
+            return true;
+        }
+
+        if (TryGetLastKnownReturnPosition(out spawnPosition))
+        {
+            return true;
+        }
+
+        IsometricPlayer existingPlayer = FindFirstObjectByType<IsometricPlayer>();
+        if (existingPlayer != null)
+        {
+            spawnPosition = ResolveSafeReturnPosition(existingPlayer.transform.position);
+            return true;
+        }
+
+        if (TryGetBoatDestinationSpawn(out Vector3 boatSpawn))
+        {
+            spawnPosition = ResolveSafeReturnPosition(boatSpawn);
+            return true;
+        }
+
+        spawnPosition = ResolveSafeReturnPosition(DefaultExplorationSpawnPosition);
+        return true;
+    }
+
+    private bool TryGetPendingReturnPosition(out Vector3 returnPosition)
+    {
+        returnPosition = Vector3.zero;
+        if (!hasPendingReturnPosition || !IsFiniteVector(pendingReturnPosition))
+        {
+            return false;
+        }
+
+        returnPosition = ResolveSafeReturnPosition(pendingReturnPosition);
+        return true;
+    }
+
+    private bool TryGetProgressionReturnPosition(out Vector3 returnPosition)
+    {
+        returnPosition = Vector3.zero;
+        if (IslandProgressionManager.Instance == null)
+        {
+            return false;
+        }
+
+        if (!IslandProgressionManager.Instance.TryGetIslandReturnPosition(
+                IslandProgressionManager.Instance.ActiveIslandId,
+                out Vector3 persistedReturnPosition)
+            || !IsFiniteVector(persistedReturnPosition))
+        {
+            return false;
+        }
+
+        returnPosition = ResolveSafeReturnPosition(persistedReturnPosition);
+        return true;
+    }
+
+    private bool TryGetLastKnownReturnPosition(out Vector3 returnPosition)
+    {
+        returnPosition = Vector3.zero;
+        if (!hasLastKnownExplorationPlayerPosition || !IsFiniteVector(lastKnownExplorationPlayerPosition))
+        {
+            return false;
+        }
+
+        returnPosition = ResolveSafeReturnPosition(lastKnownExplorationPlayerPosition);
+        return true;
+    }
+
+    private Vector3 ResolveSafeReturnPosition(Vector3 candidatePosition)
+    {
+        if (!IsFiniteVector(candidatePosition))
+        {
+            return DefaultExplorationSpawnPosition;
+        }
+
+        float y = candidatePosition.y;
+        if (Mathf.Abs(y) < 0.001f)
+        {
+            y = DefaultExplorationSpawnPosition.y;
+        }
+
+        if (Mathf.Abs(y) < 0.001f)
+        {
+            y = 1f;
+        }
+
+        return new Vector3(candidatePosition.x, y, candidatePosition.z);
+    }
+
+    private static bool TryGetBoatDestinationSpawn(out Vector3 spawnPosition)
+    {
+        spawnPosition = Vector3.zero;
+
+        IslandBoatInteractable boat = FindFirstObjectByType<IslandBoatInteractable>();
+        if (boat == null)
+        {
+            return false;
+        }
+
+        if (!boat.TryGetSpawnPositionForIsland(IslandThemeRegistry.GetActiveIslandId(), out spawnPosition))
+        {
+            return false;
+        }
+
+        return IsFiniteVector(spawnPosition);
+    }
+
+    private static bool IsFiniteVector(Vector3 value)
+    {
+        return IsFiniteFloat(value.x) && IsFiniteFloat(value.y) && IsFiniteFloat(value.z);
+    }
+
+    private static bool IsFiniteFloat(float value)
+    {
+        return !float.IsNaN(value) && !float.IsInfinity(value);
     }
 
     private void SaveFinalBossDefeatState()
