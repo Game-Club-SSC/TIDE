@@ -27,16 +27,24 @@ The game is set in a world of five elemental forces: Fire, Water, Earth, Air, an
 - [x] **[Mar 25]** Implement the Tug-of-War Momentum bar mechanics.
 - [x] **[Mar 25]** Add devastating Tide Break ultimate abilities and clear-cache logic.
 - [x] **[Mar 25]** Build elemental 3D character models and grounded 3D combat visuals.
+- [x] **[Apr 01]** Implement SingleAlly skill targeting for support abilities.
+- [x] **[Apr 01]** Add neutral-clash QTE flow and in-battle feedback polish.
+- [x] **[Apr 04]** Harden neutral-clash QTE trigger and resolution guards.
 - [ ] Implement varied elemental enemy types with distinct AI patterns.
 - [ ] Balance element scaling (Fire > Air > Earth > Water > Fire).
 
 ### 📅 Phase 3: World Building & Art Integration (May 2026)
-- [ ] Design and map out the six corrupted islands.
+- [x] **[Apr 01]** Design and map out the six corrupted islands.
+- [x] **[Apr 01]** Complete vice-island content alignment with the GDD scope.
 - [ ] Integrate full character sprites, boss models, and environments.
-- [ ] Add boat travel mechanics between islands.
+- [x] **[Apr 01]** Add boat travel mechanics between islands.
+- [x] **[Apr 01]** Implement world map travel framework and island progression flow.
+- [x] **[Apr 05]** Complete gear instance leveling and smithy duplication progression.
 
 ### 📅 Phase 4: Polish, Audio & Narrative (June 2026)
 - [ ] Integrate background music and sound effects.
+- [x] **[Apr 01]** Implement inventory and abilities menu framework.
+- [x] **[Apr 01]** Add three-act narrative beats and endings framework.
 - [ ] Finalize dialogue, story events, and world lore.
 - [ ] Bug fixing, UI/UX polish, and final game balancing.
 
