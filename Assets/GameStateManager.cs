@@ -46,6 +46,7 @@ public class GameStateManager : MonoBehaviour
         public List<AncientTextRuntimeSaveEntry> ancientTextStates = new List<AncientTextRuntimeSaveEntry>();
         public List<string> completedNarrativeBeatIds = new List<string>();
         public IslandRestorationTracker.TrackerSnapshot restorationSnapshot;
+        public GearProgressionSaveData gearProgression;
     }
 
     public enum GameState
@@ -69,7 +70,8 @@ public class GameStateManager : MonoBehaviour
 
     private const float FadeDuration = 0.2f;
     private const string WorldStateSaveKey = "TIDE_WORLD_STATE_V1";
-    private static readonly bool EnablePersistentSaveData = false;
+    private static readonly Vector3 DefaultSmithyPosition = new Vector3(15f, 31.54f, 2.69f);
+    private static readonly Vector3 DefaultSmithyScale = new Vector3(1.4f, 1.1f, 1.4f);
 
     private CanvasGroup fadeCanvasGroup;
     private IsometricPlayer player;
@@ -115,6 +117,7 @@ public class GameStateManager : MonoBehaviour
 
     [Header("Feature Gates")]
     [SerializeField] private bool enableCosmeticProgressionEconomyForCurrentSlice;
+    [SerializeField] private bool enablePersistentSaveData = true;
 
     [Serializable]
     private sealed class FinalBossDefeatSaveEntry
@@ -553,7 +556,7 @@ public class GameStateManager : MonoBehaviour
 
     public void SaveWorldState()
     {
-        if (!EnablePersistentSaveData)
+        if (!enablePersistentSaveData)
         {
             return;
         }
@@ -621,6 +624,11 @@ public class GameStateManager : MonoBehaviour
                 saveData.restorationSnapshot = IslandRestorationTracker.Instance.CaptureSnapshot();
             }
 
+            if (HeroProgressionManager.Instance != null)
+            {
+                saveData.gearProgression = HeroProgressionManager.Instance.CaptureGearSnapshot();
+            }
+
             string payload = JsonUtility.ToJson(saveData);
             PlayerPrefs.SetString(WorldStateSaveKey, payload);
             PlayerPrefs.Save();
@@ -635,7 +643,7 @@ public class GameStateManager : MonoBehaviour
     {
         hasLoadedWorldState = true;
 
-        if (!EnablePersistentSaveData)
+        if (!enablePersistentSaveData)
         {
             return;
         }
@@ -734,6 +742,11 @@ public class GameStateManager : MonoBehaviour
             if (IslandRestorationTracker.Instance != null && saveData.restorationSnapshot != null)
             {
                 IslandRestorationTracker.Instance.ApplySnapshot(saveData.restorationSnapshot);
+            }
+
+            if (HeroProgressionManager.Instance != null && saveData.gearProgression != null)
+            {
+                HeroProgressionManager.Instance.ApplyGearSnapshot(saveData.gearProgression);
             }
 
             PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
@@ -1272,6 +1285,23 @@ public class GameStateManager : MonoBehaviour
         {
             spawner.RefreshGuards();
         }
+
+        EnsureSmithyInteractable();
+    }
+
+    private static void EnsureSmithyInteractable()
+    {
+        if (FindFirstObjectByType<SmithyInteractable>() != null)
+        {
+            return;
+        }
+
+        GameObject smithyObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        smithyObject.name = "SmithyStation";
+        smithyObject.transform.position = DefaultSmithyPosition;
+        smithyObject.transform.localScale = DefaultSmithyScale;
+
+        smithyObject.AddComponent<SmithyInteractable>();
     }
 
     private void SnapFollowCameraToPlayer()
@@ -1364,7 +1394,7 @@ public class GameStateManager : MonoBehaviour
 
     private void SaveFinalBossDefeatState()
     {
-        if (!EnablePersistentSaveData)
+        if (!enablePersistentSaveData)
         {
             return;
         }
@@ -1394,7 +1424,7 @@ public class GameStateManager : MonoBehaviour
 
     private void LoadFinalBossDefeatStateIfAvailable()
     {
-        if (!EnablePersistentSaveData)
+        if (!enablePersistentSaveData)
         {
             return;
         }
