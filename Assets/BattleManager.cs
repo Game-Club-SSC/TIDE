@@ -96,6 +96,10 @@ public class BattleManager : MonoBehaviour
     [SerializeField] [Range(0f, 1f)] private float fleeMinimumChance = 0.1f;
     [SerializeField] [Range(0f, 1f)] private float fleeMaximumChance = 0.95f;
 
+    [Header("Neutral Clash QTE")]
+    [SerializeField] private bool enableNeutralClashQte = true;
+    [SerializeField] private bool allowNeutralClashQteFallbackWhenRuntimeMissing = true;
+
     [SerializeField] private BattlePhase currentPhase;
 
     public BattlePhase CurrentPhase => currentPhase;
@@ -124,10 +128,14 @@ public class BattleManager : MonoBehaviour
         public CombatUnit Winner;
         public CombatUnit Loser;
         public string Description;
+        public bool NeutralQteTriggered;
+        public bool NeutralQteSuccess;
+        public string NeutralQteResolution;
     }
 
     public event Action<ClashResult> OnClashResolved;
     public event Action<CombatUnit, bool> OnDamageDealt;
+    public event Func<CombatUnit, CombatUnit, bool?> OnNeutralClashQteRequested;
 
     public CombatUnit GetEnemyTarget(CombatUnit enemy)
     {
@@ -253,7 +261,7 @@ public class BattleManager : MonoBehaviour
     private bool actionExecutionActive;
     private BattleHud cachedBattleHud;
     private string debugText = "";
-    private const bool AllowInBattlePartySwap = false;
+    private static readonly bool AllowInBattlePartySwap = false;
     private bool canSwapDuringPlayerInput = true;
     private int failedFleeAttemptsThisBattle;
 
@@ -702,6 +710,11 @@ public class BattleManager : MonoBehaviour
                 continue;
             }
 
+            if (clashedUnits.Contains(unitA))
+            {
+                continue;
+            }
+
             PlannedAction actionA = GetPlannedAction(unitA);
             if (!IsClashableAction(actionA.ActionType))
             {
@@ -712,6 +725,11 @@ public class BattleManager : MonoBehaviour
             {
                 CombatUnit unitB = allUnits[j];
                 if (unitB == null || !unitB.IsAlive)
+                {
+                    continue;
+                }
+
+                if (clashedUnits.Contains(unitB))
                 {
                     continue;
                 }
@@ -753,6 +771,7 @@ public class BattleManager : MonoBehaviour
 
                 clashedUnits.Add(unitA);
                 clashedUnits.Add(unitB);
+                break;
             }
         }
     }
@@ -764,9 +783,21 @@ public class BattleManager : MonoBehaviour
             || actionType == CombatActionType.TideBreak;
     }
 
-    private void ExecuteClash(CombatUnit winner, CombatUnit loser)
+    private void ExecuteClash(
+        CombatUnit winner,
+        CombatUnit loser,
+        bool neutralQteTriggered = false,
+        bool neutralQteSuccess = false,
+        string neutralQteResolution = "")
     {
-        Debug.Log($"[BattleManager] {winner.UnitName} wins the clash! (element advantage)", this);
+        if (winner == null || loser == null)
+        {
+            Debug.LogWarning("[BattleManager] Clash resolution skipped due to missing winner/loser.", this);
+            return;
+        }
+
+        string clashReason = neutralQteTriggered ? "neutral QTE" : "element advantage";
+        Debug.Log($"[BattleManager] {winner.UnitName} wins the clash! ({clashReason})", this);
 
         int winnerDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(winner.Attack * GameConstants.ClashWinnerMultiplier));
         int loserDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(loser.Attack * GameConstants.ClashLoserMultiplier));
@@ -788,12 +819,53 @@ public class BattleManager : MonoBehaviour
             HasWinner = true,
             Winner = winner,
             Loser = loser,
-            Description = $"{winner.UnitName} WINS!"
+            Description = neutralQteTriggered
+                ? (neutralQteSuccess ? $"QTE SUCCESS! {winner.UnitName} WINS!" : $"QTE FAIL! {winner.UnitName} WINS!")
+                : $"{winner.UnitName} WINS!",
+            NeutralQteTriggered = neutralQteTriggered,
+            NeutralQteSuccess = neutralQteSuccess,
+            NeutralQteResolution = neutralQteResolution
         });
     }
 
     private void ExecuteNeutralClash(CombatUnit unitA, CombatUnit unitB)
     {
+        if (unitA == null || unitB == null || !unitA.IsAlive || !unitB.IsAlive)
+        {
+            Debug.LogWarning("[BattleManager] Neutral clash skipped due to invalid participants.", this);
+            OnClashResolved?.Invoke(new ClashResult
+            {
+                UnitA = unitA,
+                UnitB = unitB,
+                HasWinner = false,
+                Winner = null,
+                Loser = null,
+                Description = "NEUTRAL CLASH",
+                NeutralQteTriggered = false,
+                NeutralQteSuccess = false,
+                NeutralQteResolution = "InvalidParticipants"
+            });
+            return;
+        }
+
+        string qteResolution = "NotTriggered";
+        if (TryResolveNeutralClashQte(
+            unitA,
+            unitB,
+            out CombatUnit qteWinner,
+            out CombatUnit qteLoser,
+            out bool qteSuccess,
+            out qteResolution))
+        {
+            ExecuteClash(qteWinner, qteLoser, true, qteSuccess, qteResolution);
+            return;
+        }
+
+        if (!string.Equals(qteResolution, "NotTriggered", StringComparison.Ordinal))
+        {
+            Debug.Log($"[BattleManager] Neutral clash QTE skipped: {qteResolution}.", this);
+        }
+
         Debug.Log($"[BattleManager] Clash is neutral. Both deal reduced damage.", this);
 
         int dmgA = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(unitA.Attack * GameConstants.ClashNeutralMultiplier));
@@ -814,8 +886,156 @@ public class BattleManager : MonoBehaviour
             HasWinner = false,
             Winner = null,
             Loser = null,
-            Description = "NEUTRAL CLASH"
+            Description = "NEUTRAL CLASH",
+            NeutralQteTriggered = false,
+            NeutralQteSuccess = false,
+            NeutralQteResolution = qteResolution
         });
+    }
+
+    private bool TryResolveNeutralClashQte(
+        CombatUnit unitA,
+        CombatUnit unitB,
+        out CombatUnit winner,
+        out CombatUnit loser,
+        out bool qteSuccess,
+        out string qteResolution)
+    {
+        winner = null;
+        loser = null;
+        qteSuccess = false;
+        qteResolution = "NotTriggered";
+
+        if (!enableNeutralClashQte)
+        {
+            qteResolution = "Disabled";
+            return false;
+        }
+
+        if (!TryGetNeutralClashParticipants(unitA, unitB, out CombatUnit ally, out CombatUnit enemy))
+        {
+            qteResolution = "Ineligible";
+            return false;
+        }
+
+        bool? runtimeResult = RequestNeutralClashQteResult(ally, enemy);
+        if (runtimeResult.HasValue)
+        {
+            qteSuccess = runtimeResult.Value;
+            qteResolution = "Runtime";
+        }
+        else
+        {
+            if (!allowNeutralClashQteFallbackWhenRuntimeMissing)
+            {
+                Debug.LogWarning("[BattleManager] Neutral clash QTE requested but runtime was unavailable. Falling back to neutral clash.", this);
+                qteResolution = "RuntimeUnavailable";
+                return false;
+            }
+
+            qteSuccess = ResolveNeutralClashQteFallback(ally, enemy);
+            qteResolution = "Fallback";
+        }
+
+        winner = qteSuccess ? ally : enemy;
+        loser = qteSuccess ? enemy : ally;
+
+        string outcome = qteSuccess ? "SUCCESS (momentum toward player)" : "FAIL (momentum toward enemy)";
+        Debug.Log($"[BattleManager] Neutral clash QTE resolved via {qteResolution}: {outcome}.", this);
+        return true;
+    }
+
+    private bool? RequestNeutralClashQteResult(CombatUnit ally, CombatUnit enemy)
+    {
+        if (ally == null || enemy == null)
+        {
+            return null;
+        }
+
+        if (OnNeutralClashQteRequested == null)
+        {
+            return null;
+        }
+
+        Delegate[] callbacks = OnNeutralClashQteRequested.GetInvocationList();
+        for (int i = 0; i < callbacks.Length; i++)
+        {
+            Func<CombatUnit, CombatUnit, bool?> callback = callbacks[i] as Func<CombatUnit, CombatUnit, bool?>;
+            if (callback == null)
+            {
+                continue;
+            }
+
+            bool? result = callback.Invoke(ally, enemy);
+            if (result.HasValue)
+            {
+                return result.Value;
+            }
+        }
+
+        return null;
+    }
+
+    private bool ResolveNeutralClashQteFallback(CombatUnit ally, CombatUnit enemy)
+    {
+        if (ally == null || enemy == null)
+        {
+            return false;
+        }
+
+        if (ally.Speed != enemy.Speed)
+        {
+            return ally.Speed > enemy.Speed;
+        }
+
+        return GetRegistrationOrder(ally) <= GetRegistrationOrder(enemy);
+    }
+
+    private static bool TryGetNeutralClashParticipants(
+        CombatUnit unitA,
+        CombatUnit unitB,
+        out CombatUnit ally,
+        out CombatUnit enemy)
+    {
+        ally = null;
+        enemy = null;
+
+        if (unitA == null || unitB == null || !unitA.IsAlive || !unitB.IsAlive)
+        {
+            return false;
+        }
+
+        if (unitA.Type == CombatUnit.UnitType.Ally && unitB.Type == CombatUnit.UnitType.Enemy)
+        {
+            ally = unitA;
+            enemy = unitB;
+        }
+        else if (unitB.Type == CombatUnit.UnitType.Ally && unitA.Type == CombatUnit.UnitType.Enemy)
+        {
+            ally = unitB;
+            enemy = unitA;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (ally.ElementType == CombatUnit.Element.None || enemy.ElementType == CombatUnit.Element.None)
+        {
+            return false;
+        }
+
+        if (ElementMatchup.GetResult(ally.ElementType, enemy.ElementType) != MatchupResult.Neutral)
+        {
+            return false;
+        }
+
+        if (ElementMatchup.GetResult(enemy.ElementType, ally.ElementType) != MatchupResult.Neutral)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private void BeginEndTurnPhase()
@@ -1051,26 +1271,30 @@ public class BattleManager : MonoBehaviour
 
     private void ResolveTideBreak(CombatUnit actor, CombatUnit requestedTarget, TideBreakData tideBreak)
     {
+        if (actor == null || !actor.IsAlive)
+        {
+            return;
+        }
+
         // Determine which TideBreak data to use
         string abilityName;
         float damageMultiplier;
         SkillTarget targetType;
-        
-        if (tideBreak != null)
+
+        bool hasSupportedCustomTideBreak = tideBreak != null && IsTideBreakSupportedForCurrentSlice(tideBreak);
+        if (hasSupportedCustomTideBreak)
         {
             abilityName = tideBreak.abilityName;
             damageMultiplier = tideBreak.damageMultiplier;
             targetType = tideBreak.targetType;
-
-            if (!IsTideBreakSupportedForCurrentSlice(tideBreak))
-            {
-                Debug.LogWarning($"[BattleManager] {abilityName} target {targetType} is deferred for this milestone. Using default Tide Break targeting.");
-                tideBreak = null;
-            }
         }
-
-        if (tideBreak == null)
+        else
         {
+            if (tideBreak != null)
+            {
+                Debug.LogWarning($"[BattleManager] {tideBreak.abilityName} target {tideBreak.targetType} is deferred for this milestone. Using default Tide Break targeting.");
+            }
+
             // Fallback to static defaults
             TideBreakAbility tb = actor.Type == CombatUnit.UnitType.Ally
                 ? TideBreakAbility.PlayerDefault
