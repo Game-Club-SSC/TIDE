@@ -17,7 +17,7 @@ public class CombatBoxInteractable : MonoBehaviour
     [Header("Interaction")]
     [SerializeField] private Vector3 triggerSize = new Vector3(3.25f, 2.25f, 3.25f);
     [SerializeField] private Color boxColor = new Color(0.8f, 0.15f, 0.15f);
-    [SerializeField] private string islandId = "island_lust";
+    [SerializeField] private string islandId = "";
     [SerializeField] private string encounterId = "";
     [SerializeField] private float restorationValue = 0.001f;
 
@@ -27,6 +27,8 @@ public class CombatBoxInteractable : MonoBehaviour
     private bool playerInRange;
     private Sprite runtimePromptSprite;
     private bool startupClearCheckComplete;
+    private string generatedEncounterId;
+    private bool loggedGeneratedEncounterId;
 
     private void Awake()
     {
@@ -73,13 +75,15 @@ public class CombatBoxInteractable : MonoBehaviour
             return;
         }
 
-        if (!string.IsNullOrEmpty(encounterId))
+        string trackedEncounterId = ResolveTrackingEncounterId();
+        if (!string.IsNullOrEmpty(trackedEncounterId))
         {
             gsm.EnterCombatSceneFromExploration(
-                IslandThemeRegistry.ResolveIslandId(islandId),
-                encounterId,
+                ResolveTrackingIslandId(),
+                trackedEncounterId,
                 Mathf.Max(0.001f, restorationValue),
-                transform.position);
+                transform.position,
+                IsBossEncounter(trackedEncounterId));
         }
         else
         {
@@ -89,18 +93,19 @@ public class CombatBoxInteractable : MonoBehaviour
 
     private bool ShouldDisableAsClearedEncounter()
     {
-        if (string.IsNullOrEmpty(encounterId) || IslandRestorationTracker.Instance == null)
+        string trackedEncounterId = ResolveTrackingEncounterId();
+        if (string.IsNullOrEmpty(trackedEncounterId) || IslandRestorationTracker.Instance == null)
         {
             return false;
         }
 
-        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
-        return IslandRestorationTracker.Instance.HasClearedEncounter(scopedIslandId, encounterId);
+        return IslandRestorationTracker.Instance.HasClearedEncounter(ResolveTrackingIslandId(), trackedEncounterId);
     }
 
     private bool TryDisableAsClearedEncounter()
     {
-        if (string.IsNullOrEmpty(encounterId))
+        string trackedEncounterId = ResolveTrackingEncounterId();
+        if (string.IsNullOrEmpty(trackedEncounterId))
         {
             startupClearCheckComplete = true;
             return false;
@@ -119,6 +124,73 @@ public class CombatBoxInteractable : MonoBehaviour
 
         gameObject.SetActive(false);
         return true;
+    }
+
+    private string ResolveTrackingEncounterId()
+    {
+        if (!string.IsNullOrEmpty(encounterId))
+        {
+            return encounterId;
+        }
+
+        if (string.IsNullOrEmpty(generatedEncounterId))
+        {
+            generatedEncounterId = GetGeneratedEncounterId();
+        }
+
+        if (!loggedGeneratedEncounterId)
+        {
+            Debug.LogWarning($"[CombatBoxInteractable] Missing encounterId on '{name}'. Using generated id '{generatedEncounterId}'.", this);
+            loggedGeneratedEncounterId = true;
+        }
+
+        return generatedEncounterId;
+    }
+
+    private string ResolveTrackingIslandId()
+    {
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return IslandThemeRegistry.GetActiveIslandId();
+        }
+
+        return IslandThemeRegistry.ResolveIslandId(islandId);
+    }
+
+    private string GetGeneratedEncounterId()
+    {
+        string scopedIslandId = ResolveTrackingIslandId();
+        string hierarchyPath = BuildHierarchyPath(transform);
+        return $"auto_combat::{scopedIslandId}::{hierarchyPath}";
+    }
+
+    private static string BuildHierarchyPath(Transform current)
+    {
+        if (current == null)
+        {
+            return "unknown";
+        }
+
+        System.Collections.Generic.List<string> pathParts = new System.Collections.Generic.List<string>();
+        Transform walker = current;
+        while (walker != null)
+        {
+            pathParts.Add($"{walker.name}[{walker.GetSiblingIndex()}]");
+            walker = walker.parent;
+        }
+
+        pathParts.Reverse();
+        return string.Join("/", pathParts);
+    }
+
+    private static bool IsBossEncounter(string trackedEncounterId)
+    {
+        if (string.IsNullOrEmpty(trackedEncounterId))
+        {
+            return false;
+        }
+
+        return trackedEncounterId.IndexOf("boss", System.StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private void OnTriggerEnter(Collider other)

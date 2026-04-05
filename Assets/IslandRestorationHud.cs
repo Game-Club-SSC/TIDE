@@ -7,7 +7,7 @@ public class IslandRestorationHud : MonoBehaviour
     private const string LabelName = "RestorationLabel";
 
     [Header("Display")]
-    [SerializeField] private string islandId = "island_lust";
+    [SerializeField] private string islandId = "";
     [SerializeField] private string islandName = "Island";
     [SerializeField] private string viceName = "";
     [SerializeField] private Vector2 labelPosition = new Vector2(-24f, -24f);

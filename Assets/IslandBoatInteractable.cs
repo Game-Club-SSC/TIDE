@@ -77,6 +77,8 @@ public class IslandBoatInteractable : MonoBehaviour
         EnsureDestinationList();
         RefreshDestinationOrder();
         SetPromptVisible(false);
+
+        Debug.Log($"[IslandBoatInteractable] Initialized on '{name}' at {transform.position}.");
     }
 
     private void Update()
@@ -318,6 +320,7 @@ public class IslandBoatInteractable : MonoBehaviour
         }
 
         progressionManager.RecordIslandReturnPosition(destinationIslandId, destinationSpawn);
+        gameStateManager.HandleIslandTravelFlowReset();
         gameStateManager.SaveWorldState();
 
         Debug.Log($"[IslandBoatInteractable] Traveled from '{previousIslandId}' to '{destinationIslandId}' at {destinationSpawn}.");

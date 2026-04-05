@@ -122,6 +122,7 @@ public class GameStateManager : MonoBehaviour
     private string pendingBossIslandIdForDefeatTracking;
     private bool isSavingWorldState;
     private bool isLoadingWorldState;
+    private bool hasBootstrappedFlowForCurrentScene;
 
     [Header("Feature Gates")]
     [SerializeField] private bool enableCosmeticProgressionEconomyForCurrentSlice;
@@ -288,7 +289,7 @@ public class GameStateManager : MonoBehaviour
         BeginCombatTransition();
     }
 
-    public void EnterCombatSceneFromExploration(string islandId, string encounterId, float restorationValue, Vector3 returnPosition)
+    public void EnterCombatSceneFromExploration(string islandId, string encounterId, float restorationValue, Vector3 returnPosition, bool isBossEncounter = false)
     {
         if (!CanEnterCombatScene())
         {
@@ -302,7 +303,9 @@ public class GameStateManager : MonoBehaviour
         pendingReturnPosition = ResolveSafeReturnPosition(returnPosition);
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = true;
-        pendingBossIslandIdForDefeatTracking = PendingCombatIslandId;
+        pendingBossIslandIdForDefeatTracking = (isBossEncounter || IsBossEncounterId(PendingCombatEncounterId))
+            ? PendingCombatIslandId
+            : null;
         CaptureExplorationCameraTransform();
         BeginCombatTransition();
     }
@@ -320,6 +323,17 @@ public class GameStateManager : MonoBehaviour
         PendingCombatRestorationValue = Mathf.Max(0.001f, restorationValue);
         hasPendingCombatReturnPosition = false;
         BeginCombatTransition();
+    }
+
+    public void SetBossDefeatTrackingContext(string islandId, bool shouldTrack)
+    {
+        if (!shouldTrack)
+        {
+            pendingBossIslandIdForDefeatTracking = null;
+            return;
+        }
+
+        pendingBossIslandIdForDefeatTracking = IslandThemeRegistry.ResolveIslandId(islandId);
     }
 
     private void BeginCombatTransition()
@@ -822,7 +836,7 @@ public class GameStateManager : MonoBehaviour
         MarkPuzzleBoxSolved(puzzleBoxId);
 
         string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
-        string scopedEncounterId = string.IsNullOrEmpty(encounterId) ? "__puzzle_complete__" : encounterId;
+        string scopedEncounterId = ResolvePuzzleEncounterId(encounterId, puzzleBoxId, scopedIslandId);
         float contribution = restorationValue > 0f ? restorationValue : 0.2f;
 
         if (IslandRestorationTracker.Instance != null)
@@ -1029,6 +1043,7 @@ public class GameStateManager : MonoBehaviour
     private void HandleSceneLoaded(Scene scene, LoadSceneMode loadMode)
     {
         hasHandledSceneLoad = true;
+        hasBootstrappedFlowForCurrentScene = false;
         CachePlayer();
         EnsureRestorationTracker();
 
@@ -1065,10 +1080,7 @@ public class GameStateManager : MonoBehaviour
                     islandId = IslandThemeRegistry.ResolveIslandId(islandId);
 
                     string encounterId = PendingPuzzleEncounterId;
-                    if (string.IsNullOrEmpty(encounterId))
-                    {
-                        encounterId = "__puzzle_complete__";
-                    }
+                    encounterId = ResolvePuzzleEncounterId(encounterId, pendingSolvedPuzzleBoxId, islandId);
 
                     float contribution = PendingPuzzleRestorationValue > 0f ? PendingPuzzleRestorationValue : 0.2f;
 
@@ -1354,6 +1366,94 @@ public class GameStateManager : MonoBehaviour
 
         EnsureSmithyInteractable();
         EnsureIslandBoatInteractable();
+    }
+
+    private void EnsureIslandFlowController()
+    {
+        if (isTransitioning || currentState != GameState.Exploration)
+        {
+            return;
+        }
+
+        IslandFlowController flowController = FindFirstObjectByType<IslandFlowController>();
+        if (flowController == null)
+        {
+            GameObject flowObject = new GameObject("IslandFlowController");
+            flowController = flowObject.AddComponent<IslandFlowController>();
+        }
+
+        if (flowController == null)
+        {
+            return;
+        }
+
+        if (IslandProgressionManager.Instance == null)
+        {
+            return;
+        }
+
+        IslandConfig activeConfig = IslandProgressionManager.Instance.GetActiveIslandConfig();
+        if (activeConfig == null)
+        {
+            return;
+        }
+
+        string targetIslandId = IslandThemeRegistry.ResolveIslandId(activeConfig.islandId);
+        if (flowController.IsActive && string.Equals(flowController.IslandId, targetIslandId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        flowController.StartIsland(activeConfig);
+    }
+
+    public void HandleIslandTravelFlowReset()
+    {
+        hasBootstrappedFlowForCurrentScene = false;
+        EnsureIslandFlowController();
+    }
+
+    private static string ResolvePuzzleEncounterId(string encounterId, string puzzleBoxId, string islandId)
+    {
+        if (!string.IsNullOrEmpty(encounterId))
+        {
+            return encounterId;
+        }
+
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        string stablePuzzleId = string.IsNullOrEmpty(puzzleBoxId) ? "unknown_box" : puzzleBoxId;
+        return $"__puzzle_complete__::{scopedIslandId}::{stablePuzzleId}";
+    }
+
+    private static bool IsBossEncounterId(string encounterId)
+    {
+        if (string.IsNullOrEmpty(encounterId))
+        {
+            return false;
+        }
+
+        return encounterId.IndexOf("boss", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private void LateUpdate()
+    {
+        if (hasBootstrappedFlowForCurrentScene)
+        {
+            return;
+        }
+
+        if (SceneManager.GetActiveScene().name != MainSceneName)
+        {
+            return;
+        }
+
+        if (isTransitioning || currentState != GameState.Exploration)
+        {
+            return;
+        }
+
+        EnsureIslandFlowController();
+        hasBootstrappedFlowForCurrentScene = true;
     }
 
     private static void EnsureSmithyInteractable()

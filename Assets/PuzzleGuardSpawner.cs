@@ -134,7 +134,8 @@ public class PuzzleGuardSpawner : MonoBehaviour
 
     private void SpawnGuard(PuzzleBoxInteractable box, Vector2Int lockedTilePosition, string encounterId, string islandId, string guardKey)
     {
-        Vector3 anchorPosition = box.GetOverlayBoardCenterWorldPosition() + GetTileOffset(lockedTilePosition) + spawnOffset;
+        Vector3 desiredAnchor = box.GetOverlayBoardCenterWorldPosition() + GetTileOffset(lockedTilePosition) + spawnOffset;
+        Vector3 anchorPosition = ResolveSpawnAnchor(desiredAnchor);
 
         GameObject guardObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         guardObject.name = $"PuzzleGuard_{encounterId}";
@@ -306,6 +307,69 @@ public class PuzzleGuardSpawner : MonoBehaviour
         }
 
         return null;
+    }
+
+    private Vector3 ResolveSpawnAnchor(Vector3 desiredAnchor)
+    {
+        float radius = Mathf.Max(0.2f, 0.5f * Mathf.Max(guardScale.x, guardScale.z));
+        float halfHeight = Mathf.Max(radius + 0.05f, guardScale.y * 0.5f);
+        float probe = radius * 1.75f;
+
+        Vector3[] offsets =
+        {
+            Vector3.zero,
+            new Vector3(probe, 0f, 0f),
+            new Vector3(-probe, 0f, 0f),
+            new Vector3(0f, 0f, probe),
+            new Vector3(0f, 0f, -probe),
+            new Vector3(probe, 0f, probe),
+            new Vector3(probe, 0f, -probe),
+            new Vector3(-probe, 0f, probe),
+            new Vector3(-probe, 0f, -probe)
+        };
+
+        for (int i = 0; i < offsets.Length; i++)
+        {
+            Vector3 candidate = desiredAnchor + offsets[i];
+            if (!IsAnchorBlocked(candidate, radius, halfHeight))
+            {
+                return candidate;
+            }
+        }
+
+        Debug.LogWarning($"[PuzzleGuardSpawner] Could not find free spawn anchor near {desiredAnchor}. Using desired anchor.");
+        return desiredAnchor;
+    }
+
+    private static bool IsAnchorBlocked(Vector3 position, float radius, float halfHeight)
+    {
+        float verticalOffset = Mathf.Max(0f, halfHeight - radius);
+        Vector3 pointA = position + Vector3.up * verticalOffset;
+        Vector3 pointB = position - Vector3.up * verticalOffset;
+
+        Collider[] overlaps = Physics.OverlapCapsule(pointA, pointB, radius, ~0, QueryTriggerInteraction.Ignore);
+        if (overlaps == null || overlaps.Length == 0)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            Collider hit = overlaps[i];
+            if (hit == null || hit.isTrigger)
+            {
+                continue;
+            }
+
+            if (hit.attachedRigidbody == null)
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private static Vector3 GetTileOffset(Vector2Int tilePosition)

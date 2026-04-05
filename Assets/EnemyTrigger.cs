@@ -5,7 +5,7 @@ using UnityEngine;
 public class EnemyTrigger : MonoBehaviour
 {
     [SerializeField] private EncounterConfig encounterConfig;
-    [SerializeField] private string islandId = "island_lust";
+    [SerializeField] private string islandId = "";
     [SerializeField] private string encounterIdOverride = "";
     [SerializeField] private float restorationValue = 0.001f;
 
@@ -48,13 +48,6 @@ public class EnemyTrigger : MonoBehaviour
 
         if (GameStateManager.Instance.HasActiveFlowController)
         {
-            Collider flowTriggerCollider = GetComponent<Collider>();
-            if (flowTriggerCollider != null)
-            {
-                flowTriggerCollider.enabled = false;
-            }
-
-            Destroy(gameObject, 0.1f);
             return;
         }
 
@@ -67,7 +60,8 @@ public class EnemyTrigger : MonoBehaviour
                 ResolveTrackingIslandId(),
                 trackedEncounterId,
                 Mathf.Max(0.001f, restorationValue),
-                returnPosition);
+                returnPosition,
+                IsBossEncounter());
         }
         else
         {
@@ -81,6 +75,16 @@ public class EnemyTrigger : MonoBehaviour
         }
 
         Destroy(gameObject, 0.1f);
+    }
+
+    private bool IsBossEncounter()
+    {
+        if (encounterConfig == null || string.IsNullOrEmpty(encounterConfig.encounterId))
+        {
+            return false;
+        }
+
+        return encounterConfig.encounterId.IndexOf("boss", System.StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private bool ShouldDisableAsClearedEncounter()
@@ -146,6 +150,11 @@ public class EnemyTrigger : MonoBehaviour
 
     private string ResolveTrackingIslandId()
     {
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return IslandThemeRegistry.GetActiveIslandId();
+        }
+
         return IslandThemeRegistry.ResolveIslandId(islandId);
     }
 
