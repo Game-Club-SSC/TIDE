@@ -24,6 +24,8 @@ public class EncounterDefinition
 {
     public string encounterId = "";
     public EncounterType type;
+    [Tooltip("Marks this encounter as a boss encounter for progression gating.")]
+    public bool isBossEncounter;
     [Range(0f, 1f)]
     public float restorationValue;
     public EncounterConfig encounterConfig;

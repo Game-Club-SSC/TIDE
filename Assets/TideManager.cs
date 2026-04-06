@@ -919,14 +919,9 @@ public class TideManager : MonoBehaviour
         Vector2Int tilePosition = sealedTile.GridPosition;
         string completionEncounterId = GetSealedTileEncounterId(tilePosition);
         string islandScope = GetPuzzleIslandIdForLookup();
-        if (string.IsNullOrEmpty(islandScope))
-        {
-            islandScope = "island_lust";
-        }
-        else
-        {
-            islandScope = IslandThemeRegistry.ResolveIslandId(islandScope);
-        }
+        islandScope = string.IsNullOrEmpty(islandScope)
+            ? IslandThemeRegistry.GetActiveIslandId()
+            : IslandThemeRegistry.ResolveIslandId(islandScope);
 
         if (IslandRestorationTracker.Instance != null
             && !string.IsNullOrEmpty(completionEncounterId)

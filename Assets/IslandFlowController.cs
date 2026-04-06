@@ -9,6 +9,7 @@ public class IslandFlowController : MonoBehaviour
     private bool isActive;
     private bool awaitingEncounterResolution;
     private string activeIslandId;
+    private bool hasLoggedDeadlockWarning;
 
     public string IslandId => activeIslandId;
 
@@ -93,6 +94,7 @@ public class IslandFlowController : MonoBehaviour
 
         isActive = true;
         awaitingEncounterResolution = false;
+        hasLoggedDeadlockWarning = false;
 
         int restoredIndex = GetNextIncompleteEncounterIndex();
         currentEncounterIndex = Mathf.Clamp(restoredIndex, 0, islandConfig.encounters.Length);
@@ -193,6 +195,12 @@ public class IslandFlowController : MonoBehaviour
             else
             {
                 Debug.Log($"[IslandFlowController] Boss encounter for '{activeIslandId}' remains locked until 75% restoration.");
+                if (!hasLoggedDeadlockWarning)
+                {
+                    float currentPercent = tracker != null ? tracker.GetRestorationPercent(activeIslandId) : 0f;
+                    Debug.LogWarning($"[IslandFlowController] No non-boss encounters remain while boss is locked for '{activeIslandId}' ({currentPercent:F1}% < 75%). Check encounter restoration totals/content balance.");
+                    hasLoggedDeadlockWarning = true;
+                }
                 awaitingEncounterResolution = false;
                 return;
             }
@@ -224,6 +232,10 @@ public class IslandFlowController : MonoBehaviour
     private void LoadCombatEncounter(EncounterDefinition encounter)
     {
         awaitingEncounterResolution = true;
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.SetBossDefeatTrackingContext(activeIslandId, IsBossEncounter(encounter));
+        }
 
         if (encounter.encounterConfig != null && GameStateManager.Instance != null)
         {
@@ -318,6 +330,7 @@ public class IslandFlowController : MonoBehaviour
 
         if (nonBossFallback >= 0)
         {
+            hasLoggedDeadlockWarning = false;
             return nonBossFallback;
         }
 
@@ -369,6 +382,11 @@ public class IslandFlowController : MonoBehaviour
         if (encounter == null)
         {
             return false;
+        }
+
+        if (encounter.isBossEncounter)
+        {
+            return true;
         }
 
         if (!string.IsNullOrEmpty(encounter.encounterId)

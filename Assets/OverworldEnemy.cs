@@ -35,7 +35,7 @@ public class OverworldEnemy : MonoBehaviour
 
     [Header("Combat")]
     [SerializeField] private EncounterConfig encounterConfig;
-    [SerializeField] private string islandId = "island_lust";
+    [SerializeField] private string islandId = "";
     [SerializeField] private string encounterIdOverride = "";
     [SerializeField] private float restorationValue = 0.001f;
 
@@ -46,6 +46,9 @@ public class OverworldEnemy : MonoBehaviour
     [SerializeField] private float puzzleGuardReturnChaseDelay = 0.35f;
     [SerializeField] private float puzzleGuardReturnStuckTimeout = 1.2f;
     [SerializeField] private float puzzleGuardReturnProgressThreshold = 0.05f;
+    [SerializeField] private float puzzleGuardReturnEnterBuffer = 0.35f;
+    [SerializeField] private float puzzleGuardPostSnapReturnDelay = 0.75f;
+    [SerializeField] private float puzzleGuardFallbackLogCooldown = 5f;
 
     [Header("Visual")]
     [SerializeField] private Color enemyColor = new Color(0.89f, 0.38f, 0.25f);
@@ -68,7 +71,7 @@ public class OverworldEnemy : MonoBehaviour
     private SpriteRenderer arrowRenderer;
     private Transform characterModelRoot;
     private Vector3 guardAnchorPosition;
-    private string puzzleGuardIslandId = "island_lust";
+    private string puzzleGuardIslandId = "";
     private string puzzleGuardEncounterId;
     private float puzzleGuardRestorationValue = 0.001f;
     private bool hasTriggeredCombat;
@@ -78,6 +81,8 @@ public class OverworldEnemy : MonoBehaviour
     private float puzzleGuardChaseLockUntilTime;
     private float puzzleGuardReturnStuckTimer;
     private float puzzleGuardLastReturnDistance;
+    private float puzzleGuardReturnLockUntilTime;
+    private float puzzleGuardNextFallbackLogTime;
 
     private void Awake()
     {
@@ -757,7 +762,8 @@ public class OverworldEnemy : MonoBehaviour
                     ResolveTrackingIslandId(),
                     scopedEncounterId,
                     Mathf.Max(0.001f, restorationValue),
-                    returnPosition);
+                    returnPosition,
+                    IsBossEncounterId(scopedEncounterId));
                 Debug.Log($"[OverworldEnemy] {name} initiating tracked combat '{scopedEncounterId}'.");
             }
             else
@@ -797,7 +803,16 @@ public class OverworldEnemy : MonoBehaviour
 
     private void UpdatePuzzleGuardRoamState()
     {
-        if (GetPlanarDistance(transform.position, guardAnchorPosition) > arrivalThreshold)
+        if (Time.time < puzzleGuardReturnLockUntilTime)
+        {
+            return;
+        }
+
+        float returnEnterDistance = Mathf.Max(
+            arrivalThreshold + 0.05f,
+            arrivalThreshold + Mathf.Max(0.01f, puzzleGuardReturnEnterBuffer));
+
+        if (GetPlanarDistance(transform.position, guardAnchorPosition) > returnEnterDistance)
         {
             TransitionToState(EnemyState.Returning);
         }
@@ -808,6 +823,8 @@ public class OverworldEnemy : MonoBehaviour
         float distanceToAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
         if (distanceToAnchor <= arrivalThreshold)
         {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            puzzleGuardReturnLockUntilTime = Time.time + 0.1f;
             TransitionToState(EnemyState.Roaming);
             return;
         }
@@ -824,9 +841,16 @@ public class OverworldEnemy : MonoBehaviour
 
         if (puzzleGuardReturnStuckTimer >= Mathf.Max(0.1f, puzzleGuardReturnStuckTimeout))
         {
-            Debug.LogWarning($"[OverworldEnemy] {name} return fallback: snapping puzzle guard to anchor.");
-            transform.position = guardAnchorPosition;
+            if (Time.time >= puzzleGuardNextFallbackLogTime)
+            {
+                Debug.LogWarning($"[OverworldEnemy] {name} return fallback: snapping puzzle guard to anchor.");
+                puzzleGuardNextFallbackLogTime = Time.time + Mathf.Max(0.5f, puzzleGuardFallbackLogCooldown);
+            }
+
+            rb.position = guardAnchorPosition;
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            rb.angularVelocity = Vector3.zero;
+            puzzleGuardReturnLockUntilTime = Time.time + Mathf.Max(0.1f, puzzleGuardPostSnapReturnDelay);
             TransitionToState(EnemyState.Roaming);
             return;
         }
@@ -1037,12 +1061,34 @@ public class OverworldEnemy : MonoBehaviour
 
     private string ResolveTrackingIslandId()
     {
+        string fallbackIslandId = IslandThemeRegistry.GetActiveIslandId();
+
         if (isPuzzleGuard)
         {
+            if (string.IsNullOrEmpty(puzzleGuardIslandId))
+            {
+                return fallbackIslandId;
+            }
+
             return IslandThemeRegistry.ResolveIslandId(puzzleGuardIslandId);
         }
 
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return fallbackIslandId;
+        }
+
         return IslandThemeRegistry.ResolveIslandId(islandId);
+    }
+
+    private static bool IsBossEncounterId(string encounterId)
+    {
+        if (string.IsNullOrEmpty(encounterId))
+        {
+            return false;
+        }
+
+        return encounterId.IndexOf("boss", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     // ========== LIFECYCLE ==========

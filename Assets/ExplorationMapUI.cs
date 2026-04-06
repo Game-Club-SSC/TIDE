@@ -17,7 +17,7 @@ public class ExplorationMapUI : MonoBehaviour
     [SerializeField] private bool showMiniMapByDefault = true;
 
     [Header("Tracking")]
-    [SerializeField] private string islandId = "island_lust";
+    [SerializeField] private string islandId = "";
 
     [Header("Mini Map Layout")]
     [SerializeField] private Vector2 miniMapSize = new Vector2(300f, 200f);

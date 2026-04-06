@@ -16,6 +16,17 @@ public static class IslandThemeRegistry
         "island_envy"
     };
 
+    private static readonly Dictionary<string, string> legacyIslandIdAliases =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            { "island_1", "island_lust" },
+            { "island_2", "island_anger" },
+            { "island_3", "island_greed" },
+            { "island_4", "island_desire" },
+            { "island_5", "island_ego" },
+            { "island_6", "island_envy" }
+        };
+
     private static readonly Dictionary<string, IslandConfig> configsById =
         new Dictionary<string, IslandConfig>(StringComparer.Ordinal);
 
@@ -62,6 +73,12 @@ public static class IslandThemeRegistry
     public static string ResolveIslandId(string islandId)
     {
         EnsureInitialized();
+
+        if (!string.IsNullOrEmpty(islandId)
+            && legacyIslandIdAliases.TryGetValue(islandId, out string aliasedIslandId))
+        {
+            islandId = aliasedIslandId;
+        }
 
         if (!string.IsNullOrEmpty(islandId) && configsById.ContainsKey(islandId))
         {
@@ -122,7 +139,18 @@ public static class IslandThemeRegistry
     public static bool IsKnownIslandId(string islandId)
     {
         EnsureInitialized();
-        return !string.IsNullOrEmpty(islandId) && configsById.ContainsKey(islandId);
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return false;
+        }
+
+        if (configsById.ContainsKey(islandId))
+        {
+            return true;
+        }
+
+        return legacyIslandIdAliases.TryGetValue(islandId, out string aliasedIslandId)
+            && configsById.ContainsKey(aliasedIslandId);
     }
 
     private static void EnsureInitialized()
