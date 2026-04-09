@@ -13,8 +13,8 @@ public class DevModeController : MonoBehaviour
         KeyCode.RightArrow,
         KeyCode.LeftArrow,
         KeyCode.RightArrow,
-        KeyCode.A,
-        KeyCode.B
+        KeyCode.B,
+        KeyCode.A
     };
 
     private const float SequenceTimeout = 4f;
