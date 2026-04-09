@@ -542,4 +542,38 @@ public class IslandProgressionManager : MonoBehaviour
     {
         return !float.IsNaN(value) && !float.IsInfinity(value);
     }
+
+    public void UnlockAllIslandsForDebug()
+    {
+        IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
+        for (int i = 0; i < progressionOrder.Count; i++)
+        {
+            string islandId = progressionOrder[i];
+            if (IslandThemeRegistry.IsKnownIslandId(islandId))
+            {
+                UnlockIslandInternal(islandId, true);
+            }
+        }
+    }
+
+    public void ResetProgressionForDebug()
+    {
+        unlockedIslandIds.Clear();
+        islandReturnPositions.Clear();
+        InitializeSafeDefaults();
+        IslandThemeRegistry.SetActiveIslandId(activeIslandId);
+        OnActiveIslandChanged?.Invoke(activeIslandId);
+    }
+
+    public bool ForceSetActiveIslandForDebug(string islandId)
+    {
+        if (!TryResolveKnownIslandId(islandId, out string resolved))
+        {
+            return false;
+        }
+
+        UnlockIslandInternal(resolved, true);
+        SetActiveIslandInternal(resolved, true);
+        return true;
+    }
 }

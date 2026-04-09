@@ -259,4 +259,49 @@ public class IslandRestorationTracker : MonoBehaviour
     {
         return IslandThemeRegistry.ResolveIslandId(islandId);
     }
+
+    public void ResetAllIslandsForDebug()
+    {
+        IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
+        for (int i = 0; i < progressionOrder.Count; i++)
+        {
+            ResetIsland(progressionOrder[i]);
+        }
+    }
+
+    public void SetIslandRestorationPercentForDebug(string islandId, float percent)
+    {
+        string scopedIslandId = ResolveIslandId(islandId);
+        IslandRestorationState state = GetOrCreateState(scopedIslandId);
+        state.Reset();
+
+        float clampedContribution = Mathf.Clamp01(percent / 100f);
+        if (clampedContribution > 0f)
+        {
+            IslandRestorationStateSnapshot snapshot = state.CaptureSnapshot();
+            snapshot.combatContribution = clampedContribution;
+            snapshot.puzzleContribution = 0f;
+            snapshot.totalContribution = clampedContribution;
+            snapshot.combatEncountersCompleted = clampedContribution >= 1f ? 1 : 0;
+            snapshot.puzzleEncountersCompleted = 0;
+            snapshot.completedEncounterIds.Clear();
+            if (clampedContribution >= 1f)
+            {
+                snapshot.completedEncounterIds.Add($"__debug_full_restore__::{scopedIslandId}");
+            }
+
+            state.ApplySnapshot(snapshot);
+        }
+
+        OnRestorationChanged?.Invoke(scopedIslandId, state.TotalContribution);
+        if (state.IsIslandRestored)
+        {
+            OnIslandRestored?.Invoke(scopedIslandId);
+        }
+
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.SaveWorldState();
+        }
+    }
 }

@@ -929,4 +929,55 @@ public class HeroProgressionManager : MonoBehaviour
 
         return total;
     }
+
+    public void ResetProgressionForDebug()
+    {
+        heroStates.Clear();
+        unlockedPlayerColorPresetIds.Clear();
+        allGearInstances.Clear();
+        currency = 0;
+        OnCurrencyChanged?.Invoke(currency);
+        OnCosmeticXpChanged?.Invoke(GetCosmeticXp());
+    }
+
+    public void MaxOutHeroForDebug(string heroId)
+    {
+        if (string.IsNullOrEmpty(heroId))
+        {
+            return;
+        }
+
+        EnsureHero(heroId);
+        HeroProgressionState state = heroStates[heroId];
+        if (levelingConfig != null)
+        {
+            state.level = Mathf.Max(1, levelingConfig.maxLevel);
+        }
+        else
+        {
+            state.level = Mathf.Max(state.level, 99);
+        }
+
+        state.currentXp = 0;
+    }
+
+    public void MaxOutGearForDebug(string heroId)
+    {
+        if (string.IsNullOrEmpty(heroId))
+        {
+            return;
+        }
+
+        GearInstance instance = GetEquippedGearInstance(heroId);
+        if (instance == null)
+        {
+            return;
+        }
+
+        while (instance.level < instance.MaxLevel)
+        {
+            int needed = Mathf.Max(1, instance.GetXpToNextLevel());
+            instance.GrantXp(needed);
+        }
+    }
 }

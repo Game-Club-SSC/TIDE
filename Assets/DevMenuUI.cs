@@ -1,0 +1,232 @@
+using UnityEngine;
+using UnityEngine.UI;
+
+[DisallowMultipleComponent]
+public class DevMenuUI : MonoBehaviour
+{
+    private Canvas canvas;
+    private GameObject panelRoot;
+    private Text summaryText;
+    private Text headerText;
+    private bool isVisible;
+    private float summaryRefreshTimer;
+
+    public bool IsVisible => isVisible;
+
+    private void Awake()
+    {
+        DontDestroyOnLoad(gameObject);
+        EnsureUI();
+        SetVisible(false);
+    }
+
+    private void Update()
+    {
+        if (!isVisible)
+        {
+            return;
+        }
+
+        summaryRefreshTimer -= Time.unscaledDeltaTime;
+        if (summaryRefreshTimer <= 0f)
+        {
+            summaryRefreshTimer = 0.2f;
+            RefreshSummary();
+        }
+    }
+
+    public void Toggle()
+    {
+        SetVisible(!isVisible);
+    }
+
+    public void SetVisible(bool visible)
+    {
+        isVisible = visible;
+        if (canvas != null)
+        {
+            canvas.enabled = visible;
+        }
+
+        if (visible)
+        {
+            RefreshSummary();
+        }
+    }
+
+    private void EnsureUI()
+    {
+        if (canvas != null)
+        {
+            return;
+        }
+
+        GameObject canvasObject = new GameObject("DevMenuCanvas", typeof(RectTransform));
+        canvasObject.transform.SetParent(transform, false);
+
+        canvas = canvasObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 9999;
+        CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        canvasObject.AddComponent<GraphicRaycaster>();
+
+        panelRoot = CreatePanel(canvasObject.transform, "DevMenuPanel", new Vector2(0.02f, 0.05f), new Vector2(0.98f, 0.95f));
+        VerticalLayoutGroup panelLayout = panelRoot.AddComponent<VerticalLayoutGroup>();
+        panelLayout.spacing = 8f;
+        panelLayout.padding = new RectOffset(16, 16, 16, 16);
+        panelLayout.childAlignment = TextAnchor.UpperLeft;
+        panelLayout.childControlHeight = false;
+        panelLayout.childForceExpandHeight = false;
+
+        headerText = CreateText(panelRoot.transform, "Header", "DEV GOD MODE (Konami unlocked)", 28, FontStyle.Bold, TextAnchor.UpperLeft);
+        headerText.color = new Color(1f, 0.3f, 0.3f, 1f);
+
+        GameObject buttonGridObject = new GameObject("ButtonGrid", typeof(RectTransform));
+        buttonGridObject.transform.SetParent(panelRoot.transform, false);
+        GridLayoutGroup grid = buttonGridObject.AddComponent<GridLayoutGroup>();
+        grid.cellSize = new Vector2(300f, 52f);
+        grid.spacing = new Vector2(8f, 8f);
+        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        grid.constraintCount = 4;
+        LayoutElement gridLayout = buttonGridObject.AddComponent<LayoutElement>();
+        gridLayout.preferredHeight = 260f;
+
+        AddActionButton(buttonGridObject.transform, "Full Reset All", () => DevCheatService.Instance?.FullResetAllState());
+        AddActionButton(buttonGridObject.transform, "Reset Encounters", () => DevCheatService.Instance?.ResetEncounterAndFightState());
+        AddActionButton(buttonGridObject.transform, "Unlock All Islands", () => DevCheatService.Instance?.UnlockAllIslands());
+        AddActionButton(buttonGridObject.transform, "Teleport Active Spawn", () => DevCheatService.Instance?.TeleportToActiveIslandSpawn());
+        AddActionButton(buttonGridObject.transform, "Restore Active 100%", () => DevCheatService.Instance?.SetActiveIslandRestoration(100f));
+        AddActionButton(buttonGridObject.transform, "Restore Active 0%", () => DevCheatService.Instance?.SetActiveIslandRestoration(0f));
+        AddActionButton(buttonGridObject.transform, "MAX EVERYTHING", () => DevCheatService.Instance?.MaxEverything());
+        AddActionButton(buttonGridObject.transform, "Hide Menu", Toggle);
+
+        AddToggleButton(buttonGridObject.transform, "Godmode Invincible", () =>
+        {
+            if (DevCheatService.Instance != null)
+            {
+                DevCheatService.Instance.GodModeInvincible = !DevCheatService.Instance.GodModeInvincible;
+            }
+        });
+
+        AddToggleButton(buttonGridObject.transform, "One Hit Kill", () =>
+        {
+            if (DevCheatService.Instance != null)
+            {
+                DevCheatService.Instance.GodModeOneHitKill = !DevCheatService.Instance.GodModeOneHitKill;
+            }
+        });
+
+        AddToggleButton(buttonGridObject.transform, "Infinite Resources", () =>
+        {
+            if (DevCheatService.Instance != null)
+            {
+                DevCheatService.Instance.GodModeInfiniteResources = !DevCheatService.Instance.GodModeInfiniteResources;
+            }
+        });
+
+        AddToggleButton(buttonGridObject.transform, "Overlay Readout", () =>
+        {
+            if (DevCheatService.Instance != null)
+            {
+                DevCheatService.Instance.ShowDebugOverlay = !DevCheatService.Instance.ShowDebugOverlay;
+            }
+        });
+
+        AddIslandButtons(buttonGridObject.transform);
+
+        summaryText = CreateText(panelRoot.transform, "Summary", string.Empty, 20, FontStyle.Normal, TextAnchor.UpperLeft);
+        summaryText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        summaryText.verticalOverflow = VerticalWrapMode.Overflow;
+        LayoutElement summaryLayout = summaryText.gameObject.AddComponent<LayoutElement>();
+        summaryLayout.flexibleHeight = 1f;
+        summaryLayout.minHeight = 400f;
+    }
+
+    private void AddIslandButtons(Transform parent)
+    {
+        for (int i = 0; i < IslandThemeRegistry.ProgressionOrder.Count; i++)
+        {
+            string islandId = IslandThemeRegistry.ProgressionOrder[i];
+            string captured = islandId;
+            AddActionButton(parent, $"Go {captured}", () =>
+            {
+                DevCheatService.Instance?.SetActiveIsland(captured);
+            });
+        }
+    }
+
+    private void RefreshSummary()
+    {
+        if (summaryText == null)
+        {
+            return;
+        }
+
+        DevCheatService service = DevCheatService.Instance;
+        if (service == null)
+        {
+            summaryText.text = "DevCheatService unavailable.";
+            return;
+        }
+
+        string toggles = $"Toggles -> Invincible:{service.GodModeInvincible} OneHit:{service.GodModeOneHitKill} Infinite:{service.GodModeInfiniteResources} Overlay:{service.ShowDebugOverlay}";
+        summaryText.text = toggles + "\n\n" + service.BuildDebugSummary();
+    }
+
+    private static GameObject CreatePanel(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        GameObject panel = new GameObject(name, typeof(RectTransform), typeof(Image));
+        panel.transform.SetParent(parent, false);
+        RectTransform rect = panel.GetComponent<RectTransform>();
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        Image image = panel.GetComponent<Image>();
+        image.color = new Color(0.04f, 0.05f, 0.08f, 0.95f);
+        return panel;
+    }
+
+    private static Text CreateText(Transform parent, string name, string text, int fontSize, FontStyle fontStyle, TextAnchor anchor)
+    {
+        GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
+        textObject.transform.SetParent(parent, false);
+        Text uiText = textObject.GetComponent<Text>();
+        uiText.text = text;
+        uiText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        uiText.fontSize = fontSize;
+        uiText.fontStyle = fontStyle;
+        uiText.alignment = anchor;
+        uiText.color = new Color(0.95f, 0.97f, 1f, 1f);
+        return uiText;
+    }
+
+    private void AddActionButton(Transform parent, string label, UnityEngine.Events.UnityAction action)
+    {
+        GameObject buttonObject = new GameObject(label, typeof(RectTransform), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+        Image image = buttonObject.GetComponent<Image>();
+        image.color = new Color(0.16f, 0.24f, 0.36f, 0.95f);
+        Button button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.onClick.AddListener(action);
+
+        Text buttonText = CreateText(buttonObject.transform, "Text", label, 18, FontStyle.Bold, TextAnchor.MiddleCenter);
+        RectTransform textRect = buttonText.GetComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+    }
+
+    private void AddToggleButton(Transform parent, string label, UnityEngine.Events.UnityAction action)
+    {
+        AddActionButton(parent, label, () =>
+        {
+            action?.Invoke();
+            RefreshSummary();
+        });
+    }
+}

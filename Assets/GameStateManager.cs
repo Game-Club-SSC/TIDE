@@ -127,6 +127,7 @@ public class GameStateManager : MonoBehaviour
     [Header("Feature Gates")]
     [SerializeField] private bool enableCosmeticProgressionEconomyForCurrentSlice;
     [SerializeField] private bool enablePersistentSaveData = true;
+    [SerializeField] private bool enableDeveloperGodMode = true;
 
     [Serializable]
     private sealed class FinalBossDefeatSaveEntry
@@ -180,6 +181,7 @@ public class GameStateManager : MonoBehaviour
         EnsureProgressionManager();
         IslandProgressionManager.Instance?.ReconcileStateFromRestoration();
         EnsureFadeCanvas();
+        EnsureDeveloperTools();
         LoadWorldState();
     }
 
@@ -1312,6 +1314,59 @@ public class GameStateManager : MonoBehaviour
             GameObject progressionObject = new GameObject("IslandProgressionManager");
             progressionObject.AddComponent<IslandProgressionManager>();
         }
+    }
+
+    private void EnsureDeveloperTools()
+    {
+        if (!IsDeveloperGodModeAllowed())
+        {
+            return;
+        }
+
+        if (FindFirstObjectByType<DevModeController>() != null)
+        {
+            return;
+        }
+
+        GameObject devToolsObject = new GameObject("DevModeController");
+        devToolsObject.AddComponent<DevModeController>();
+    }
+
+    public bool IsDeveloperGodModeAllowed()
+    {
+        return enableDeveloperGodMode && (Application.isEditor || Debug.isDebugBuild);
+    }
+
+    public void ClearPersistentWorldStateForDebug(bool includeBossDefeatState = true)
+    {
+        PlayerPrefs.DeleteKey(WorldStateSaveKey);
+        if (includeBossDefeatState)
+        {
+            PlayerPrefs.DeleteKey(FinalBossDefeatsSaveKey);
+        }
+
+        PlayerPrefs.Save();
+    }
+
+    public void ResetRuntimeWorldStateForDebug()
+    {
+        puzzleRuntimeStates.Clear();
+        ancientTextRuntimeStates.Clear();
+        completedNarrativeBeatIds.Clear();
+
+        PendingPuzzleData = null;
+        PendingPuzzleLayout = null;
+        PendingPuzzleSealedTile = new Vector2Int(-1, -1);
+        PendingEnemyComposition = null;
+        PendingPuzzleIslandId = null;
+        PendingPuzzleEncounterId = null;
+        PendingPuzzleRestorationValue = 0f;
+        PendingCombatIslandId = null;
+        PendingCombatEncounterId = null;
+        PendingCombatRestorationValue = 0f;
+        pendingSolvedPuzzleBoxId = null;
+        pendingBossIslandIdForDefeatTracking = null;
+        PuzzleSolved = false;
     }
 
     private void ApplySolvedPuzzleBoxesInScene()
