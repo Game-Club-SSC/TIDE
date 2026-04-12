@@ -2044,14 +2044,20 @@ public class BattleManager : MonoBehaviour
 
     public SkillData GetFirstUsableSupportedSkillForCurrentSlice(CombatUnit actor)
     {
-        if (actor == null || actor.Skills == null || actor.Skills.Length == 0)
+        if (actor == null)
         {
             return null;
         }
 
-        for (int i = 0; i < actor.Skills.Length; i++)
+        IReadOnlyList<SkillData> actorSkills = actor.Skills;
+        if (actorSkills.Count == 0)
         {
-            SkillData skill = actor.Skills[i];
+            return null;
+        }
+
+        for (int i = 0; i < actorSkills.Count; i++)
+        {
+            SkillData skill = actorSkills[i];
             if (IsSkillSupportedForCurrentSlice(skill) && actor.CanUseSkill(skill))
             {
                 return skill;
@@ -2093,14 +2099,20 @@ public class BattleManager : MonoBehaviour
 
     public SkillData GetFirstSupportedSkillForCurrentSlice(CombatUnit actor)
     {
-        if (actor == null || actor.Skills == null || actor.Skills.Length == 0)
+        if (actor == null)
         {
             return null;
         }
 
-        for (int i = 0; i < actor.Skills.Length; i++)
+        IReadOnlyList<SkillData> actorSkills = actor.Skills;
+        if (actorSkills.Count == 0)
         {
-            SkillData skill = actor.Skills[i];
+            return null;
+        }
+
+        for (int i = 0; i < actorSkills.Count; i++)
+        {
+            SkillData skill = actorSkills[i];
             if (IsSkillSupportedForCurrentSlice(skill))
             {
                 return skill;

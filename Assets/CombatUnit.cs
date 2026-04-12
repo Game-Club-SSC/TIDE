@@ -24,6 +24,8 @@ public class CombatUnit : MonoBehaviour
 
     [Header("Skills")]
     [SerializeField] protected SkillData[] skills = System.Array.Empty<SkillData>();
+    private SkillData[] skillsViewSource = System.Array.Empty<SkillData>();
+    private IReadOnlyList<SkillData> readOnlySkills = Array.AsReadOnly(System.Array.Empty<SkillData>());
 
     [Header("TideBreak Abilities")]
     [SerializeField] private List<TideBreakData> tideBreakAbilities = new List<TideBreakData>();
@@ -160,7 +162,14 @@ public class CombatUnit : MonoBehaviour
         get => unitType;
         set => unitType = value;
     }
-    public SkillData[] Skills => skills;
+    public IReadOnlyList<SkillData> Skills
+    {
+        get
+        {
+            EnsureSkillsInitialized();
+            return readOnlySkills;
+        }
+    }
     public int XpReward { get => xpReward; set => xpReward = value; }
     public bool IsDefending => isDefending;
 
@@ -171,9 +180,32 @@ public class CombatUnit : MonoBehaviour
 
     public void SetSkills(SkillData[] newSkills)
     {
-        skills = newSkills;
+        skills = newSkills == null || newSkills.Length == 0
+            ? System.Array.Empty<SkillData>()
+            : (SkillData[])newSkills.Clone();
+        RefreshReadOnlySkills();
     }
     #endregion
+
+    private void EnsureSkillsInitialized()
+    {
+        if (skills == null)
+        {
+            skills = System.Array.Empty<SkillData>();
+        }
+
+        if (!ReferenceEquals(skillsViewSource, skills))
+        {
+            RefreshReadOnlySkills();
+        }
+    }
+
+    private void RefreshReadOnlySkills()
+    {
+        skillsViewSource = skills ?? System.Array.Empty<SkillData>();
+        skills = skillsViewSource;
+        readOnlySkills = Array.AsReadOnly(skillsViewSource);
+    }
 
     #region Core Functions
 
@@ -196,7 +228,7 @@ public class CombatUnit : MonoBehaviour
         int actualDamage = Mathf.Max(1, modifiedDamage - effectiveDefense);
         hp = Mathf.Max(0, hp - actualDamage);
 
-        Debug.Log($"{unitName} took {actualDamage} damage (from {damage}). HP: {hp}/{maxHp}");
+        Debug.Log($"[CombatUnit] {unitName} took {actualDamage} damage (from {damage}). HP: {hp}/{maxHp}");
 
         // Check if unit has died
         if (hp <= 0)
@@ -221,7 +253,7 @@ public class CombatUnit : MonoBehaviour
         int healedAmount = Mathf.Min(amount, maxHp - hp);
         hp += healedAmount;
 
-        Debug.Log($"{unitName} healed for {healedAmount}. HP: {hp}/{maxHp}");
+        Debug.Log($"[CombatUnit] {unitName} healed for {healedAmount}. HP: {hp}/{maxHp}");
     }
 
     /// <summary>
@@ -335,12 +367,12 @@ public class CombatUnit : MonoBehaviour
         if (mp >= amount)
         {
             mp -= amount;
-            Debug.Log($"{unitName} spent {amount} MP. MP: {mp}/{maxMp}");
+            Debug.Log($"[CombatUnit] {unitName} spent {amount} MP. MP: {mp}/{maxMp}");
             return true;
         }
         else
         {
-            Debug.Log($"{unitName} attempted to spend {amount} MP but only has {mp} MP available.");
+            Debug.Log($"[CombatUnit] {unitName} attempted to spend {amount} MP but only has {mp} MP available.");
             return false;
         }
     }
@@ -361,7 +393,7 @@ public class CombatUnit : MonoBehaviour
         int restoredAmount = Mathf.Min(amount, maxMp - mp);
         mp += restoredAmount;
 
-        Debug.Log($"{unitName} restored {restoredAmount} MP. MP: {mp}/{maxMp}");
+        Debug.Log($"[CombatUnit] {unitName} restored {restoredAmount} MP. MP: {mp}/{maxMp}");
     }
 
     /// <summary>
@@ -377,7 +409,7 @@ public class CombatUnit : MonoBehaviour
         {
             // Unit was revived
             isAlive = true;
-            Debug.Log($"{unitName} has been revived!");
+            Debug.Log($"[CombatUnit] {unitName} has been revived!");
         }
     }
 
@@ -394,7 +426,7 @@ public class CombatUnit : MonoBehaviour
 
         isAlive = false;
         hp = 0; // Ensure HP doesn't go negative
-        Debug.Log($"{unitName} has been defeated!");
+        Debug.Log($"[CombatUnit] {unitName} has been defeated!");
     }
 
     #endregion
@@ -412,6 +444,7 @@ public class CombatUnit : MonoBehaviour
 
         hp = Mathf.Clamp(hp, 0, maxHp);
         mp = Mathf.Clamp(mp, 0, maxMp);
+        EnsureSkillsInitialized();
 
         isAlive = hp > 0;
     }
