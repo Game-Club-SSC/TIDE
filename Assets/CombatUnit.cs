@@ -24,6 +24,8 @@ public class CombatUnit : MonoBehaviour
 
     [Header("Skills")]
     [SerializeField] protected SkillData[] skills = System.Array.Empty<SkillData>();
+    private SkillData[] skillsViewSource = System.Array.Empty<SkillData>();
+    private IReadOnlyList<SkillData> readOnlySkills = Array.AsReadOnly(System.Array.Empty<SkillData>());
 
     [Header("TideBreak Abilities")]
     [SerializeField] private List<TideBreakData> tideBreakAbilities = new List<TideBreakData>();
@@ -131,7 +133,14 @@ public class CombatUnit : MonoBehaviour
         get => unitType;
         set => unitType = value;
     }
-    public SkillData[] Skills => skills;
+    public IReadOnlyList<SkillData> Skills
+    {
+        get
+        {
+            EnsureSkillsInitialized();
+            return readOnlySkills;
+        }
+    }
     public int XpReward { get => xpReward; set => xpReward = value; }
     public bool IsDefending => isDefending;
 
@@ -142,9 +151,32 @@ public class CombatUnit : MonoBehaviour
 
     public void SetSkills(SkillData[] newSkills)
     {
-        skills = newSkills;
+        skills = newSkills == null || newSkills.Length == 0
+            ? System.Array.Empty<SkillData>()
+            : (SkillData[])newSkills.Clone();
+        RefreshReadOnlySkills();
     }
     #endregion
+
+    private void EnsureSkillsInitialized()
+    {
+        if (skills == null)
+        {
+            skills = System.Array.Empty<SkillData>();
+        }
+
+        if (!ReferenceEquals(skillsViewSource, skills))
+        {
+            RefreshReadOnlySkills();
+        }
+    }
+
+    private void RefreshReadOnlySkills()
+    {
+        skillsViewSource = skills ?? System.Array.Empty<SkillData>();
+        skills = skillsViewSource;
+        readOnlySkills = Array.AsReadOnly(skillsViewSource);
+    }
 
     #region Core Functions
 
@@ -382,6 +414,7 @@ public class CombatUnit : MonoBehaviour
 
         hp = Mathf.Clamp(hp, 0, maxHp);
         mp = Mathf.Clamp(mp, 0, maxMp);
+        EnsureSkillsInitialized();
 
         isAlive = hp > 0;
     }

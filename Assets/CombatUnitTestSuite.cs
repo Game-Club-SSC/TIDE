@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using NUnit.Framework;
 
@@ -38,6 +40,41 @@ public class CombatUnitTestSuite
         Assert.AreEqual(CombatUnit.Element.None, testUnit.ElementType, "Default element should be None");
         Assert.AreEqual("Combat Unit", testUnit.UnitName, "Default unit name should be 'Combat Unit'");
         Assert.IsTrue(testUnit.IsAlive, "Unit should be alive by default");
+        Assert.IsNotNull(testUnit.Skills, "Default skills collection should not be null.");
+        Assert.AreEqual(0, testUnit.Skills.Count, "Default skills collection should be empty.");
+    }
+
+    [Test]
+    public void SetSkillsNullStoresEmptyReadOnlyCollection()
+    {
+        testUnit.SetSkills(null);
+
+        Assert.IsNotNull(testUnit.Skills, "Skills collection should not be null after SetSkills(null).");
+        Assert.AreEqual(0, testUnit.Skills.Count, "Skills collection should be empty after SetSkills(null).");
+
+        IList<SkillData> exposedSkills = testUnit.Skills as IList<SkillData>;
+        Assert.IsNotNull(exposedSkills, "Skills collection should expose a list interface.");
+        SkillData attemptedSkill = ScriptableObject.CreateInstance<SkillData>();
+        Assert.Throws<NotSupportedException>(() => exposedSkills.Add(attemptedSkill),
+            "Skills collection should be read-only.");
+        Object.DestroyImmediate(attemptedSkill);
+    }
+
+    [Test]
+    public void SetSkillsClonesSourceArray()
+    {
+        SkillData originalSkill = ScriptableObject.CreateInstance<SkillData>();
+        SkillData replacementSkill = ScriptableObject.CreateInstance<SkillData>();
+        SkillData[] sourceSkills = new SkillData[] { originalSkill };
+
+        testUnit.SetSkills(sourceSkills);
+        sourceSkills[0] = replacementSkill;
+
+        Assert.AreEqual(1, testUnit.Skills.Count, "Skills collection should preserve the original source length.");
+        Assert.AreSame(originalSkill, testUnit.Skills[0], "Skills collection should not be affected by source array mutation.");
+
+        Object.DestroyImmediate(originalSkill);
+        Object.DestroyImmediate(replacementSkill);
     }
     
     [Test]
