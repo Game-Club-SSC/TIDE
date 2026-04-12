@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+[DisallowMultipleComponent]
 public class IslandRestorationTracker : MonoBehaviour
 {
     [Serializable]
@@ -25,16 +26,25 @@ public class IslandRestorationTracker : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            DestroyDuplicateComponent();
             return;
         }
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-
     }
 
     private void OnDestroy()
+    {
+        ClearSingletonInstance();
+    }
+
+    private void OnApplicationQuit()
+    {
+        ClearSingletonInstance();
+    }
+
+    private void ClearSingletonInstance()
     {
         if (Instance == this)
         {
@@ -42,9 +52,15 @@ public class IslandRestorationTracker : MonoBehaviour
         }
     }
 
-    private void OnApplicationQuit()
+    private void DestroyDuplicateComponent()
     {
-        Instance = null;
+        if (Application.isPlaying)
+        {
+            Destroy(this);
+            return;
+        }
+
+        DestroyImmediate(this);
     }
 
     public void CompleteEncounter(float contribution)

@@ -15,6 +15,8 @@ public class RestorationTrackerTest : MonoBehaviour
         TestPuzzleContribution();
         TestDuplicateEncounterPrevented();
         TestDuplicatePuzzleEncounterPrevented();
+        TestSingletonDuplicateGuardPreservesOriginalTracker();
+        TestSingletonClearsInstanceOnDestroy();
         TestLegacyCompleteEncounterCannotStack();
         TestTypedBuckets();
         TestRestorationPercentCalculation();
@@ -121,6 +123,68 @@ public class RestorationTrackerTest : MonoBehaviour
 
         DestroyImmediate(trackerObject);
         Debug.Log("✓ Duplicate puzzle encounter prevention test passed");
+    }
+
+    private void TestSingletonDuplicateGuardPreservesOriginalTracker()
+    {
+        Debug.Log("Testing singleton duplicate guard preserves original tracker...");
+
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_SingletonPrimary");
+        GameObject trackerObject = tracker.gameObject;
+        GameObject duplicateObject = new GameObject("TestTracker_SingletonDuplicate");
+
+        try
+        {
+            IslandRestorationTracker duplicate = duplicateObject.AddComponent<IslandRestorationTracker>();
+
+            Assert.AreSame(tracker, IslandRestorationTracker.Instance,
+                "Duplicate tracker should not replace the active singleton.");
+            Assert.IsTrue(trackerObject != null,
+                "Original tracker owner GameObject should remain after duplicate creation.");
+            Assert.IsTrue(duplicateObject != null,
+                "Duplicate tracker owner GameObject should remain after component-only cleanup.");
+
+            if (Application.isPlaying)
+            {
+                Assert.AreNotSame(duplicate, IslandRestorationTracker.Instance,
+                    "Duplicate tracker should never become the active singleton.");
+            }
+            else
+            {
+                Assert.IsNull(duplicateObject.GetComponent<IslandRestorationTracker>(),
+                    "Duplicate tracker component should be removed without destroying its GameObject.");
+                Assert.IsTrue(duplicate == null,
+                    "Duplicate tracker component should be destroyed immediately during verification runs.");
+            }
+        }
+        finally
+        {
+            if (duplicateObject != null)
+            {
+                DestroyImmediate(duplicateObject);
+            }
+
+            if (trackerObject != null)
+            {
+                DestroyImmediate(trackerObject);
+            }
+        }
+
+        Debug.Log("Tracker singleton duplicate guard test passed");
+    }
+
+    private void TestSingletonClearsInstanceOnDestroy()
+    {
+        Debug.Log("Testing tracker singleton clears Instance on destroy...");
+
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_SingletonDestroy");
+        GameObject trackerObject = tracker.gameObject;
+
+        DestroyImmediate(trackerObject);
+
+        Assert.IsNull(IslandRestorationTracker.Instance,
+            "Destroying the active tracker should clear the singleton instance.");
+        Debug.Log("Tracker singleton destroy cleanup test passed");
     }
 
     private void TestLegacyCompleteEncounterCannotStack()

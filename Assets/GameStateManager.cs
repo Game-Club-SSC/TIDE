@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+[DisallowMultipleComponent]
 public class GameStateManager : MonoBehaviour
 {
     private sealed class PuzzleRuntimeState
@@ -169,7 +170,7 @@ public class GameStateManager : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            DestroyDuplicateComponent();
             return;
         }
 
@@ -237,21 +238,35 @@ public class GameStateManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        ReleaseSingletonOwnership();
+    }
+
+    private void OnApplicationQuit()
+    {
+        ReleaseSingletonOwnership();
+    }
+
+    private void ReleaseSingletonOwnership()
+    {
         if (Instance != this)
         {
             return;
         }
 
         SaveWorldState();
-
         SceneManager.sceneLoaded -= HandleSceneLoaded;
         Instance = null;
     }
 
-    private void OnApplicationQuit()
+    private void DestroyDuplicateComponent()
     {
-        SaveWorldState();
-        Instance = null;
+        if (Application.isPlaying)
+        {
+            Destroy(this);
+            return;
+        }
+
+        DestroyImmediate(this);
     }
 
     public bool CanEnterPuzzle()
