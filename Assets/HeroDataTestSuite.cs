@@ -153,7 +153,7 @@ public class HeroDataTestSuite
         Assert.AreEqual(hero.baseAttack, unit.Attack, "Unit Attack should match hero baseAttack.");
         Assert.AreEqual(hero.baseDefense, unit.Defense, "Unit Defense should match hero baseDefense.");
         Assert.AreEqual(hero.baseSpeed, unit.Speed, "Unit Speed should match hero baseSpeed.");
-        Assert.AreEqual(hero.starterSkills.Length, unit.Skills.Length, "Unit skills count should match hero starterSkills count.");
+        Assert.AreEqual(hero.starterSkills.Length, unit.Skills.Count, "Unit skills count should match hero starterSkills count.");
 
         Object.DestroyImmediate(testObject);
     }

@@ -760,10 +760,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         unit.Defense = hero.baseDefense;
         unit.Speed = hero.baseSpeed;
 
-        if (hero.starterSkills != null)
-        {
-            unit.SetSkills(hero.starterSkills);
-        }
+        unit.SetSkills(hero.starterSkills);
 
         AssignElementTideBreaks(unit, hero);
         if (useSpriteBattleVisuals)
@@ -837,10 +834,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         unit.Defense = enemyData.baseDefense;
         unit.Speed = enemyData.baseSpeed;
 
-        if (enemyData.skills != null)
-        {
-            unit.SetSkills(enemyData.skills);
-        }
+        unit.SetSkills(enemyData.skills);
 
         unit.XpReward = enemyData.xpReward;
 

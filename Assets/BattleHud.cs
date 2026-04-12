@@ -973,17 +973,18 @@ public class BattleHud : MonoBehaviour
         if (battleManager == null) return;
         CombatUnit currentInput = battleManager.GetCurrentInputUnit();
         if (currentInput == null) return;
-        
-        if (currentInput.Skills == null || currentInput.Skills.Length == 0)
+
+        IReadOnlyList<SkillData> currentSkills = currentInput.Skills;
+        if (currentSkills.Count == 0)
         {
             Debug.Log("[BattleHud] No skill available for current unit.");
             return;
         }
 
         int supportedSkillCount = 0;
-        for (int i = 0; i < currentInput.Skills.Length; i++)
+        for (int i = 0; i < currentSkills.Count; i++)
         {
-            SkillData candidate = currentInput.Skills[i];
+            SkillData candidate = currentSkills[i];
             if (battleManager.IsSkillSupportedForCurrentSlice(candidate))
             {
                 supportedSkillCount++;
@@ -1038,7 +1039,8 @@ public class BattleHud : MonoBehaviour
         foreach (Button btn in skillButtons) { Destroy(btn.gameObject); }
         skillButtons.Clear();
 
-        if (actor.Skills == null || actor.Skills.Length == 0)
+        IReadOnlyList<SkillData> actorSkills = actor.Skills;
+        if (actorSkills.Count == 0)
         {
             skillPanelRequestedOpen = false;
             skillPanel.SetActive(false);
@@ -1046,9 +1048,9 @@ public class BattleHud : MonoBehaviour
         }
 
         int supportedSkillCount = 0;
-        for (int i = 0; i < actor.Skills.Length; i++)
+        for (int i = 0; i < actorSkills.Count; i++)
         {
-            if (battleManager.IsSkillSupportedForCurrentSlice(actor.Skills[i]))
+            if (battleManager.IsSkillSupportedForCurrentSlice(actorSkills[i]))
             {
                 supportedSkillCount++;
             }
@@ -1064,9 +1066,9 @@ public class BattleHud : MonoBehaviour
         skillPanelRequestedOpen = true;
         skillPanel.SetActive(true);
         int visibleIndex = 0;
-        for (int i = 0; i < actor.Skills.Length; i++)
+        for (int i = 0; i < actorSkills.Count; i++)
         {
-            SkillData skill = actor.Skills[i];
+            SkillData skill = actorSkills[i];
             if (!battleManager.IsSkillSupportedForCurrentSlice(skill)) continue;
 
             GameObject btnObj = new GameObject($"Skill_{i}", typeof(RectTransform));
