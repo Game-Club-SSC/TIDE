@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using NUnit.Framework;
 
@@ -6,19 +8,34 @@ using NUnit.Framework;
 /// </summary>
 public class CombatUnitTestSuite
 {
+    private static readonly FieldInfo TideBreakAbilitiesField = typeof(CombatUnit).GetField("tideBreakAbilities", BindingFlags.Instance | BindingFlags.NonPublic);
+
     private GameObject testObject;
     private CombatUnit testUnit;
+    private List<TideBreakData> createdTideBreaks;
     
     [SetUp]
     public void SetUp()
     {
         testObject = new GameObject("TestCombatUnit");
         testUnit = testObject.AddComponent<CombatUnit>();
+        createdTideBreaks = new List<TideBreakData>();
     }
 
     [TearDown]
     public void TearDown()
     {
+        if (createdTideBreaks != null)
+        {
+            for (int i = 0; i < createdTideBreaks.Count; i++)
+            {
+                if (createdTideBreaks[i] != null)
+                {
+                    Object.DestroyImmediate(createdTideBreaks[i]);
+                }
+            }
+        }
+
         if (testObject != null)
         {
             Object.DestroyImmediate(testObject);
@@ -162,5 +179,71 @@ public class CombatUnitTestSuite
         testUnit.CheckDeathState(); // Should revive
         Assert.IsTrue(testUnit.IsAlive, "Unit should revive when HP > 0 and CheckDeathState is called");
         Assert.AreEqual(25, testUnit.HP, "HP should remain 25 after revive");
+    }
+
+    [Test]
+    public void AddTideBreakIgnoresNullInput()
+    {
+        testUnit.AddTideBreak(null);
+
+        Assert.IsNotNull(testUnit.TideBreakAbilities, "TideBreakAbilities should remain non-null after null add.");
+        Assert.AreEqual(0, testUnit.TideBreakAbilities.Count, "Null TideBreak should not be added.");
+    }
+
+    [Test]
+    public void SetTideBreaksNullResetsToEmptyList()
+    {
+        testUnit.SetTideBreaks(null);
+
+        Assert.IsNotNull(testUnit.TideBreakAbilities, "TideBreakAbilities should not be null after reset.");
+        Assert.AreEqual(0, testUnit.TideBreakAbilities.Count, "Null list should reset TideBreak abilities to empty.");
+    }
+
+    [Test]
+    public void SetTideBreaksCreatesDefensiveCopy()
+    {
+        TideBreakData first = CreateTideBreak("First");
+        TideBreakData second = CreateTideBreak("Second");
+        List<TideBreakData> source = new List<TideBreakData> { first };
+
+        testUnit.SetTideBreaks(source);
+        source.Add(second);
+
+        Assert.AreEqual(1, testUnit.TideBreakAbilities.Count, "CombatUnit should keep its own TideBreak list copy.");
+        Assert.AreSame(first, testUnit.TideBreakAbilities[0], "Copied list should preserve existing entries.");
+    }
+
+    [Test]
+    public void SetTideBreaksFiltersNullEntries()
+    {
+        TideBreakData first = CreateTideBreak("First");
+        TideBreakData second = CreateTideBreak("Second");
+
+        testUnit.SetTideBreaks(new List<TideBreakData> { first, null, second });
+
+        Assert.AreEqual(2, testUnit.TideBreakAbilities.Count, "Null TideBreak entries should be filtered out.");
+        Assert.AreSame(first, testUnit.TideBreakAbilities[0], "First non-null TideBreak should be preserved.");
+        Assert.AreSame(second, testUnit.TideBreakAbilities[1], "Second non-null TideBreak should be preserved.");
+    }
+
+    [Test]
+    public void TideBreakAbilitiesInitializesWhenBackingFieldIsNull()
+    {
+        Assert.IsNotNull(TideBreakAbilitiesField, "Private field 'tideBreakAbilities' should exist.");
+        TideBreakAbilitiesField.SetValue(testUnit, null);
+
+        IReadOnlyList<TideBreakData> abilities = testUnit.TideBreakAbilities;
+
+        Assert.IsNotNull(abilities, "TideBreakAbilities should initialize a null backing list.");
+        Assert.AreEqual(0, abilities.Count, "Initialized TideBreakAbilities should be empty.");
+        Assert.IsNotNull(TideBreakAbilitiesField.GetValue(testUnit), "Backing field should be repaired when accessed.");
+    }
+
+    private TideBreakData CreateTideBreak(string abilityName)
+    {
+        TideBreakData tideBreak = ScriptableObject.CreateInstance<TideBreakData>();
+        tideBreak.abilityName = abilityName;
+        createdTideBreaks.Add(tideBreak);
+        return tideBreak;
     }
 }
