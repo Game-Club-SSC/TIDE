@@ -29,9 +29,38 @@ public class CombatUnit : MonoBehaviour
 
     [Header("TideBreak Abilities")]
     [SerializeField] private List<TideBreakData> tideBreakAbilities = new List<TideBreakData>();
-    public IReadOnlyList<TideBreakData> TideBreakAbilities => tideBreakAbilities.AsReadOnly();
-    public void AddTideBreak(TideBreakData tb) { tideBreakAbilities.Add(tb); }
-    public void SetTideBreaks(List<TideBreakData> tbs) { tideBreakAbilities = tbs; }
+    public IReadOnlyList<TideBreakData> TideBreakAbilities => GetOrCreateTideBreakAbilities().AsReadOnly();
+    public void AddTideBreak(TideBreakData tb)
+    {
+        if (tb == null)
+        {
+            Debug.LogWarning("[CombatUnit] Ignored null TideBreak ability.");
+            return;
+        }
+
+        GetOrCreateTideBreakAbilities().Add(tb);
+    }
+
+    public void SetTideBreaks(List<TideBreakData> tbs)
+    {
+        if (tbs == null)
+        {
+            tideBreakAbilities = new List<TideBreakData>();
+            return;
+        }
+
+        List<TideBreakData> defensiveCopy = new List<TideBreakData>(tbs.Count);
+        for (int i = 0; i < tbs.Count; i++)
+        {
+            TideBreakData tideBreak = tbs[i];
+            if (tideBreak != null)
+            {
+                defensiveCopy.Add(tideBreak);
+            }
+        }
+
+        tideBreakAbilities = defensiveCopy;
+    }
 
     // Unit state
     [Header("Unit State")]
@@ -406,6 +435,7 @@ public class CombatUnit : MonoBehaviour
 
     protected virtual void Awake()
     {
+        GetOrCreateTideBreakAbilities();
         if (maxHp <= 0) maxHp = 100;
         if (maxMp <= 0) maxMp = 50;
         if (attack < 0) attack = 0;
@@ -422,6 +452,16 @@ public class CombatUnit : MonoBehaviour
     protected virtual void Start()
     {
         // Additional initialization can go here
+    }
+
+    private List<TideBreakData> GetOrCreateTideBreakAbilities()
+    {
+        if (tideBreakAbilities == null)
+        {
+            tideBreakAbilities = new List<TideBreakData>();
+        }
+
+        return tideBreakAbilities;
     }
 
     #endregion
