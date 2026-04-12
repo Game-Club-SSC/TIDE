@@ -179,10 +179,7 @@ public class PartyManager : MonoBehaviour
         unit.Defense = hero.baseDefense;
         unit.Speed = hero.baseSpeed;
 
-        if (hero.starterSkills != null)
-        {
-            unit.SetSkills(hero.starterSkills);
-        }
+        unit.SetSkills(hero.starterSkills);
 
         if (HeroProgressionManager.Instance != null)
         {
@@ -226,10 +223,7 @@ public class PartyManager : MonoBehaviour
         unit.Defense = hero.baseDefense;
         unit.Speed = hero.baseSpeed;
 
-        if (hero.starterSkills != null)
-        {
-            unit.SetSkills(hero.starterSkills);
-        }
+        unit.SetSkills(hero.starterSkills);
 
         if (HeroProgressionManager.Instance != null)
         {
@@ -267,10 +261,7 @@ public class PartyManager : MonoBehaviour
         unit.Defense = hero.baseDefense;
         unit.Speed = hero.baseSpeed;
 
-        if (hero.starterSkills != null)
-        {
-            unit.SetSkills(hero.starterSkills);
-        }
+        unit.SetSkills(hero.starterSkills);
 
         if (HeroProgressionManager.Instance != null)
         {
