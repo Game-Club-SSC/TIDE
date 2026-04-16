@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using NUnit.Framework;
 
@@ -31,14 +32,14 @@ public class CombatUnitTestSuite
             {
                 if (createdTideBreaks[i] != null)
                 {
-                    Object.DestroyImmediate(createdTideBreaks[i]);
+                    UnityEngine.Object.DestroyImmediate(createdTideBreaks[i]);
                 }
             }
         }
 
         if (testObject != null)
         {
-            Object.DestroyImmediate(testObject);
+            UnityEngine.Object.DestroyImmediate(testObject);
         }
     }
     
@@ -72,7 +73,7 @@ public class CombatUnitTestSuite
         SkillData attemptedSkill = ScriptableObject.CreateInstance<SkillData>();
         Assert.Throws<NotSupportedException>(() => exposedSkills.Add(attemptedSkill),
             "Skills collection should be read-only.");
-        Object.DestroyImmediate(attemptedSkill);
+        UnityEngine.Object.DestroyImmediate(attemptedSkill);
     }
 
     [Test]
@@ -88,8 +89,8 @@ public class CombatUnitTestSuite
         Assert.AreEqual(1, testUnit.Skills.Count, "Skills collection should preserve the original source length.");
         Assert.AreSame(originalSkill, testUnit.Skills[0], "Skills collection should not be affected by source array mutation.");
 
-        Object.DestroyImmediate(originalSkill);
-        Object.DestroyImmediate(replacementSkill);
+        UnityEngine.Object.DestroyImmediate(originalSkill);
+        UnityEngine.Object.DestroyImmediate(replacementSkill);
     }
     
     [Test]

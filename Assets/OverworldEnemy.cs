@@ -423,6 +423,12 @@ public class OverworldEnemy : MonoBehaviour
             {
                 return false;
             }
+
+            float playerDistanceFromAnchor = GetPlanarDistance(playerTransform.position, guardAnchorPosition);
+            if (playerDistanceFromAnchor > reengageRadius)
+            {
+                return false;
+            }
         }
 
         float distance = GetPlanarDistance(transform.position, playerTransform.position);
@@ -857,7 +863,14 @@ public class OverworldEnemy : MonoBehaviour
 
         if (ShouldStartChase())
         {
-            TransitionToState(EnemyState.Chasing);
+            float distanceToPlayer = playerTransform != null
+                ? GetPlanarDistance(transform.position, playerTransform.position)
+                : float.MaxValue;
+
+            if (!ShouldStopChasing(distanceToPlayer))
+            {
+                TransitionToState(EnemyState.Chasing);
+            }
         }
     }
 

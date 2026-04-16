@@ -48,9 +48,13 @@ public class AncientTextInteractable : MonoBehaviour
 
         EnsureSolidCollider();
         CreatePrompt();
+        SetPromptVisible(false);
+    }
+
+    private void Start()
+    {
         RegisterTextData();
         SyncReadState();
-        SetPromptVisible(false);
     }
 
     private void Update()
