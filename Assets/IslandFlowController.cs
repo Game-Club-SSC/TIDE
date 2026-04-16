@@ -125,10 +125,13 @@ public class IslandFlowController : MonoBehaviour
 
         EncounterDefinition encounter = islandConfig.encounters[currentEncounterIndex];
         string encounterId = GetEncounterId(encounter, currentEncounterIndex);
-        tracker.RecordEncounterCompletion(activeIslandId, encounterId, encounter.type, encounter.restorationValue);
+        bool recorded = tracker.RecordEncounterCompletion(activeIslandId, encounterId, encounter.type, encounter.restorationValue);
 
         int subsection = currentEncounterIndex / 2;
-        Debug.Log($"[IslandFlowController] Subsection {subsection + 1} {encounter.type} complete. Restoration: {tracker.GetRestorationPercent(activeIslandId):F1}%");
+        if (recorded)
+        {
+            Debug.Log($"[IslandFlowController] Subsection {subsection + 1} {encounter.type} complete. Restoration: {tracker.GetRestorationPercent(activeIslandId):F1}%");
+        }
 
         currentEncounterIndex = GetNextIncompleteEncounterIndex();
         if (currentEncounterIndex >= islandConfig.encounters.Length)
@@ -374,7 +377,7 @@ public class IslandFlowController : MonoBehaviour
             return false;
         }
 
-        return tracker.IsRestorationAtOrAbove(activeIslandId, 75f);
+        return tracker.IsRestorationAtOrAbove(activeIslandId, IslandRestorationTracker.DefaultBossUnlockThresholdPercent);
     }
 
     private static bool IsBossEncounter(EncounterDefinition encounter)

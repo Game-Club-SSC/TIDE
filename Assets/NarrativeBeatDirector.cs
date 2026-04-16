@@ -7,6 +7,10 @@ public class NarrativeBeatDirector : MonoBehaviour
     private const string IntroBeatId = "beat_intro_tension";
     private const string PreCombatBeatId = "beat_pre_guard_combat";
     private const string PostRestorationBeatId = "beat_post_restoration_reflection";
+    private const string ActTwoBeatId = "beat_act_two_revelation";
+    private const string ActThreeBeatId = "beat_act_three_acceptance";
+    private const string GoodEndingBeatId = "beat_ending_good";
+    private const string BadEndingBeatId = "beat_ending_bad";
 
     [Header("Timing")]
     [SerializeField] private float introDelaySeconds = 1.2f;
@@ -22,6 +26,11 @@ public class NarrativeBeatDirector : MonoBehaviour
     private bool hasExplorationStartPosition;
 
     private void OnEnable()
+    {
+        ResetForDebug();
+    }
+
+    public void ResetForDebug()
     {
         CacheExplorationStartPosition();
         introTimer = Mathf.Max(0.2f, introDelaySeconds);
@@ -77,7 +86,37 @@ public class NarrativeBeatDirector : MonoBehaviour
         if (!gsm.IsNarrativeBeatCompleted(PostRestorationBeatId) && TryShouldTriggerPostRestorationBeat())
         {
             ShowBeat(PostRestorationBeatId, BuildPostRestorationBeatTitle(), BuildPostRestorationBeatBody());
+            return;
         }
+
+        if (gsm.IsEndingTriggered)
+        {
+            if (gsm.ResolvedEndingBranch == GameStateManager.EndingBranch.Good
+                && !gsm.IsNarrativeBeatCompleted(GoodEndingBeatId))
+            {
+                ShowBeat(GoodEndingBeatId, BuildGoodEndingBeatTitle(), BuildGoodEndingBeatBody());
+            }
+            else if (gsm.ResolvedEndingBranch == GameStateManager.EndingBranch.Bad
+                && !gsm.IsNarrativeBeatCompleted(BadEndingBeatId))
+            {
+                ShowBeat(BadEndingBeatId, BuildBadEndingBeatTitle(), BuildBadEndingBeatBody());
+            }
+
+            return;
+        }
+
+        if (gsm.CurrentStoryAct >= GameStateManager.StoryAct.ActII && !gsm.IsNarrativeBeatCompleted(ActTwoBeatId))
+        {
+            ShowBeat(ActTwoBeatId, BuildActTwoBeatTitle(), BuildActTwoBeatBody());
+            return;
+        }
+
+        if (gsm.CurrentStoryAct >= GameStateManager.StoryAct.ActIII && !gsm.IsNarrativeBeatCompleted(ActThreeBeatId))
+        {
+            ShowBeat(ActThreeBeatId, BuildActThreeBeatTitle(), BuildActThreeBeatBody());
+            return;
+        }
+
     }
 
     private bool ShowBeat(string beatId, string title, string body)
@@ -234,6 +273,62 @@ public class NarrativeBeatDirector : MonoBehaviour
         body.Append("Water: The island feels lighter... but only for now.\n");
         body.Append("Space: Balance never lasts. It must be renewed.\n");
         body.Append("Fire: Then we keep moving before it slips again.");
+        return body.ToString();
+    }
+
+    private static string BuildActTwoBeatTitle()
+    {
+        return "What The Texts Meant";
+    }
+
+    private static string BuildActTwoBeatBody()
+    {
+        StringBuilder body = new StringBuilder();
+        body.Append("Earth: These records are not warnings. They are instructions.\n");
+        body.Append("Water: Every century, the same march. The same ending.\n");
+        body.Append("Air: Then the silence between us is not fear. It is recognition.");
+        return body.ToString();
+    }
+
+    private static string BuildActThreeBeatTitle()
+    {
+        return "Acceptance Before The Last Shore";
+    }
+
+    private static string BuildActThreeBeatBody()
+    {
+        StringBuilder body = new StringBuilder();
+        body.Append("Fire: We know what waits after this.\n");
+        body.Append("Space: Knowing does not empty the path. It only clarifies it.\n");
+        body.Append("Earth: Then we finish what we were sent here to finish, together.");
+        return body.ToString();
+    }
+
+    private static string BuildGoodEndingBeatTitle()
+    {
+        return "Sunset In Balance";
+    }
+
+    private static string BuildGoodEndingBeatBody()
+    {
+        StringBuilder body = new StringBuilder();
+        body.Append("The six enemies are gone, and with them the need for the chosen five.\n");
+        body.Append("The party understands at last that they were born only to restore balance.\n");
+        body.Append("Facing the sunset together, they accept that peace costs them their own fading light.");
+        return body.ToString();
+    }
+
+    private static string BuildBadEndingBeatTitle()
+    {
+        return "Sunset Without Purpose";
+    }
+
+    private static string BuildBadEndingBeatBody()
+    {
+        StringBuilder body = new StringBuilder();
+        body.Append("The party falls before finishing its purpose, and only the main character remains.\n");
+        body.Append("Despair twists fate into meaninglessness instead of acceptance.\n");
+        body.Append("On the hill at sunset, he dies believing the cycle ended in nothing.");
         return body.ToString();
     }
 }

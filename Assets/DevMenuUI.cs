@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -27,6 +28,8 @@ public class DevMenuUI : MonoBehaviour
             return;
         }
 
+        EnsureEventSystem();
+
         summaryRefreshTimer -= Time.unscaledDeltaTime;
         if (summaryRefreshTimer <= 0f)
         {
@@ -50,6 +53,7 @@ public class DevMenuUI : MonoBehaviour
 
         if (visible)
         {
+            EnsureEventSystem();
             RefreshSummary();
         }
     }
@@ -60,6 +64,8 @@ public class DevMenuUI : MonoBehaviour
         {
             return;
         }
+
+        EnsureEventSystem();
 
         GameObject canvasObject = new GameObject("DevMenuCanvas", typeof(RectTransform));
         canvasObject.transform.SetParent(transform, false);
@@ -91,7 +97,7 @@ public class DevMenuUI : MonoBehaviour
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 4;
         LayoutElement gridLayout = buttonGridObject.AddComponent<LayoutElement>();
-        gridLayout.preferredHeight = 260f;
+        gridLayout.preferredHeight = 520f;
 
         AddActionButton(buttonGridObject.transform, "Full Reset All", () => DevCheatService.Instance?.FullResetAllState());
         AddActionButton(buttonGridObject.transform, "Reset Encounters", () => DevCheatService.Instance?.ResetEncounterAndFightState());
@@ -133,6 +139,16 @@ public class DevMenuUI : MonoBehaviour
                 DevCheatService.Instance.ShowDebugOverlay = !DevCheatService.Instance.ShowDebugOverlay;
             }
         });
+
+        AddActionButton(buttonGridObject.transform, "Cycle 75% Rule", () => DevCheatService.Instance?.CycleMinimumRestorationBadEndingRuleMode());
+        AddActionButton(buttonGridObject.transform, "Force Act I", () => DevCheatService.Instance?.ForceStoryAct(GameStateManager.StoryAct.ActI));
+        AddActionButton(buttonGridObject.transform, "Force Act II", () => DevCheatService.Instance?.ForceStoryAct(GameStateManager.StoryAct.ActII));
+        AddActionButton(buttonGridObject.transform, "Force Act III", () => DevCheatService.Instance?.ForceStoryAct(GameStateManager.StoryAct.ActIII));
+        AddActionButton(buttonGridObject.transform, "Force Good Ending", () => DevCheatService.Instance?.ForceEndingBranch(GameStateManager.EndingBranch.Good));
+        AddActionButton(buttonGridObject.transform, "Force Bad Ending", () => DevCheatService.Instance?.ForceEndingBranch(GameStateManager.EndingBranch.Bad));
+        AddActionButton(buttonGridObject.transform, "Reset Story State", () => DevCheatService.Instance?.ResetStoryProgression());
+        AddActionButton(buttonGridObject.transform, "Final Boss Defeat +1", () => DevCheatService.Instance?.RecordFinalBossDefeatAttempt());
+        AddActionButton(buttonGridObject.transform, "Reset Final Boss Defeats", () => DevCheatService.Instance?.ResetFinalBossDefeatAttempts());
 
         AddIslandButtons(buttonGridObject.transform);
 
@@ -201,6 +217,18 @@ public class DevMenuUI : MonoBehaviour
         uiText.alignment = anchor;
         uiText.color = new Color(0.95f, 0.97f, 1f, 1f);
         return uiText;
+    }
+
+    private static void EnsureEventSystem()
+    {
+        if (FindFirstObjectByType<EventSystem>() != null)
+        {
+            return;
+        }
+
+        GameObject eventSystemObject = new GameObject("EventSystem");
+        eventSystemObject.AddComponent<EventSystem>();
+        eventSystemObject.AddComponent<StandaloneInputModule>();
     }
 
     private void AddActionButton(Transform parent, string label, UnityEngine.Events.UnityAction action)

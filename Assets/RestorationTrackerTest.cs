@@ -18,12 +18,14 @@ public class RestorationTrackerTest : MonoBehaviour
         TestSingletonDuplicateGuardPreservesOriginalTracker();
         TestSingletonClearsInstanceOnDestroy();
         TestLegacyCompleteEncounterCannotStack();
+        TestRecordEncounterCompletionReturnValue();
         TestTypedBuckets();
         TestRestorationPercentCalculation();
         TestThresholdQuery();
         TestFullRestorationEvent();
         TestResetIsland();
         TestMultiIslandIsolation();
+        TestSnapshotRoundTripPreservesCompletedEncounterIds();
         TestIslandRestorationStateDirect();
 
         Debug.Log("=== All Restoration Tracker Tests Passed ===");
@@ -233,6 +235,25 @@ public class RestorationTrackerTest : MonoBehaviour
         Debug.Log("✓ Typed buckets test passed");
     }
 
+    private void TestRecordEncounterCompletionReturnValue()
+    {
+        Debug.Log("Testing encounter completion return value...");
+
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_ReturnValue");
+        GameObject trackerObject = tracker.gameObject;
+
+        bool recordedFirst = tracker.RecordEncounterCompletion("island_return", "combat_1", EncounterType.Combat, 0.125f);
+        bool recordedDuplicate = tracker.RecordEncounterCompletion("island_return", "combat_1", EncounterType.Combat, 0.125f);
+        bool recordedInvalid = tracker.RecordEncounterCompletion("island_return", string.Empty, EncounterType.Combat, 0.125f);
+
+        Assert.IsTrue(recordedFirst, "First encounter completion should report success.");
+        Assert.IsFalse(recordedDuplicate, "Duplicate encounter completion should report failure.");
+        Assert.IsFalse(recordedInvalid, "Invalid encounter completion should report failure.");
+
+        DestroyImmediate(trackerObject);
+        Debug.Log("✓ Encounter completion return value test passed");
+    }
+
     private void TestRestorationPercentCalculation()
     {
         Debug.Log("Testing restoration percent calculation...");
@@ -346,6 +367,34 @@ public class RestorationTrackerTest : MonoBehaviour
 
         DestroyImmediate(trackerObject);
         Debug.Log("✓ Multi-island isolation test passed");
+    }
+
+    private void TestSnapshotRoundTripPreservesCompletedEncounterIds()
+    {
+        Debug.Log("Testing tracker snapshot round-trip...");
+
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Snapshot");
+        GameObject trackerObject = tracker.gameObject;
+
+        tracker.RecordEncounterCompletion("island_snapshot", "combat_1", EncounterType.Combat, 0.5f);
+        tracker.RecordEncounterCompletion("island_snapshot", "puzzle_1", EncounterType.Puzzle, 0.25f);
+
+        IslandRestorationTracker.TrackerSnapshot snapshot = tracker.CaptureSnapshot();
+        tracker.ResetIsland("island_snapshot");
+        tracker.ApplySnapshot(snapshot);
+
+        Assert.IsTrue(tracker.HasClearedEncounter("island_snapshot", "combat_1"),
+            "Completed combat encounter should survive snapshot round-trip.");
+        Assert.IsTrue(tracker.HasClearedEncounter("island_snapshot", "puzzle_1"),
+            "Completed puzzle encounter should survive snapshot round-trip.");
+        Assert.AreEqual(75f, tracker.GetRestorationPercent("island_snapshot"), 0.01f,
+            "Restoration percent should survive snapshot round-trip.");
+
+        bool duplicateAfterLoad = tracker.RecordEncounterCompletion("island_snapshot", "combat_1", EncounterType.Combat, 0.5f);
+        Assert.IsFalse(duplicateAfterLoad, "Reloaded encounter ids should still prevent duplicate completion.");
+
+        DestroyImmediate(trackerObject);
+        Debug.Log("✓ Tracker snapshot round-trip test passed");
     }
 
     private void TestIslandRestorationStateDirect()

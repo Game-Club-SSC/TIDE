@@ -15,7 +15,7 @@ public class IslandConfig : ScriptableObject
     public Color vicePrimaryColor = new Color(1f, 0.84f, 0f);
     public Color viceSecondaryColor = new Color(0.55f, 0.41f, 0.08f);
 
-    [Tooltip("Ordered list of encounters. For 5 subsections, provide 10 entries: Combat, Puzzle, Combat, Puzzle, ...")]
+    [Tooltip("Ordered list of encounters for the current slice. Typical layout is 4 combat/puzzle pairs followed by a boss combat.")]
     public EncounterDefinition[] encounters;
 }
 

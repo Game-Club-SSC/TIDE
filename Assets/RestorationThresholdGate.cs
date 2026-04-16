@@ -65,7 +65,7 @@ public class RestorationThresholdGate : MonoBehaviour
 
         string targetIsland = IslandThemeRegistry.ResolveIslandId(islandId);
         float percent = tracker.GetRestorationPercent(targetIsland);
-        bool nowMet = percent >= thresholdPercent;
+        bool nowMet = tracker.IsRestorationAtOrAbove(targetIsland, thresholdPercent);
         bool stateChanged = nowMet != thresholdMet;
 
         thresholdMet = nowMet;

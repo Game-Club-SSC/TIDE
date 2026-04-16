@@ -49,6 +49,22 @@ public class GameStateManager : MonoBehaviour
         public IslandRestorationTracker.TrackerSnapshot restorationSnapshot;
         public GearProgressionSaveData gearProgression;
         public IslandProgressionManager.ProgressionSnapshot progressionSnapshot;
+        public StoryProgressionSaveData storyProgression;
+    }
+
+    [Serializable]
+    private sealed class StoryProgressionSaveData
+    {
+        public int currentAct;
+        public int highestActReached;
+        public int finalBossDefeatThreshold;
+        public int minimumRestorationRuleMode;
+        public string pendingBadEndingThresholdEventIslandId;
+        public string endingBranch;
+        public bool endingTriggered;
+        public List<string> thresholdOnlyBossVictoryIslandIds = new List<string>();
+        public List<string> thresholdOnlyProceedIslandIds = new List<string>();
+        public List<FinalBossDefeatSaveEntry> finalBossDefeats = new List<FinalBossDefeatSaveEntry>();
     }
 
     public enum GameState
@@ -57,6 +73,27 @@ public class GameStateManager : MonoBehaviour
         Combat,
         Puzzle,
         Transition
+    }
+
+    public enum StoryAct
+    {
+        ActI = 1,
+        ActII = 2,
+        ActIII = 3
+    }
+
+    public enum EndingBranch
+    {
+        None,
+        Good,
+        Bad
+    }
+
+    public enum MinimumRestorationBadEndingRuleMode
+    {
+        OptionalContentOnly,
+        BossDefeatedAtThreshold,
+        ProceededAtThreshold
     }
 
     public const string MainSceneName = "level_1";
@@ -69,9 +106,15 @@ public class GameStateManager : MonoBehaviour
     public bool PuzzleSolved { get; private set; }
     public bool IsTransitioning => isTransitioning;
     public bool HasLoadedWorldState => hasLoadedWorldState;
+    public StoryAct CurrentStoryAct => currentStoryAct;
+    public StoryAct HighestStoryActReached => highestStoryActReached;
+    public EndingBranch ResolvedEndingBranch => resolvedEndingBranch;
+    public bool IsEndingTriggered => endingTriggered;
+    public MinimumRestorationBadEndingRuleMode MinimumRestorationBadEndingRule => minimumRestorationBadEndingRuleMode;
 
     private const float FadeDuration = 0.2f;
     private const float ExplorationPositionSyncInterval = 0.2f;
+    private const float RestorationThresholdEpsilon = 0.01f;
     private const string WorldStateSaveKey = "TIDE_WORLD_STATE_V1";
     private static readonly Vector3 DefaultSmithyPosition = new Vector3(15f, 31.54f, 2.69f);
     private static readonly Vector3 DefaultSmithyScale = new Vector3(1.4f, 1.1f, 1.4f);
@@ -120,10 +163,21 @@ public class GameStateManager : MonoBehaviour
     private readonly Dictionary<string, PuzzleRuntimeState> puzzleRuntimeStates = new Dictionary<string, PuzzleRuntimeState>();
     private readonly Dictionary<string, AncientTextRuntimeState> ancientTextRuntimeStates = new Dictionary<string, AncientTextRuntimeState>();
     private readonly HashSet<string> completedNarrativeBeatIds = new HashSet<string>();
+    private readonly HashSet<string> thresholdOnlyBossVictoryIslandIds = new HashSet<string>(StringComparer.Ordinal);
+    private readonly HashSet<string> thresholdOnlyProceedIslandIds = new HashSet<string>(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> finalBossDefeatCounts = new Dictionary<string, int>(StringComparer.Ordinal);
     private string pendingBossIslandIdForDefeatTracking;
     private bool isSavingWorldState;
     private bool isLoadingWorldState;
     private bool hasBootstrappedFlowForCurrentScene;
+    private StoryAct currentStoryAct = StoryAct.ActI;
+    private StoryAct highestStoryActReached = StoryAct.ActI;
+    private EndingBranch resolvedEndingBranch = EndingBranch.None;
+    private bool endingTriggered;
+    private string observedActiveIslandId;
+    private string pendingBadEndingThresholdEventIslandId;
+    private int finalBossDefeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding;
+    private MinimumRestorationBadEndingRuleMode minimumRestorationBadEndingRuleMode = MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
 
     [Header("Feature Gates")]
     [SerializeField] private bool enableCosmeticProgressionEconomyForCurrentSlice;
@@ -180,10 +234,12 @@ public class GameStateManager : MonoBehaviour
         ApplyRuntimeFeatureGates();
         EnsureRestorationTracker();
         EnsureProgressionManager();
+        BindProgressionManagerEvents();
         IslandProgressionManager.Instance?.ReconcileStateFromRestoration();
         EnsureFadeCanvas();
         EnsureDeveloperTools();
         LoadWorldState();
+        ReconcileStoryProgressionFromIslandState();
     }
 
     private void ApplyRuntimeFeatureGates()
@@ -254,6 +310,7 @@ public class GameStateManager : MonoBehaviour
         }
 
         SaveWorldState();
+        UnbindProgressionManagerEvents();
         SceneManager.sceneLoaded -= HandleSceneLoaded;
         Instance = null;
     }
@@ -323,6 +380,7 @@ public class GameStateManager : MonoBehaviour
         pendingBossIslandIdForDefeatTracking = (isBossEncounter || IsBossEncounterId(PendingCombatEncounterId))
             ? PendingCombatIslandId
             : null;
+        finalBossDefeatsForBadEndingThreshold = ResolveFinalBossDefeatThreshold(pendingBossIslandIdForDefeatTracking);
         CaptureExplorationCameraTransform();
         BeginCombatTransition();
     }
@@ -347,10 +405,12 @@ public class GameStateManager : MonoBehaviour
         if (!shouldTrack)
         {
             pendingBossIslandIdForDefeatTracking = null;
+            finalBossDefeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding;
             return;
         }
 
         pendingBossIslandIdForDefeatTracking = IslandThemeRegistry.ResolveIslandId(islandId);
+        finalBossDefeatsForBadEndingThreshold = ResolveFinalBossDefeatThreshold(pendingBossIslandIdForDefeatTracking);
     }
 
     private void BeginCombatTransition()
@@ -631,6 +691,386 @@ public class GameStateManager : MonoBehaviour
         return completedNarrativeBeatIds.Contains(beatId);
     }
 
+    public int GetFinalBossDefeatCount(string islandId)
+    {
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (string.IsNullOrEmpty(scopedIslandId)
+            || !finalBossDefeatCounts.TryGetValue(scopedIslandId, out int defeats))
+        {
+            return 0;
+        }
+
+        return Mathf.Max(0, defeats);
+    }
+
+    public int GetConfiguredFinalBossDefeatThreshold(string islandId)
+    {
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (string.IsNullOrEmpty(scopedIslandId))
+        {
+            return BossEncounterGate.DefaultDefeatsForBadEnding;
+        }
+
+        int sceneThreshold = ResolveFinalBossDefeatThreshold(scopedIslandId);
+        if (!IsFinalIslandForEnding(scopedIslandId))
+        {
+            return sceneThreshold;
+        }
+
+        if (sceneThreshold != BossEncounterGate.DefaultDefeatsForBadEnding)
+        {
+            return sceneThreshold;
+        }
+
+        return Mathf.Max(1, finalBossDefeatsForBadEndingThreshold);
+    }
+
+    public bool RecordFinalBossDefeatAttempt(string islandId, int defeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding)
+    {
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (string.IsNullOrEmpty(scopedIslandId))
+        {
+            return false;
+        }
+
+        int defeats = GetFinalBossDefeatCount(scopedIslandId) + 1;
+        finalBossDefeatCounts[scopedIslandId] = defeats;
+        SaveWorldState();
+
+        if (defeats >= Mathf.Max(1, defeatsForBadEndingThreshold))
+        {
+            SetEndingBranch(EndingBranch.Bad);
+            return true;
+        }
+
+        return false;
+    }
+
+    public void SetFinalBossDefeatCount(string islandId, int defeats)
+    {
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (string.IsNullOrEmpty(scopedIslandId))
+        {
+            return;
+        }
+
+        int sanitized = Mathf.Max(0, defeats);
+        if (sanitized <= 0)
+        {
+            finalBossDefeatCounts.Remove(scopedIslandId);
+        }
+        else
+        {
+            finalBossDefeatCounts[scopedIslandId] = sanitized;
+        }
+
+        SaveWorldState();
+    }
+
+    public bool RecordFinalBossDefeatAttemptAndQueueEvent(string islandId, int defeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding)
+    {
+        bool reachedBadEnding = RecordFinalBossDefeatAttempt(islandId, defeatsForBadEndingThreshold);
+        if (reachedBadEnding)
+        {
+            pendingBadEndingThresholdEventIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        }
+
+        return reachedBadEnding;
+    }
+
+    public string[] GetThresholdOnlyBossVictoryIslandIds()
+    {
+        return BuildSortedIslandArray(thresholdOnlyBossVictoryIslandIds);
+    }
+
+    public string[] GetThresholdOnlyProceedIslandIds()
+    {
+        return BuildSortedIslandArray(thresholdOnlyProceedIslandIds);
+    }
+
+    public void SetMinimumRestorationBadEndingRuleModeForDebug(MinimumRestorationBadEndingRuleMode mode)
+    {
+        minimumRestorationBadEndingRuleMode = mode;
+        SaveWorldState();
+    }
+
+    public void ForceStoryActForDebug(StoryAct act)
+    {
+        currentStoryAct = ClampStoryAct(act);
+        highestStoryActReached = currentStoryAct;
+        SaveWorldState();
+    }
+
+    public void ForceEndingBranchForDebug(EndingBranch branch)
+    {
+        resolvedEndingBranch = branch;
+        endingTriggered = branch != EndingBranch.None;
+        if (branch == EndingBranch.None)
+        {
+            pendingBadEndingThresholdEventIslandId = null;
+        }
+
+        SaveWorldState();
+    }
+
+    public void RefreshStoryProgressionForDebug()
+    {
+        ReconcileStoryProgressionFromIslandState();
+    }
+
+    public void ResetStoryProgressionForDebug()
+    {
+        ancientTextRuntimeStates.Clear();
+        completedNarrativeBeatIds.Clear();
+        currentStoryAct = StoryAct.ActI;
+        highestStoryActReached = StoryAct.ActI;
+        finalBossDefeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding;
+        resolvedEndingBranch = EndingBranch.None;
+        endingTriggered = false;
+        minimumRestorationBadEndingRuleMode = MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
+        pendingBadEndingThresholdEventIslandId = null;
+        thresholdOnlyBossVictoryIslandIds.Clear();
+        thresholdOnlyProceedIslandIds.Clear();
+        finalBossDefeatCounts.Clear();
+        observedActiveIslandId = IslandProgressionManager.Instance != null
+            ? IslandProgressionManager.Instance.ActiveIslandId
+            : IslandThemeRegistry.GetActiveIslandId();
+
+        NarrativeBeatDirector narrativeBeatDirector = FindFirstObjectByType<NarrativeBeatDirector>();
+        if (narrativeBeatDirector != null)
+        {
+            narrativeBeatDirector.ResetForDebug();
+        }
+
+        SaveWorldState();
+    }
+
+    private void ReconcileStoryProgressionFromIslandState()
+    {
+        StoryAct targetAct = DetermineStoryActFromProgression();
+        AdvanceStoryActIfHigher(targetAct);
+    }
+
+    private StoryAct DetermineStoryActFromProgression()
+    {
+        if (IslandProgressionManager.Instance == null)
+        {
+            return currentStoryAct;
+        }
+
+        int islandIndex = IslandProgressionManager.Instance.GetIslandProgressIndex(IslandProgressionManager.Instance.ActiveIslandId);
+        if (islandIndex >= IslandThemeRegistry.ProgressionOrder.Count - 1)
+        {
+            return StoryAct.ActIII;
+        }
+
+        if (islandIndex >= 3)
+        {
+            return StoryAct.ActII;
+        }
+
+        return StoryAct.ActI;
+    }
+
+    private void AdvanceStoryActIfHigher(StoryAct act)
+    {
+        StoryAct clampedAct = ClampStoryAct(act);
+        bool changed = false;
+
+        if ((int)clampedAct > (int)highestStoryActReached)
+        {
+            highestStoryActReached = clampedAct;
+            changed = true;
+        }
+
+        if ((int)clampedAct > (int)currentStoryAct)
+        {
+            currentStoryAct = clampedAct;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            SaveWorldState();
+        }
+    }
+
+    private void SetEndingBranch(EndingBranch branch)
+    {
+        if (branch == EndingBranch.None)
+        {
+            resolvedEndingBranch = EndingBranch.None;
+            endingTriggered = false;
+            SaveWorldState();
+            return;
+        }
+
+        if (endingTriggered && resolvedEndingBranch == branch)
+        {
+            return;
+        }
+
+        resolvedEndingBranch = branch;
+        endingTriggered = true;
+        SaveWorldState();
+    }
+
+    private static StoryAct ClampStoryAct(StoryAct act)
+    {
+        int value = Mathf.Clamp((int)act, (int)StoryAct.ActI, (int)StoryAct.ActIII);
+        return (StoryAct)value;
+    }
+
+    private static string[] BuildSortedIslandArray(HashSet<string> islandIds)
+    {
+        List<string> ordered = new List<string>();
+        if (islandIds == null)
+        {
+            return ordered.ToArray();
+        }
+
+        IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
+        for (int i = 0; i < progressionOrder.Count; i++)
+        {
+            string islandId = progressionOrder[i];
+            if (islandIds.Contains(islandId))
+            {
+                ordered.Add(islandId);
+            }
+        }
+
+        foreach (string islandId in islandIds)
+        {
+            if (!ordered.Contains(islandId))
+            {
+                ordered.Add(islandId);
+            }
+        }
+
+        return ordered.ToArray();
+    }
+
+    private StoryProgressionSaveData CaptureStoryProgressionSaveData()
+    {
+        StoryProgressionSaveData saveData = new StoryProgressionSaveData
+        {
+            currentAct = (int)currentStoryAct,
+            highestActReached = (int)highestStoryActReached,
+            finalBossDefeatThreshold = finalBossDefeatsForBadEndingThreshold,
+            minimumRestorationRuleMode = (int)minimumRestorationBadEndingRuleMode,
+            pendingBadEndingThresholdEventIslandId = pendingBadEndingThresholdEventIslandId,
+            endingBranch = resolvedEndingBranch.ToString(),
+            endingTriggered = endingTriggered
+        };
+
+        foreach (string islandId in thresholdOnlyBossVictoryIslandIds)
+        {
+            saveData.thresholdOnlyBossVictoryIslandIds.Add(islandId);
+        }
+
+        foreach (string islandId in thresholdOnlyProceedIslandIds)
+        {
+            saveData.thresholdOnlyProceedIslandIds.Add(islandId);
+        }
+
+        foreach (KeyValuePair<string, int> pair in finalBossDefeatCounts)
+        {
+            saveData.finalBossDefeats.Add(new FinalBossDefeatSaveEntry
+            {
+                islandId = pair.Key,
+                defeats = Mathf.Max(0, pair.Value)
+            });
+        }
+
+        return saveData;
+    }
+
+    private void ApplyStoryProgressionSaveData(StoryProgressionSaveData saveData)
+    {
+        currentStoryAct = StoryAct.ActI;
+        highestStoryActReached = StoryAct.ActI;
+        finalBossDefeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding;
+        minimumRestorationBadEndingRuleMode = MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
+        resolvedEndingBranch = EndingBranch.None;
+        endingTriggered = false;
+        pendingBadEndingThresholdEventIslandId = null;
+        thresholdOnlyBossVictoryIslandIds.Clear();
+        thresholdOnlyProceedIslandIds.Clear();
+        finalBossDefeatCounts.Clear();
+
+        if (saveData == null)
+        {
+            return;
+        }
+
+        currentStoryAct = ClampStoryAct((StoryAct)saveData.currentAct);
+        highestStoryActReached = ClampStoryAct((StoryAct)Mathf.Max(saveData.highestActReached, saveData.currentAct));
+        finalBossDefeatsForBadEndingThreshold = Mathf.Max(1, saveData.finalBossDefeatThreshold > 0
+            ? saveData.finalBossDefeatThreshold
+            : BossEncounterGate.DefaultDefeatsForBadEnding);
+        minimumRestorationBadEndingRuleMode = Enum.IsDefined(typeof(MinimumRestorationBadEndingRuleMode), saveData.minimumRestorationRuleMode)
+            ? (MinimumRestorationBadEndingRuleMode)saveData.minimumRestorationRuleMode
+            : MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
+        pendingBadEndingThresholdEventIslandId = string.IsNullOrEmpty(saveData.pendingBadEndingThresholdEventIslandId)
+            ? null
+            : IslandThemeRegistry.ResolveIslandId(saveData.pendingBadEndingThresholdEventIslandId);
+        endingTriggered = saveData.endingTriggered;
+
+        if (!string.IsNullOrEmpty(saveData.endingBranch)
+            && Enum.TryParse(saveData.endingBranch, true, out EndingBranch parsedEndingBranch))
+        {
+            resolvedEndingBranch = parsedEndingBranch;
+        }
+
+        if (saveData.thresholdOnlyBossVictoryIslandIds != null)
+        {
+            for (int i = 0; i < saveData.thresholdOnlyBossVictoryIslandIds.Count; i++)
+            {
+                string sourceIslandId = saveData.thresholdOnlyBossVictoryIslandIds[i];
+                string islandId = string.IsNullOrEmpty(sourceIslandId)
+                    ? string.Empty
+                    : IslandThemeRegistry.ResolveIslandId(sourceIslandId);
+                if (!string.IsNullOrEmpty(islandId))
+                {
+                    thresholdOnlyBossVictoryIslandIds.Add(islandId);
+                }
+            }
+        }
+
+        if (saveData.thresholdOnlyProceedIslandIds != null)
+        {
+            for (int i = 0; i < saveData.thresholdOnlyProceedIslandIds.Count; i++)
+            {
+                string sourceIslandId = saveData.thresholdOnlyProceedIslandIds[i];
+                string islandId = string.IsNullOrEmpty(sourceIslandId)
+                    ? string.Empty
+                    : IslandThemeRegistry.ResolveIslandId(sourceIslandId);
+                if (!string.IsNullOrEmpty(islandId))
+                {
+                    thresholdOnlyProceedIslandIds.Add(islandId);
+                }
+            }
+        }
+
+        if (saveData.finalBossDefeats != null)
+        {
+            for (int i = 0; i < saveData.finalBossDefeats.Count; i++)
+            {
+                FinalBossDefeatSaveEntry entry = saveData.finalBossDefeats[i];
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                string islandId = IslandThemeRegistry.ResolveIslandId(entry.islandId);
+                if (!string.IsNullOrEmpty(islandId))
+                {
+                    finalBossDefeatCounts[islandId] = Mathf.Max(0, entry.defeats);
+                }
+            }
+        }
+    }
+
     public void SaveWorldState()
     {
         if (!enablePersistentSaveData)
@@ -710,6 +1150,8 @@ public class GameStateManager : MonoBehaviour
             {
                 saveData.progressionSnapshot = IslandProgressionManager.Instance.CaptureSnapshot();
             }
+
+            saveData.storyProgression = CaptureStoryProgressionSaveData();
 
             string payload = JsonUtility.ToJson(saveData);
             PlayerPrefs.SetString(WorldStateSaveKey, payload);
@@ -836,6 +1278,8 @@ public class GameStateManager : MonoBehaviour
                 IslandProgressionManager.Instance.ApplySnapshot(saveData.progressionSnapshot);
             }
 
+            ApplyStoryProgressionSaveData(saveData.storyProgression);
+
             PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
             if (guardSpawner != null)
             {
@@ -858,12 +1302,15 @@ public class GameStateManager : MonoBehaviour
 
         if (IslandRestorationTracker.Instance != null)
         {
-            IslandRestorationTracker.Instance.RecordEncounterCompletion(
+            bool recorded = IslandRestorationTracker.Instance.RecordEncounterCompletion(
                 scopedIslandId,
                 scopedEncounterId,
                 EncounterType.Puzzle,
                 contribution);
-            Debug.Log($"[GameStateManager] Recorded puzzle completion for island '{scopedIslandId}', encounter '{scopedEncounterId}'.");
+            if (recorded)
+            {
+                Debug.Log($"[GameStateManager] Recorded puzzle completion for island '{scopedIslandId}', encounter '{scopedEncounterId}'.");
+            }
         }
 
         SaveWorldState();
@@ -889,21 +1336,36 @@ public class GameStateManager : MonoBehaviour
 
     public void OnCombatEnded(bool playerWon, bool playerFled)
     {
+        string bossTrackedIslandId = ResolvePendingBossIslandId();
+        bool isBossEncounter = !string.IsNullOrEmpty(bossTrackedIslandId);
+        bool isFinalBossEncounter = isBossEncounter && IsFinalIslandForEnding(bossTrackedIslandId);
+        float preBossRestorationPercent = isBossEncounter
+            ? GetIslandRestorationPercent(bossTrackedIslandId)
+            : 0f;
+
         if (!playerWon && !playerFled)
         {
             NotifyBossDefeatAttempt();
+        }
+
+        if (playerWon && isBossEncounter)
+        {
+            TrackBossVictoryThresholdProgress(bossTrackedIslandId, preBossRestorationPercent);
         }
 
         if (playerWon && IslandRestorationTracker.Instance != null && !string.IsNullOrEmpty(PendingCombatEncounterId))
         {
             string islandId = IslandThemeRegistry.ResolveIslandId(PendingCombatIslandId);
             float contribution = PendingCombatRestorationValue > 0f ? PendingCombatRestorationValue : 0.001f;
-            IslandRestorationTracker.Instance.RecordEncounterCompletion(
+            bool recorded = IslandRestorationTracker.Instance.RecordEncounterCompletion(
                 islandId,
                 PendingCombatEncounterId,
                 EncounterType.Combat,
                 contribution);
-            Debug.Log($"[GameStateManager] Recorded combat completion for island '{islandId}', encounter '{PendingCombatEncounterId}'.");
+            if (recorded)
+            {
+                Debug.Log($"[GameStateManager] Recorded combat completion for island '{islandId}', encounter '{PendingCombatEncounterId}'.");
+            }
         }
 
         if (playerWon)
@@ -914,6 +1376,11 @@ public class GameStateManager : MonoBehaviour
         if (playerWon)
         {
             SaveWorldState();
+        }
+
+        if (playerWon && isFinalBossEncounter)
+        {
+            ResolveFinalEndingAfterBossVictory();
         }
 
         if (playerFled)
@@ -1071,6 +1538,7 @@ public class GameStateManager : MonoBehaviour
             EnsureMainSceneRuntimeComponents();
             ApplySolvedPuzzleBoxesInScene();
             LoadFinalBossDefeatStateIfAvailable();
+            NotifyPendingBadEndingThresholdEventIfNeeded();
 
             if (PuzzleSolved)
             {
@@ -1101,13 +1569,16 @@ public class GameStateManager : MonoBehaviour
 
                     float contribution = PendingPuzzleRestorationValue > 0f ? PendingPuzzleRestorationValue : 0.2f;
 
-                    IslandRestorationTracker.Instance.RecordEncounterCompletion(
+                    bool recorded = IslandRestorationTracker.Instance.RecordEncounterCompletion(
                         islandId,
                         encounterId,
                         EncounterType.Puzzle,
                         contribution);
-                    Debug.Log($"[GameStateManager] Recorded puzzle completion for island '{islandId}', encounter '{encounterId}'.");
-                    SaveWorldState();
+                    if (recorded)
+                    {
+                        Debug.Log($"[GameStateManager] Recorded puzzle completion for island '{islandId}', encounter '{encounterId}'.");
+                        SaveWorldState();
+                    }
                 }
 
                 // Clear pending restoration fields
@@ -1155,6 +1626,13 @@ public class GameStateManager : MonoBehaviour
             }
 
             ApplyPendingCameraTransformIfAvailable();
+
+            if (IslandProgressionManager.Instance != null)
+            {
+                observedActiveIslandId = IslandProgressionManager.Instance.ActiveIslandId;
+            }
+
+            ReconcileStoryProgressionFromIslandState();
 
             hasPendingReturnPosition = false;
             hasPendingCombatReturnPosition = false;
@@ -1331,6 +1809,57 @@ public class GameStateManager : MonoBehaviour
         }
     }
 
+    private void BindProgressionManagerEvents()
+    {
+        if (IslandProgressionManager.Instance == null)
+        {
+            return;
+        }
+
+        IslandProgressionManager.Instance.OnActiveIslandChanged -= HandleActiveIslandChanged;
+        IslandProgressionManager.Instance.OnActiveIslandChanged += HandleActiveIslandChanged;
+        observedActiveIslandId = IslandProgressionManager.Instance.ActiveIslandId;
+    }
+
+    private void UnbindProgressionManagerEvents()
+    {
+        if (IslandProgressionManager.Instance == null)
+        {
+            return;
+        }
+
+        IslandProgressionManager.Instance.OnActiveIslandChanged -= HandleActiveIslandChanged;
+    }
+
+    private void HandleActiveIslandChanged(string islandId)
+    {
+        string previousIslandId = observedActiveIslandId;
+        observedActiveIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+
+        bool suppressStorySideEffects = DevCheatService.Instance != null && DevCheatService.Instance.SuppressStoryProgressionSideEffects;
+        if (suppressStorySideEffects)
+        {
+            return;
+        }
+
+        int previousIslandIndex = IslandProgressionManager.Instance != null
+            ? IslandProgressionManager.Instance.GetIslandProgressIndex(previousIslandId)
+            : -1;
+        int nextIslandIndex = IslandProgressionManager.Instance != null
+            ? IslandProgressionManager.Instance.GetIslandProgressIndex(observedActiveIslandId)
+            : -1;
+
+        if (!string.IsNullOrEmpty(previousIslandId)
+            && !string.Equals(previousIslandId, observedActiveIslandId, StringComparison.Ordinal)
+            && nextIslandIndex > previousIslandIndex
+            && thresholdOnlyBossVictoryIslandIds.Contains(previousIslandId))
+        {
+            thresholdOnlyProceedIslandIds.Add(previousIslandId);
+        }
+
+        ReconcileStoryProgressionFromIslandState();
+    }
+
     private void EnsureDeveloperTools()
     {
         if (!IsDeveloperGodModeAllowed())
@@ -1368,6 +1897,19 @@ public class GameStateManager : MonoBehaviour
         puzzleRuntimeStates.Clear();
         ancientTextRuntimeStates.Clear();
         completedNarrativeBeatIds.Clear();
+        thresholdOnlyBossVictoryIslandIds.Clear();
+        thresholdOnlyProceedIslandIds.Clear();
+        finalBossDefeatCounts.Clear();
+        currentStoryAct = StoryAct.ActI;
+        highestStoryActReached = StoryAct.ActI;
+        finalBossDefeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding;
+        resolvedEndingBranch = EndingBranch.None;
+        endingTriggered = false;
+        minimumRestorationBadEndingRuleMode = MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
+        pendingBadEndingThresholdEventIslandId = null;
+        observedActiveIslandId = IslandProgressionManager.Instance != null
+            ? IslandProgressionManager.Instance.ActiveIslandId
+            : IslandThemeRegistry.GetActiveIslandId();
 
         PendingPuzzleData = null;
         PendingPuzzleLayout = null;
@@ -1628,25 +2170,199 @@ public class GameStateManager : MonoBehaviour
 
     private void NotifyBossDefeatAttempt()
     {
-        if (string.IsNullOrEmpty(pendingBossIslandIdForDefeatTracking))
+        string trackedIslandId = ResolvePendingBossIslandId();
+        if (string.IsNullOrEmpty(trackedIslandId) || !IsFinalIslandForEnding(trackedIslandId))
         {
             return;
         }
 
-        BossEncounterGate[] bossGates = FindObjectsByType<BossEncounterGate>(FindObjectsSortMode.None);
-        for (int i = 0; i < bossGates.Length; i++)
+        if (RecordFinalBossDefeatAttempt(trackedIslandId, finalBossDefeatsForBadEndingThreshold))
         {
-            BossEncounterGate gate = bossGates[i];
-            if (gate == null)
+            pendingBadEndingThresholdEventIslandId = trackedIslandId;
+            Debug.LogWarning($"[GameStateManager] Bad ending threshold reached after repeated defeats on '{trackedIslandId}'.");
+        }
+    }
+
+    private string ResolvePendingBossIslandId()
+    {
+        if (!string.IsNullOrEmpty(pendingBossIslandIdForDefeatTracking))
+        {
+            return IslandThemeRegistry.ResolveIslandId(pendingBossIslandIdForDefeatTracking);
+        }
+
+        if (IsBossEncounterId(PendingCombatEncounterId))
+        {
+            return IslandThemeRegistry.ResolveIslandId(PendingCombatIslandId);
+        }
+
+        return string.Empty;
+    }
+
+    private bool IsFinalIslandForEnding(string islandId)
+    {
+        return IslandProgressionManager.Instance != null
+            && IslandProgressionManager.Instance.IsFinalIsland(islandId);
+    }
+
+    private void TrackBossVictoryThresholdProgress(string islandId, float preBossRestorationPercent)
+    {
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (string.IsNullOrEmpty(scopedIslandId))
+        {
+            return;
+        }
+
+        if (IsAtOrNearBossUnlockThreshold(preBossRestorationPercent))
+        {
+            thresholdOnlyBossVictoryIslandIds.Add(scopedIslandId);
+        }
+        else
+        {
+            thresholdOnlyBossVictoryIslandIds.Remove(scopedIslandId);
+            thresholdOnlyProceedIslandIds.Remove(scopedIslandId);
+        }
+    }
+
+    private void ResolveFinalEndingAfterBossVictory()
+    {
+        if (endingTriggered)
+        {
+            return;
+        }
+
+        SetEndingBranch(ShouldResolveBadEnding() ? EndingBranch.Bad : EndingBranch.Good);
+    }
+
+    private bool ShouldResolveBadEnding()
+    {
+        string finalIslandId = IslandProgressionManager.Instance != null
+            ? IslandThemeRegistry.ResolveIslandId(IslandThemeRegistry.ProgressionOrder[IslandThemeRegistry.ProgressionOrder.Count - 1])
+            : string.Empty;
+
+        if (!string.IsNullOrEmpty(finalIslandId)
+            && GetFinalBossDefeatCount(finalIslandId) >= Mathf.Max(1, finalBossDefeatsForBadEndingThreshold))
+        {
+            return true;
+        }
+
+        return ShouldTriggerMinimumRestorationBadEnding();
+    }
+
+    private bool ShouldTriggerMinimumRestorationBadEnding()
+    {
+        switch (minimumRestorationBadEndingRuleMode)
+        {
+            case MinimumRestorationBadEndingRuleMode.BossDefeatedAtThreshold:
+                return AreAllRequiredIslandsFlagged(thresholdOnlyBossVictoryIslandIds, true, false);
+            case MinimumRestorationBadEndingRuleMode.ProceededAtThreshold:
+                return AreAllRequiredIslandsFlagged(thresholdOnlyProceedIslandIds, false, false);
+            default:
+                return AreAllRequiredIslandsFlagged(thresholdOnlyBossVictoryIslandIds, true, true);
+        }
+    }
+
+    private bool AreAllRequiredIslandsFlagged(HashSet<string> flaggedIslands, bool includeFinalIsland, bool onlyIslandsWithOptionalContent)
+    {
+        if (flaggedIslands == null)
+        {
+            return false;
+        }
+
+        IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
+        int requiredIslandCount = 0;
+
+        for (int i = 0; i < progressionOrder.Count; i++)
+        {
+            string islandId = progressionOrder[i];
+            bool isFinalIsland = i == progressionOrder.Count - 1;
+            if (!includeFinalIsland && isFinalIsland)
             {
                 continue;
             }
 
-            if (gate.MatchesIslandForDefeatTracking(pendingBossIslandIdForDefeatTracking))
+            if (onlyIslandsWithOptionalContent && !HasOptionalPreBossRestorationAvailable(islandId))
             {
-                gate.RecordBossDefeatAttempt(false);
-                SaveFinalBossDefeatState();
+                continue;
             }
+
+            requiredIslandCount++;
+            if (!flaggedIslands.Contains(islandId))
+            {
+                return false;
+            }
+        }
+
+        return requiredIslandCount > 0;
+    }
+
+    private bool HasOptionalPreBossRestorationAvailable(string islandId)
+    {
+        IslandConfig config = IslandThemeRegistry.GetConfig(islandId);
+        if (config == null || config.encounters == null)
+        {
+            return false;
+        }
+
+        float nonBossContribution = 0f;
+        for (int i = 0; i < config.encounters.Length; i++)
+        {
+            EncounterDefinition encounter = config.encounters[i];
+            if (encounter == null || encounter.isBossEncounter || IsBossEncounterId(encounter.encounterId))
+            {
+                continue;
+            }
+
+            nonBossContribution += Mathf.Max(0f, encounter.restorationValue);
+        }
+
+        return nonBossContribution > (IslandRestorationTracker.DefaultBossUnlockThresholdPercent / 100f) + RestorationThresholdEpsilon;
+    }
+
+    private static bool IsAtOrNearBossUnlockThreshold(float restorationPercent)
+    {
+        return restorationPercent <= IslandRestorationTracker.DefaultBossUnlockThresholdPercent + RestorationThresholdEpsilon;
+    }
+
+    private int ResolveFinalBossDefeatThreshold(string islandId)
+    {
+        string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (string.IsNullOrEmpty(scopedIslandId))
+        {
+            return BossEncounterGate.DefaultDefeatsForBadEnding;
+        }
+
+        BossEncounterGate[] gates = FindObjectsByType<BossEncounterGate>(FindObjectsSortMode.None);
+        for (int i = 0; i < gates.Length; i++)
+        {
+            BossEncounterGate gate = gates[i];
+            if (gate != null && gate.MatchesIslandForDefeatTracking(scopedIslandId))
+            {
+                return gate.DefeatsForBadEndingThreshold;
+            }
+        }
+
+        return BossEncounterGate.DefaultDefeatsForBadEnding;
+    }
+
+    private void NotifyPendingBadEndingThresholdEventIfNeeded()
+    {
+        if (string.IsNullOrEmpty(pendingBadEndingThresholdEventIslandId))
+        {
+            return;
+        }
+
+        BossEncounterGate[] gates = FindObjectsByType<BossEncounterGate>(FindObjectsSortMode.None);
+        for (int i = 0; i < gates.Length; i++)
+        {
+            BossEncounterGate gate = gates[i];
+            if (gate == null || !gate.MatchesIslandForDefeatTracking(pendingBadEndingThresholdEventIslandId))
+            {
+                continue;
+            }
+
+            gate.OnBadEndingThresholdReached?.Invoke();
+            pendingBadEndingThresholdEventIslandId = null;
+            return;
         }
     }
 
@@ -1779,37 +2495,12 @@ public class GameStateManager : MonoBehaviour
 
     private void SaveFinalBossDefeatState()
     {
-        if (!enablePersistentSaveData)
-        {
-            return;
-        }
-
-        FinalBossDefeatSaveCollection payload = new FinalBossDefeatSaveCollection();
-        BossEncounterGate[] gates = FindObjectsByType<BossEncounterGate>(FindObjectsSortMode.None);
-        for (int i = 0; i < gates.Length; i++)
-        {
-            BossEncounterGate gate = gates[i];
-            if (gate == null || !gate.IsTrackedFinalBoss)
-            {
-                continue;
-            }
-
-            FinalBossDefeatSaveEntry entry = new FinalBossDefeatSaveEntry
-            {
-                islandId = gate.TrackedIslandId,
-                defeats = gate.GetDefeatCount()
-            };
-            payload.entries.Add(entry);
-        }
-
-        string json = JsonUtility.ToJson(payload);
-        PlayerPrefs.SetString(FinalBossDefeatsSaveKey, json);
-        PlayerPrefs.Save();
+        SaveWorldState();
     }
 
     private void LoadFinalBossDefeatStateIfAvailable()
     {
-        if (!enablePersistentSaveData)
+        if (!enablePersistentSaveData || finalBossDefeatCounts.Count > 0)
         {
             return;
         }
@@ -1831,30 +2522,30 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
-        BossEncounterGate[] gates = FindObjectsByType<BossEncounterGate>(FindObjectsSortMode.None);
-        for (int i = 0; i < gates.Length; i++)
+        bool migratedLegacyData = false;
+        for (int i = 0; i < payload.entries.Count; i++)
         {
-            BossEncounterGate gate = gates[i];
-            if (gate == null || !gate.IsTrackedFinalBoss)
+            FinalBossDefeatSaveEntry entry = payload.entries[i];
+            if (entry == null)
             {
                 continue;
             }
 
-            for (int j = 0; j < payload.entries.Count; j++)
+            string scopedEntryIsland = IslandThemeRegistry.ResolveIslandId(entry.islandId);
+            if (string.IsNullOrEmpty(scopedEntryIsland))
             {
-                FinalBossDefeatSaveEntry entry = payload.entries[j];
-                if (entry == null)
-                {
-                    continue;
-                }
-
-                string scopedEntryIsland = IslandThemeRegistry.ResolveIslandId(entry.islandId);
-                if (scopedEntryIsland == gate.TrackedIslandId)
-                {
-                    gate.SetDefeatCount(entry.defeats);
-                    break;
-                }
+                continue;
             }
+
+            finalBossDefeatCounts[scopedEntryIsland] = Mathf.Max(0, entry.defeats);
+            migratedLegacyData = true;
+        }
+
+        if (migratedLegacyData)
+        {
+            SaveWorldState();
+            PlayerPrefs.DeleteKey(FinalBossDefeatsSaveKey);
+            PlayerPrefs.Save();
         }
     }
 }

@@ -132,6 +132,27 @@ public class IslandProgressionManager : MonoBehaviour
         return IslandThemeRegistry.GetNextIslandId(ActiveIslandId);
     }
 
+    public int GetIslandProgressIndex(string islandId)
+    {
+        string resolvedIslandId = ResolveKnownOrDefault(islandId);
+        IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
+        for (int i = 0; i < progressionOrder.Count; i++)
+        {
+            if (string.Equals(progressionOrder[i], resolvedIslandId, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public bool IsFinalIsland(string islandId)
+    {
+        int islandIndex = GetIslandProgressIndex(islandId);
+        return islandIndex >= 0 && islandIndex == IslandThemeRegistry.ProgressionOrder.Count - 1;
+    }
+
     public bool IsIslandUnlocked(string islandId)
     {
         if (!TryResolveKnownIslandId(islandId, out string resolved))

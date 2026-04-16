@@ -233,7 +233,7 @@ Puzzles can run either as a full scene (`PuzzleScene.unity`) or as an overlay wi
 - **6 corrupted islands**, each ruled by a vice (Lust, Anger, Greed, Desire, Ego, Envy)
 - **Ancient texts** reveal the heroes' true nature across Acts I–III
 - **Good ending:** Heroes fulfill purpose and fade away peacefully
-- **Bad ending:** Triggered by 3+ boss defeats or minimal restoration
+- **Bad ending:** Triggered by more than 3 final-boss defeats or by the minimum-restoration bad-ending rule
 
 ---
 

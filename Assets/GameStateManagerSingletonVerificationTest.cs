@@ -119,6 +119,7 @@ public class GameStateManagerSingletonVerificationTest : MonoBehaviour
         DestroyImmediateIfPresent(IslandRestorationTracker.Instance);
         DestroyImmediateIfPresent(IslandProgressionManager.Instance);
         DestroyImmediateIfPresent(HeroProgressionManager.Instance);
+        DestroyImmediateIfPresent(DevCheatService.Instance);
 
         DevModeController[] devModeControllers = FindObjectsByType<DevModeController>(FindObjectsSortMode.None);
         for (int i = 0; i < devModeControllers.Length; i++)
@@ -126,6 +127,15 @@ public class GameStateManagerSingletonVerificationTest : MonoBehaviour
             if (devModeControllers[i] != null)
             {
                 DestroyImmediate(devModeControllers[i].gameObject);
+            }
+        }
+
+        DevMenuUI[] devMenus = FindObjectsByType<DevMenuUI>(FindObjectsSortMode.None);
+        for (int i = 0; i < devMenus.Length; i++)
+        {
+            if (devMenus[i] != null)
+            {
+                DestroyImmediate(devMenus[i].gameObject);
             }
         }
     }

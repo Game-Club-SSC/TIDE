@@ -4,30 +4,29 @@
 
 Island 1 is ruled by the embodiment of **Greed** — an insatiable hunger for treasure and wealth that has corrupted the island's Tide. The environment features gold and amber tones, and enemies are themed around hoarding and avarice.
 
-## Structure: 5 Subsections
+## Structure: Current Vertical Slice Runtime Model
 
-Each island contains **5 subsections**. Each subsection has one combat zone and one puzzle grid.
+The current vertical slice runtime uses **4 pre-boss combat encounters, 4 pre-boss puzzle encounters, and 1 boss encounter** per island.
 
-**Restoration Split: 50/50**
-- Combat: 50% total (10% per subsection × 5)
-- Puzzle: 50% total (10% per subsection × 5)
-- Each subsection = 20% (10% combat + 10% puzzle)
-- **Boss unlocks at 75% restoration** (after completing ~4 subsections)
+**Restoration Split: 50 / 25 / 25**
+- Combat: 50% total (12.5% × 4)
+- Puzzle: 25% total (6.25% × 4)
+- Boss: 25% total
+- **Boss unlocks at 75% restoration** after all pre-boss encounters are completed
 
-## Encounter Sequence (10 total)
+## Encounter Sequence (9 total)
 
 | # | Subsection | Type | Restoration | Cumulative |
 |---|-----------|------|-------------|------------|
-| 1 | 1 | Combat | +10% | 10% |
-| 2 | 1 | Puzzle | +10% | 20% |
-| 3 | 2 | Combat | +10% | 30% |
-| 4 | 2 | Puzzle | +10% | 40% |
-| 5 | 3 | Combat | +10% | 50% |
-| 6 | 3 | Puzzle | +10% | 60% |
-| 7 | 4 | Combat | +10% | 70% |
-| 8 | 4 | Puzzle | +10% | 80% (boss unlocked) |
-| 9 | 5 | Combat | +10% | 90% |
-| 10 | 5 | Puzzle | +10% | 100% |
+| 1 | 1 | Combat | +12.5% | 12.5% |
+| 2 | 1 | Puzzle | +6.25% | 18.75% |
+| 3 | 2 | Combat | +12.5% | 31.25% |
+| 4 | 2 | Puzzle | +6.25% | 37.5% |
+| 5 | 3 | Combat | +12.5% | 50% |
+| 6 | 3 | Puzzle | +6.25% | 56.25% |
+| 7 | 4 | Combat | +12.5% | 68.75% |
+| 8 | 4 | Puzzle | +6.25% | 75% (boss unlocked) |
+| 9 | Boss | Combat | +25% | 100% |
 
 ## Element System
 
@@ -132,12 +131,12 @@ Sealed: (1,1) | Locked: (1,0)
 ## Definition of Done
 
 - [ ] Vice theme (Greed) reflected in enemy names/stats and environment palette
-- [ ] 5 combat subsections playable with distinct enemy compositions
-- [ ] 5 puzzle subsections playable with distinct grid layouts
-- [ ] Each combat encounter contributes 10% to island restoration
-- [ ] Each puzzle encounter contributes 10% to island restoration
-- [ ] Island restoration reaches 100% after all 10 encounters cleared
-- [ ] Boss unlocks at 75% restoration (after ~8 encounters)
+- [ ] 4 pre-boss combat encounters playable with distinct enemy compositions
+- [ ] 4 pre-boss puzzle encounters playable with distinct grid layouts
+- [ ] Each pre-boss combat encounter contributes 12.5% to island restoration
+- [ ] Each pre-boss puzzle encounter contributes 6.25% to island restoration
+- [ ] Island restoration reaches 100% after all 9 encounters cleared
+- [ ] Boss unlocks at 75% restoration after the 8 pre-boss encounters
 - [ ] Player traverses subsections sequentially in one playthrough
 - [ ] No critical bugs (softlocks, crashes, broken scene transitions)
 - [ ] All existing NUnit tests pass
