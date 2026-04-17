@@ -56,7 +56,7 @@ public class IslandRestorationTracker : MonoBehaviour
     {
         if (Application.isPlaying)
         {
-            Destroy(this);
+            Destroy(gameObject);
             return;
         }
 

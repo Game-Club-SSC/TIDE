@@ -29,4 +29,9 @@ public class SkillData : ScriptableObject
     public StatusEffectType appliedEffectType = StatusEffectType.None;
     public int effectDuration = 0;
     public float effectMagnitude = 0f;
+
+    public bool IsValid()
+    {
+        return !string.IsNullOrEmpty(skillName) && mpCost >= 0 && damageMultiplier >= 0f;
+    }
 }

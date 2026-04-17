@@ -124,6 +124,18 @@ public class TideManager : MonoBehaviour
         float restorationValue,
         Vector3 worldBoardCenter)
     {
+        // Validate array dimensions - must be 3x3 grids
+        if (legacyLayout != null && (legacyLayout.GetLength(0) != 3 || legacyLayout.GetLength(1) != 3))
+        {
+            Debug.LogError("[TideManager] ConfigureOverlaySession: legacyLayout must be 3x3 array.");
+            return;
+        }
+        if (runtimeLayout != null && (runtimeLayout.GetLength(0) != 3 || runtimeLayout.GetLength(1) != 3))
+        {
+            Debug.LogError("[TideManager] ConfigureOverlaySession: runtimeLayout must be 3x3 array.");
+            return;
+        }
+
         overlayMode = true;
         overlayClosing = false;
         overlayPuzzleData = data;

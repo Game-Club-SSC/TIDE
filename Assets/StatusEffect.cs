@@ -29,6 +29,11 @@ public class StatusEffect
 
     public void Tick()
     {
-        Duration--;
+        Duration = Mathf.Max(0, Duration - 1);
+    }
+
+    public bool IsValid()
+    {
+        return Type != StatusEffectType.None && Duration > 0;
     }
 }

@@ -226,12 +226,12 @@ public class CombatUnit : MonoBehaviour
         float defenseMod = GetDefenseModifier();
         int effectiveDefense = Mathf.Max(0, Mathf.RoundToInt(defense * (1f + defenseMod)));
         int actualDamage = Mathf.Max(1, modifiedDamage - effectiveDefense);
-        hp = Mathf.Max(0, hp - actualDamage);
+        HP = Mathf.Max(0, HP - actualDamage);
 
-        Debug.Log($"[CombatUnit] {unitName} took {actualDamage} damage (from {damage}). HP: {hp}/{maxHp}");
+        Debug.Log($"[CombatUnit] {unitName} took {actualDamage} damage (from {damage}). HP: {HP}/{maxHp}");
 
         // Check if unit has died
-        if (hp <= 0)
+        if (HP <= 0)
         {
             Die();
         }
@@ -250,10 +250,10 @@ public class CombatUnit : MonoBehaviour
             return;
         }
 
-        int healedAmount = Mathf.Min(amount, maxHp - hp);
-        hp += healedAmount;
+        int healedAmount = Mathf.Min(amount, maxHp - HP);
+        HP = HP + healedAmount;
 
-        Debug.Log($"[CombatUnit] {unitName} healed for {healedAmount}. HP: {hp}/{maxHp}");
+        Debug.Log($"[CombatUnit] {unitName} healed for {healedAmount}. HP: {HP}/{maxHp}");
     }
 
     /// <summary>
@@ -302,6 +302,13 @@ public class CombatUnit : MonoBehaviour
         for (int i = activeEffects.Count - 1; i >= 0; i--)
         {
             StatusEffect effect = activeEffects[i];
+
+            if (effect == null)
+            {
+                activeEffects.RemoveAt(i);
+                continue;
+            }
+
             if (effect.Type == StatusEffectType.Poison)
             {
                 TakeDamage((int)effect.Magnitude);
