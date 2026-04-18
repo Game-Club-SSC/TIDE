@@ -358,7 +358,10 @@ public class GameStateManager : MonoBehaviour
         PendingCombatIslandId = null;
         PendingCombatEncounterId = null;
         PendingCombatRestorationValue = 0f;
-        pendingBossIslandIdForDefeatTracking = null;
+        if (!HasActiveFlowController)
+        {
+            pendingBossIslandIdForDefeatTracking = null;
+        }
         CaptureExplorationReturnPosition();
         BeginCombatTransition();
     }
