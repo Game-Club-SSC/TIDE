@@ -28,7 +28,7 @@ MonoBehaviour:
     restorationValue: 0.0625
     encounterConfig: {fileID: 0}
     enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1, type: 2}
+    puzzleData: {fileID: 11400000, guid: e3333333333333333333333333333331, type: 2}
   - encounterId: greed_c2
     type: 0
     restorationValue: 0.125
