@@ -5,6 +5,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class IslandRestorationTracker : MonoBehaviour
 {
+    public const float DefaultBossUnlockThresholdPercent = 75f;
+
     [Serializable]
     public sealed class TrackerSnapshot
     {
@@ -68,19 +70,19 @@ public class IslandRestorationTracker : MonoBehaviour
         RecordEncounterCompletion(DefaultIslandId, LegacyEncounterId, EncounterType.Combat, contribution);
     }
 
-    public void RecordEncounterCompletion(string islandId, string encounterId, EncounterType type, float value)
+    public bool RecordEncounterCompletion(string islandId, string encounterId, EncounterType type, float value)
     {
         islandId = ResolveIslandId(islandId);
 
         if (string.IsNullOrEmpty(encounterId))
         {
             Debug.LogWarning($"[IslandRestorationTracker] Encounter id is required for island '{islandId}'. Skipping completion.");
-            return;
+            return false;
         }
 
         if (value <= 0f)
         {
-            return;
+            return false;
         }
 
         IslandRestorationState state = GetOrCreateState(islandId);
@@ -88,7 +90,7 @@ public class IslandRestorationTracker : MonoBehaviour
         if (state.HasCompleted(encounterId))
         {
             Debug.LogWarning($"[IslandRestorationTracker] Encounter '{encounterId}' already completed on island '{islandId}'. Skipping.");
-            return;
+            return false;
         }
 
         float previous = state.TotalContribution;
@@ -111,6 +113,8 @@ public class IslandRestorationTracker : MonoBehaviour
         {
             GameStateManager.Instance.SaveWorldState();
         }
+
+        return true;
     }
 
     public void ResetTracker()

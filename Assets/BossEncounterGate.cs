@@ -4,13 +4,15 @@ using UnityEngine.Events;
 
 public class BossEncounterGate : MonoBehaviour
 {
+    public const int DefaultDefeatsForBadEnding = 4;
+
     private const string DefeatsKeyPrefix = "TIDE_FINAL_BOSS_DEFEATS_";
     private static readonly bool EnablePersistentSaveData = false;
     private static readonly Dictionary<string, int> runtimeDefeatCounts = new Dictionary<string, int>();
 
     [Header("Threshold")]
     [SerializeField] private string islandId = "island_lust";
-    [SerializeField] [Range(0f, 100f)] private float bossUnlockThresholdPercent = 75f;
+    [SerializeField] [Range(0f, 100f)] private float bossUnlockThresholdPercent = IslandRestorationTracker.DefaultBossUnlockThresholdPercent;
 
     [Header("Boss Targets")]
     [SerializeField] private GameObject bossVisuals;
@@ -22,7 +24,7 @@ public class BossEncounterGate : MonoBehaviour
     public UnityEvent OnBossLocked;
 
     [Header("Bad Ending Rule")]
-    [SerializeField] [Min(1)] private int defeatsForBadEnding = 3;
+    [SerializeField] [Min(1)] private int defeatsForBadEnding = DefaultDefeatsForBadEnding;
     [SerializeField] private bool treatAsFinalBoss;
     public UnityEvent OnBadEndingThresholdReached;
 
@@ -32,6 +34,7 @@ public class BossEncounterGate : MonoBehaviour
     public bool IsBossUnlocked => isBossUnlocked;
     public bool IsTrackedFinalBoss => treatAsFinalBoss;
     public string TrackedIslandId => IslandThemeRegistry.ResolveIslandId(islandId);
+    public int DefeatsForBadEndingThreshold => Mathf.Max(1, defeatsForBadEnding);
 
     public bool MatchesIslandForDefeatTracking(string candidateIslandId)
     {
@@ -50,6 +53,12 @@ public class BossEncounterGate : MonoBehaviour
         if (!treatAsFinalBoss)
         {
             return 0;
+        }
+
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm != null)
+        {
+            return gsm.GetFinalBossDefeatCount(TrackedIslandId);
         }
 
         if (!EnablePersistentSaveData)
@@ -73,6 +82,19 @@ public class BossEncounterGate : MonoBehaviour
             return false;
         }
 
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm != null)
+        {
+            bool reachedBadEndingFromGameState = gsm.RecordFinalBossDefeatAttempt(TrackedIslandId, DefeatsForBadEndingThreshold);
+            if (reachedBadEndingFromGameState)
+            {
+                Debug.LogWarning($"[BossEncounterGate] Final boss defeat threshold reached ({gsm.GetFinalBossDefeatCount(TrackedIslandId)}/{DefeatsForBadEndingThreshold}).");
+                OnBadEndingThresholdReached?.Invoke();
+            }
+
+            return reachedBadEndingFromGameState;
+        }
+
         int defeats = Mathf.Max(0, GetDefeatCount()) + 1;
         if (EnablePersistentSaveData)
         {
@@ -84,10 +106,10 @@ public class BossEncounterGate : MonoBehaviour
             runtimeDefeatCounts[GetDefeatsKey()] = defeats;
         }
 
-        bool reachedBadEnding = defeats >= Mathf.Max(1, defeatsForBadEnding);
+        bool reachedBadEnding = defeats >= DefeatsForBadEndingThreshold;
         if (reachedBadEnding)
         {
-            Debug.LogWarning($"[BossEncounterGate] Final boss defeat threshold reached ({defeats}/{defeatsForBadEnding}).");
+            Debug.LogWarning($"[BossEncounterGate] Final boss defeat threshold reached ({defeats}/{DefeatsForBadEndingThreshold}).");
             OnBadEndingThresholdReached?.Invoke();
         }
 
@@ -98,6 +120,13 @@ public class BossEncounterGate : MonoBehaviour
     {
         if (!treatAsFinalBoss)
         {
+            return;
+        }
+
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm != null)
+        {
+            gsm.SetFinalBossDefeatCount(TrackedIslandId, 0);
             return;
         }
 
@@ -120,6 +149,13 @@ public class BossEncounterGate : MonoBehaviour
         }
 
         int sanitized = Mathf.Max(0, defeats);
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm != null)
+        {
+            gsm.SetFinalBossDefeatCount(TrackedIslandId, sanitized);
+            return;
+        }
+
         if (EnablePersistentSaveData)
         {
             PlayerPrefs.SetInt(GetDefeatsKey(), sanitized);
@@ -176,7 +212,7 @@ public class BossEncounterGate : MonoBehaviour
 
         string targetIsland = IslandThemeRegistry.ResolveIslandId(islandId);
         float percent = tracker.GetRestorationPercent(targetIsland);
-        bool nowUnlocked = percent >= bossUnlockThresholdPercent;
+        bool nowUnlocked = tracker.IsRestorationAtOrAbove(targetIsland, bossUnlockThresholdPercent);
         bool stateChanged = nowUnlocked != isBossUnlocked;
 
         isBossUnlocked = nowUnlocked;

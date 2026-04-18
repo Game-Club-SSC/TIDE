@@ -12,6 +12,7 @@ public class DevCheatService : MonoBehaviour
     public bool GodModeOneHitKill { get; set; }
     public bool GodModeInfiniteResources { get; set; }
     public bool ShowDebugOverlay { get; set; } = true;
+    public bool SuppressStoryProgressionSideEffects { get; private set; }
 
     private void OnEnable()
     {
@@ -142,6 +143,59 @@ public class DevCheatService : MonoBehaviour
         }
     }
 
+    public void CycleMinimumRestorationBadEndingRuleMode()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm == null)
+        {
+            return;
+        }
+
+        int nextValue = ((int)gsm.MinimumRestorationBadEndingRule + 1)
+            % System.Enum.GetValues(typeof(GameStateManager.MinimumRestorationBadEndingRuleMode)).Length;
+        gsm.SetMinimumRestorationBadEndingRuleModeForDebug((GameStateManager.MinimumRestorationBadEndingRuleMode)nextValue);
+    }
+
+    public void ForceStoryAct(GameStateManager.StoryAct act)
+    {
+        GameStateManager.Instance?.ForceStoryActForDebug(act);
+    }
+
+    public void ForceEndingBranch(GameStateManager.EndingBranch branch)
+    {
+        GameStateManager.Instance?.ForceEndingBranchForDebug(branch);
+    }
+
+    public void ResetStoryProgression()
+    {
+        GameStateManager.Instance?.ResetStoryProgressionForDebug();
+    }
+
+    public void RecordFinalBossDefeatAttempt()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm == null)
+        {
+            return;
+        }
+
+        string finalIslandId = IslandThemeRegistry.ProgressionOrder[IslandThemeRegistry.ProgressionOrder.Count - 1];
+        gsm.RecordFinalBossDefeatAttemptAndQueueEvent(finalIslandId, gsm.GetConfiguredFinalBossDefeatThreshold(finalIslandId));
+    }
+
+    public void ResetFinalBossDefeatAttempts()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm == null)
+        {
+            return;
+        }
+
+        string finalIslandId = IslandThemeRegistry.ProgressionOrder[IslandThemeRegistry.ProgressionOrder.Count - 1];
+        gsm.SetFinalBossDefeatCount(finalIslandId, 0);
+        gsm.ForceEndingBranchForDebug(GameStateManager.EndingBranch.None);
+    }
+
     public void UnlockAllIslands()
     {
         IslandProgressionManager progression = IslandProgressionManager.Instance;
@@ -160,7 +214,23 @@ public class DevCheatService : MonoBehaviour
     public void SetActiveIsland(string islandId)
     {
         IslandProgressionManager progression = IslandProgressionManager.Instance;
-        if (progression == null || !progression.ForceSetActiveIslandForDebug(islandId))
+        if (progression == null)
+        {
+            return;
+        }
+
+        SuppressStoryProgressionSideEffects = true;
+        bool changedIsland = false;
+        try
+        {
+            changedIsland = progression.ForceSetActiveIslandForDebug(islandId);
+        }
+        finally
+        {
+            SuppressStoryProgressionSideEffects = false;
+        }
+
+        if (!changedIsland)
         {
             return;
         }
@@ -253,6 +323,9 @@ public class DevCheatService : MonoBehaviour
         {
             builder.AppendLine($"GameState: {gsm.currentState}");
             builder.AppendLine($"Transitioning: {gsm.IsTransitioning}");
+            builder.AppendLine($"StoryAct: {gsm.CurrentStoryAct} (Highest: {gsm.HighestStoryActReached})");
+            builder.AppendLine($"EndingBranch: {gsm.ResolvedEndingBranch} Triggered:{gsm.IsEndingTriggered}");
+            builder.AppendLine($"75RuleMode: {gsm.MinimumRestorationBadEndingRule}");
         }
 
         string activeIsland = IslandThemeRegistry.GetActiveIslandId();
@@ -262,6 +335,14 @@ public class DevCheatService : MonoBehaviour
         {
             string[] unlocked = IslandProgressionManager.Instance.GetUnlockedIslandIds();
             builder.AppendLine($"UnlockedIslands: {string.Join(", ", unlocked)}");
+        }
+
+        if (gsm != null)
+        {
+            string finalIslandId = IslandThemeRegistry.ProgressionOrder[IslandThemeRegistry.ProgressionOrder.Count - 1];
+            builder.AppendLine($"FinalBossDefeats[{finalIslandId}]: {gsm.GetFinalBossDefeatCount(finalIslandId)}");
+            builder.AppendLine($"ThresholdBossWins: {string.Join(", ", gsm.GetThresholdOnlyBossVictoryIslandIds())}");
+            builder.AppendLine($"ThresholdProceeds: {string.Join(", ", gsm.GetThresholdOnlyProceedIslandIds())}");
         }
 
         if (IslandRestorationTracker.Instance != null)
