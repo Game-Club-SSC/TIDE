@@ -20,7 +20,7 @@ MonoBehaviour:
   - encounterId: greed_c1
     type: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d3333333333333333333333333333331, type: 2}
+    encounterConfig: {fileID: 11400000, guid: b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1, type: 2}
     enemyComposition: {fileID: 0}
     puzzleData: {fileID: 0}
   - encounterId: greed_p1
@@ -32,7 +32,7 @@ MonoBehaviour:
   - encounterId: greed_c2
     type: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d3333333333333333333333333333332, type: 2}
+    encounterConfig: {fileID: 11400000, guid: b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2, type: 2}
     enemyComposition: {fileID: 0}
     puzzleData: {fileID: 0}
   - encounterId: greed_p2
@@ -40,11 +40,11 @@ MonoBehaviour:
     restorationValue: 0.0625
     encounterConfig: {fileID: 0}
     enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e3333333333333333333333333333332, type: 2}
+    puzzleData: {fileID: 11400000, guid: c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2, type: 2}
   - encounterId: greed_c3
     type: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d3333333333333333333333333333333, type: 2}
+    encounterConfig: {fileID: 11400000, guid: b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3, type: 2}
     enemyComposition: {fileID: 0}
     puzzleData: {fileID: 0}
   - encounterId: greed_p3
@@ -52,11 +52,11 @@ MonoBehaviour:
     restorationValue: 0.0625
     encounterConfig: {fileID: 0}
     enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e3333333333333333333333333333333, type: 2}
+    puzzleData: {fileID: 11400000, guid: c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3, type: 2}
   - encounterId: greed_c4
     type: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d3333333333333333333333333333334, type: 2}
+    encounterConfig: {fileID: 11400000, guid: b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4, type: 2}
     enemyComposition: {fileID: 0}
     puzzleData: {fileID: 0}
   - encounterId: greed_p4
@@ -64,10 +64,10 @@ MonoBehaviour:
     restorationValue: 0.0625
     encounterConfig: {fileID: 0}
     enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e3333333333333333333333333333334, type: 2}
+    puzzleData: {fileID: 11400000, guid: c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4, type: 2}
   - encounterId: greed_boss
     type: 0
     restorationValue: 0.25
-    encounterConfig: {fileID: 11400000, guid: d3333333333333333333333333333335, type: 2}
+    encounterConfig: {fileID: 11400000, guid: b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5, type: 2}
     enemyComposition: {fileID: 0}
     puzzleData: {fileID: 0}

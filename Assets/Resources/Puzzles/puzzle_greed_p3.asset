@@ -11,23 +11,23 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 20740f15e9428a642b716ea9874803b1, type: 3}
   m_Name: puzzle_greed_p3
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   tileValues:
-  - 3
-  - 8
-  - 1
-  - 10
-  - 5
+  - 6
   - 4
+  - 8
+  - 5
+  - 5
   - 7
   - 2
-  - 6
-  sealedPosition: {x: 2, y: 0}
-  lockedPosition: {x: -1, y: -1}
-  lockedTileEncounterId: 
+  - 5
+  - 3
+  sealedPosition: {x: -1, y: -1}
+  lockedPosition: {x: 2, y: 0}
+  lockedTileEncounterId: greed_p3_sealed_2_0_guard
   lockedTileIslandId: island_greed
   winCondition:
     type: 1
     targetValue: 5
-    requiredPercent: 0.875
-  instabilityThreshold: 2
+    requiredPercent: 0.625
+  instabilityThreshold: 3
