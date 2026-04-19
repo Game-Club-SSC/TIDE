@@ -7,7 +7,7 @@ public class BossEncounterGate : MonoBehaviour
     public const int DefaultDefeatsForBadEnding = 4;
 
     private const string DefeatsKeyPrefix = "TIDE_FINAL_BOSS_DEFEATS_";
-    private static readonly bool EnablePersistentSaveData = false;
+    private static readonly bool EnablePersistentSaveData = true;
     private static readonly Dictionary<string, int> runtimeDefeatCounts = new Dictionary<string, int>();
 
     [Header("Threshold")]
@@ -30,6 +30,7 @@ public class BossEncounterGate : MonoBehaviour
 
     private bool isBossUnlocked;
     private IslandRestorationTracker tracker;
+    private float nextTrackerBindAttemptTime;
 
     public bool IsBossUnlocked => isBossUnlocked;
     public bool IsTrackedFinalBoss => treatAsFinalBoss;
@@ -169,6 +170,9 @@ public class BossEncounterGate : MonoBehaviour
 
     private void OnEnable()
     {
+        isBossUnlocked = false;
+        ApplyBossState();
+        nextTrackerBindAttemptTime = 0f;
         TryBindTracker();
 
         EvaluateState(false);
@@ -176,10 +180,11 @@ public class BossEncounterGate : MonoBehaviour
 
     private void Update()
     {
-        if (tracker == null)
+        if (tracker == null && Time.unscaledTime >= nextTrackerBindAttemptTime)
         {
             TryBindTracker();
             EvaluateState(false);
+            nextTrackerBindAttemptTime = Time.unscaledTime + 1f;
         }
     }
 
@@ -270,6 +275,11 @@ public class BossEncounterGate : MonoBehaviour
     private string GetDefeatsKey()
     {
         string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (string.IsNullOrEmpty(scopedIslandId))
+        {
+            scopedIslandId = string.IsNullOrEmpty(islandId) ? "unknown_island" : islandId;
+        }
+
         return DefeatsKeyPrefix + scopedIslandId;
     }
 }

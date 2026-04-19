@@ -179,7 +179,12 @@ public class DevCheatService : MonoBehaviour
             return;
         }
 
-        string finalIslandId = IslandThemeRegistry.ProgressionOrder[IslandThemeRegistry.ProgressionOrder.Count - 1];
+        if (!TryGetFinalIslandId(out string finalIslandId))
+        {
+            Debug.LogWarning("[DevCheatService] Could not record final boss defeat attempt because progression order is empty.");
+            return;
+        }
+
         gsm.RecordFinalBossDefeatAttemptAndQueueEvent(finalIslandId, gsm.GetConfiguredFinalBossDefeatThreshold(finalIslandId));
     }
 
@@ -191,7 +196,12 @@ public class DevCheatService : MonoBehaviour
             return;
         }
 
-        string finalIslandId = IslandThemeRegistry.ProgressionOrder[IslandThemeRegistry.ProgressionOrder.Count - 1];
+        if (!TryGetFinalIslandId(out string finalIslandId))
+        {
+            Debug.LogWarning("[DevCheatService] Could not reset final boss defeat attempts because progression order is empty.");
+            return;
+        }
+
         gsm.SetFinalBossDefeatCount(finalIslandId, 0);
         gsm.ForceEndingBranchForDebug(GameStateManager.EndingBranch.None);
     }
@@ -339,8 +349,15 @@ public class DevCheatService : MonoBehaviour
 
         if (gsm != null)
         {
-            string finalIslandId = IslandThemeRegistry.ProgressionOrder[IslandThemeRegistry.ProgressionOrder.Count - 1];
-            builder.AppendLine($"FinalBossDefeats[{finalIslandId}]: {gsm.GetFinalBossDefeatCount(finalIslandId)}");
+            if (TryGetFinalIslandId(out string finalIslandId))
+            {
+                builder.AppendLine($"FinalBossDefeats[{finalIslandId}]: {gsm.GetFinalBossDefeatCount(finalIslandId)}");
+            }
+            else
+            {
+                builder.AppendLine("FinalBossDefeats: unavailable (progression order empty)");
+            }
+
             builder.AppendLine($"ThresholdBossWins: {string.Join(", ", gsm.GetThresholdOnlyBossVictoryIslandIds())}");
             builder.AppendLine($"ThresholdProceeds: {string.Join(", ", gsm.GetThresholdOnlyProceedIslandIds())}");
         }
@@ -397,5 +414,18 @@ public class DevCheatService : MonoBehaviour
             progression.MaxOutHeroForDebug(hero.heroId);
             progression.MaxOutGearForDebug(hero.heroId);
         }
+    }
+
+    private static bool TryGetFinalIslandId(out string finalIslandId)
+    {
+        finalIslandId = string.Empty;
+        IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
+        if (progressionOrder == null || progressionOrder.Count == 0)
+        {
+            return false;
+        }
+
+        finalIslandId = IslandThemeRegistry.ResolveIslandId(progressionOrder[progressionOrder.Count - 1]);
+        return !string.IsNullOrEmpty(finalIslandId);
     }
 }
