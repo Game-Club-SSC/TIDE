@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-For an exhaustive technical deep-dive (architecture, data flow, patterns, pitfalls, system interactions), see: `Assets/Docs/REPO_UNDERSTANDING
+For an exhaustive technical deep-dive (architecture, data flow, patterns, pitfalls, system interactions), see: `Assets/Docs/REPO_UNDERSTANDING`
 Unity 6 (6000.3.7f1) Turn-Based Fantasy RPG. Five elements (Fire, Water, Earth, Air, Space) with combat and puzzle mechanics.
 
 ## Contributors
@@ -69,7 +69,18 @@ Tests are MonoBehaviour scripts with `[ContextMenu]` methods:
 2. Right-click component header → Run test method
 3. Check Console for results
 
-Test files: `BattleFlowVerificationTest`, `CombatUnitTest`, `RestorationTrackerTest`, `BossEncounterGateTest`, `RestorationThresholdGateTest`, `CombatUnitVerificationTest`, `TideMovementTest`, `GearSystemTest`, `HeroProgressionTest`, `EnemyDataVerificationTest`, `HeroDataVerificationTest`, `PartySetupVerificationTest`
+Vertical slice verification commands:
+- `PostDeferralVerticalSliceRegressionRunner` → `Run Post-Deferral Vertical Slice Regression Matrix`
+- `IslandContentVerificationTest` → `Run Island Content Verification`
+- `GluttonyIslandVerificationTest` → `Run Gluttony Island Verification`
+- `RestorationTrackerTest` → `Run Restoration Tracker Tests`
+- `BossEncounterGateTest` → `Run Boss Encounter Gate Tests`
+- `RestorationThresholdGateTest` → `Run Restoration Threshold Gate Tests`
+- `IslandProgressionTravelTest` → `Run Island Progression + Travel Tests`
+- `DevGodModeStateTest` → `Run Dev God Mode State Tests`
+- `HeroProgressionTest` → `Run All Progression Tests`
+- `GearSystemTest` → `Run All Gear Tests`
+- `GearProgressionTest` → `Run All Gear Progression Tests`
 
 ### Scene Flow
 - `level_1.unity` - Main exploration scene

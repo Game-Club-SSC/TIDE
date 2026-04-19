@@ -1,0 +1,82 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84a56f270b0480841bbfac6098eedded, type: 3}
+  m_Name: island_gluttony
+  m_EditorClassIdentifier: 
+  islandId: island_gluttony
+  viceName: Gluttony
+  vicePrimaryColor: {r: 0.8, g: 0.29, b: 0.14, a: 1}
+  viceSecondaryColor: {r: 0.39, g: 0.12, b: 0.07, a: 1}
+  encounters:
+  - encounterId: gluttony_c1
+    type: 0
+    isBossEncounter: 0
+    restorationValue: 0.09375
+    encounterConfig: {fileID: 11400000, guid: 41b11111111111111111111111111111, type: 2}
+    enemyComposition: {fileID: 0}
+    puzzleData: {fileID: 0}
+  - encounterId: gluttony_p1
+    type: 1
+    isBossEncounter: 0
+    restorationValue: 0.09375
+    encounterConfig: {fileID: 0}
+    enemyComposition: {fileID: 0}
+    puzzleData: {fileID: 11400000, guid: 51c11111111111111111111111111111, type: 2}
+  - encounterId: gluttony_c2
+    type: 0
+    isBossEncounter: 0
+    restorationValue: 0.09375
+    encounterConfig: {fileID: 11400000, guid: 41b22222222222222222222222222222, type: 2}
+    enemyComposition: {fileID: 0}
+    puzzleData: {fileID: 0}
+  - encounterId: gluttony_p2
+    type: 1
+    isBossEncounter: 0
+    restorationValue: 0.09375
+    encounterConfig: {fileID: 0}
+    enemyComposition: {fileID: 0}
+    puzzleData: {fileID: 11400000, guid: 51c22222222222222222222222222222, type: 2}
+  - encounterId: gluttony_c3
+    type: 0
+    isBossEncounter: 0
+    restorationValue: 0.09375
+    encounterConfig: {fileID: 11400000, guid: 41b33333333333333333333333333333, type: 2}
+    enemyComposition: {fileID: 0}
+    puzzleData: {fileID: 0}
+  - encounterId: gluttony_p3
+    type: 1
+    isBossEncounter: 0
+    restorationValue: 0.09375
+    encounterConfig: {fileID: 0}
+    enemyComposition: {fileID: 0}
+    puzzleData: {fileID: 11400000, guid: 51c33333333333333333333333333333, type: 2}
+  - encounterId: gluttony_c4
+    type: 0
+    isBossEncounter: 0
+    restorationValue: 0.09375
+    encounterConfig: {fileID: 11400000, guid: 41b44444444444444444444444444444, type: 2}
+    enemyComposition: {fileID: 0}
+    puzzleData: {fileID: 0}
+  - encounterId: gluttony_p4
+    type: 1
+    isBossEncounter: 0
+    restorationValue: 0.09375
+    encounterConfig: {fileID: 0}
+    enemyComposition: {fileID: 0}
+    puzzleData: {fileID: 11400000, guid: 51c44444444444444444444444444444, type: 2}
+  - encounterId: gluttony_boss
+    type: 0
+    isBossEncounter: 1
+    restorationValue: 0.25
+    encounterConfig: {fileID: 11400000, guid: 41b55555555555555555555555555555, type: 2}
+    enemyComposition: {fileID: 0}
+    puzzleData: {fileID: 0}

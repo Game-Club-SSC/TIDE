@@ -47,6 +47,8 @@ public class PostDeferralVerticalSliceRegressionRunner : MonoBehaviour
             RunContextMenuSuite<GearProgressionTest>(nameof(GearProgressionTest.RunAllTests)));
         RunStep("VSR-009", "level_1.unity", "Deferral guardrail debug controls", "DevGodModeStateTest.RunTests", () =>
             RunContextMenuSuite<DevGodModeStateTest>(nameof(DevGodModeStateTest.RunTests)));
+        RunStep("VSR-010", "level_1.unity", "Gluttony island content + mechanics", "GluttonyIslandVerificationTest.RunTests", () =>
+            RunContextMenuSuite<GluttonyIslandVerificationTest>(nameof(GluttonyIslandVerificationTest.RunTests)));
 
         latestReport = BuildReport();
         Debug.Log(latestReport);

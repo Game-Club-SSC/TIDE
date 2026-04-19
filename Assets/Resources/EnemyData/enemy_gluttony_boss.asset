@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6eeeb8b56bcd4f5385484f40ddb4e43f, type: 3}
+  m_Name: enemy_gluttony_boss
+  m_EditorClassIdentifier: 
+  enemyId: enemy_gluttony_boss
+  displayName: The Devourer
+  element: 2
+  baseMaxHP: 240
+  baseMaxMP: 80
+  baseAttack: 34
+  baseDefense: 15
+  baseSpeed: 14
+  skills:
+  - {fileID: 11400000, guid: c1d1c1d1c1d1c1d1c1d1c1d1c1d1c1d1, type: 2}
+  xpReward: 140

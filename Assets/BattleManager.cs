@@ -1193,6 +1193,11 @@ public class BattleManager : MonoBehaviour
 
     private void ResolveSkill(CombatUnit actor, CombatUnit requestedTarget, SkillData skill)
     {
+        if (actor == null || !actor.IsAlive)
+        {
+            return;
+        }
+
         if (skill == null)
         {
             Debug.Log($"[BattleManager] {actor.UnitName} has no skill selected. Attacking instead.", this);
@@ -1247,6 +1252,13 @@ public class BattleManager : MonoBehaviour
         int hpBeforeSingle = target.HP;
         target.TakeDamage(modifiedDamageSingle);
         int hpAfterSingle = target.HP;
+        int actualDamageSingle = Mathf.Max(0, hpBeforeSingle - hpAfterSingle);
+
+        if (skill.restoreCasterPercentOfDamage > 0f && actualDamageSingle > 0)
+        {
+            int restoredAmount = Mathf.Max(1, Mathf.RoundToInt(actualDamageSingle * skill.restoreCasterPercentOfDamage));
+            actor.Heal(restoredAmount);
+        }
 
         string matchupFeedbackSingle = "";
         switch (matchupSingle)
@@ -1265,7 +1277,7 @@ public class BattleManager : MonoBehaviour
         TriggerBattleHitFeedback(actor, target, isCritSingle, true);
 
         Debug.Log(
-            $"[BattleManager] {actor.UnitName} uses {skill.skillName} on {target.UnitName} for {modifiedDamageSingle} (base {baseDamageSingle} x{skillMultiplierSingle:F2}, -{skill.mpCost} MP). HP {hpBeforeSingle} -> {hpAfterSingle}.{matchupFeedbackSingle}",
+            $"[BattleManager] {actor.UnitName} uses {skill.skillName} on {target.UnitName} for {actualDamageSingle} (rolled {modifiedDamageSingle}, base {baseDamageSingle} x{skillMultiplierSingle:F2}, -{skill.mpCost} MP). HP {hpBeforeSingle} -> {hpAfterSingle}.{matchupFeedbackSingle}",
             this);
     }
 

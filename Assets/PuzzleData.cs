@@ -109,6 +109,13 @@ public class PuzzleData : ScriptableObject
     [Tooltip("Number of tiles above 5 allowed before instability decay kicks in.")]
     public int instabilityThreshold = 3;
 
+    [Tooltip("When enabled, Gluttony consumption removes tide after a valid placement.")]
+    public bool enableConsumption;
+
+    [Min(1)]
+    [Tooltip("How much tide is consumed from the placed tile after a valid move.")]
+    public int consumptionAmount = 1;
+
     public int[,] GetGrid()
     {
         int[,] grid =

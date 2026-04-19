@@ -23,6 +23,9 @@ public class SkillData : ScriptableObject
     [Min(0f)]
     [Tooltip("Multiplier applied to base damage. 1.0 = normal, 2.0 = double damage.")]
     public float damageMultiplier = 1f;
+    [Range(0f, 1f)]
+    [Tooltip("Percent of damage dealt restored to the caster after this skill resolves.")]
+    public float restoreCasterPercentOfDamage = 0f;
     public SkillTarget target;
 
     [Header("Status Effect")]
@@ -32,6 +35,10 @@ public class SkillData : ScriptableObject
 
     public bool IsValid()
     {
-        return !string.IsNullOrEmpty(skillName) && mpCost >= 0 && damageMultiplier >= 0f;
+        return !string.IsNullOrEmpty(skillName)
+            && mpCost >= 0
+            && damageMultiplier >= 0f
+            && restoreCasterPercentOfDamage >= 0f
+            && restoreCasterPercentOfDamage <= 1f;
     }
 }
