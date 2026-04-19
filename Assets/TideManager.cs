@@ -40,6 +40,10 @@ public class TideManager : MonoBehaviour
     [Header("Instability Decay")]
     [SerializeField] private int instabilityThreshold = 3;
 
+    [Header("Gluttony Consumption")]
+    [SerializeField] private bool enableConsumption;
+    [SerializeField] private int consumptionAmount = 1;
+
     [Header("Sealed Tile Combat")]
     [SerializeField] private string fallbackSealedTileEncounterId = "encounter_imp_trio";
     [SerializeField] private float sealedTileCombatRestorationValue = 0.001f;
@@ -200,6 +204,8 @@ public class TideManager : MonoBehaviour
         lockedEncounterId = string.Empty;
         lockedEncounterIslandId = puzzleIslandId;
         winCondition = new PuzzleWinCondition();
+        enableConsumption = false;
+        consumptionAmount = 1;
 
         for (int row = 0; row < 3; row++)
         {
@@ -235,6 +241,8 @@ public class TideManager : MonoBehaviour
         sealedPosition = data.sealedPosition;
         winCondition = data.winCondition ?? new PuzzleWinCondition();
         instabilityThreshold = data.instabilityThreshold;
+        enableConsumption = data.enableConsumption;
+        consumptionAmount = Mathf.Max(1, data.consumptionAmount);
         lockedPosition = data.lockedPosition;
         lockedEncounterId = data.lockedTileEncounterId;
         lockedEncounterIslandId = data.lockedTileIslandId;
@@ -1080,11 +1088,22 @@ public class TideManager : MonoBehaviour
         }
 
         hoveredTile.ApplyPlace(carriedAmount);
+        ApplyConsumption(hoveredTile);
         carriedAmount = 0;
         carryingSource = null;
         OnCarriedAmountChanged?.Invoke();
         ApplyInstabilityDecay();
         EvaluatePuzzleCompletion();
+    }
+
+    private void ApplyConsumption(TideTile destinationTile)
+    {
+        if (!enableConsumption || destinationTile == null || destinationTile.IsSealed)
+        {
+            return;
+        }
+
+        destinationTile.ApplyTake(consumptionAmount);
     }
 
     private void ApplyInstabilityDecay()
@@ -1571,8 +1590,20 @@ public class TideManager : MonoBehaviour
         }
 
         string carryText = carriedAmount > 0 ? $"Carry {carriedAmount}" : "Carry -";
-        string targetText = "Goal: stabilize all open tiles to 5";
+        string targetText = BuildGoalHeaderText();
         string modeText = overlayMode ? "Esc: Exit Overlay" : "Reset available";
         boardHeaderLabel.text = $"TIDE STABILIZATION   |   {targetText}   |   {carryText}   |   {modeText}";
+    }
+
+    private string BuildGoalHeaderText()
+    {
+        int targetValue = winCondition != null ? winCondition.targetValue : 5;
+        if (winCondition == null || winCondition.type == WinConditionType.AllEqualToTarget)
+        {
+            return $"Goal: stabilize all open tiles to {targetValue}";
+        }
+
+        int requiredPercent = Mathf.RoundToInt(Mathf.Clamp01(winCondition.requiredPercent) * 100f);
+        return $"Goal: stabilize {requiredPercent}% of open tiles to {targetValue}";
     }
 }

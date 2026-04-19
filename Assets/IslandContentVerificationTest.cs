@@ -8,8 +8,6 @@ public class IslandContentVerificationTest : MonoBehaviour
 {
     private const float ExpectedBossThresholdPercent = 75f;
     private const float ExpectedPreBossContribution = 0.75f;
-    private const float ExpectedCombatContribution = 0.5f;
-    private const float ExpectedPuzzleContribution = 0.25f;
     private const float ExpectedBossContribution = 0.25f;
     private const float Epsilon = 0.001f;
 
@@ -17,10 +15,16 @@ public class IslandContentVerificationTest : MonoBehaviour
     {
         "island_lust",
         "island_anger",
+        "island_gluttony",
         "island_greed",
         "island_desire",
         "island_ego",
         "island_envy"
+    };
+
+    private static readonly Dictionary<string, Vector2> ExpectedPreBossBuckets = new Dictionary<string, Vector2>
+    {
+        { "island_gluttony", new Vector2(0.375f, 0.375f) }
     };
 
     [ContextMenu("Run Island Content Verification")]
@@ -44,7 +48,7 @@ public class IslandContentVerificationTest : MonoBehaviour
 
         IslandConfig[] configs = LoadConfigs();
         Assert.AreEqual(ExpectedIslandIds.Length, configs.Length,
-            "Should have exactly six island configs for Arishadvarga islands.");
+            "Should have exactly seven island configs for the current vertical slice islands.");
 
         HashSet<string> observedIds = new HashSet<string>();
         for (int i = 0; i < configs.Length; i++)
@@ -62,7 +66,7 @@ public class IslandContentVerificationTest : MonoBehaviour
                 $"Missing expected island config '{ExpectedIslandIds[i]}'.");
         }
 
-        Debug.Log("  Exact six-island set verified");
+        Debug.Log("  Exact island set verified");
     }
 
     private void TestEncounterSequenceAndRestorationBudgets()
@@ -114,11 +118,12 @@ public class IslandContentVerificationTest : MonoBehaviour
 
             float preBoss = combatContribution + puzzleContribution;
             float total = preBoss + bossEncounter.restorationValue;
+            Vector2 expectedBuckets = GetExpectedPreBossBuckets(config.islandId);
 
-            AssertApproximately(combatContribution, ExpectedCombatContribution,
-                $"Island '{config.islandId}' combat contribution should be 50% before boss");
-            AssertApproximately(puzzleContribution, ExpectedPuzzleContribution,
-                $"Island '{config.islandId}' puzzle contribution should be 25% before boss");
+            AssertApproximately(combatContribution, expectedBuckets.x,
+                $"Island '{config.islandId}' combat contribution mismatch before boss");
+            AssertApproximately(puzzleContribution, expectedBuckets.y,
+                $"Island '{config.islandId}' puzzle contribution mismatch before boss");
             AssertApproximately(preBoss, ExpectedBossThresholdPercent / 100f,
                 $"Island '{config.islandId}' should unlock boss at 75% restoration");
             AssertApproximately(preBoss, ExpectedPreBossContribution,
@@ -234,7 +239,7 @@ public class IslandContentVerificationTest : MonoBehaviour
         Debug.Log("Testing ancient text coverage by vice...");
 
         AncientTextData[] texts = Resources.LoadAll<AncientTextData>("AncientTexts");
-        Assert.GreaterOrEqual(texts.Length, 6, "Should have at least one ancient text per vice island.");
+        Assert.GreaterOrEqual(texts.Length, ExpectedIslandIds.Length, "Should have at least one ancient text per vice island.");
 
         for (int i = 0; i < texts.Length; i++)
         {
@@ -275,6 +280,16 @@ public class IslandContentVerificationTest : MonoBehaviour
     {
         Assert.LessOrEqual(Mathf.Abs(actual - expected), Epsilon,
             $"{message}. Expected {expected:F4}, got {actual:F4}.");
+    }
+
+    private static Vector2 GetExpectedPreBossBuckets(string islandId)
+    {
+        if (!string.IsNullOrEmpty(islandId) && ExpectedPreBossBuckets.TryGetValue(islandId, out Vector2 buckets))
+        {
+            return buckets;
+        }
+
+        return new Vector2(0.5f, 0.25f);
     }
 
     private static bool ColorEquals(Color a, Color b, float epsilon)

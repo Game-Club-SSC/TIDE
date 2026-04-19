@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20740f15e9428a642b716ea9874803b1, type: 3}
+  m_Name: puzzle_gluttony_p1
+  m_EditorClassIdentifier: 
+  tileValues:
+  - 9
+  - 2
+  - 7
+  - 6
+  - 5
+  - 3
+  - 4
+  - 8
+  - 5
+  sealedPosition: {x: -1, y: -1}
+  lockedPosition: {x: -1, y: -1}
+  lockedTileEncounterId: 
+  lockedTileIslandId: island_gluttony
+  winCondition:
+    type: 1
+    targetValue: 5
+    requiredPercent: 0.625
+  instabilityThreshold: 2
+  enableConsumption: 1
+  consumptionAmount: 1
