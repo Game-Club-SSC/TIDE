@@ -2238,9 +2238,7 @@ public class GameStateManager : MonoBehaviour
 
     private bool ShouldResolveBadEnding()
     {
-        string finalIslandId = IslandProgressionManager.Instance != null
-            ? IslandThemeRegistry.ResolveIslandId(IslandThemeRegistry.ProgressionOrder[IslandThemeRegistry.ProgressionOrder.Count - 1])
-            : string.Empty;
+        string finalIslandId = GetFinalProgressionIslandIdOrEmpty();
 
         if (!string.IsNullOrEmpty(finalIslandId)
             && GetFinalBossDefeatCount(finalIslandId) >= Mathf.Max(1, finalBossDefeatsForBadEndingThreshold))
@@ -2249,6 +2247,22 @@ public class GameStateManager : MonoBehaviour
         }
 
         return ShouldTriggerMinimumRestorationBadEnding();
+    }
+
+    private static string GetFinalProgressionIslandIdOrEmpty()
+    {
+        if (IslandProgressionManager.Instance == null)
+        {
+            return string.Empty;
+        }
+
+        IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
+        if (progressionOrder == null || progressionOrder.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return IslandThemeRegistry.ResolveIslandId(progressionOrder[progressionOrder.Count - 1]);
     }
 
     private bool ShouldTriggerMinimumRestorationBadEnding()
@@ -2367,6 +2381,8 @@ public class GameStateManager : MonoBehaviour
             pendingBadEndingThresholdEventIslandId = null;
             return;
         }
+
+        Debug.LogWarning($"[GameStateManager] Unable to resolve pending bad ending event gate for island '{pendingBadEndingThresholdEventIslandId}'. Will retry after the next scene load.");
     }
 
     private bool TryResolveSafeExplorationSpawnPosition(out Vector3 spawnPosition)
