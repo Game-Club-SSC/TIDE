@@ -22,11 +22,12 @@ public static class IslandThemeRegistry
         {
             { "island_1", "island_lust" },
             { "island_2", "island_anger" },
-            { "island_3", "island_gluttony" },
-            { "island_4", "island_greed" },
-            { "island_5", "island_desire" },
-            { "island_6", "island_ego" },
-            { "island_7", "island_envy" }
+            { "island_3", "island_greed" },
+            { "island_4", "island_desire" },
+            { "island_5", "island_ego" },
+            { "island_6", "island_envy" },
+            { "island_7", "island_envy" },
+            { "island_8", "island_gluttony" }
         };
 
     private static readonly Dictionary<string, IslandConfig> configsById =

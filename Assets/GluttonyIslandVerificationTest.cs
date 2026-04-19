@@ -13,7 +13,7 @@ public class GluttonyIslandVerificationTest : MonoBehaviour
 
         TestGluttonySceneExists();
         TestGluttonyIslandConfigExists();
-        TestLegacyAliasResolvesToGluttony();
+        TestGluttonyAliasResolvesWithoutRemappingLegacyProgress();
         TestGluttonyProgressionUnlocksGreed();
         TestGluttonyRestorationBudgets();
         TestGluttonyBossUsesDevourSkill();
@@ -37,10 +37,12 @@ public class GluttonyIslandVerificationTest : MonoBehaviour
         Assert.AreEqual(9, config.encounters.Length, "Gluttony should have 9 ordered encounters.");
     }
 
-    private void TestLegacyAliasResolvesToGluttony()
+    private void TestGluttonyAliasResolvesWithoutRemappingLegacyProgress()
     {
-        Assert.AreEqual(GluttonyIslandId, IslandThemeRegistry.ResolveIslandId("island_3"),
-            "Legacy alias 'island_3' should now resolve to Gluttony.");
+        Assert.AreEqual("island_greed", IslandThemeRegistry.ResolveIslandId("island_3"),
+            "Legacy alias 'island_3' should continue resolving to Greed for save compatibility.");
+        Assert.AreEqual(GluttonyIslandId, IslandThemeRegistry.ResolveIslandId("island_8"),
+            "Gluttony should be addressable through its dedicated legacy-safe alias.");
     }
 
     private void TestGluttonyProgressionUnlocksGreed()
