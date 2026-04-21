@@ -308,6 +308,12 @@ public class IsometricPlayer : MonoBehaviour
         if (!canMove)
         {
             inputVector = Vector3.zero;
+            currentPlanarVelocity = Vector3.zero;
+            if (rb != null)
+            {
+                rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            }
+
             if (isDashing)
             {
                 StopDash();
@@ -345,6 +351,13 @@ public class IsometricPlayer : MonoBehaviour
     {
         if (rb == null)
         {
+            return;
+        }
+
+        if (!canMove)
+        {
+            currentPlanarVelocity = Vector3.zero;
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
             return;
         }
 
