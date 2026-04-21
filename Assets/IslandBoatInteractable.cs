@@ -8,7 +8,7 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 [RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Renderer))]
-public class IslandBoatInteractable : MonoBehaviour
+public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 {
     private const string DefaultPromptResourceName = "PuzzlePrompt";
     private const float DefaultPromptPixelsPerUnit = 360f;
@@ -847,6 +847,25 @@ public class IslandBoatInteractable : MonoBehaviour
             travelPanel = null;
             travelLabel = null;
         }
+    }
+
+    public Vector3 GetInteractionAssistPosition()
+    {
+        return transform.position;
+    }
+
+    public float GetInteractionAssistRadius()
+    {
+        return Mathf.Max(triggerSize.x, triggerSize.z);
+    }
+
+    public bool IsInteractionAssistActive()
+    {
+        GameStateManager manager = GameStateManager.Instance;
+        return playerInRange
+            && manager != null
+            && manager.currentState == GameStateManager.GameState.Exploration
+            && !manager.IsTransitioning;
     }
 
     private static bool IsPlayerCollider(Collider collider)

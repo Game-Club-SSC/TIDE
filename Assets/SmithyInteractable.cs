@@ -4,7 +4,7 @@ using UnityEngine.Rendering;
 [DisallowMultipleComponent]
 [RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Renderer))]
-public class SmithyInteractable : MonoBehaviour
+public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 {
     private const string DefaultPromptResourceName = "PuzzlePrompt";
     private const float DefaultPromptPixelsPerUnit = 360f;
@@ -217,6 +217,26 @@ public class SmithyInteractable : MonoBehaviour
             smithyUI.CloseSmithy();
             smithyUI = null;
         }
+    }
+
+    public Vector3 GetInteractionAssistPosition()
+    {
+        return transform.position;
+    }
+
+    public float GetInteractionAssistRadius()
+    {
+        return Mathf.Max(triggerSize.x, triggerSize.z);
+    }
+
+    public bool IsInteractionAssistActive()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        return playerInRange
+            && gsm != null
+            && gsm.currentState == GameStateManager.GameState.Exploration
+            && !gsm.IsTransitioning
+            && smithyUI == null;
     }
 
     private static bool IsPlayerCollider(Collider collider)

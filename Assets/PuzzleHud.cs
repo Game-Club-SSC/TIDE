@@ -13,6 +13,7 @@ public class PuzzleHud : MonoBehaviour
 
     private Text carriedLabel;
     private Text hintLabel;
+    private Image statusPanel;
     private Button resetButton;
     private TideManager tideManager;
 
@@ -135,9 +136,29 @@ public class PuzzleHud : MonoBehaviour
 
         canvasObject.AddComponent<GraphicRaycaster>();
 
-        CreateCarriedLabel(canvasObject.transform);
-        CreateHintLabel(canvasObject.transform);
+        Transform statusPanelTransform = CreateStatusPanel(canvasObject.transform);
+        CreateCarriedLabel(statusPanelTransform);
+        CreateHintLabel(statusPanelTransform);
         CreateResetButton(canvasObject.transform);
+    }
+
+    private Transform CreateStatusPanel(Transform parent)
+    {
+        GameObject panelObject = new GameObject("StatusPanel", typeof(RectTransform), typeof(Image));
+        panelObject.transform.SetParent(parent, false);
+
+        RectTransform rect = panelObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(1f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(1f, 1f);
+        rect.anchoredPosition = new Vector2(-24f, -24f);
+        rect.sizeDelta = new Vector2(520f, 104f);
+
+        statusPanel = panelObject.GetComponent<Image>();
+        statusPanel.color = new Color(0.05f, 0.07f, 0.11f, 0.88f);
+        statusPanel.raycastTarget = false;
+
+        return panelObject.transform;
     }
 
     private void CreateCarriedLabel(Transform parent)
@@ -150,11 +171,12 @@ public class PuzzleHud : MonoBehaviour
         rect.anchorMin = new Vector2(0f, 1f);
         rect.anchorMax = new Vector2(0f, 1f);
         rect.pivot = new Vector2(0f, 1f);
-        rect.anchoredPosition = new Vector2(24f, -24f);
-        rect.sizeDelta = new Vector2(350f, 40f);
+        rect.anchoredPosition = new Vector2(18f, -12f);
+        rect.sizeDelta = new Vector2(484f, 38f);
 
         carriedLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        carriedLabel.fontSize = fontSize;
+        carriedLabel.fontSize = Mathf.Max(fontSize, 24);
+        carriedLabel.fontStyle = FontStyle.Bold;
         carriedLabel.alignment = TextAnchor.UpperLeft;
         carriedLabel.color = Color.white;
         carriedLabel.raycastTarget = false;
@@ -167,15 +189,15 @@ public class PuzzleHud : MonoBehaviour
 
         hintLabel = labelObject.AddComponent<Text>();
         RectTransform rect = hintLabel.rectTransform;
-        rect.anchorMin = new Vector2(0.5f, 0f);
-        rect.anchorMax = new Vector2(0.5f, 0f);
-        rect.pivot = new Vector2(0.5f, 0f);
-        rect.anchoredPosition = new Vector2(0f, 24f);
-        rect.sizeDelta = new Vector2(500f, 30f);
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(18f, -54f);
+        rect.sizeDelta = new Vector2(484f, 42f);
 
         hintLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        hintLabel.fontSize = 16;
-        hintLabel.alignment = TextAnchor.MiddleCenter;
+        hintLabel.fontSize = 18;
+        hintLabel.alignment = TextAnchor.UpperLeft;
         hintLabel.color = hintColor;
         hintLabel.raycastTarget = false;
     }
@@ -219,8 +241,11 @@ public class PuzzleHud : MonoBehaviour
 
     private void CacheComponents(Transform canvasTransform)
     {
-        carriedLabel = canvasTransform.Find("CarriedLabel")?.GetComponent<Text>();
-        hintLabel = canvasTransform.Find("HintLabel")?.GetComponent<Text>();
+        statusPanel = canvasTransform.Find("StatusPanel")?.GetComponent<Image>();
+        carriedLabel = canvasTransform.Find("StatusPanel/CarriedLabel")?.GetComponent<Text>()
+            ?? canvasTransform.Find("CarriedLabel")?.GetComponent<Text>();
+        hintLabel = canvasTransform.Find("StatusPanel/HintLabel")?.GetComponent<Text>()
+            ?? canvasTransform.Find("HintLabel")?.GetComponent<Text>();
         resetButton = canvasTransform.Find("ResetButton")?.GetComponent<Button>();
 
         if (resetButton != null)

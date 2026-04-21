@@ -281,6 +281,43 @@ public class DevCheatService : MonoBehaviour
         }
     }
 
+    public void ResetPuzzleRuntimeState()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm == null)
+        {
+            return;
+        }
+
+        gsm.ResetPuzzleRuntimeStateForDebug();
+        PuzzleBoxInteractable[] boxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < boxes.Length; i++)
+        {
+            if (boxes[i] != null)
+            {
+                boxes[i].ResetSolvedStateForDebug();
+            }
+        }
+    }
+
+
+    public void StartActiveIslandFlow()
+    {
+        GameStateManager.Instance?.StartActiveIslandFlowForDebug();
+    }
+
+    public void ReturnToMainScene()
+    {
+        GameStateManager manager = GameStateManager.Instance;
+        if (manager == null)
+        {
+            return;
+        }
+
+        manager.CancelActiveIslandFlowForDebug();
+        manager.ReturnToMainScene();
+    }
+
     public void MaxEverything()
     {
         HeroProgressionManager progression = HeroProgressionManager.Instance;

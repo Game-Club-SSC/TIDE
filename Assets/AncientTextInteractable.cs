@@ -4,7 +4,7 @@ using UnityEngine.Rendering;
 [DisallowMultipleComponent]
 [RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Renderer))]
-public class AncientTextInteractable : MonoBehaviour
+public class AncientTextInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 {
     private const string PromptResourceName = "PuzzlePrompt";
     private const float PromptPixelsPerUnit = 360f;
@@ -20,6 +20,8 @@ public class AncientTextInteractable : MonoBehaviour
     [Header("Interaction")]
     [SerializeField] private Vector3 triggerSize = new Vector3(3f, 2.2f, 3f);
     [SerializeField] private KeyCode interactKey = KeyCode.Return;
+    [SerializeField] private float interactEntryDelay = 0.35f;
+    [SerializeField] private bool allowMovementAssist;
 
     [Header("Visual")]
     [SerializeField] private Color unreadColor = new Color(0.86f, 0.75f, 0.47f, 1f);
@@ -30,6 +32,8 @@ public class AncientTextInteractable : MonoBehaviour
     private GameObject promptRoot;
     private Sprite runtimePromptSprite;
     private bool playerInRange;
+    private int playerOverlapCount;
+    private float playerEnteredRangeAt;
     private bool isRead;
 
     public void ConfigureRuntimeData(AncientTextData data)
@@ -62,10 +66,7 @@ public class AncientTextInteractable : MonoBehaviour
         UpdatePromptFacing();
 
         GameStateManager gsm = GameStateManager.Instance;
-        bool canInteract = playerInRange
-            && gsm != null
-            && gsm.currentState == GameStateManager.GameState.Exploration
-            && !gsm.IsTransitioning;
+        bool canInteract = CanInteract(gsm);
 
         SetPromptVisible(canInteract);
         if (!canInteract)
@@ -80,6 +81,15 @@ public class AncientTextInteractable : MonoBehaviour
         }
 
         OpenTextLog(gsm);
+    }
+
+    private bool CanInteract(GameStateManager gsm)
+    {
+        return playerInRange
+            && gsm != null
+            && gsm.currentState == GameStateManager.GameState.Exploration
+            && !gsm.IsTransitioning
+            && Time.time - playerEnteredRangeAt >= Mathf.Max(0f, interactEntryDelay);
     }
 
     private void RegisterTextData()
@@ -148,9 +158,15 @@ public class AncientTextInteractable : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Player"))
+        if (!IsPlayerCollider(other))
         {
             return;
+        }
+
+        playerOverlapCount++;
+        if (!playerInRange)
+        {
+            playerEnteredRangeAt = Time.time;
         }
 
         playerInRange = true;
@@ -158,13 +174,17 @@ public class AncientTextInteractable : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag("Player"))
+        if (!IsPlayerCollider(other))
         {
             return;
         }
 
-        playerInRange = false;
-        SetPromptVisible(false);
+        playerOverlapCount = Mathf.Max(0, playerOverlapCount - 1);
+        playerInRange = playerOverlapCount > 0;
+        if (!playerInRange)
+        {
+            SetPromptVisible(false);
+        }
     }
 
     private void EnsureSolidCollider()
@@ -257,5 +277,43 @@ public class AncientTextInteractable : MonoBehaviour
             Destroy(runtimePromptSprite);
             runtimePromptSprite = null;
         }
+    }
+
+    private void OnDisable()
+    {
+        playerOverlapCount = 0;
+        playerInRange = false;
+        SetPromptVisible(false);
+    }
+
+    public Vector3 GetInteractionAssistPosition()
+    {
+        return transform.position;
+    }
+
+    public float GetInteractionAssistRadius()
+    {
+        return Mathf.Max(triggerSize.x, triggerSize.z);
+    }
+
+    public bool IsInteractionAssistActive()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        return allowMovementAssist && CanInteract(gsm);
+    }
+
+    private static bool IsPlayerCollider(Collider collider)
+    {
+        if (collider == null)
+        {
+            return false;
+        }
+
+        if (collider.CompareTag("Player"))
+        {
+            return true;
+        }
+
+        return collider.GetComponentInParent<IsometricPlayer>() != null;
     }
 }

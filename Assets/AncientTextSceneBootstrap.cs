@@ -4,7 +4,7 @@ using UnityEngine;
 public class AncientTextSceneBootstrap : MonoBehaviour
 {
     [Header("Auto Spawn")]
-    [SerializeField] private bool spawnDefaultTextNode = true;
+    [SerializeField] private bool spawnDefaultTextNode;
     [SerializeField] private bool useActiveIslandDefaults = true;
     [SerializeField] private Vector3 defaultNodePosition = new Vector3(8f, 32f, 6f);
     [SerializeField] private string defaultNodeObjectName = "AncientTextNode_IslandIntro";

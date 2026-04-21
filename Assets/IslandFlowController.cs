@@ -162,12 +162,20 @@ public class IslandFlowController : MonoBehaviour
 
         if (!playerWon)
         {
-            Debug.Log("[IslandFlowController] Combat encounter failed. Flow remains on current encounter.");
-            LoadCurrentEncounter();
+            awaitingEncounterResolution = false;
+            Debug.Log("[IslandFlowController] Combat encounter failed or fled. Flow paused on current encounter.");
             return;
         }
 
         OnEncounterComplete();
+    }
+
+    public void StopFlowForDebug()
+    {
+        isActive = false;
+        awaitingEncounterResolution = false;
+        activeIslandId = string.Empty;
+        hasLoggedDeadlockWarning = false;
     }
 
     private void LoadCurrentEncounter()

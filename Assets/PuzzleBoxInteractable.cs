@@ -3,7 +3,7 @@ using UnityEngine.Rendering;
 
 [RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Renderer))]
-public class PuzzleBoxInteractable : MonoBehaviour
+public class PuzzleBoxInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 {
     private const string DefaultPromptResourceName = "PuzzlePrompt";
     private const float DefaultPromptPixelsPerUnit = 360f;
@@ -17,6 +17,9 @@ public class PuzzleBoxInteractable : MonoBehaviour
     [Header("Interaction")]
     [SerializeField] private Vector3 triggerSize = new Vector3(3.25f, 2.25f, 3.25f);
     [SerializeField] private Color boxColor = new Color(1f, 0.45f, 0.12f);
+    [SerializeField] private Color solvedBoxColor = new Color(0.45f, 0.38f, 0.32f, 1f);
+    [SerializeField] private bool openWhenInteractHeld = true;
+    [SerializeField] private bool keepSolvedMoundVisible = true;
 
     [Header("Puzzle Layout")]
     [Tooltip("Puzzle data asset. Preferred over raw values.")]
@@ -45,6 +48,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
     private Renderer cachedRenderer;
     private GameObject promptRoot;
     private bool playerInRange;
+    private int playerOverlapCount;
     private Sprite runtimePromptSprite;
     private bool thisBoxSolved;
 
@@ -85,22 +89,12 @@ public class PuzzleBoxInteractable : MonoBehaviour
             return;
         }
 
-        if (!Input.GetKeyDown(KeyCode.Return) && !Input.GetKeyDown(KeyCode.KeypadEnter))
+        if (!WasInteractRequested())
         {
             return;
         }
 
-        PuzzleOverlayController overlayController = FindFirstObjectByType<PuzzleOverlayController>();
-        if (overlayController == null)
-        {
-            GameObject overlayObject = new GameObject("PuzzleOverlayController");
-            overlayController = overlayObject.AddComponent<PuzzleOverlayController>();
-        }
-
-        if (overlayController != null)
-        {
-            overlayController.OpenPuzzle(this);
-        }
+        OpenPuzzleOverlay();
     }
 
     public void MarkSolved()
@@ -127,21 +121,67 @@ public class PuzzleBoxInteractable : MonoBehaviour
             }
         }
 
-        // Hide mound child object if it exists
         Transform moundTransform = transform.Find("Mound for Dig (1)");
         if (moundTransform != null)
         {
-            moundTransform.gameObject.SetActive(false);
-            Debug.Log("[PuzzleBoxInteractable] Mound hidden after puzzle completion.");
+            moundTransform.gameObject.SetActive(keepSolvedMoundVisible);
+            if (!keepSolvedMoundVisible)
+            {
+                Debug.Log("[PuzzleBoxInteractable] Mound hidden after puzzle completion.");
+            }
         }
 
-        gameObject.SetActive(false);
+        if (cachedRenderer != null)
+        {
+            cachedRenderer.material.color = solvedBoxColor;
+            cachedRenderer.enabled = keepSolvedMoundVisible;
+        }
 
         GameStateManager gsm = GameStateManager.Instance;
         if (gsm != null)
         {
             gsm.MarkPuzzleBoxSolved(GetPuzzleBoxId());
         }
+    }
+
+    public void ResetSolvedStateForDebug()
+    {
+        thisBoxSolved = false;
+        playerOverlapCount = 0;
+        playerInRange = false;
+
+        if (!gameObject.activeSelf)
+        {
+            gameObject.SetActive(true);
+        }
+
+        if (interactionTrigger != null)
+        {
+            interactionTrigger.enabled = true;
+        }
+
+        Collider[] colliders = GetComponents<Collider>();
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i] != null)
+            {
+                colliders[i].enabled = true;
+            }
+        }
+
+        Transform moundTransform = transform.Find("Mound for Dig (1)");
+        if (moundTransform != null)
+        {
+            moundTransform.gameObject.SetActive(true);
+        }
+
+        if (cachedRenderer != null)
+        {
+            cachedRenderer.enabled = true;
+            cachedRenderer.material.color = boxColor;
+        }
+
+        SetPromptVisible(false);
     }
 
     public string GetPuzzleBoxId()
@@ -261,6 +301,7 @@ public class PuzzleBoxInteractable : MonoBehaviour
             return;
         }
 
+        playerOverlapCount++;
         playerInRange = true;
     }
 
@@ -271,8 +312,44 @@ public class PuzzleBoxInteractable : MonoBehaviour
             return;
         }
 
+        playerOverlapCount = Mathf.Max(0, playerOverlapCount - 1);
+        playerInRange = playerOverlapCount > 0;
+        if (!playerInRange)
+        {
+            SetPromptVisible(false);
+        }
+    }
+
+    private void OnDisable()
+    {
+        playerOverlapCount = 0;
         playerInRange = false;
         SetPromptVisible(false);
+    }
+
+    private bool WasInteractRequested()
+    {
+        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+        {
+            return true;
+        }
+
+        return openWhenInteractHeld && (Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.KeypadEnter));
+    }
+
+    private void OpenPuzzleOverlay()
+    {
+        PuzzleOverlayController overlayController = FindFirstObjectByType<PuzzleOverlayController>();
+        if (overlayController == null)
+        {
+            GameObject overlayObject = new GameObject("PuzzleOverlayController");
+            overlayController = overlayObject.AddComponent<PuzzleOverlayController>();
+        }
+
+        if (overlayController != null)
+        {
+            overlayController.OpenPuzzle(this);
+        }
     }
 
     private void ApplyBoxColor()
@@ -382,6 +459,24 @@ public class PuzzleBoxInteractable : MonoBehaviour
             Destroy(runtimePromptSprite);
             runtimePromptSprite = null;
         }
+    }
+
+    public Vector3 GetInteractionAssistPosition()
+    {
+        return transform.position;
+    }
+
+    public float GetInteractionAssistRadius()
+    {
+        return Mathf.Max(triggerSize.x, triggerSize.z);
+    }
+
+    public bool IsInteractionAssistActive()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        return !thisBoxSolved
+            && gsm != null
+            && gsm.CanEnterPuzzle();
     }
 
     private static bool IsPlayerCollider(Collider collider)

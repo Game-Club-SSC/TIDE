@@ -183,6 +183,7 @@ public class GameStateManager : MonoBehaviour
     [SerializeField] private bool enableCosmeticProgressionEconomyForCurrentSlice;
     [SerializeField] private bool enablePersistentSaveData = true;
     [SerializeField] private bool enableDeveloperGodMode = true;
+    [SerializeField] private bool autoStartIslandFlowOnMainScene;
 
     [Serializable]
     private sealed class FinalBossDefeatSaveEntry
@@ -232,6 +233,10 @@ public class GameStateManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         SceneManager.sceneLoaded += HandleSceneLoaded;
         ApplyRuntimeFeatureGates();
+        if (Application.isEditor || Debug.isDebugBuild)
+        {
+            enableDeveloperGodMode = true;
+        }
         EnsureRestorationTracker();
         EnsureProgressionManager();
         BindProgressionManagerEvents();
@@ -1929,6 +1934,20 @@ public class GameStateManager : MonoBehaviour
         PuzzleSolved = false;
     }
 
+    public void ResetPuzzleRuntimeStateForDebug()
+    {
+        puzzleRuntimeStates.Clear();
+        pendingSolvedPuzzleBoxId = null;
+        PendingPuzzleData = null;
+        PendingPuzzleLayout = null;
+        PendingPuzzleSealedTile = new Vector2Int(-1, -1);
+        PendingPuzzleIslandId = null;
+        PendingPuzzleEncounterId = null;
+        PendingPuzzleRestorationValue = 0f;
+        PuzzleSolved = false;
+        SaveWorldState();
+    }
+
     private void ApplySolvedPuzzleBoxesInScene()
     {
         PuzzleBoxInteractable[] boxes = FindObjectsByType<PuzzleBoxInteractable>(FindObjectsSortMode.None);
@@ -2019,7 +2038,47 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
+        if (autoStartIslandFlowOnMainScene)
+        {
+            flowController.StartIsland(activeConfig);
+        }
+    }
+
+    public void StartActiveIslandFlowForDebug()
+    {
+        if (IslandProgressionManager.Instance == null)
+        {
+            return;
+        }
+
+        IslandConfig activeConfig = IslandProgressionManager.Instance.GetActiveIslandConfig();
+        if (activeConfig == null)
+        {
+            return;
+        }
+
+        IslandFlowController flowController = FindFirstObjectByType<IslandFlowController>();
+        if (flowController == null)
+        {
+            GameObject flowObject = new GameObject("IslandFlowController");
+            flowController = flowObject.AddComponent<IslandFlowController>();
+        }
+
         flowController.StartIsland(activeConfig);
+    }
+
+    public void CancelActiveIslandFlowForDebug()
+    {
+        IslandFlowController flowController = FindFirstObjectByType<IslandFlowController>();
+        if (flowController != null)
+        {
+            flowController.StopFlowForDebug();
+        }
+
+        if (FlowController == flowController)
+        {
+            FlowController = null;
+        }
     }
 
     public void HandleIslandTravelFlowReset()
@@ -2481,7 +2540,65 @@ public class GameStateManager : MonoBehaviour
             y = 1f;
         }
 
-        return new Vector3(candidatePosition.x, y, candidatePosition.z);
+        Vector3 basePosition = new Vector3(candidatePosition.x, y, candidatePosition.z);
+        if (IsSafeExplorationReturnPosition(basePosition))
+        {
+            return basePosition;
+        }
+
+        float[] offsets = { 2f, 4f, 6f, 8f, 10f };
+        Vector3[] directions =
+        {
+            Vector3.forward,
+            Vector3.back,
+            Vector3.right,
+            Vector3.left,
+            (Vector3.forward + Vector3.right).normalized,
+            (Vector3.forward + Vector3.left).normalized,
+            (Vector3.back + Vector3.right).normalized,
+            (Vector3.back + Vector3.left).normalized
+        };
+
+        for (int i = 0; i < offsets.Length; i++)
+        {
+            for (int j = 0; j < directions.Length; j++)
+            {
+                Vector3 testPosition = basePosition + directions[j] * offsets[i];
+                if (IsSafeExplorationReturnPosition(testPosition))
+                {
+                    return testPosition;
+                }
+            }
+        }
+
+        return DefaultExplorationSpawnPosition;
+    }
+
+    private bool IsSafeExplorationReturnPosition(Vector3 candidatePosition)
+    {
+        Collider[] overlaps = Physics.OverlapSphere(candidatePosition, 0.6f, ~0, QueryTriggerInteraction.Collide);
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            Collider overlap = overlaps[i];
+            if (overlap == null)
+            {
+                continue;
+            }
+
+            IsometricPlayer overlapPlayer = overlap.GetComponentInParent<IsometricPlayer>();
+            if (player != null && overlapPlayer == player)
+            {
+                continue;
+            }
+
+            if (overlap.GetComponentInParent<EnemyTrigger>() != null
+                || overlap.GetComponentInParent<OverworldEnemy>() != null)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool TryGetBoatDestinationSpawn(out Vector3 spawnPosition)
