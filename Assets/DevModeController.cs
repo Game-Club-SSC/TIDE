@@ -58,6 +58,11 @@ public class DevModeController : MonoBehaviour
             return;
         }
 
+        if (menuUi != null && menuUi.IsVisible)
+        {
+            return;
+        }
+
         GUI.Box(new Rect(16f, 16f, 620f, 38f), "DEV GOD MODE ACTIVE - Konami unlocked (F10 toggles menu)");
         string summary = DevCheatService.Instance.BuildDebugSummary();
         GUI.Box(new Rect(16f, 60f, 620f, 290f), summary);
@@ -75,33 +80,85 @@ public class DevModeController : MonoBehaviour
             }
         }
 
-        for (int i = 0; i < KonamiSequence.Length; i++)
+        if (!TryReadKonamiKeyDown(out KeyCode pressedKey))
         {
-            if (!Input.GetKeyDown(KonamiSequence[i]))
-            {
-                continue;
-            }
-
-            if (KonamiSequence[konamiIndex] == KonamiSequence[i])
-            {
-                konamiIndex++;
-                konamiTimer = SequenceTimeout;
-                if (konamiIndex >= KonamiSequence.Length)
-                {
-                    konamiIndex = 0;
-                    isUnlocked = !isUnlocked;
-                    if (menuUi != null)
-                    {
-                        menuUi.SetVisible(isUnlocked);
-                    }
-                }
-            }
-            else
-            {
-                konamiIndex = KonamiSequence[0] == KonamiSequence[i] ? 1 : 0;
-                konamiTimer = konamiIndex > 0 ? SequenceTimeout : 0f;
-            }
+            return;
         }
+
+        AdvanceKonamiSequence(pressedKey);
+    }
+
+    private void AdvanceKonamiSequence(KeyCode key)
+    {
+        if (konamiIndex < KonamiSequence.Length && KonamiSequence[konamiIndex] == key)
+        {
+            konamiIndex++;
+            konamiTimer = SequenceTimeout;
+        }
+        else if (KonamiSequence[0] == key)
+        {
+            konamiIndex = 1;
+            konamiTimer = SequenceTimeout;
+        }
+        else
+        {
+            konamiIndex = 0;
+            konamiTimer = 0f;
+        }
+
+        if (konamiIndex < KonamiSequence.Length)
+        {
+            return;
+        }
+
+        konamiIndex = 0;
+        isUnlocked = !isUnlocked;
+        if (menuUi != null)
+        {
+            menuUi.SetVisible(isUnlocked);
+        }
+    }
+
+    private static bool TryReadKonamiKeyDown(out KeyCode pressedKey)
+    {
+        if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            pressedKey = KeyCode.UpArrow;
+            return true;
+        }
+
+        if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            pressedKey = KeyCode.DownArrow;
+            return true;
+        }
+
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            pressedKey = KeyCode.LeftArrow;
+            return true;
+        }
+
+        if (Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            pressedKey = KeyCode.RightArrow;
+            return true;
+        }
+
+        if (Input.GetKeyDown(KeyCode.B))
+        {
+            pressedKey = KeyCode.B;
+            return true;
+        }
+
+        if (Input.GetKeyDown(KeyCode.A))
+        {
+            pressedKey = KeyCode.A;
+            return true;
+        }
+
+        pressedKey = KeyCode.None;
+        return false;
     }
 
     private void EnsureDependencies()

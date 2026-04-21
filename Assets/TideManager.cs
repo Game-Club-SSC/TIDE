@@ -21,7 +21,7 @@ public class TideManager : MonoBehaviour
 
     [Header("Board Presentation")]
     [SerializeField] private bool renderBoardAsUi = true;
-    [SerializeField] private Vector2 uiBoardPanelSize = new Vector2(660f, 720f);
+    [SerializeField] private Vector2 uiBoardPanelSize = new Vector2(720f, 760f);
     [SerializeField] private Color uiPanelColor = new Color(0.09f, 0.12f, 0.18f, 0.94f);
     [SerializeField] private Color uiGridBackgroundColor = new Color(0.14f, 0.17f, 0.24f, 0.92f);
     [SerializeField] private Color uiTextColor = new Color(0.92f, 0.94f, 0.98f, 1f);
@@ -748,8 +748,8 @@ public class TideManager : MonoBehaviour
         boardGridRoot = gridObject.GetComponent<RectTransform>();
         boardGridRoot.anchorMin = new Vector2(0f, 0f);
         boardGridRoot.anchorMax = new Vector2(1f, 1f);
-        boardGridRoot.offsetMin = new Vector2(36f, 44f);
-        boardGridRoot.offsetMax = new Vector2(-36f, -112f);
+        boardGridRoot.offsetMin = new Vector2(40f, 48f);
+        boardGridRoot.offsetMax = new Vector2(-40f, -150f);
 
         Image gridImage = gridObject.GetComponent<Image>();
         gridImage.color = uiGridBackgroundColor;
@@ -800,15 +800,17 @@ public class TideManager : MonoBehaviour
         labelRect.anchorMin = new Vector2(0f, 1f);
         labelRect.anchorMax = new Vector2(1f, 1f);
         labelRect.pivot = new Vector2(0.5f, 1f);
-        labelRect.offsetMin = new Vector2(22f, -86f);
-        labelRect.offsetMax = new Vector2(-22f, -20f);
+        labelRect.offsetMin = new Vector2(26f, -126f);
+        labelRect.offsetMax = new Vector2(-26f, -18f);
 
         Text label = labelObject.GetComponent<Text>();
         label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        label.fontSize = 26;
+        label.fontSize = 24;
         label.fontStyle = FontStyle.Bold;
         label.color = uiTextColor;
         label.alignment = TextAnchor.MiddleCenter;
+        label.horizontalOverflow = HorizontalWrapMode.Wrap;
+        label.verticalOverflow = VerticalWrapMode.Overflow;
         label.raycastTarget = false;
         label.text = "TIDE STABILIZATION";
         return label;
@@ -1592,7 +1594,7 @@ public class TideManager : MonoBehaviour
         string carryText = carriedAmount > 0 ? $"Carry {carriedAmount}" : "Carry -";
         string targetText = BuildGoalHeaderText();
         string modeText = overlayMode ? "Esc: Exit Overlay" : "Reset available";
-        boardHeaderLabel.text = $"TIDE STABILIZATION   |   {targetText}   |   {carryText}   |   {modeText}";
+        boardHeaderLabel.text = $"TIDE STABILIZATION\n{targetText}   |   {carryText}   |   {modeText}";
     }
 
     private string BuildGoalHeaderText()

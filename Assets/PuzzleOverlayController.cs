@@ -18,6 +18,7 @@ public class PuzzleOverlayController : MonoBehaviour
     private float savedCamFOV;
     private CameraClearFlags savedCamClearFlags;
     private Color savedCamBackgroundColor;
+    private int savedCamCullingMask;
     private Camera savedCamera;
     private TopDownFollowCamera savedFollowCamera;
     private bool savedFollowCameraWasEnabled;
@@ -168,6 +169,7 @@ public class PuzzleOverlayController : MonoBehaviour
         savedCamFOV = cam.fieldOfView;
         savedCamClearFlags = cam.clearFlags;
         savedCamBackgroundColor = cam.backgroundColor;
+        savedCamCullingMask = cam.cullingMask;
         savedCamera = cam;
 
         savedFollowCamera = cam.GetComponent<TopDownFollowCamera>();
@@ -183,12 +185,9 @@ public class PuzzleOverlayController : MonoBehaviour
 
         if (activeManager != null && activeManager.UsesUiBoard)
         {
-            cam.transform.position = new Vector3(boardCenter.x, boardCenter.y + 7.5f, boardCenter.z - 8.5f);
-            cam.transform.rotation = Quaternion.Euler(22f, 0f, 0f);
-            cam.orthographic = false;
-            cam.fieldOfView = 50f;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.08f, 0.1f, 0.14f, 1f);
+            cam.cullingMask = 0;
             return;
         }
 
@@ -222,6 +221,7 @@ public class PuzzleOverlayController : MonoBehaviour
         cam.fieldOfView = savedCamFOV;
         cam.clearFlags = savedCamClearFlags;
         cam.backgroundColor = savedCamBackgroundColor;
+        cam.cullingMask = savedCamCullingMask;
 
         if (savedFollowCamera != null)
         {

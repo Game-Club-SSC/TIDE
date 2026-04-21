@@ -1,3 +1,4 @@
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -11,6 +12,7 @@ public class DevGodModeStateTest : MonoBehaviour
 
         TestTrackerDebugResetAndSetPercent();
         TestProgressionDebugUnlockAndReset();
+        TestKonamiSequenceUnlocksWithDuplicateKeys();
 
         Debug.Log("=== Dev God Mode State Tests Passed ===");
     }
@@ -82,6 +84,42 @@ public class DevGodModeStateTest : MonoBehaviour
                 DestroyImmediate(trackerObject);
             }
         }
+    }
+
+    private void TestKonamiSequenceUnlocksWithDuplicateKeys()
+    {
+        GameObject controllerObject = new GameObject("TestDevModeController");
+        DevModeController controller = controllerObject.AddComponent<DevModeController>();
+
+        MethodInfo advanceMethod = typeof(DevModeController).GetMethod("AdvanceKonamiSequence", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(advanceMethod, "AdvanceKonamiSequence should exist.");
+
+        FieldInfo unlockedField = typeof(DevModeController).GetField("isUnlocked", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(unlockedField, "isUnlocked should exist.");
+
+        KeyCode[] sequence =
+        {
+            KeyCode.UpArrow,
+            KeyCode.UpArrow,
+            KeyCode.DownArrow,
+            KeyCode.DownArrow,
+            KeyCode.LeftArrow,
+            KeyCode.RightArrow,
+            KeyCode.LeftArrow,
+            KeyCode.RightArrow,
+            KeyCode.B,
+            KeyCode.A
+        };
+
+        for (int i = 0; i < sequence.Length; i++)
+        {
+            advanceMethod.Invoke(controller, new object[] { sequence[i] });
+        }
+
+        Assert.IsTrue((bool)unlockedField.GetValue(controller),
+            "Konami sequence should unlock dev mode even with duplicate arrow keys.");
+
+        DestroyImmediate(controllerObject);
     }
 
     private static IslandRestorationTracker CreateIsolatedTracker(string trackerName)

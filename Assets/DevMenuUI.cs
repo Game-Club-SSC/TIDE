@@ -11,6 +11,7 @@ public class DevMenuUI : MonoBehaviour
     private Text headerText;
     private bool isVisible;
     private float summaryRefreshTimer;
+    private readonly KeyCode[] remapKeys = { KeyCode.Return, KeyCode.E, KeyCode.F, KeyCode.LeftAlt, KeyCode.Space };
 
     public bool IsVisible => isVisible;
 
@@ -79,34 +80,39 @@ public class DevMenuUI : MonoBehaviour
         canvasObject.AddComponent<GraphicRaycaster>();
 
         panelRoot = CreatePanel(canvasObject.transform, "DevMenuPanel", new Vector2(0.02f, 0.05f), new Vector2(0.98f, 0.95f));
-        VerticalLayoutGroup panelLayout = panelRoot.AddComponent<VerticalLayoutGroup>();
-        panelLayout.spacing = 8f;
-        panelLayout.padding = new RectOffset(16, 16, 16, 16);
-        panelLayout.childAlignment = TextAnchor.UpperLeft;
-        panelLayout.childControlHeight = false;
-        panelLayout.childForceExpandHeight = false;
 
         headerText = CreateText(panelRoot.transform, "Header", "DEV GOD MODE (Konami unlocked)", 28, FontStyle.Bold, TextAnchor.UpperLeft);
         headerText.color = new Color(1f, 0.3f, 0.3f, 1f);
+        RectTransform headerRect = headerText.rectTransform;
+        headerRect.anchorMin = new Vector2(0.02f, 0.91f);
+        headerRect.anchorMax = new Vector2(0.98f, 0.98f);
+        headerRect.offsetMin = Vector2.zero;
+        headerRect.offsetMax = Vector2.zero;
 
         GameObject buttonGridObject = new GameObject("ButtonGrid", typeof(RectTransform));
         buttonGridObject.transform.SetParent(panelRoot.transform, false);
+        RectTransform gridRect = buttonGridObject.GetComponent<RectTransform>();
+        gridRect.anchorMin = new Vector2(0.02f, 0.16f);
+        gridRect.anchorMax = new Vector2(0.70f, 0.89f);
+        gridRect.offsetMin = Vector2.zero;
+        gridRect.offsetMax = Vector2.zero;
         GridLayoutGroup grid = buttonGridObject.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(300f, 52f);
-        grid.spacing = new Vector2(8f, 8f);
+        grid.cellSize = new Vector2(285f, 44f);
+        grid.spacing = new Vector2(10f, 10f);
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 4;
-        LayoutElement gridLayout = buttonGridObject.AddComponent<LayoutElement>();
-        gridLayout.preferredHeight = 520f;
 
         AddActionButton(buttonGridObject.transform, "Full Reset All", () => DevCheatService.Instance?.FullResetAllState());
         AddActionButton(buttonGridObject.transform, "Reset Encounters", () => DevCheatService.Instance?.ResetEncounterAndFightState());
+        AddActionButton(buttonGridObject.transform, "Reset Puzzles", () => DevCheatService.Instance?.ResetPuzzleRuntimeState());
         AddActionButton(buttonGridObject.transform, "Unlock All Islands", () => DevCheatService.Instance?.UnlockAllIslands());
         AddActionButton(buttonGridObject.transform, "Teleport Active Spawn", () => DevCheatService.Instance?.TeleportToActiveIslandSpawn());
         AddActionButton(buttonGridObject.transform, "Restore Active 100%", () => DevCheatService.Instance?.SetActiveIslandRestoration(100f));
         AddActionButton(buttonGridObject.transform, "Restore Active 0%", () => DevCheatService.Instance?.SetActiveIslandRestoration(0f));
         AddActionButton(buttonGridObject.transform, "MAX EVERYTHING", () => DevCheatService.Instance?.MaxEverything());
         AddActionButton(buttonGridObject.transform, "Hide Menu", Toggle);
+        AddActionButton(buttonGridObject.transform, "Return To Island", () => DevCheatService.Instance?.ReturnToMainScene());
+        AddActionButton(buttonGridObject.transform, "Start Island Flow", () => DevCheatService.Instance?.StartActiveIslandFlow());
 
         AddToggleButton(buttonGridObject.transform, "Godmode Invincible", () =>
         {
@@ -140,6 +146,16 @@ public class DevMenuUI : MonoBehaviour
             }
         });
 
+        AddMovementButton(buttonGridObject.transform, "Auto-Run Toggle", player => player.ToggleAutoRunEnabled());
+        AddMovementButton(buttonGridObject.transform, "Allow Hop", player => player.ToggleAllowHop());
+        AddMovementButton(buttonGridObject.transform, "Auto-Face On Interact", player => player.ToggleAutoFaceOnInteract());
+        AddMovementButton(buttonGridObject.transform, "Camera Follow Polish", player => player.ToggleUseCameraFollowPolish());
+        AddMovementButton(buttonGridObject.transform, "Cycle Interact Key", player => player.SetInteractKey(CycleKey(player.GetInteractKey())));
+        AddMovementButton(buttonGridObject.transform, "Cycle Dash Key", player => player.SetDashKey(CycleKey(player.GetDashKey())));
+        AddMovementButton(buttonGridObject.transform, "Cycle Hop Key", player => player.SetHopKey(CycleKey(player.GetHopKey())));
+        AddMovementButton(buttonGridObject.transform, "Coyote Dash +", player => player.SetCoyoteDashWindow(0.2f));
+        AddMovementButton(buttonGridObject.transform, "Coyote Dash -", player => player.SetCoyoteDashWindow(0.05f));
+
         AddActionButton(buttonGridObject.transform, "Cycle 75% Rule", () => DevCheatService.Instance?.CycleMinimumRestorationBadEndingRuleMode());
         AddActionButton(buttonGridObject.transform, "Force Act I", () => DevCheatService.Instance?.ForceStoryAct(GameStateManager.StoryAct.ActI));
         AddActionButton(buttonGridObject.transform, "Force Act II", () => DevCheatService.Instance?.ForceStoryAct(GameStateManager.StoryAct.ActII));
@@ -155,9 +171,11 @@ public class DevMenuUI : MonoBehaviour
         summaryText = CreateText(panelRoot.transform, "Summary", string.Empty, 20, FontStyle.Normal, TextAnchor.UpperLeft);
         summaryText.horizontalOverflow = HorizontalWrapMode.Wrap;
         summaryText.verticalOverflow = VerticalWrapMode.Overflow;
-        LayoutElement summaryLayout = summaryText.gameObject.AddComponent<LayoutElement>();
-        summaryLayout.flexibleHeight = 1f;
-        summaryLayout.minHeight = 400f;
+        RectTransform summaryRect = summaryText.rectTransform;
+        summaryRect.anchorMin = new Vector2(0.72f, 0.16f);
+        summaryRect.anchorMax = new Vector2(0.98f, 0.89f);
+        summaryRect.offsetMin = Vector2.zero;
+        summaryRect.offsetMax = Vector2.zero;
     }
 
     private void AddIslandButtons(Transform parent)
@@ -189,6 +207,37 @@ public class DevMenuUI : MonoBehaviour
 
         string toggles = $"Toggles -> Invincible:{service.GodModeInvincible} OneHit:{service.GodModeOneHitKill} Infinite:{service.GodModeInfiniteResources} Overlay:{service.ShowDebugOverlay}";
         summaryText.text = toggles + "\n\n" + service.BuildDebugSummary();
+        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+        if (player != null)
+        {
+            summaryText.text += $"\n\nMovement -> AutoRun:{player.AutoRunEnabled} Hop:{player.AllowHop} AutoFace:{player.GetAutoFaceOnInteract()} CamPolish:{player.GetUseCameraFollowPolish()} Interact:{player.GetInteractKey()} Dash:{player.GetDashKey()} HopKey:{player.GetHopKey()}";
+        }
+    }
+
+    private void AddMovementButton(Transform parent, string label, System.Action<IsometricPlayer> action)
+    {
+        AddActionButton(parent, label, () =>
+        {
+            IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+            if (player != null)
+            {
+                action?.Invoke(player);
+            }
+            RefreshSummary();
+        });
+    }
+
+    private KeyCode CycleKey(KeyCode current)
+    {
+        for (int i = 0; i < remapKeys.Length; i++)
+        {
+            if (remapKeys[i] == current)
+            {
+                return remapKeys[(i + 1) % remapKeys.Length];
+            }
+        }
+
+        return remapKeys[0];
     }
 
     private static GameObject CreatePanel(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax)
@@ -201,7 +250,7 @@ public class DevMenuUI : MonoBehaviour
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
         Image image = panel.GetComponent<Image>();
-        image.color = new Color(0.04f, 0.05f, 0.08f, 0.95f);
+        image.color = new Color(0.02f, 0.025f, 0.035f, 0.98f);
         return panel;
     }
 
@@ -236,12 +285,12 @@ public class DevMenuUI : MonoBehaviour
         GameObject buttonObject = new GameObject(label, typeof(RectTransform), typeof(Image), typeof(Button));
         buttonObject.transform.SetParent(parent, false);
         Image image = buttonObject.GetComponent<Image>();
-        image.color = new Color(0.16f, 0.24f, 0.36f, 0.95f);
+        image.color = new Color(0.14f, 0.22f, 0.34f, 1f);
         Button button = buttonObject.GetComponent<Button>();
         button.targetGraphic = image;
         button.onClick.AddListener(action);
 
-        Text buttonText = CreateText(buttonObject.transform, "Text", label, 18, FontStyle.Bold, TextAnchor.MiddleCenter);
+        Text buttonText = CreateText(buttonObject.transform, "Text", label, 16, FontStyle.Bold, TextAnchor.MiddleCenter);
         RectTransform textRect = buttonText.GetComponent<RectTransform>();
         textRect.anchorMin = Vector2.zero;
         textRect.anchorMax = Vector2.one;

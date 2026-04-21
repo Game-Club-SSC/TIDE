@@ -187,7 +187,15 @@ public class TopDownFollowCamera : MonoBehaviour
 
     private Vector3 BuildDesiredPosition()
     {
-        Vector2 targetPlanar = GetPlanarPosition(target.position) + followOffset;
+        Vector2 lookAhead = Vector2.zero;
+        CameraFollowPolishBridge polishBridge = FindFirstObjectByType<CameraFollowPolishBridge>();
+        if (polishBridge != null)
+        {
+            Vector3 bridgeLookAhead = polishBridge.GetLookAhead();
+            lookAhead = GetPlanarVector(bridgeLookAhead);
+        }
+
+        Vector2 targetPlanar = GetPlanarPosition(target.position) + followOffset + lookAhead;
         targetPlanar = ClampToBounds(targetPlanar);
         return ComposeWorldPosition(targetPlanar, fixedOrthogonalAxis);
     }
@@ -235,6 +243,13 @@ public class TopDownFollowCamera : MonoBehaviour
         return followPlane == FollowPlane.XY
             ? new Vector2(worldPosition.x, worldPosition.y)
             : new Vector2(worldPosition.x, worldPosition.z);
+    }
+
+    private Vector2 GetPlanarVector(Vector3 worldVector)
+    {
+        return followPlane == FollowPlane.XY
+            ? new Vector2(worldVector.x, worldVector.y)
+            : new Vector2(worldVector.x, worldVector.z);
     }
 
     private float GetOrthogonalAxis(Vector3 worldPosition)

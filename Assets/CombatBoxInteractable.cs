@@ -3,7 +3,7 @@ using UnityEngine.Rendering;
 
 [RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Renderer))]
-public class CombatBoxInteractable : MonoBehaviour
+public class CombatBoxInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 {
     private const string DefaultPromptResourceName = "PuzzlePrompt";
     private const float DefaultPromptPixelsPerUnit = 360f;
@@ -321,6 +321,22 @@ public class CombatBoxInteractable : MonoBehaviour
             Destroy(runtimePromptSprite);
             runtimePromptSprite = null;
         }
+    }
+
+    public Vector3 GetInteractionAssistPosition()
+    {
+        return transform.position;
+    }
+
+    public float GetInteractionAssistRadius()
+    {
+        return Mathf.Max(triggerSize.x, triggerSize.z);
+    }
+
+    public bool IsInteractionAssistActive()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        return playerInRange && gsm != null && gsm.CanEnterCombatScene();
     }
 
     private static bool IsPlayerCollider(Collider collider)
