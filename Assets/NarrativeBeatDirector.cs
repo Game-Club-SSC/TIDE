@@ -14,6 +14,8 @@ public class NarrativeBeatDirector : MonoBehaviour
 
     [Header("Timing")]
     [SerializeField] private float introDelaySeconds = 1.2f;
+    [SerializeField] private bool introRequiresPlayerMovement = true;
+    [SerializeField] private float minimumPlayerTravelBeforeIntroBeat = 0.75f;
     [SerializeField] private float beatRepeatCooldown = 6f;
     [SerializeField] private string primaryIslandId = "island_lust";
     [SerializeField] private float preCombatTriggerDistance = 6f;
@@ -32,6 +34,7 @@ public class NarrativeBeatDirector : MonoBehaviour
 
     public void ResetForDebug()
     {
+        hasExplorationStartPosition = false;
         CacheExplorationStartPosition();
         introTimer = Mathf.Max(0.2f, introDelaySeconds);
         introQueued = true;
@@ -66,7 +69,8 @@ public class NarrativeBeatDirector : MonoBehaviour
         if (introQueued && !gsm.IsNarrativeBeatCompleted(IntroBeatId))
         {
             introTimer -= Time.deltaTime;
-            if (introTimer <= 0f)
+            if (introTimer <= 0f
+                && (!introRequiresPlayerMovement || HasPlayerMovedAtLeast(minimumPlayerTravelBeforeIntroBeat)))
             {
                 if (ShowBeat(IntroBeatId, BuildIntroBeatTitle(), BuildIntroBeatBody()))
                 {
@@ -166,6 +170,11 @@ public class NarrativeBeatDirector : MonoBehaviour
 
     private bool HasPlayerMovedEnoughForPreCombatBeat()
     {
+        return HasPlayerMovedAtLeast(minimumPlayerTravelBeforePreCombatBeat);
+    }
+
+    private bool HasPlayerMovedAtLeast(float minimumDistance)
+    {
         IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
         if (player == null)
         {
@@ -181,7 +190,7 @@ public class NarrativeBeatDirector : MonoBehaviour
 
         Vector3 delta = player.transform.position - explorationStartPosition;
         delta.y = 0f;
-        return delta.magnitude >= Mathf.Max(0.5f, minimumPlayerTravelBeforePreCombatBeat);
+        return delta.magnitude >= Mathf.Max(0.1f, minimumDistance);
     }
 
     private bool TryShouldTriggerPreCombatBeat()
