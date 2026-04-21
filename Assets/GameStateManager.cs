@@ -183,7 +183,6 @@ public class GameStateManager : MonoBehaviour
     [SerializeField] private bool enableCosmeticProgressionEconomyForCurrentSlice;
     [SerializeField] private bool enablePersistentSaveData = true;
     [SerializeField] private bool enableDeveloperGodMode = true;
-    [SerializeField] private bool autoStartIslandFlowOnMainScene;
 
     [Serializable]
     private sealed class FinalBossDefeatSaveEntry
@@ -2038,10 +2037,7 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
-        if (autoStartIslandFlowOnMainScene)
-        {
-            flowController.StartIsland(activeConfig);
-        }
+        flowController.StartIsland(activeConfig);
     }
 
     public void StartActiveIslandFlowForDebug()
