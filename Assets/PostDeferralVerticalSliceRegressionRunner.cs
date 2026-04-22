@@ -49,6 +49,16 @@ public class PostDeferralVerticalSliceRegressionRunner : MonoBehaviour
             RunContextMenuSuite<DevGodModeStateTest>(nameof(DevGodModeStateTest.RunTests)));
         RunStep("VSR-010", "level_1.unity", "Gluttony island content + mechanics", "GluttonyIslandVerificationTest.RunTests", () =>
             RunContextMenuSuite<GluttonyIslandVerificationTest>(nameof(GluttonyIslandVerificationTest.RunTests)));
+        RunStep("VSR-011", "level_1.unity", "Greed island content + mechanics", "GreedIslandVerificationTest.RunTests", () =>
+            RunContextMenuSuite<GreedIslandVerificationTest>(nameof(GreedIslandVerificationTest.RunTests)));
+        RunStep("VSR-012", "level_1.unity", "Sloth island content + mechanics", "SlothIslandVerificationTest.RunTests", () =>
+            RunContextMenuSuite<SlothIslandVerificationTest>(nameof(SlothIslandVerificationTest.RunTests)));
+        RunStep("VSR-013", "level_1.unity", "Wrath island content + mechanics", "WrathIslandVerificationTest.RunTests", () =>
+            RunContextMenuSuite<WrathIslandVerificationTest>(nameof(WrathIslandVerificationTest.RunTests)));
+        RunStep("VSR-014", "level_1.unity", "Envy island content + mechanics", "EnvyIslandVerificationTest.RunTests", () =>
+            RunContextMenuSuite<EnvyIslandVerificationTest>(nameof(EnvyIslandVerificationTest.RunTests)));
+        RunStep("VSR-015", "level_1.unity", "Pride island content + mechanics", "PrideIslandVerificationTest.RunTests", () =>
+            RunContextMenuSuite<PrideIslandVerificationTest>(nameof(PrideIslandVerificationTest.RunTests)));
 
         latestReport = BuildReport();
         Debug.Log(latestReport);
