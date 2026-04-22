@@ -26,7 +26,7 @@ public static class IslandThemeRegistry
             { "island_4", "island_sloth" },
             { "island_5", "island_pride" },
             { "island_6", "island_envy" },
-            { "island_7", "island_pride" },
+            { "island_7", "island_envy" },
             { "island_8", "island_gluttony" },
             { "island_anger", "island_wrath" },
             { "island_desire", "island_sloth" },

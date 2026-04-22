@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
+  m_Name: text_wrath_intro
+  m_EditorClassIdentifier: 
+  textId: wrath_intro_fragment
+  title: Fragment of Wrath
+  body: "Wrath sharpens fast, but strikes the bearer first.\nFlames raised for justice still scorch the innocent.\n\nHold to balance, or the storm will claim both shore and sailor."

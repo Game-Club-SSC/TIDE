@@ -74,7 +74,7 @@ public class IslandProgressionTravelTest : MonoBehaviour
             progressionObject = progression.gameObject;
 
             const string currentIsland = "island_lust";
-            const string nextIsland = "island_wrath";
+            const string nextIsland = "island_gluttony";
 
             int unlockEvents = 0;
             progression.OnIslandUnlocked += islandId =>
@@ -127,7 +127,7 @@ public class IslandProgressionTravelTest : MonoBehaviour
             progressionObject = progression.gameObject;
 
             const string restoredIsland = "island_lust";
-            const string unlockedIsland = "island_wrath";
+            const string unlockedIsland = "island_gluttony";
             Vector3 expectedReturnPosition = new Vector3(18.25f, 31.54f, -4.5f);
 
             tracker.RecordEncounterCompletion(restoredIsland, "snapshot_c1", EncounterType.Combat, 0.5f);
