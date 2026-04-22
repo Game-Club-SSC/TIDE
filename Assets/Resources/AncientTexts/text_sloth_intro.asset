@@ -10,8 +10,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
-  m_Name: text_ego_intro
+  m_Name: text_sloth_intro
   m_EditorClassIdentifier: 
-  textId: ego_intro_fragment
-  title: Fragment of Pride
-  body: "Pride builds a throne from borrowed praise.\nIt mistakes noise for worth and height for truth.\n\nOnly the balanced heart can stand without a crown."
+  textId: sloth_intro_fragment
+  title: Fragment of Sloth
+  body: "Sloth whispers of tomorrow and empties today.\nEach answer births a newer question.\n\nWalk with longing, but do not kneel before it."

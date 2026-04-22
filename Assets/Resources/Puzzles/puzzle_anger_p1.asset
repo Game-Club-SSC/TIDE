@@ -25,7 +25,7 @@ MonoBehaviour:
   sealedPosition: {x: -1, y: -1}
   lockedPosition: {x: 2, y: 2}
   lockedTileEncounterId: anger_p1_sealed_2_2_guard
-  lockedTileIslandId: island_anger
+  lockedTileIslandId: island_wrath
   winCondition:
     type: 1
     targetValue: 5

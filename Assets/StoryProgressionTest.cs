@@ -49,7 +49,7 @@ public class StoryProgressionTest : MonoBehaviour
             GameStateManager manager = CreateIsolatedManager("TestGameStateManager_StoryAct");
 
             IslandProgressionManager.Instance.UnlockAllIslandsForDebug();
-            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_desire");
+            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_sloth");
             manager.RefreshStoryProgressionForDebug();
 
             Assert.AreEqual(GameStateManager.StoryAct.ActII, manager.CurrentStoryAct,
@@ -235,12 +235,12 @@ public class StoryProgressionTest : MonoBehaviour
             GameStateManager manager = CreateIsolatedManager("TestGameStateManager_ProceedRule");
             IslandProgressionManager.Instance.UnlockAllIslandsForDebug();
 
-            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_desire");
-            TrackBossVictoryAtThreshold(manager, "island_desire", IslandRestorationTracker.DefaultBossUnlockThresholdPercent);
+            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_sloth");
+            TrackBossVictoryAtThreshold(manager, "island_sloth", IslandRestorationTracker.DefaultBossUnlockThresholdPercent);
 
-            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_anger");
+            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_wrath");
 
-            CollectionAssert.DoesNotContain(manager.GetThresholdOnlyProceedIslandIds(), "island_desire",
+            CollectionAssert.DoesNotContain(manager.GetThresholdOnlyProceedIslandIds(), "island_sloth",
                 "Backtracking should not count as proceeding for the threshold-only rule.");
         }
         finally

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: ego_p4_sealed_0_2_guard
   m_EditorClassIdentifier:
   encounterId: ego_p4_sealed_0_2_guard
-  displayName: Ego Seal Ward
+  displayName: Pride Seal Ward
   enemies:
   - {fileID: 11400000, guid: 3a605523e4dc4cc4ae4a21d5c7abf89e, type: 2}
   - {fileID: 11400000, guid: 299eb70b37ae4410899b914da3e38267, type: 2}

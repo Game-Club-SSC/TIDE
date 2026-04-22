@@ -230,7 +230,7 @@ Puzzles can run either as a full scene (`PuzzleScene.unity`) or as an overlay wi
 | `AncientTextSceneBootstrap.cs` | Initializes ancient text system in exploration scene |
 
 ### Story Structure
-- **6 corrupted islands**, each ruled by a vice (Lust, Anger, Greed, Desire, Ego, Envy)
+- **6 corrupted islands**, each ruled by a vice (Lust, Wrath, Greed, Sloth, Pride, Envy)
 - **Ancient texts** reveal the heroes' true nature across Acts I–III
 - **Good ending:** Heroes fulfill purpose and fade away peacefully
 - **Bad ending:** Triggered by more than 3 final-boss defeats or by the minimum-restoration bad-ending rule
@@ -252,7 +252,7 @@ Puzzles can run either as a full scene (`PuzzleScene.unity`) or as an overlay wi
 | `EnemyData.cs` | ScriptableObject — enemy stats, element, skills, XP reward |
 
 ### Island IDs
-Format: `island_<vice>` (e.g., `island_lust`, `island_anger`, `island_greed`, `island_desire`, `island_ego`, `island_envy`)
+Format: `island_<vice>` (e.g., `island_lust`, `island_wrath`, `island_greed`, `island_sloth`, `island_pride`, `island_envy`)
 
 ---
 
@@ -293,7 +293,7 @@ Format: `island_<vice>` (e.g., `island_lust`, `island_anger`, `island_greed`, `i
 |---|---|
 | `HeroData/` | `hero_fire.asset`, `hero_water.asset`, `hero_earth.asset`, `hero_air.asset`, `hero_space.asset` |
 | `EnemyData/` | `enemy_golem.asset`, `enemy_orc.asset`, `enemy_troll.asset`, `enemy_sprite.asset`, `enemy_wraith.asset`, `enemy_imp.asset` |
-| `Islands/` | `island_lust.asset`, `island_anger.asset`, `island_greed.asset`, `island_desire.asset`, `island_ego.asset`, `island_envy.asset` |
+| `Islands/` | `island_lust.asset`, `island_wrath.asset`, `island_greed.asset`, `island_sloth.asset`, `island_pride.asset`, `island_envy.asset` |
 | `TideBreakData/` | Element-specific Tide Break abilities (`tb_fire.asset`, etc.) |
 | `AncientTexts/` | Lore texts per island theme (`text_anger.asset`, `text_ego.asset`, etc.) |
 | `Encounters/` | Combat encounter configurations |

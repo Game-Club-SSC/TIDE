@@ -74,7 +74,7 @@ public class IslandProgressionTravelTest : MonoBehaviour
             progressionObject = progression.gameObject;
 
             const string currentIsland = "island_lust";
-            const string nextIsland = "island_anger";
+            const string nextIsland = "island_gluttony";
 
             int unlockEvents = 0;
             progression.OnIslandUnlocked += islandId =>
@@ -127,7 +127,7 @@ public class IslandProgressionTravelTest : MonoBehaviour
             progressionObject = progression.gameObject;
 
             const string restoredIsland = "island_lust";
-            const string unlockedIsland = "island_anger";
+            const string unlockedIsland = "island_gluttony";
             Vector3 expectedReturnPosition = new Vector3(18.25f, 31.54f, -4.5f);
 
             tracker.RecordEncounterCompletion(restoredIsland, "snapshot_c1", EncounterType.Combat, 0.5f);
@@ -177,8 +177,8 @@ public class IslandProgressionTravelTest : MonoBehaviour
 
         Assert.AreEqual("island_lust", IslandThemeRegistry.ResolveIslandId("island_1"),
             "Legacy alias 'island_1' should resolve to 'island_lust'.");
-        Assert.AreEqual("island_anger", IslandThemeRegistry.ResolveIslandId("island_2"),
-            "Legacy alias 'island_2' should resolve to 'island_anger'.");
+        Assert.AreEqual("island_wrath", IslandThemeRegistry.ResolveIslandId("island_2"),
+            "Legacy alias 'island_2' should resolve to 'island_wrath'.");
         Assert.IsTrue(IslandThemeRegistry.IsKnownIslandId("island_1"),
             "Legacy alias should be recognized as a known island id.");
         Assert.IsTrue(IslandThemeRegistry.IsKnownIslandId("island_6"),

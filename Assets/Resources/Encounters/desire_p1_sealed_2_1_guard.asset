@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: desire_p1_sealed_2_1_guard
   m_EditorClassIdentifier:
   encounterId: desire_p1_sealed_2_1_guard
-  displayName: Desire Seal Guard
+  displayName: Sloth Seal Guard
   enemies:
   - {fileID: 11400000, guid: e1c98092b99644bc8ab5653e1a110799, type: 2}
   - {fileID: 11400000, guid: 299eb70b37ae4410899b914da3e38267, type: 2}
