@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: anger_p4_sealed_0_2_guard
   m_EditorClassIdentifier:
   encounterId: anger_p4_sealed_0_2_guard
-  displayName: Anger Seal Ward
+  displayName: Wrath Seal Ward
   enemies:
   - {fileID: 11400000, guid: 956230fc7b274eec9a2426ef8718c5ea, type: 2}
   - {fileID: 11400000, guid: 299eb70b37ae4410899b914da3e38267, type: 2}

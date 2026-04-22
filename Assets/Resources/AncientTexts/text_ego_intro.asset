@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: text_ego_intro
   m_EditorClassIdentifier: 
   textId: ego_intro_fragment
-  title: Fragment of Ego
-  body: "Ego builds a throne from borrowed praise.\nIt mistakes noise for worth and height for truth.\n\nOnly the balanced heart can stand without a crown."
+  title: Fragment of Pride
+  body: "Pride builds a throne from borrowed praise.\nIt mistakes noise for worth and height for truth.\n\nOnly the balanced heart can stand without a crown."

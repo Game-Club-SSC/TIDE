@@ -9,25 +9,28 @@ public static class IslandThemeRegistry
     private static readonly string[] progressionOrder =
     {
         "island_lust",
-        "island_anger",
         "island_gluttony",
         "island_greed",
-        "island_desire",
-        "island_ego",
-        "island_envy"
+        "island_sloth",
+        "island_wrath",
+        "island_envy",
+        "island_pride"
     };
 
     private static readonly Dictionary<string, string> legacyIslandIdAliases =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             { "island_1", "island_lust" },
-            { "island_2", "island_anger" },
+            { "island_2", "island_wrath" },
             { "island_3", "island_greed" },
-            { "island_4", "island_desire" },
-            { "island_5", "island_ego" },
+            { "island_4", "island_sloth" },
+            { "island_5", "island_pride" },
             { "island_6", "island_envy" },
-            { "island_7", "island_envy" },
-            { "island_8", "island_gluttony" }
+            { "island_7", "island_pride" },
+            { "island_8", "island_gluttony" },
+            { "island_anger", "island_wrath" },
+            { "island_desire", "island_sloth" },
+            { "island_ego", "island_pride" }
         };
 
     private static readonly Dictionary<string, IslandConfig> configsById =

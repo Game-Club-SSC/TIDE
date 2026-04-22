@@ -25,7 +25,7 @@ MonoBehaviour:
   sealedPosition: {x: 2, y: 1}
   lockedPosition: {x: 0, y: 2}
   lockedTileEncounterId: ego_p4_sealed_0_2_guard
-  lockedTileIslandId: island_ego
+  lockedTileIslandId: island_pride
   winCondition:
     type: 0
     targetValue: 5

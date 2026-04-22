@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: desire_p4_sealed_0_0_guard
   m_EditorClassIdentifier:
   encounterId: desire_p4_sealed_0_0_guard
-  displayName: Desire Seal Ward
+  displayName: Sloth Seal Ward
   enemies:
   - {fileID: 11400000, guid: e1c98092b99644bc8ab5653e1a110799, type: 2}
   - {fileID: 11400000, guid: 0dc7e8caad43495e9dffe9dc877ec226, type: 2}

@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: text_desire_intro
   m_EditorClassIdentifier: 
   textId: desire_intro_fragment
-  title: Fragment of Desire
-  body: "Desire whispers of tomorrow and empties today.\nEach answer births a newer question.\n\nWalk with longing, but do not kneel before it."
+  title: Fragment of Sloth
+  body: "Sloth whispers of tomorrow and empties today.\nEach answer births a newer question.\n\nWalk with longing, but do not kneel before it."

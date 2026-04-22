@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: text_anger_intro
   m_EditorClassIdentifier: 
   textId: anger_intro_fragment
-  title: Fragment of Anger
-  body: "Anger sharpens fast, but strikes the bearer first.\nFlames raised for justice still scorch the innocent.\n\nHold to balance, or the storm will claim both shore and sailor."
+  title: Fragment of Wrath
+  body: "Wrath sharpens fast, but strikes the bearer first.\nFlames raised for justice still scorch the innocent.\n\nHold to balance, or the storm will claim both shore and sailor."
