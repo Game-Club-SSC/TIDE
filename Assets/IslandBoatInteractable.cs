@@ -655,6 +655,11 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
     private string BuildIslandDisplayName(string islandId)
     {
         string resolvedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (string.IsNullOrEmpty(resolvedIslandId))
+        {
+            return "Island";
+        }
+
         IslandDestination destination = FindDestination(resolvedIslandId);
         if (destination != null && !string.IsNullOrEmpty(destination.displayName))
         {
