@@ -229,6 +229,11 @@ public class DevMenuUI : MonoBehaviour
 
     private KeyCode CycleKey(KeyCode current)
     {
+        if (remapKeys == null || remapKeys.Length == 0)
+        {
+            return current;
+        }
+
         for (int i = 0; i < remapKeys.Length; i++)
         {
             if (remapKeys[i] == current)
