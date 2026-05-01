@@ -56,16 +56,23 @@ public class EnemyTrigger : MonoBehaviour
         {
             Transform playerTransform = ResolvePlayerTransform(other);
             Vector3 returnPosition = playerTransform != null ? playerTransform.position : other.transform.position;
-            GameStateManager.Instance.EnterCombatSceneFromExploration(
-                ResolveTrackingIslandId(),
-                trackedEncounterId,
-                Mathf.Max(0.001f, restorationValue),
-                returnPosition,
-                IsBossEncounter());
+            
+            if (GameStateManager.Instance != null)
+            {
+                GameStateManager.Instance.EnterCombatSceneFromExploration(
+                    ResolveTrackingIslandId(),
+                    trackedEncounterId,
+                    Mathf.Max(0.001f, restorationValue),
+                    returnPosition,
+                    IsBossEncounter());
+            }
         }
         else
         {
-            GameStateManager.Instance.EnterCombatScene();
+            if (GameStateManager.Instance != null)
+            {
+                GameStateManager.Instance.EnterCombatScene();
+            }
         }
 
         Collider triggerCollider = GetComponent<Collider>();

@@ -62,7 +62,20 @@ public class EnemyComposition
     {
         get
         {
-            if (HasEnemyDataSlots) return enemyDataSlots.Length;
+            if (HasEnemyDataSlots)
+            {
+                int configuredCount = 0;
+                for (int i = 0; i < enemyDataSlots.Length; i++)
+                {
+                    if (enemyDataSlots[i] != null)
+                    {
+                        configuredCount++;
+                    }
+                }
+
+                return configuredCount;
+            }
+
             return Math.Min(Math.Min(Math.Min(Math.Min(names.Length, elements.Length), attackModifiers.Length), defenseModifiers.Length), maxHpModifiers.Length);
         }
     }

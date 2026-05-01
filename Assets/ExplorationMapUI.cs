@@ -27,6 +27,9 @@ public class ExplorationMapUI : MonoBehaviour
     [SerializeField] private string worldBoundsObjectName = "Ground";
     [SerializeField] private Vector2 fallbackWorldCenter = new Vector2(12.5f, 0f);
     [SerializeField] private Vector2 fallbackWorldSize = new Vector2(200f, 200f);
+    
+    // Cached reference to avoid repeated GameObject.Find calls
+    private GameObject cachedBoundsObject;
 
     [Header("Colors")]
     [SerializeField] private Color panelColor = new Color(0.07f, 0.1f, 0.14f, 0.82f);
@@ -132,12 +135,14 @@ public class ExplorationMapUI : MonoBehaviour
             return;
         }
 
+        // Try to get from this GameObject first
         player = GetComponent<IsometricPlayer>();
         if (player != null)
         {
             return;
         }
 
+        // Fallback to scene-wide search (expensive, but cached after first success)
         player = FindFirstObjectByType<IsometricPlayer>();
     }
 
@@ -174,12 +179,13 @@ public class ExplorationMapUI : MonoBehaviour
         worldCenter = fallbackWorldCenter;
         worldSize = new Vector2(Mathf.Max(1f, fallbackWorldSize.x), Mathf.Max(1f, fallbackWorldSize.y));
 
-        GameObject boundsObject = null;
-        if (!string.IsNullOrEmpty(worldBoundsObjectName))
+        // Use cached bounds object if available and valid
+        if (cachedBoundsObject == null && !string.IsNullOrEmpty(worldBoundsObjectName))
         {
-            boundsObject = GameObject.Find(worldBoundsObjectName);
+            cachedBoundsObject = GameObject.Find(worldBoundsObjectName);
         }
 
+        GameObject boundsObject = cachedBoundsObject;
         if (boundsObject == null)
         {
             return;
