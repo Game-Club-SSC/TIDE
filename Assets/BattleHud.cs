@@ -389,7 +389,7 @@ public class BattleHud : MonoBehaviour
 
     private void ShowCritAnnouncement(CombatUnit actor)
     {
-        if (critOverlay == null) return;
+        if (critOverlay == null || critLabel == null) return;
         critOverlay.SetActive(true);
         critDisplayTimer = 1.2f;
         critLabel.text = "CRITICAL!";

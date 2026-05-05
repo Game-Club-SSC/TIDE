@@ -226,15 +226,9 @@ public class CombatUnit : MonoBehaviour
         float defenseMod = GetDefenseModifier();
         int effectiveDefense = Mathf.Max(0, Mathf.RoundToInt(defense * (1f + defenseMod)));
         int actualDamage = Mathf.Max(1, modifiedDamage - effectiveDefense);
-        HP = Mathf.Max(0, HP - actualDamage);
+        HP = HP - actualDamage;
 
         Debug.Log($"[CombatUnit] {unitName} took {actualDamage} damage (from {damage}). HP: {HP}/{maxHp}");
-
-        // Check if unit has died
-        if (HP <= 0)
-        {
-            Die();
-        }
     }
 
     /// <summary>

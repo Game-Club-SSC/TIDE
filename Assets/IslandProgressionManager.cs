@@ -82,7 +82,12 @@ public class IslandProgressionManager : MonoBehaviour
     private void OnDisable()
     {
         UnbindTracker();
+        // Note: Instance is intentionally NOT cleared here to preserve singleton across scene loads.
+        // Instance clearing happens in OnDestroy when the object is truly destroyed.
+    }
 
+    private void OnDestroy()
+    {
         if (Instance == this)
         {
             Instance = null;
