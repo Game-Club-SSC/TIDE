@@ -788,18 +788,18 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
 
     private void UpdatePromptFacing()
     {
-        if (promptRoot == null || Camera.main == null)
-        {
-            return;
-        }
+        if (promptRoot == null) return;
 
-        Vector3 facingDirection = promptRoot.transform.position - Camera.main.transform.position;
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null) return;
+
+        Vector3 facingDirection = promptRoot.transform.position - mainCamera.transform.position;
         if (facingDirection.sqrMagnitude <= Mathf.Epsilon)
         {
             return;
         }
 
-        promptRoot.transform.rotation = Quaternion.LookRotation(facingDirection.normalized, Camera.main.transform.up);
+        promptRoot.transform.rotation = Quaternion.LookRotation(facingDirection.normalized, mainCamera.transform.up);
     }
 
     private Sprite GetPromptSprite()

@@ -123,6 +123,12 @@ public class IslandFlowController : MonoBehaviour
             return;
         }
 
+        if (tracker == null)
+        {
+            Debug.LogWarning("[IslandFlowController] Tracker is null in OnEncounterComplete.");
+            return;
+        }
+
         EncounterDefinition encounter = islandConfig.encounters[currentEncounterIndex];
         string encounterId = GetEncounterId(encounter, currentEncounterIndex);
         bool recorded = tracker.RecordEncounterCompletion(activeIslandId, encounterId, encounter.type, encounter.restorationValue);
@@ -286,7 +292,8 @@ public class IslandFlowController : MonoBehaviour
     private void OnIslandComplete()
     {
         isActive = false;
-        Debug.Log($"[IslandFlowController] Island {islandConfig.viceName} fully restored! ({tracker.GetRestorationPercent(activeIslandId):F1}%)");
+        float restorationPercent = tracker != null ? tracker.GetRestorationPercent(activeIslandId) : 0f;
+        Debug.Log($"[IslandFlowController] Island {islandConfig.viceName} fully restored! ({restorationPercent:F1}%)");
     }
 
     private static string GetEncounterId(EncounterDefinition encounter, int index)
