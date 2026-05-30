@@ -185,13 +185,18 @@ public class TopDownFollowCamera : MonoBehaviour
         offsetInitialized = true;
     }
 
+    private CameraFollowPolishBridge cachedPolishBridge;
+
     private Vector3 BuildDesiredPosition()
     {
         Vector2 lookAhead = Vector2.zero;
-        CameraFollowPolishBridge polishBridge = FindFirstObjectByType<CameraFollowPolishBridge>();
-        if (polishBridge != null)
+        if (cachedPolishBridge == null)
         {
-            Vector3 bridgeLookAhead = polishBridge.GetLookAhead();
+            cachedPolishBridge = FindFirstObjectByType<CameraFollowPolishBridge>();
+        }
+        if (cachedPolishBridge != null)
+        {
+            Vector3 bridgeLookAhead = cachedPolishBridge.GetLookAhead();
             lookAhead = GetPlanarVector(bridgeLookAhead);
         }
 

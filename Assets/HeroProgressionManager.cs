@@ -527,6 +527,11 @@ public class HeroProgressionManager : MonoBehaviour
             }
         }
 
+        if (state.level >= levelingConfig.maxLevel)
+        {
+            state.currentXp = 0;
+        }
+
         return leveledUp;
     }
 

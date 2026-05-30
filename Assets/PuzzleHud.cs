@@ -250,6 +250,7 @@ public class PuzzleHud : MonoBehaviour
 
         if (resetButton != null)
         {
+            resetButton.onClick.RemoveListener(OnResetPressed);
             resetButton.onClick.AddListener(OnResetPressed);
         }
     }
