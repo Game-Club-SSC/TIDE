@@ -752,6 +752,8 @@ public class BattleHud : MonoBehaviour
                 case StatusEffectType.DebuffAttack: abbr = "D ATK"; break;
                 case StatusEffectType.DebuffDefense: abbr = "D DEF"; break;
                 case StatusEffectType.Poison: abbr = "PSN"; break;
+                case StatusEffectType.Slow: abbr = "SLW"; break;
+                case StatusEffectType.Drowsy: abbr = "DRW"; break;
                 default: continue;
             }
             sb.Append($"{abbr}({effect.Duration}) ");

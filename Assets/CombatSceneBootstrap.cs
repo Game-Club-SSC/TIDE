@@ -304,6 +304,14 @@ public class CombatSceneBootstrap : MonoBehaviour
         BattleManager battleManager = GetComponent<BattleManager>();
         HeroData[] activeHeroes = GetActiveHeroes();
 
+        if (battleManager != null && GameStateManager.Instance != null)
+        {
+            string combatIslandId = IslandThemeRegistry.ResolveIslandId(GameStateManager.Instance.PendingCombatIslandId);
+            string encounterId = GameStateManager.Instance.PendingCombatEncounterId;
+            bool boss = !string.IsNullOrEmpty(encounterId) && encounterId.IndexOf("boss", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            battleManager.ConfigureEnvyContext(combatIslandId == "island_envy", boss);
+        }
+
         if (playerSpawnPoints != null)
         {
             for (int i = 0; i < playerSpawnPoints.Length; i++)

@@ -116,6 +116,13 @@ public class PuzzleData : ScriptableObject
     [Tooltip("How much tide is consumed from the placed tile after a valid move.")]
     public int consumptionAmount = 1;
 
+    [Tooltip("When enabled, Greed economy adds coin yield to an adjacent tile after a valid placement.")]
+    public bool enableGreedEconomy;
+
+    [Min(1)]
+    [Tooltip("How much tide is added to one orthogonally-adjacent tile when Greed economy is active.")]
+    public int coinTileYield = 2;
+
     public int[,] GetGrid()
     {
         int[,] grid =

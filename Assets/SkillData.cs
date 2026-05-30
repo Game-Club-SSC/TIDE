@@ -33,6 +33,11 @@ public class SkillData : ScriptableObject
     public int effectDuration = 0;
     public float effectMagnitude = 0f;
 
+    [Header("Greed Economy")]
+    [Min(0)]
+    [Tooltip("Amount of currency stolen from the player when an enemy uses this skill.")]
+    public int currencyStealAmount = 0;
+
     public bool IsValid()
     {
         return !string.IsNullOrEmpty(skillName)

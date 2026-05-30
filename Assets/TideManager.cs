@@ -1091,6 +1091,7 @@ public class TideManager : MonoBehaviour
 
         hoveredTile.ApplyPlace(carriedAmount);
         ApplyConsumption(hoveredTile);
+        ApplyGreedCoinYield(hoveredTile);
         carriedAmount = 0;
         carryingSource = null;
         OnCarriedAmountChanged?.Invoke();
@@ -1106,6 +1107,61 @@ public class TideManager : MonoBehaviour
         }
 
         destinationTile.ApplyTake(consumptionAmount);
+    }
+
+    private void ApplyGreedCoinYield(TideTile destinationTile)
+    {
+        if (destinationTile == null)
+        {
+            return;
+        }
+
+        PuzzleData puzzleData = overlayPuzzleData;
+        if (puzzleData == null && GameStateManager.Instance != null)
+        {
+            puzzleData = GameStateManager.Instance.PendingPuzzleData;
+        }
+
+        if (puzzleData == null || !puzzleData.enableGreedEconomy)
+        {
+            return;
+        }
+
+        Vector2Int pos = destinationTile.GridPosition;
+        int[] dRow = { -1, 1, 0, 0 };
+        int[] dCol = { 0, 0, -1, 1 };
+
+        for (int i = 0; i < 4; i++)
+        {
+            int nRow = pos.y + dRow[i];
+            int nCol = pos.x + dCol[i];
+
+            if (nRow < 0 || nRow >= 3 || nCol < 0 || nCol >= 3)
+            {
+                continue;
+            }
+
+            if (sealedTiles[nRow, nCol])
+            {
+                continue;
+            }
+
+            TideTile neighbor = activeTiles[nRow, nCol];
+            if (neighbor == null)
+            {
+                continue;
+            }
+
+            int newValue = Mathf.Min(10, neighbor.CurrentTideValue + puzzleData.coinTileYield);
+            int delta = newValue - neighbor.CurrentTideValue;
+            if (delta > 0)
+            {
+                neighbor.ApplyPlace(delta);
+                Debug.Log($"[TideManager] Greed coin yield: added {delta} to tile ({nCol},{nRow}).");
+            }
+
+            return;
+        }
     }
 
     private void ApplyInstabilityDecay()
