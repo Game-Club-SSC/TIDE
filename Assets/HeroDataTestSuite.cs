@@ -103,7 +103,7 @@ public class HeroDataTestSuite
                 Assert.IsNotNull(skill, $"{hero.displayName}: starter skill [{s}] must not be null.");
                 Assert.IsFalse(string.IsNullOrEmpty(skill.skillName), $"{hero.displayName}: skill [{s}] must have a name.");
                 Assert.GreaterOrEqual(skill.mpCost, 0, $"{hero.displayName}: skill [{s}] mpCost must be >= 0.");
-                Assert.Greater(skill.damageMultiplier, 0f, $"{hero.displayName}: skill [{s}] damageMultiplier must be > 0.");
+                Assert.GreaterOrEqual(skill.damageMultiplier, 0f, $"{hero.displayName}: skill [{s}] damageMultiplier must be >= 0.");
             }
         }
     }

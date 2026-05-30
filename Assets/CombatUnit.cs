@@ -229,6 +229,9 @@ public class CombatUnit : MonoBehaviour
         HP = HP - actualDamage;
 
         Debug.Log($"[CombatUnit] {unitName} took {actualDamage} damage (from {damage}). HP: {HP}/{maxHp}");
+
+        // HP property setter already handles death via Die() when hp <= 0 && isAlive
+        // No need for duplicate Die() call here
     }
 
     /// <summary>

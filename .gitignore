@@ -5,6 +5,7 @@
 # Local tooling (do not commit)
 venv/
 commits_per_day.txt
+.commandcode/
 
 .utmp/
 /[Ll]ibrary/

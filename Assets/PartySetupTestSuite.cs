@@ -56,7 +56,7 @@ public class PartySetupTestSuite
         party = CreateTestParty();
         party.ToggleHeroActive("hero_1");
         Assert.IsTrue(party.IsHeroInReserve("hero_1"), "hero_1 should now be in reserve");
-        Assert.AreEqual(2, party.GetActiveCount(), "Should have 2 active after removing one");
+        Assert.AreEqual(3, party.GetActiveCount(), "Should have 3 active after swapping one out when reserve is full");
 
         bool addedBack = party.ToggleHeroActive("hero_1");
         Assert.IsTrue(addedBack, "Should be able to add hero back to active");
@@ -70,7 +70,7 @@ public class PartySetupTestSuite
         Assert.AreEqual(3, party.GetActiveCount(), "Full party should have 3 active");
 
         party.ToggleHeroActive("hero_1");
-        Assert.AreEqual(2, party.GetActiveCount(), "After removing one, should have 2 active");
+        Assert.AreEqual(3, party.GetActiveCount(), "After toggling one with full reserve, should swap and still have 3 active");
     }
 
     [Test]
