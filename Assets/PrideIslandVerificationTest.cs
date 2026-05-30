@@ -105,9 +105,7 @@ public class PrideIslandVerificationTest : MonoBehaviour
     private void TestSceneExists()
     {
         string scenePath = System.IO.Path.Combine(Application.dataPath, SceneRelativePath);
-        if (!System.IO.File.Exists(scenePath))
-        {
-            Debug.LogWarning($"[PrideIslandVerificationTest] Scene Assets/{SceneRelativePath} not found; finalize environment dressing in the Unity Editor.");
-        }
+        Assert.IsTrue(System.IO.File.Exists(scenePath),
+            $"Pride scene file should exist at Assets/{SceneRelativePath}.");
     }
 }
