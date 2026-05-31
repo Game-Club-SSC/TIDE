@@ -17,17 +17,17 @@ public class EnemyData : ScriptableObject
     [Min(1)]
     public int baseMaxHP = 100;
 
-    [Min(0)]
-    public int baseMaxMP = 50;
+    [Min(1)]
+    public int baseMaxMP = 1;
 
-    [Min(0)]
-    public int baseAttack = 10;
+    [Min(1)]
+    public int baseAttack = 1;
 
-    [Min(0)]
-    public int baseDefense = 5;
+    [Min(1)]
+    public int baseDefense = 1;
 
-    [Min(0)]
-    public int baseSpeed = 10;
+    [Min(1)]
+    public int baseSpeed = 1;
 
     [Header("Skills")]
     public SkillData[] skills = System.Array.Empty<SkillData>();

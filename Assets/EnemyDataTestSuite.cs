@@ -99,4 +99,18 @@ public class EnemyDataTestSuite
         EnemyComposition withData = EnemyComposition.FromEncounterConfig(wraithAmbush);
         Assert.IsTrue(withData.HasEnemyDataSlots, "Composition with data should report true");
     }
+
+    [Test]
+    public void EnemyCompositionCountIgnoresNullSlots()
+    {
+        EnemyData imp = Resources.Load<EnemyData>("EnemyData/enemy_imp");
+        Assert.IsNotNull(imp);
+
+        EnemyComposition comp = new EnemyComposition
+        {
+            enemyDataSlots = new EnemyData[] { null, imp, null }
+        };
+
+        Assert.AreEqual(1, comp.Count, "Count should only include configured enemy slots.");
+    }
 }
