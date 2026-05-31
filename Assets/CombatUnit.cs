@@ -83,6 +83,7 @@ public class CombatUnit : MonoBehaviour
     internal float DebugCritDamage { set => critDamage = value; }
     internal bool DebugIsAlive { set => isAlive = value; }
     internal int DebugXpReward { set => xpReward = value; }
+    internal int DebugSpeed { set => speed = value; }
 
     private List<StatusEffect> activeEffects = new List<StatusEffect>();
     public IReadOnlyList<StatusEffect> ActiveEffects => activeEffects.AsReadOnly();
@@ -344,6 +345,34 @@ public class CombatUnit : MonoBehaviour
                 total -= effect.Magnitude;
         }
         return Mathf.Clamp(total, -0.5f, 1.0f);
+    }
+
+    public int GetEffectiveSpeed()
+    {
+        float largestSlow = 0f;
+        for (int i = 0; i < activeEffects.Count; i++)
+        {
+            StatusEffect effect = activeEffects[i];
+            if (effect != null && effect.Type == StatusEffectType.Slow && effect.Magnitude > largestSlow)
+            {
+                largestSlow = effect.Magnitude;
+            }
+        }
+        return Mathf.Max(1, Mathf.RoundToInt(speed * (1f - Mathf.Clamp01(largestSlow))));
+    }
+
+    public bool ShouldSkipTurn()
+    {
+        float highestDrowsy = 0f;
+        for (int i = 0; i < activeEffects.Count; i++)
+        {
+            StatusEffect effect = activeEffects[i];
+            if (effect != null && effect.Type == StatusEffectType.Drowsy && effect.Magnitude > highestDrowsy)
+            {
+                highestDrowsy = effect.Magnitude;
+            }
+        }
+        return highestDrowsy >= 1f || UnityEngine.Random.value < highestDrowsy;
     }
 
     public void ClearAllStatusEffects()

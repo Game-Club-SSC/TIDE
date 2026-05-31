@@ -265,6 +265,20 @@ public class BattleManager : MonoBehaviour
     private bool canSwapDuringPlayerInput = true;
     private int failedFleeAttemptsThisBattle;
 
+    [Header("Envy Mirror")]
+    [SerializeField] private bool isBossEncounter;
+    public bool EnableEnvyMirror;
+    private SkillData lastPlayerSkill;
+    private CombatUnit lastAttacker;
+    private HashSet<CombatUnit> envyCovetActors = new HashSet<CombatUnit>();
+    private bool currentActorShouldSkip;
+
+    public void ConfigureEnvyContext(bool enableMirror, bool boss)
+    {
+        EnableEnvyMirror = enableMirror;
+        isBossEncounter = boss;
+    }
+
     private void Awake()
     {
         UpdateDebugText();
@@ -397,6 +411,9 @@ public class BattleManager : MonoBehaviour
                 selectedPlayerActions.Clear();
                 momentumState.Reset();
                 clashedUnits.Clear();
+                lastAttacker = null;
+                lastPlayerSkill = null;
+                envyCovetActors.Clear();
                 break;
             case BattlePhase.PlayerInput:
                 BeginPlayerInputPhase();
@@ -440,7 +457,7 @@ public class BattleManager : MonoBehaviour
             .ToList();
 
         turnQueue = allLiving
-            .OrderByDescending(unit => unit.Speed)
+            .OrderByDescending(unit => unit.GetEffectiveSpeed())
             .ThenBy(unit => GetRegistrationOrder(unit))
             .ToList();
 
@@ -473,6 +490,7 @@ public class BattleManager : MonoBehaviour
                 continue;
             }
 
+            currentActorShouldSkip = candidate.ShouldSkipTurn();
             candidate.ProcessTurnStartEffects();
             candidate.ClearDefend();
             actor = candidate;
@@ -570,7 +588,7 @@ public class BattleManager : MonoBehaviour
         float maxChance = Mathf.Clamp01(Mathf.Max(fleeMinimumChance, fleeMaximumChance));
         float baseChance = Mathf.Clamp01(fleeBaseChance);
         float failureBonus = Mathf.Max(0f, fleeFailureBonusPerAttempt);
-        float speedDelta = actor.Speed - GetAverageLivingEnemySpeed();
+        float speedDelta = actor.GetEffectiveSpeed() - GetAverageLivingEnemySpeed();
 
         float chance =
             baseChance
@@ -591,7 +609,7 @@ public class BattleManager : MonoBehaviour
         float totalSpeed = 0f;
         for (int i = 0; i < livingEnemies.Count; i++)
         {
-            totalSpeed += livingEnemies[i].Speed;
+            totalSpeed += livingEnemies[i].GetEffectiveSpeed();
         }
 
         return totalSpeed / livingEnemies.Count;
@@ -643,6 +661,19 @@ public class BattleManager : MonoBehaviour
             if (actor.CanUseSkill(skill))
             {
                 return new PlannedAction(CombatActionType.Skill, actor, target, skill);
+            }
+        }
+
+        if (EnableEnvyMirror && lastAttacker != null)
+        {
+            actor.ElementType = lastAttacker.ElementType;
+            Debug.Log($"[BattleManager] Envy Mirror: {actor.UnitName} copies element {lastAttacker.ElementType} from {lastAttacker.UnitName}.");
+
+            if (isBossEncounter && lastPlayerSkill != null && actor.CanUseSkill(lastPlayerSkill))
+            {
+                Debug.Log($"[BattleManager] Envy Covet: {actor.UnitName} reuses {lastPlayerSkill.skillName} at 0.7x damage.");
+                envyCovetActors.Add(actor);
+                return new PlannedAction(CombatActionType.Skill, actor, target, lastPlayerSkill);
             }
         }
 
@@ -1076,6 +1107,12 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        if (currentActorShouldSkip)
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} is drowsy and skips their turn.");
+            return;
+        }
+
         if (clashedUnits.Contains(actor))
         {
             Debug.Log($"[BattleManager] {actor.UnitName} already resolved via clash.", this);
@@ -1149,6 +1186,12 @@ public class BattleManager : MonoBehaviour
         {
             Debug.Log($"[BattleManager] {actor.UnitName} has no valid target and passes.", this);
             return;
+        }
+
+        if (actor.Type == CombatUnit.UnitType.Ally)
+        {
+            lastAttacker = actor;
+            lastPlayerSkill = null;
         }
 
         float attackMod = actor.GetAttackModifier();
@@ -1230,6 +1273,12 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        if (actor.Type == CombatUnit.UnitType.Ally)
+        {
+            lastAttacker = actor;
+            lastPlayerSkill = skill;
+        }
+
         actor.SpendMp(skill.mpCost);
 
         float attackMod = actor.GetAttackModifier();
@@ -1238,6 +1287,11 @@ public class BattleManager : MonoBehaviour
         float skillMultiplierSingle = multiplier * skill.damageMultiplier;
         float varianceSingle = UnityEngine.Random.Range(0.8f, 1.2f);
         float modifiedDamageFloatSingle = baseDamageSingle * skillMultiplierSingle * varianceSingle;
+
+        if (envyCovetActors.Remove(actor))
+        {
+            modifiedDamageFloatSingle *= 0.7f;
+        }
         
         bool isCritSingle = UnityEngine.Random.value < actor.CritRate;
         if (isCritSingle)
@@ -1275,6 +1329,14 @@ public class BattleManager : MonoBehaviour
         TryApplySkillStatusEffect(actor, target, skill);
         OnDamageDealt?.Invoke(actor, isCritSingle);
         TriggerBattleHitFeedback(actor, target, isCritSingle, true);
+
+        if (skill.currencyStealAmount > 0 && actor.Type == CombatUnit.UnitType.Enemy && HeroProgressionManager.Instance != null)
+        {
+            if (HeroProgressionManager.Instance.TrySpendCurrency(skill.currencyStealAmount))
+            {
+                Debug.Log($"[BattleManager] Greed steal: {actor.UnitName} drained {skill.currencyStealAmount} currency via {skill.skillName}.");
+            }
+        }
 
         Debug.Log(
             $"[BattleManager] {actor.UnitName} uses {skill.skillName} on {target.UnitName} for {actualDamageSingle} (rolled {modifiedDamageSingle}, base {baseDamageSingle} x{skillMultiplierSingle:F2}, -{skill.mpCost} MP). HP {hpBeforeSingle} -> {hpAfterSingle}.{matchupFeedbackSingle}",

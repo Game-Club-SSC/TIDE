@@ -59,6 +59,12 @@ public class PostDeferralVerticalSliceRegressionRunner : MonoBehaviour
             RunContextMenuSuite<EnvyIslandVerificationTest>(nameof(EnvyIslandVerificationTest.RunTests)));
         RunStep("VSR-015", "level_1.unity", "Pride island content + mechanics", "PrideIslandVerificationTest.RunTests", () =>
             RunContextMenuSuite<PrideIslandVerificationTest>(nameof(PrideIslandVerificationTest.RunTests)));
+        RunStep("VSR-016", "CombatScene.unity", "Sloth tempo status effects", "SlothStatusEffectTestSuite.RunTests", () =>
+            RunContextMenuSuite<SlothStatusEffectTestSuite>(nameof(SlothStatusEffectTestSuite.RunTests)));
+        RunStep("VSR-017", "CombatScene.unity", "Envy mirror element copy + covet", "EnvyMirrorTestSuite.RunTests", () =>
+            RunContextMenuSuite<EnvyMirrorTestSuite>(nameof(EnvyMirrorTestSuite.RunTests)));
+        RunStep("VSR-018", "CombatScene.unity", "Greed economy coin yield + currency steal", "GreedEconomyTestSuite.RunTests", () =>
+            RunContextMenuSuite<GreedEconomyTestSuite>(nameof(GreedEconomyTestSuite.RunTests)));
 
         latestReport = BuildReport();
         Debug.Log(latestReport);

@@ -9,7 +9,9 @@ public enum StatusEffectType
     BuffDefense,
     DebuffAttack,
     DebuffDefense,
-    Poison
+    Poison,
+    Slow,
+    Drowsy
 }
 
 public class StatusEffect
