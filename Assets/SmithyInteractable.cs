@@ -106,6 +106,12 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 
         playerInRange = false;
         SetPromptVisible(false);
+
+        if (smithyUI != null)
+        {
+            smithyUI.CloseSmithy();
+            smithyUI = null;
+        }
     }
 
     private void ApplySmithyColor()

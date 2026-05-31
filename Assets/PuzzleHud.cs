@@ -86,7 +86,7 @@ public class PuzzleHud : MonoBehaviour
 
     private void RefreshDisplay()
     {
-        if (carriedLabel == null || tideManager == null)
+        if (carriedLabel == null || hintLabel == null || tideManager == null)
         {
             return;
         }
