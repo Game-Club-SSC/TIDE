@@ -24,8 +24,17 @@ public class DevModeController : MonoBehaviour
     private bool isUnlocked;
     private DevMenuUI menuUi;
 
+    private static DevModeController instance;
+
     private void Awake()
     {
+        if (instance != null && instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        instance = this;
         DontDestroyOnLoad(gameObject);
         EnsureDependencies();
     }

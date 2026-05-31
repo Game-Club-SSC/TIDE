@@ -120,7 +120,7 @@ public class SmithyUI : MonoBehaviour
         Image panelBg = panelRoot.AddComponent<Image>();
         panelBg.color = PanelBg;
 
-        float currentY = -Padding;
+        float currentY = Padding;
 
         CreateLabel(panelRoot, "SMITHY - Gear Duplication", new Vector2(Padding, currentY), new Vector2(PanelWidth - Padding * 2, 30f), TitleColor, 20, FontStyle.Bold);
         currentY += 36f;
@@ -292,7 +292,7 @@ public class SmithyUI : MonoBehaviour
         labelRect.anchorMin = new Vector2(0f, 1f);
         labelRect.anchorMax = new Vector2(0f, 1f);
         labelRect.pivot = new Vector2(0f, 1f);
-        labelRect.anchoredPosition = position;
+        labelRect.anchoredPosition = new Vector2(position.x, -position.y);
         labelRect.sizeDelta = size;
 
         Text label = labelObject.AddComponent<Text>();

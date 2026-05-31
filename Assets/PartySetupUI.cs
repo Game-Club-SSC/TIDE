@@ -171,7 +171,7 @@ public class PartySetupUI : MonoBehaviour
         Image panelBg = panelRoot.AddComponent<Image>();
         panelBg.color = panelBackground;
 
-        float currentY = -padding;
+        float currentY = padding;
 
         CreateLabel(panelRoot, "PARTY SELECTION", new Vector2(padding, currentY), new Vector2(panelWidth - padding * 2, 30f), titleColor, 20, FontStyle.Bold);
         currentY += 36f;
@@ -291,12 +291,6 @@ public class PartySetupUI : MonoBehaviour
             return;
         }
 
-        if (party.GetActiveCount() >= 3)
-        {
-            Debug.Log("[PartySetupUI] Active party is full (3/3). Remove a hero first.");
-            return;
-        }
-
         PartyManager.Instance.ToggleHeroActive(heroId);
         RebuildPanel();
     }
@@ -324,7 +318,7 @@ public class PartySetupUI : MonoBehaviour
         labelRect.anchorMin = new Vector2(0f, 1f);
         labelRect.anchorMax = new Vector2(0f, 1f);
         labelRect.pivot = new Vector2(0f, 1f);
-        labelRect.anchoredPosition = position;
+        labelRect.anchoredPosition = new Vector2(position.x, -position.y);
         labelRect.sizeDelta = size;
 
         Text label = labelObject.AddComponent<Text>();

@@ -386,6 +386,10 @@ public class TideManager : MonoBehaviour
 
     private void InitializeOverlaySession()
     {
+        puzzleSolved = false;
+        carriedAmount = 0;
+        carryingSource = null;
+
         if (overlayPuzzleData != null)
         {
             InitializePuzzle(overlayPuzzleData);

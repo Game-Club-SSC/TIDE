@@ -133,31 +133,31 @@ public class EnemyComposition
 
     public string GetName(int index)
     {
-        if (!IsValidIndex(index)) return null;
+        if (HasEnemyDataSlots || !IsValidIndex(index)) return null;
         return names[index];
     }
 
     public CombatUnit.Element GetElement(int index)
     {
-        if (!IsValidIndex(index)) return CombatUnit.Element.Fire;
+        if (HasEnemyDataSlots || !IsValidIndex(index)) return CombatUnit.Element.Fire;
         return elements[index];
     }
 
     public int GetAttackModifier(int index)
     {
-        if (!IsValidIndex(index)) return 0;
+        if (HasEnemyDataSlots || !IsValidIndex(index)) return 0;
         return attackModifiers[index];
     }
 
     public int GetDefenseModifier(int index)
     {
-        if (!IsValidIndex(index)) return 0;
+        if (HasEnemyDataSlots || !IsValidIndex(index)) return 0;
         return defenseModifiers[index];
     }
 
     public int GetMaxHpModifier(int index)
     {
-        if (!IsValidIndex(index)) return 0;
+        if (HasEnemyDataSlots || !IsValidIndex(index)) return 0;
         return maxHpModifiers[index];
     }
 }

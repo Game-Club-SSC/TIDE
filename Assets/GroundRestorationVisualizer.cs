@@ -151,6 +151,10 @@ public class GroundRestorationVisualizer : MonoBehaviour
         if (tracker == null)
         {
             TryFindTracker();
+            if (tracker != null)
+            {
+                RefreshColor();
+            }
         }
     }
 
