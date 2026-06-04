@@ -24,17 +24,8 @@ public class DevModeController : MonoBehaviour
     private bool isUnlocked;
     private DevMenuUI menuUi;
 
-    private static DevModeController instance;
-
     private void Awake()
     {
-        if (instance != null && instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        instance = this;
         DontDestroyOnLoad(gameObject);
         EnsureDependencies();
     }
@@ -188,6 +179,32 @@ public class DevModeController : MonoBehaviour
             GameObject menuObject = new GameObject("DevMenuUI");
             menuUi = menuObject.AddComponent<DevMenuUI>();
         }
+
+        EnsurePhoneWebController();
+    }
+
+    private void EnsurePhoneWebController()
+    {
+        if (PhoneWebController.Instance != null)
+        {
+            // Ensure the bridge is connected to the existing server
+            if (PhoneInputBridge.Instance != null)
+            {
+                PhoneInputBridge.Instance.ReconnectToServer();
+            }
+            return;
+        }
+
+        // Create the input bridge first (so it exists when the server starts)
+        if (PhoneInputBridge.Instance == null)
+        {
+            GameObject bridgeObject = new GameObject("PhoneInputBridge");
+            bridgeObject.AddComponent<PhoneInputBridge>();
+        }
+
+        // Then create the server
+        GameObject phoneControllerObject = new GameObject("PhoneWebController");
+        phoneControllerObject.AddComponent<PhoneWebController>();
     }
 
     private static bool IsAllowed()

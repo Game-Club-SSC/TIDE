@@ -102,46 +102,14 @@ public class DevMenuUI : MonoBehaviour
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 4;
 
-        AddActionButton(buttonGridObject.transform, "Full Reset All", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.FullResetAllState();
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Reset Encounters", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.ResetEncounterAndFightState();
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Reset Puzzles", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.ResetPuzzleRuntimeState();
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Unlock All Islands", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.UnlockAllIslands();
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Teleport Active Spawn", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.TeleportToActiveIslandSpawn();
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Restore Active 100%", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.SetActiveIslandRestoration(100f);
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Restore Active 0%", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.SetActiveIslandRestoration(0f);
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "MAX EVERYTHING", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.MaxEverything();
-            }
-        });
+        AddActionButton(buttonGridObject.transform, "Full Reset All", () => DevCheatService.Instance?.FullResetAllState());
+        AddActionButton(buttonGridObject.transform, "Reset Encounters", () => DevCheatService.Instance?.ResetEncounterAndFightState());
+        AddActionButton(buttonGridObject.transform, "Reset Puzzles", () => DevCheatService.Instance?.ResetPuzzleRuntimeState());
+        AddActionButton(buttonGridObject.transform, "Unlock All Islands", () => DevCheatService.Instance?.UnlockAllIslands());
+        AddActionButton(buttonGridObject.transform, "Teleport Active Spawn", () => DevCheatService.Instance?.TeleportToActiveIslandSpawn());
+        AddActionButton(buttonGridObject.transform, "Restore Active 100%", () => DevCheatService.Instance?.SetActiveIslandRestoration(100f));
+        AddActionButton(buttonGridObject.transform, "Restore Active 0%", () => DevCheatService.Instance?.SetActiveIslandRestoration(0f));
+        AddActionButton(buttonGridObject.transform, "MAX EVERYTHING", () => DevCheatService.Instance?.MaxEverything());
         AddActionButton(buttonGridObject.transform, "Hide Menu", Toggle);
         AddActionButton(buttonGridObject.transform, "Return To Island", () => DevCheatService.Instance?.ReturnToMainScene());
         AddActionButton(buttonGridObject.transform, "Start Island Flow", () => DevCheatService.Instance?.StartActiveIslandFlow());
@@ -188,51 +156,18 @@ public class DevMenuUI : MonoBehaviour
         AddMovementButton(buttonGridObject.transform, "Coyote Dash +", player => player.SetCoyoteDashWindow(0.2f));
         AddMovementButton(buttonGridObject.transform, "Coyote Dash -", player => player.SetCoyoteDashWindow(0.05f));
 
-        AddActionButton(buttonGridObject.transform, "Cycle 75% Rule", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.CycleMinimumRestorationBadEndingRuleMode();
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Force Act I", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.ForceStoryAct(GameStateManager.StoryAct.ActI);
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Force Act II", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.ForceStoryAct(GameStateManager.StoryAct.ActII);
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Force Act III", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.ForceStoryAct(GameStateManager.StoryAct.ActIII);
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Force Good Ending", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.ForceEndingBranch(GameStateManager.EndingBranch.Good);
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Force Bad Ending", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.ForceEndingBranch(GameStateManager.EndingBranch.Bad);
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Reset Story State", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.ResetStoryProgression();
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Final Boss Defeat +1", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.RecordFinalBossDefeatAttempt();
-            }
-        });
-        AddActionButton(buttonGridObject.transform, "Reset Final Boss Defeats", () => {
-            if (DevCheatService.Instance != null) {
-                DevCheatService.Instance.ResetFinalBossDefeatAttempts();
-            }
-        });
+        AddActionButton(buttonGridObject.transform, "Toggle Phone Ctrl", () => DevCheatService.Instance?.TogglePhoneWebController());
+        AddActionButton(buttonGridObject.transform, "Phone QR / URL", () => DevCheatService.Instance?.ShowPhoneControllerUrl());
+
+        AddActionButton(buttonGridObject.transform, "Cycle 75% Rule", () => DevCheatService.Instance?.CycleMinimumRestorationBadEndingRuleMode());
+        AddActionButton(buttonGridObject.transform, "Force Act I", () => DevCheatService.Instance?.ForceStoryAct(GameStateManager.StoryAct.ActI));
+        AddActionButton(buttonGridObject.transform, "Force Act II", () => DevCheatService.Instance?.ForceStoryAct(GameStateManager.StoryAct.ActII));
+        AddActionButton(buttonGridObject.transform, "Force Act III", () => DevCheatService.Instance?.ForceStoryAct(GameStateManager.StoryAct.ActIII));
+        AddActionButton(buttonGridObject.transform, "Force Good Ending", () => DevCheatService.Instance?.ForceEndingBranch(GameStateManager.EndingBranch.Good));
+        AddActionButton(buttonGridObject.transform, "Force Bad Ending", () => DevCheatService.Instance?.ForceEndingBranch(GameStateManager.EndingBranch.Bad));
+        AddActionButton(buttonGridObject.transform, "Reset Story State", () => DevCheatService.Instance?.ResetStoryProgression());
+        AddActionButton(buttonGridObject.transform, "Final Boss Defeat +1", () => DevCheatService.Instance?.RecordFinalBossDefeatAttempt());
+        AddActionButton(buttonGridObject.transform, "Reset Final Boss Defeats", () => DevCheatService.Instance?.ResetFinalBossDefeatAttempts());
 
         AddIslandButtons(buttonGridObject.transform);
 
@@ -252,12 +187,7 @@ public class DevMenuUI : MonoBehaviour
         {
             string islandId = IslandThemeRegistry.ProgressionOrder[i];
             string captured = islandId;
-            AddActionButton(parent, $"Go {captured}", () =>
-            {
-                if (DevCheatService.Instance != null) {
-                    DevCheatService.Instance.SetActiveIsland(captured);
-                }
-            });
+            AddActionButton(parent, $"Go {captured}", () => DevCheatService.Instance?.SetActiveIsland(captured));
         }
     }
 

@@ -327,8 +327,24 @@ public class IsometricPlayer : MonoBehaviour
             Debug.Log($"[IsometricPlayer] Sprint lock {(isSprintLockEnabled ? "enabled" : "disabled")}." );
         }
 
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
+        // Read keyboard/gamepad input
+        float keyboardH = Input.GetAxisRaw("Horizontal");
+        float keyboardV = Input.GetAxisRaw("Vertical");
+
+        // Read phone input (if available and paired)
+        float phoneH = 0f;
+        float phoneV = 0f;
+        PhoneInputBridge phoneBridge = PhoneInputBridge.Instance;
+        if (phoneBridge != null && phoneBridge.IsPaired)
+        {
+            phoneH = phoneBridge.PhoneInputH;
+            phoneV = phoneBridge.PhoneInputV;
+        }
+
+        // Combine inputs: phone input takes priority when active
+        float h = phoneH != 0f ? phoneH : keyboardH;
+        float v = phoneV != 0f ? phoneV : keyboardV;
+
         Vector3 rawInput = new Vector3(h, 0f, v);
         inputVector = rawInput.normalized;
         if (autoRunEnabled && inputVector.sqrMagnitude <= InputDeadZoneSqr)
@@ -336,12 +352,24 @@ public class IsometricPlayer : MonoBehaviour
             inputVector = Vector3.forward;
         }
 
-        if (allowHop && Time.time >= nextHopAllowedAt && Input.GetKeyDown(hopKey))
+        // Handle hop from keyboard or phone
+        bool hopRequested = Input.GetKeyDown(hopKey);
+        if (phoneBridge != null && phoneBridge.IsPaired && phoneBridge.PhoneHopPressed)
+        {
+            hopRequested = true;
+        }
+        if (allowHop && Time.time >= nextHopAllowedAt && hopRequested)
         {
             TryHop();
         }
 
-        if (CanStartDash() && Input.GetKeyDown(dashKey))
+        // Handle dash from keyboard or phone
+        bool dashRequested = Input.GetKeyDown(dashKey);
+        if (phoneBridge != null && phoneBridge.IsPaired && phoneBridge.PhoneDashPressed)
+        {
+            dashRequested = true;
+        }
+        if (CanStartDash() && dashRequested)
         {
             StartDash();
         }
@@ -401,7 +429,14 @@ public class IsometricPlayer : MonoBehaviour
             return dashDirection * dashSpeed;
         }
 
-        if (TryGetInteractionAssistTarget(Input.GetKey(interactKey), out IPlayerInteractionAssistTarget assistTarget))
+        // Check phone interact button as well as keyboard
+        bool interactKeyDown = Input.GetKey(interactKey);
+        PhoneInputBridge phoneForInteract = PhoneInputBridge.Instance;
+        if (phoneForInteract != null && phoneForInteract.IsPaired && phoneForInteract.PhoneInteractPressed)
+        {
+            interactKeyDown = true;
+        }
+        if (TryGetInteractionAssistTarget(interactKeyDown, out IPlayerInteractionAssistTarget assistTarget))
         {
             cachedAssistTarget = assistTarget;
             Vector3 assistDirection = GetAssistDirection(assistTarget);
@@ -440,7 +475,14 @@ public class IsometricPlayer : MonoBehaviour
             return Vector3.zero;
         }
 
-        float speed = Input.GetKey(sprintHoldKey) || isSprintLockEnabled ? sprintSpeed : walkSpeed;
+        bool sprintActive = Input.GetKey(sprintHoldKey) || isSprintLockEnabled;
+        // Also check phone sprint toggle
+        PhoneInputBridge phoneForSprint = PhoneInputBridge.Instance;
+        if (phoneForSprint != null && phoneForSprint.IsPaired && phoneForSprint.PhoneSprintHeld)
+        {
+            sprintActive = true;
+        }
+        float speed = sprintActive ? sprintSpeed : walkSpeed;
         return moveDir.normalized * speed;
     }
 

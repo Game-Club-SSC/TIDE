@@ -360,6 +360,49 @@ public class DevCheatService : MonoBehaviour
         tracker.SetIslandRestorationPercentForDebug(IslandThemeRegistry.GetActiveIslandId(), percent);
     }
 
+    public void TogglePhoneWebController()
+    {
+        PhoneWebController controller = PhoneWebController.Instance;
+        if (controller == null)
+        {
+            Debug.LogWarning("[DevCheatService] PhoneWebController not found.");
+            return;
+        }
+
+        if (controller.IsRunning)
+        {
+            controller.StopServer();
+            PhoneInputBridge bridge = PhoneInputBridge.Instance;
+            if (bridge != null)
+            {
+                bridge.SetPaired(false);
+            }
+            Debug.Log("[DevCheatService] Phone Web Controller stopped.");
+        }
+        else
+        {
+            controller.StartServer();
+            Debug.Log($"[DevCheatService] Phone Web Controller started. URL: {controller.ServerUrl}, Code: {controller.PairingCode}");
+        }
+    }
+
+    public void ShowPhoneControllerUrl()
+    {
+        PhoneWebController controller = PhoneWebController.Instance;
+        if (controller == null)
+        {
+            Debug.LogWarning("[DevCheatService] PhoneWebController not found.");
+            return;
+        }
+
+        if (!controller.IsRunning)
+        {
+            controller.StartServer();
+        }
+
+        Debug.Log($"[DevCheatService] Phone Controller URL: {controller.ServerUrl}  Pairing Code: {controller.PairingCode}");
+    }
+
     public string BuildDebugSummary()
     {
         StringBuilder builder = new StringBuilder();
