@@ -41,14 +41,18 @@ public class EnemyTrigger : MonoBehaviour
             return;
         }
 
-        if (encounterConfig != null)
-        {
-            GameStateManager.Instance.PendingEnemyComposition = EnemyComposition.FromEncounterConfig(encounterConfig);
-        }
-
         if (GameStateManager.Instance.HasActiveFlowController)
         {
             return;
+        }
+
+        // Only mutate the game state's pending composition once we know we are
+        // actually going to enter combat. The flow-controlled path reads the
+        // composition from the IslandFlowController, so setting it here would
+        // leak stale data into a future non-flow combat call.
+        if (encounterConfig != null)
+        {
+            GameStateManager.Instance.PendingEnemyComposition = EnemyComposition.FromEncounterConfig(encounterConfig);
         }
 
         string trackedEncounterId = ResolveTrackingEncounterId();

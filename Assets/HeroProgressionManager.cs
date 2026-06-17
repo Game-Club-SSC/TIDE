@@ -685,6 +685,7 @@ public class HeroProgressionManager : MonoBehaviour
 
         currency += amount;
         OnCurrencyChanged?.Invoke(currency);
+        PersistCurrency();
     }
 
     public bool TrySpendCurrency(int cost)
@@ -701,6 +702,7 @@ public class HeroProgressionManager : MonoBehaviour
 
         currency -= cost;
         OnCurrencyChanged?.Invoke(currency);
+        PersistCurrency();
         return true;
     }
 
@@ -708,6 +710,15 @@ public class HeroProgressionManager : MonoBehaviour
     {
         currency = Mathf.Max(0, amount);
         OnCurrencyChanged?.Invoke(currency);
+        PersistCurrency();
+    }
+
+    private void PersistCurrency()
+    {
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.SaveWorldState();
+        }
     }
 
     public int GetGearDuplicateCost(GearInstance instance)

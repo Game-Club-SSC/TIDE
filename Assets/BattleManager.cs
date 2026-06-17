@@ -407,6 +407,7 @@ public class BattleManager : MonoBehaviour
         switch (phase)
         {
             case BattlePhase.StartBattle:
+                ResetTurnRegistration();
                 BuildTurnQueueFromLivingUnits();
                 selectedPlayerActions.Clear();
                 momentumState.Reset();
@@ -456,8 +457,17 @@ public class BattleManager : MonoBehaviour
             .Where(unit => unit != null && unit.IsAlive)
             .ToList();
 
+        // Cache effective speeds to avoid O(N log N) re-computation inside the
+        // sort comparers and to keep registration-order side effects out of
+        // the sort path. The sort key is the cached value, not the live read.
+        Dictionary<CombatUnit, int> effectiveSpeeds = new Dictionary<CombatUnit, int>(allLiving.Count);
+        for (int i = 0; i < allLiving.Count; i++)
+        {
+            effectiveSpeeds[allLiving[i]] = allLiving[i].GetEffectiveSpeed();
+        }
+
         turnQueue = allLiving
-            .OrderByDescending(unit => unit.GetEffectiveSpeed())
+            .OrderByDescending(unit => effectiveSpeeds[unit])
             .ThenBy(unit => GetRegistrationOrder(unit))
             .ToList();
 
@@ -468,8 +478,14 @@ public class BattleManager : MonoBehaviour
         for (int i = 0; i < turnQueue.Count; i++)
         {
             CombatUnit queueUnit = turnQueue[i];
-            Debug.Log($"[BattleManager] Queue {i + 1}: {queueUnit.UnitName} (SPD {queueUnit.Speed})", this);
+            Debug.Log($"[BattleManager] Queue {i + 1}: {queueUnit.UnitName} (SPD {effectiveSpeeds[queueUnit]})", this);
         }
+    }
+
+    private void ResetTurnRegistration()
+    {
+        unitRegistrationOrder.Clear();
+        nextRegistrationOrder = 0;
     }
 
     private bool TryGetNextActingUnit(out CombatUnit actor)
