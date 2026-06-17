@@ -1,19 +1,21 @@
 # Static Island Validation
 
-Two PowerShell scripts in the repo root that mirror the assertions of the Unity
+Three PowerShell scripts in the repo root that mirror the assertions of the Unity
 verification tests (`IslandContentVerificationTest`, the 5 per-island
 `XxxIslandVerificationTest` classes, and the 3 signature-mechanic test suites
-`SlothStatusEffectTestSuite`, `EnvyMirrorTestSuite`, `GreedEconomyTestSuite`).
+`SlothStatusEffectTestSuite`, `EnvyMirrorTestSuite`, `GreedEconomyTestSuite`)
+and a fourth script that audits the C# code for known bug patterns.
 
 These exist so AI agents (and humans) can audit the vertical slice data layer
-without booting Unity:
+and code health without booting Unity:
 
 ```
 powershell -ExecutionPolicy Bypass -File validate.ps1
 powershell -ExecutionPolicy Bypass -File runtime_sim.ps1
+powershell -ExecutionPolicy Bypass -File bug_audit.ps1
 ```
 
-The 294 individual checks cover:
+The 318 individual checks cover:
 
 - **VSR-001 (`IslandContentVerificationTest`)** — 7 island configs present, 9
   encounters per island in the right order, restoration sums to 1.0, boss at
@@ -43,6 +45,14 @@ The 294 individual checks cover:
   files.
 - Every island's boss `EncounterConfig` resolves and references at least one
   enemy.
+- C# bug-pattern audit: HeroProgressionManager currency persistence
+  (`PersistCurrency` helper present and called from all three mutators),
+  BattleManager turn-queue determinism (registration order reset at
+  StartBattle, sort compares cached values), EnemyTrigger
+  PendingEnemyComposition not leaked across flow controller early-return,
+  singleton ownership released in OnDestroy, and `ScriptableObject.CreateInstance`
+  is only used in test fixtures or the one intentional runtime bootstrap
+  (`AncientTextSceneBootstrap`).
 
-If the script reports a failure, fix the underlying data (or the code) rather
+If any script reports a failure, fix the underlying data (or the code) rather
 than editing the assertion — the assertions mirror the Unity test code.
