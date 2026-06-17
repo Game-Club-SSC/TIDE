@@ -143,10 +143,10 @@ public class TopDownFollowCamera : MonoBehaviour
 
         if (!string.IsNullOrWhiteSpace(targetTag))
         {
-            Transform taggedTarget = TryFindTaggedTarget();
+            GameObject taggedTarget = GameObject.FindGameObjectWithTag(targetTag);
             if (taggedTarget != null)
             {
-                SetTarget(taggedTarget, snapOnStart);
+                SetTarget(taggedTarget.transform, snapOnStart);
                 return true;
             }
         }
@@ -159,22 +159,6 @@ public class TopDownFollowCamera : MonoBehaviour
         }
 
         return false;
-    }
-
-    private Transform TryFindTaggedTarget()
-    {
-        Transform[] sceneTransforms = FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-
-        for (int i = 0; i < sceneTransforms.Length; i++)
-        {
-            Transform candidate = sceneTransforms[i];
-            if (candidate != null && candidate.gameObject.tag == targetTag)
-            {
-                return candidate;
-            }
-        }
-
-        return null;
     }
 
     private void InitializeOffset()

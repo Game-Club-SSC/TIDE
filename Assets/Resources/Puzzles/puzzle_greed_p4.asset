@@ -27,7 +27,7 @@ MonoBehaviour:
   lockedTileEncounterId: greed_p4_sealed_1_0_guard
   lockedTileIslandId: island_greed
   winCondition:
-    type: 1
+    type: 0
     targetValue: 5
-    requiredPercent: 0.625
-  instabilityThreshold: 3
+    requiredPercent: 1
+  instabilityThreshold: 2
