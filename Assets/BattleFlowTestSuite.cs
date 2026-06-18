@@ -329,6 +329,184 @@ public class BattleFlowTestSuite
         Assert.That(manager.Momentum.Value, Is.EqualTo(0f).Within(0.0001f), "Ineligible neutral clash should not shift momentum.");
     }
 
+    [Test]
+    public void EnemyAiPicksAdvantageousSkillAgainstDominantPlayerElement()
+    {
+        CombatUnit allyFire = CreateUnit(
+            unitsRoot.transform,
+            "AllyFireDominant",
+            CombatUnit.UnitType.Ally,
+            speed: 14,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Fire);
+        CombatUnit allyEarth = CreateUnit(
+            unitsRoot.transform,
+            "AllyEarthDominant",
+            CombatUnit.UnitType.Ally,
+            speed: 14,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Fire);
+        manager.RegisterUnit(allyFire);
+        manager.RegisterUnit(allyEarth);
+
+        SkillData waterSkill = ScriptableObject.CreateInstance<SkillData>();
+        waterSkill.skillName = "TidalSlam";
+        waterSkill.mpCost = 0;
+        waterSkill.target = SkillTarget.SingleEnemy;
+        waterSkill.damageMultiplier = 1f;
+        waterSkill.element = CombatUnit.Element.Water;
+        SkillData fireSkill = ScriptableObject.CreateInstance<SkillData>();
+        fireSkill.skillName = "EmberBurst";
+        fireSkill.mpCost = 0;
+        fireSkill.target = SkillTarget.SingleEnemy;
+        fireSkill.damageMultiplier = 1f;
+        fireSkill.element = CombatUnit.Element.Fire;
+
+        CombatUnit enemy = CreateUnit(
+            unitsRoot.transform,
+            "EnemyHybrid",
+            CombatUnit.UnitType.Enemy,
+            speed: 10,
+            attack: 18,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Water);
+        enemy.SetSkills(new SkillData[] { fireSkill, waterSkill });
+        manager.RegisterUnit(enemy);
+
+        PlannedAction action = (PlannedAction)InvokePrivate(manager, "ComputeEnemyAction", enemy);
+
+        Assert.AreEqual(CombatActionType.Skill, action.ActionType,
+            "Enemy AI should pick a skill when one is advantageous.");
+        Assert.AreSame(waterSkill, action.SelectedSkill,
+            "Enemy AI should pick the Water skill because it is Strong against the dominant Fire player element.");
+    }
+
+    [Test]
+    public void EnemyAiFallsBackToAttackWithoutAdvantageousSkill()
+    {
+        CombatUnit allyWater = CreateUnit(
+            unitsRoot.transform,
+            "AllyWaterSolo",
+            CombatUnit.UnitType.Ally,
+            speed: 14,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Water);
+        manager.RegisterUnit(allyWater);
+
+        SkillData fireSkill = ScriptableObject.CreateInstance<SkillData>();
+        fireSkill.skillName = "EmberTap";
+        fireSkill.mpCost = 0;
+        fireSkill.target = SkillTarget.SingleEnemy;
+        fireSkill.damageMultiplier = 1f;
+        fireSkill.element = CombatUnit.Element.Fire;
+
+        CombatUnit enemy = CreateUnit(
+            unitsRoot.transform,
+            "EnemyFire",
+            CombatUnit.UnitType.Enemy,
+            speed: 10,
+            attack: 18,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Fire);
+        enemy.SetSkills(new SkillData[] { fireSkill });
+        manager.RegisterUnit(enemy);
+
+        PlannedAction action = (PlannedAction)InvokePrivate(manager, "ComputeEnemyAction", enemy);
+
+        Assert.AreEqual(CombatActionType.Attack, action.ActionType,
+            "Enemy AI should fall back to attack when no skill has elemental advantage.");
+    }
+
+    [Test]
+    public void BossEnemyAiPicksAdvantageousSkillFirst()
+    {
+        CombatUnit allyFire = CreateUnit(
+            unitsRoot.transform,
+            "AllyFireBoss",
+            CombatUnit.UnitType.Ally,
+            speed: 14,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Fire);
+        manager.RegisterUnit(allyFire);
+
+        SkillData waterSkill = ScriptableObject.CreateInstance<SkillData>();
+        waterSkill.skillName = "TidalStrike";
+        waterSkill.mpCost = 0;
+        waterSkill.target = SkillTarget.SingleEnemy;
+        waterSkill.damageMultiplier = 1f;
+        waterSkill.element = CombatUnit.Element.Water;
+
+        CombatUnit boss = CreateUnit(
+            unitsRoot.transform,
+            "EnemyBossHybrid",
+            CombatUnit.UnitType.Enemy,
+            speed: 10,
+            attack: 18,
+            defense: 0,
+            hp: 200,
+            element: CombatUnit.Element.Water);
+        boss.SetSkills(new SkillData[] { waterSkill });
+        manager.RegisterUnit(boss);
+        SetPrivateField(manager, "isBossEncounter", true);
+
+        PlannedAction action = (PlannedAction)InvokePrivate(manager, "ComputeEnemyAction", boss);
+
+        Assert.AreEqual(CombatActionType.Skill, action.ActionType,
+            "Boss AI should pick an advantageous skill when one is available.");
+        Assert.AreSame(waterSkill, action.SelectedSkill,
+            "Boss AI should prioritize the Water skill against the dominant Fire player element.");
+
+        SetPrivateField(manager, "isBossEncounter", false);
+    }
+
+    [Test]
+    public void EnemyAiHandlesNoPlayerElementsGracefully()
+    {
+        CombatUnit allyNone = CreateUnit(
+            unitsRoot.transform,
+            "AllyNoneAi",
+            CombatUnit.UnitType.Ally,
+            speed: 14,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.None);
+        manager.RegisterUnit(allyNone);
+
+        CombatUnit enemy = CreateUnit(
+            unitsRoot.transform,
+            "EnemyNoPlayerElement",
+            CombatUnit.UnitType.Enemy,
+            speed: 10,
+            attack: 18,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Fire);
+        SkillData fireSkill = ScriptableObject.CreateInstance<SkillData>();
+        fireSkill.skillName = "EmberFallback";
+        fireSkill.mpCost = 0;
+        fireSkill.target = SkillTarget.SingleEnemy;
+        fireSkill.damageMultiplier = 1f;
+        fireSkill.element = CombatUnit.Element.Fire;
+        enemy.SetSkills(new SkillData[] { fireSkill });
+        manager.RegisterUnit(enemy);
+
+        PlannedAction action = (PlannedAction)InvokePrivate(manager, "ComputeEnemyAction", enemy);
+
+        Assert.AreNotEqual(CombatActionType.Skill, action.ActionType,
+            "Enemy AI should not pick a skill via advantage path when no player has a known element.");
+    }
+
     private static CombatUnit CreateUnit(
         Transform parent,
         string name,

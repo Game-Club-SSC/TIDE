@@ -55,6 +55,8 @@ public class CombatSceneBootstrap : MonoBehaviour
     private Color themedBattlefieldColor;
     private Color themedCameraBackground;
     private Color themedEnemyColor;
+    private bool currentEncounterIsBoss;
+    private int currentBossSlotIndex;
 
     private void Awake()
     {
@@ -310,6 +312,8 @@ public class CombatSceneBootstrap : MonoBehaviour
             string encounterId = GameStateManager.Instance.PendingCombatEncounterId;
             bool boss = !string.IsNullOrEmpty(encounterId) && encounterId.IndexOf("boss", System.StringComparison.OrdinalIgnoreCase) >= 0;
             battleManager.ConfigureEnvyContext(combatIslandId == "island_envy", boss);
+            currentEncounterIsBoss = boss;
+            currentBossSlotIndex = boss ? FuturisticSpriteLibrary.GetBossSlotIndexForIsland(combatIslandId) : 0;
         }
 
         if (playerSpawnPoints != null)
@@ -452,7 +456,10 @@ public class CombatSceneBootstrap : MonoBehaviour
 
                     if (useSpriteBattleVisuals)
                     {
-                        EnsureBattleSpriteVisual(unitObject, FuturisticSpriteLibrary.GetEnemyBattleSprite(unit.ElementType), false);
+                        Sprite enemySprite = currentEncounterIsBoss
+                            ? FuturisticSpriteLibrary.GetEnemyBossBattleSprite(unit.ElementType, currentBossSlotIndex)
+                            : FuturisticSpriteLibrary.GetEnemyBattleSprite(unit.ElementType);
+                        EnsureBattleSpriteVisual(unitObject, enemySprite, false);
                     }
                     else
                     {
@@ -832,27 +839,54 @@ public class CombatSceneBootstrap : MonoBehaviour
             return;
         }
 
+        float islandTierMultiplier = ResolveIslandTierMultiplier();
+
         unit.UnitName = enemyData.displayName;
         unit.ElementType = enemyData.element;
-        unit.MaxHP = enemyData.baseMaxHP;
-        unit.HP = enemyData.baseMaxHP;
-        unit.MaxMP = enemyData.baseMaxMP;
-        unit.MP = enemyData.baseMaxMP;
-        unit.Attack = enemyData.baseAttack;
-        unit.Defense = enemyData.baseDefense;
-        unit.Speed = enemyData.baseSpeed;
+        unit.MaxHP = Mathf.Max(1, Mathf.RoundToInt(enemyData.baseMaxHP * islandTierMultiplier));
+        unit.HP = unit.MaxHP;
+        unit.MaxMP = Mathf.Max(0, Mathf.RoundToInt(enemyData.baseMaxMP * islandTierMultiplier));
+        unit.MP = unit.MaxMP;
+        unit.Attack = Mathf.Max(1, Mathf.RoundToInt(enemyData.baseAttack * islandTierMultiplier));
+        unit.Defense = Mathf.Max(0, Mathf.RoundToInt(enemyData.baseDefense * islandTierMultiplier));
+        unit.Speed = Mathf.Max(1, Mathf.RoundToInt(enemyData.baseSpeed * islandTierMultiplier));
 
         unit.SetSkills(enemyData.skills);
 
-        unit.XpReward = enemyData.xpReward;
+        unit.XpReward = Mathf.Max(1, Mathf.RoundToInt(enemyData.xpReward * islandTierMultiplier));
 
         if (useSpriteBattleVisuals)
         {
-            Sprite battleSprite = FuturisticSpriteLibrary.GetEnemyBattleSprite(enemyData.element);
+            Sprite battleSprite = currentEncounterIsBoss
+                ? FuturisticSpriteLibrary.GetEnemyBossBattleSprite(enemyData.element, currentBossSlotIndex)
+                : FuturisticSpriteLibrary.GetEnemyBattleSprite(enemyData.element);
             EnsureBattleSpriteVisual(unit.gameObject, battleSprite, false);
         }
 
-        Debug.Log($"[CombatSceneBootstrap] Applied enemy data '{enemyData.displayName}' ({unit.ElementType}, {unit.XpReward} XP) to unit.");
+        Debug.Log($"[CombatSceneBootstrap] Applied enemy data '{enemyData.displayName}' ({unit.ElementType}, {unit.XpReward} XP, tier x{islandTierMultiplier:F2}) to unit.");
+    }
+
+    private static float ResolveIslandTierMultiplier()
+    {
+        string islandId = GameStateManager.Instance != null
+            ? IslandThemeRegistry.ResolveIslandId(GameStateManager.Instance.PendingCombatIslandId)
+            : string.Empty;
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return 1f;
+        }
+
+        IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
+        for (int i = 0; i < progressionOrder.Count; i++)
+        {
+            if (string.Equals(progressionOrder[i], islandId, System.StringComparison.Ordinal))
+            {
+                int tier = i + 1;
+                return Mathf.Lerp(1.0f, 1.65f, (tier - 1) / Mathf.Max(1, progressionOrder.Count - 1));
+            }
+        }
+
+        return 1f;
     }
 
     private void EnsureBattleHud()

@@ -12,6 +12,10 @@ public class NarrativeBeatDirector : MonoBehaviour
     private const string GoodEndingBeatId = "beat_ending_good";
     private const string BadEndingBeatId = "beat_ending_bad";
 
+    public static string GoodEndingBeatIdPublic => GoodEndingBeatId;
+    public static string BadEndingBeatIdPublic => BadEndingBeatId;
+    public static string ActThreeBeatIdPublic => ActThreeBeatId;
+
     [Header("Timing")]
     [SerializeField] private float introDelaySeconds = 1.2f;
     [SerializeField] private bool introRequiresPlayerMovement = true;
@@ -45,6 +49,21 @@ public class NarrativeBeatDirector : MonoBehaviour
         }
 
         beatCooldownTimer = 0f;
+    }
+
+    public bool ForceShowGoodEndingBeatForDebug()
+    {
+        return ShowBeat(GoodEndingBeatId, BuildGoodEndingBeatTitle(), BuildGoodEndingBeatBody());
+    }
+
+    public bool ForceShowBadEndingBeatForDebug()
+    {
+        return ShowBeat(BadEndingBeatId, BuildBadEndingBeatTitle(), BuildBadEndingBeatBody());
+    }
+
+    public bool ForceShowActThreeBeatForDebug()
+    {
+        return ShowBeat(ActThreeBeatId, BuildActThreeBeatTitle(), BuildActThreeBeatBody());
     }
 
     private void Update()

@@ -6,21 +6,21 @@ public class LevelingConfig : ScriptableObject
     [Header("XP Requirements")]
     [Tooltip("Base XP needed for level 2. Each subsequent level adds xpPerLevelIncrement.")]
     [Min(1)]
-    public int baseXpToLevel = 100;
+    public int baseXpToLevel = 120;
 
     [Tooltip("Additional XP required per level above 2.")]
     [Min(0)]
-    public int xpPerLevelIncrement = 50;
+    public int xpPerLevelIncrement = 60;
 
     [Header("Stat Growth Per Level")]
     [Min(0)]
-    public int hpPerLevel = 5;
+    public int hpPerLevel = 8;
 
     [Min(0)]
-    public int mpPerLevel = 2;
+    public int mpPerLevel = 3;
 
     [Min(0)]
-    public int attackPerLevel = 1;
+    public int attackPerLevel = 2;
 
     [Min(0)]
     public int defensePerLevel = 1;
@@ -52,5 +52,15 @@ public class LevelingConfig : ScriptableObject
             total += GetXpToNextLevel(i - 1);
         }
         return total;
+    }
+
+    public int GetExpectedStatGrowth(int currentLevel, int targetLevel)
+    {
+        if (targetLevel <= currentLevel)
+        {
+            return 0;
+        }
+        int levelSpan = Mathf.Max(0, targetLevel - currentLevel);
+        return levelSpan * (hpPerLevel + attackPerLevel + defensePerLevel + speedPerLevel + mpPerLevel);
     }
 }

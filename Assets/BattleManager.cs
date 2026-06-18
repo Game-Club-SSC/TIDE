@@ -426,14 +426,34 @@ public class BattleManager : MonoBehaviour
                 BeginEndTurnPhase();
                 break;
             case BattlePhase.Victory:
+                PlayVictorySting();
                 NotifyCombatEnded(true);
                 break;
             case BattlePhase.Defeat:
+                PlayDefeatSting();
                 NotifyCombatEnded(false);
                 break;
             case BattlePhase.Fled:
                 NotifyCombatEnded(false, true);
                 break;
+        }
+    }
+
+    private static void PlayVictorySting()
+    {
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleCombatVictory();
+        }
+    }
+
+    private static void PlayDefeatSting()
+    {
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleCombatDefeat();
         }
     }
 
@@ -671,6 +691,13 @@ public class BattleManager : MonoBehaviour
             return new PlannedAction(CombatActionType.Attack, actor, null);
         }
 
+        SkillData advantageousSkill = SelectAdvantageousSkillForActor(actor);
+        if (advantageousSkill != null && actor.CanUseSkill(advantageousSkill))
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} picks element-advantageous skill {advantageousSkill.skillName}.");
+            return new PlannedAction(CombatActionType.Skill, actor, target, advantageousSkill);
+        }
+
         SkillData skill = GetFirstSupportedSkillForCurrentSlice(actor);
         if (skill != null)
         {
@@ -694,6 +721,102 @@ public class BattleManager : MonoBehaviour
         }
 
         return new PlannedAction(CombatActionType.Attack, actor, target);
+    }
+
+    private SkillData SelectAdvantageousSkillForActor(CombatUnit actor)
+    {
+        if (actor == null || actor.Skills == null || actor.Skills.Count == 0)
+        {
+            return null;
+        }
+
+        CombatUnit.Element dominantPlayerElement = ResolveDominantPlayerElement();
+        if (dominantPlayerElement == CombatUnit.Element.None)
+        {
+            return null;
+        }
+
+        List<SkillData> advantageous = new List<SkillData>();
+        List<SkillData> neutral = new List<SkillData>();
+        for (int i = 0; i < actor.Skills.Count; i++)
+        {
+            SkillData candidate = actor.Skills[i];
+            if (candidate == null || !IsSkillSupportedForCurrentSlice(candidate))
+            {
+                continue;
+            }
+
+            CombatUnit.Element skillElement = ResolveSkillElement(candidate, actor);
+            MatchupResult result = ElementMatchup.GetResult(skillElement, dominantPlayerElement);
+            if (result == MatchupResult.Strong)
+            {
+                advantageous.Add(candidate);
+            }
+            else if (result == MatchupResult.Normal)
+            {
+                neutral.Add(candidate);
+            }
+        }
+
+        if (advantageous.Count > 0)
+        {
+            int pickIndex = UnityEngine.Random.Range(0, advantageous.Count);
+            return advantageous[pickIndex];
+        }
+
+        if (isBossEncounter && neutral.Count > 0)
+        {
+            int pickIndex = UnityEngine.Random.Range(0, neutral.Count);
+            return neutral[pickIndex];
+        }
+
+        return null;
+    }
+
+    private CombatUnit.Element ResolveDominantPlayerElement()
+    {
+        Dictionary<CombatUnit.Element, int> tally = new Dictionary<CombatUnit.Element, int>();
+        List<CombatUnit> allies = allyUnits != null ? new List<CombatUnit>(allyUnits) : new List<CombatUnit>();
+        for (int i = 0; i < allies.Count; i++)
+        {
+            CombatUnit ally = allies[i];
+            if (ally == null || !ally.IsAlive)
+            {
+                continue;
+            }
+
+            CombatUnit.Element element = ally.ElementType;
+            if (element == CombatUnit.Element.None)
+            {
+                continue;
+            }
+
+            tally.TryGetValue(element, out int count);
+            tally[element] = count + 1;
+        }
+
+        CombatUnit.Element dominant = CombatUnit.Element.None;
+        int dominantCount = 0;
+        foreach (KeyValuePair<CombatUnit.Element, int> pair in tally)
+        {
+            if (pair.Value > dominantCount)
+            {
+                dominant = pair.Key;
+                dominantCount = pair.Value;
+            }
+        }
+
+        return dominant;
+    }
+
+    private static CombatUnit.Element ResolveSkillElement(SkillData skill, CombatUnit actor)
+    {
+        if (skill != null && skill.element != CombatUnit.Element.None)
+        {
+            return skill.element;
+        }
+
+        return actor != null ? actor.ElementType : CombatUnit.Element.None;
     }
 
     private TideBreakData GetTideBreakForActor(CombatUnit actor)

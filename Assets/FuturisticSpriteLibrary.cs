@@ -326,6 +326,60 @@ public static class FuturisticSpriteLibrary
         return sprite;
     }
 
+    public static Sprite GetEnemyBossBattleSprite(CombatUnit.Element element, int bossSlotIndex)
+    {
+        int safeSlot = Mathf.Max(0, bossSlotIndex);
+        string key = $"enemy_boss_battle_{(int)element}_{safeSlot}";
+        if (spriteCache.TryGetValue(key, out Sprite cached))
+        {
+            return cached;
+        }
+
+        Texture2D texture = BuildBossTexture(element, BattleSize, true, safeSlot);
+        Sprite sprite = Sprite.Create(
+            texture,
+            new Rect(0f, 0f, texture.width, texture.height),
+            new Vector2(0.5f, 0.05f),
+            CharacterPixelsPerUnit);
+        sprite.name = key;
+        spriteCache[key] = sprite;
+        return sprite;
+    }
+
+    public static Sprite GetEnemyBossOverworldSprite(CombatUnit.Element element, int bossSlotIndex)
+    {
+        int safeSlot = Mathf.Max(0, bossSlotIndex);
+        string key = $"enemy_boss_ow_{(int)element}_{safeSlot}";
+        if (spriteCache.TryGetValue(key, out Sprite cached))
+        {
+            return cached;
+        }
+
+        Texture2D texture = BuildBossTexture(element, OverworldSize, false, safeSlot);
+        Sprite sprite = Sprite.Create(
+            texture,
+            new Rect(0f, 0f, texture.width, texture.height),
+            new Vector2(0.5f, 0.04f),
+            CharacterPixelsPerUnit);
+        sprite.name = key;
+        spriteCache[key] = sprite;
+        return sprite;
+    }
+
+    public static int GetBossSlotIndexForIsland(string islandId)
+    {
+        IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
+        for (int i = 0; i < progressionOrder.Count; i++)
+        {
+            if (string.Equals(IslandThemeRegistry.ResolveIslandId(islandId), progressionOrder[i], System.StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
     public static Sprite GetShadowSprite()
     {
         if (shadowSprite != null)
@@ -645,6 +699,103 @@ public static class FuturisticSpriteLibrary
         }
 
         ApplyOutline(pixels, size, new Color(0.03f, 0.02f, 0.03f, 1f));
+        texture.SetPixels32(pixels);
+        texture.Apply(false, false);
+        return texture;
+    }
+
+    private static Texture2D BuildBossTexture(CombatUnit.Element element, int size, bool battleVariant, int bossSlotIndex)
+    {
+        Texture2D texture = new Texture2D(size, size, TextureFormat.ARGB32, false);
+        texture.name = $"BossTex_{(int)element}_{bossSlotIndex}_{size}";
+        texture.wrapMode = TextureWrapMode.Clamp;
+        texture.filterMode = FilterMode.Point;
+
+        Color32[] pixels = new Color32[size * size];
+        Color clear = new Color(0f, 0f, 0f, 0f);
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            pixels[i] = clear;
+        }
+
+        Color accent = GetElementAccentColor(element);
+        float slotScale = 1f + (bossSlotIndex % 3) * 0.05f;
+        Color baseColor = Color.Lerp(new Color(0.22f, 0.12f, 0.16f, 1f), new Color(0.42f, 0.18f, 0.34f, 1f), (bossSlotIndex % 3) / 2f);
+        Color armorColor = Color.Lerp(baseColor, accent, 0.32f);
+        Color eyeColor = Color.Lerp(accent, Color.white, 0.45f);
+        Color trimColor = Color.Lerp(accent, Color.black, 0.45f);
+
+        int cx = size / 2;
+        int bottom = Mathf.RoundToInt(size * 0.1f);
+        int top = Mathf.RoundToInt(size * (battleVariant ? 0.78f : 0.72f));
+        int halfWidth = Mathf.RoundToInt(size * 0.26f * slotScale);
+
+        int shapeVariant = bossSlotIndex % 4;
+
+        if (shapeVariant == 0)
+        {
+            DrawRoundedRect(pixels, size,
+                cx - halfWidth, bottom,
+                cx + halfWidth, top,
+                Mathf.RoundToInt(size * 0.06f),
+                armorColor);
+        }
+        else if (shapeVariant == 1)
+        {
+            DrawDiamond(pixels, size, cx, (bottom + top) / 2, halfWidth, Mathf.RoundToInt(size * 0.34f), armorColor);
+        }
+        else if (shapeVariant == 2)
+        {
+            DrawRoundedRect(pixels, size,
+                cx - halfWidth, bottom,
+                cx + halfWidth, top,
+                Mathf.RoundToInt(size * 0.18f),
+                armorColor);
+            DrawRoundedRect(pixels, size,
+                cx - Mathf.RoundToInt(halfWidth * 0.7f), bottom - Mathf.RoundToInt(size * 0.04f),
+                cx + Mathf.RoundToInt(halfWidth * 0.7f), bottom + Mathf.RoundToInt(size * 0.12f),
+                Mathf.RoundToInt(size * 0.04f),
+                Color.Lerp(armorColor, Color.black, 0.3f));
+        }
+        else
+        {
+            DrawRoundedRect(pixels, size,
+                cx - halfWidth, bottom,
+                cx + halfWidth, top,
+                Mathf.RoundToInt(size * 0.08f),
+                armorColor);
+            int shoulderY = (bottom + top) / 2;
+            DrawDiamond(pixels, size, cx - Mathf.RoundToInt(halfWidth * 1.15f), shoulderY, Mathf.RoundToInt(size * 0.1f), Mathf.RoundToInt(size * 0.18f), trimColor);
+            DrawDiamond(pixels, size, cx + Mathf.RoundToInt(halfWidth * 1.15f), shoulderY, Mathf.RoundToInt(size * 0.1f), Mathf.RoundToInt(size * 0.18f), trimColor);
+        }
+
+        int hornY = top - Mathf.RoundToInt(size * 0.06f);
+        int hornHeight = Mathf.RoundToInt(size * 0.14f + bossSlotIndex * 0.005f * size);
+        DrawDiamond(pixels, size, cx - Mathf.RoundToInt(halfWidth * 0.95f), hornY, Mathf.RoundToInt(size * 0.08f), hornHeight, Color.Lerp(armorColor, accent, 0.3f));
+        DrawDiamond(pixels, size, cx + Mathf.RoundToInt(halfWidth * 0.95f), hornY, Mathf.RoundToInt(size * 0.08f), hornHeight, Color.Lerp(armorColor, accent, 0.3f));
+
+        int eyeY = Mathf.RoundToInt(bottom + size * 0.36f);
+        int eyeOffset = Mathf.RoundToInt(size * 0.1f);
+        int eyeRadius = Mathf.RoundToInt(size * 0.028f + (bossSlotIndex % 3) * 0.005f * size);
+        DrawCircle(pixels, size, cx - eyeOffset, eyeY, eyeRadius, eyeColor);
+        DrawCircle(pixels, size, cx + eyeOffset, eyeY, eyeRadius, eyeColor);
+
+        DrawLine(pixels, size,
+            cx - Mathf.RoundToInt(halfWidth * 0.5f),
+            Mathf.RoundToInt(bottom + size * 0.22f),
+            cx + Mathf.RoundToInt(halfWidth * 0.5f),
+            Mathf.RoundToInt(bottom + size * 0.22f),
+            Color.Lerp(accent, Color.white, 0.3f));
+
+        if (battleVariant)
+        {
+            int shoulderY = Mathf.RoundToInt(bottom + size * 0.46f);
+            int pauldronRadius = Mathf.RoundToInt(size * 0.1f);
+            DrawDiamond(pixels, size, cx - Mathf.RoundToInt(halfWidth * 1.25f), shoulderY, pauldronRadius, Mathf.RoundToInt(size * 0.14f), Color.Lerp(accent, armorColor, 0.4f));
+            DrawDiamond(pixels, size, cx + Mathf.RoundToInt(halfWidth * 1.25f), shoulderY, pauldronRadius, Mathf.RoundToInt(size * 0.14f), Color.Lerp(accent, armorColor, 0.4f));
+        }
+
+        ApplyOutline(pixels, size, new Color(0.02f, 0.02f, 0.05f, 1f));
         texture.SetPixels32(pixels);
         texture.Apply(false, false);
         return texture;

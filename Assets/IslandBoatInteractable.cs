@@ -282,6 +282,12 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             return;
         }
 
+        if (!IsIslandTravelEligible(progressionManager, destinationIslandId))
+        {
+            Debug.LogWarning($"[IslandBoatInteractable] Island '{destinationIslandId}' is not yet restored for travel.");
+            return;
+        }
+
         IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
         if (player == null)
         {
@@ -324,6 +330,7 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         gameStateManager.SaveWorldState();
 
         Debug.Log($"[IslandBoatInteractable] Traveled from '{previousIslandId}' to '{destinationIslandId}' at {destinationSpawn}.");
+        PlayTravelFanfare();
         CloseTravelPanel();
     }
 
@@ -626,13 +633,16 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             bool isSelected = i == selectedIndex;
             bool isActive = string.Equals(activeIslandId, islandId, StringComparison.Ordinal);
             bool isUnlocked = progressionManager == null || progressionManager.IsIslandUnlocked(islandId);
+            bool isRestored = IsIslandTravelEligible(progressionManager, islandId);
             bool isLockedSelection = isSelected && !isUnlocked;
+            bool isUnrestoredSelection = isSelected && isUnlocked && !isRestored && !isActive;
 
             string pointer = isSelected ? ">" : " ";
             string indexText = (i + 1).ToString();
             string lockTag = isUnlocked ? string.Empty : "[LOCKED] ";
+            string unrestoredTag = isUnlocked && !isRestored && !isActive ? "[UNRESTORED] " : string.Empty;
             string activeTag = isActive ? "[ACTIVE] " : string.Empty;
-            string line = $"{pointer} {indexText}. {activeTag}{lockTag}{BuildIslandDisplayName(islandId)}";
+            string line = $"{pointer} {indexText}. {activeTag}{lockTag}{unrestoredTag}{BuildIslandDisplayName(islandId)}";
 
             if (isSelected)
             {
@@ -646,6 +656,11 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             if (isLockedSelection)
             {
                 text += "    Complete the current island restoration to unlock this destination.\n";
+            }
+
+            if (isUnrestoredSelection)
+            {
+                text += "    Finish restoring this island before traveling to it.\n";
             }
         }
 
@@ -896,5 +911,41 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
     private static bool IsFinite(float value)
     {
         return !float.IsNaN(value) && !float.IsInfinity(value);
+    }
+
+    private static void PlayTravelFanfare()
+    {
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleTravel();
+        }
+    }
+
+    private static bool IsIslandTravelEligible(IslandProgressionManager progressionManager, string islandId)
+    {
+        if (progressionManager == null || string.IsNullOrEmpty(islandId))
+        {
+            return false;
+        }
+
+        if (string.Equals(progressionManager.ActiveIslandId, islandId, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
+        if (tracker == null)
+        {
+            return true;
+        }
+
+        IslandRestorationState state = tracker.GetRestorationState(islandId);
+        if (state == null)
+        {
+            return true;
+        }
+
+        return state.IsIslandRestored;
     }
 }

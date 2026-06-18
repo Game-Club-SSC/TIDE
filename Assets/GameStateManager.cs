@@ -50,6 +50,8 @@ public class GameStateManager : MonoBehaviour
         public GearProgressionSaveData gearProgression;
         public IslandProgressionManager.ProgressionSnapshot progressionSnapshot;
         public StoryProgressionSaveData storyProgression;
+        public HeroProgressionManager.HeroProgressionSnapshot heroProgression;
+        public HeroProgressionManager.PartyCompositionSnapshot partyComposition;
     }
 
     [Serializable]
@@ -242,6 +244,7 @@ public class GameStateManager : MonoBehaviour
         BindProgressionManagerEvents();
         IslandProgressionManager.Instance?.ReconcileStateFromRestoration();
         EnsureFadeCanvas();
+        EnsureAudioManager();
         EnsureDeveloperTools();
         LoadWorldState();
         ReconcileStoryProgressionFromIslandState();
@@ -796,6 +799,16 @@ public class GameStateManager : MonoBehaviour
         return BuildSortedIslandArray(thresholdOnlyProceedIslandIds);
     }
 
+    public int GetConfiguredFinalBossDefeatThreshold()
+    {
+        return Mathf.Max(1, finalBossDefeatsForBadEndingThreshold);
+    }
+
+    public string GetFinalProgressionIslandIdForDebug()
+    {
+        return GetFinalProgressionIslandIdOrEmpty();
+    }
+
     public void SetMinimumRestorationBadEndingRuleModeForDebug(MinimumRestorationBadEndingRuleMode mode)
     {
         minimumRestorationBadEndingRuleMode = mode;
@@ -1161,6 +1174,12 @@ public class GameStateManager : MonoBehaviour
 
             saveData.storyProgression = CaptureStoryProgressionSaveData();
 
+            if (HeroProgressionManager.Instance != null)
+            {
+                saveData.heroProgression = HeroProgressionManager.Instance.CaptureHeroProgressionSnapshot();
+                saveData.partyComposition = HeroProgressionManager.Instance.CapturePartyCompositionSnapshot();
+            }
+
             string payload = JsonUtility.ToJson(saveData);
             PlayerPrefs.SetString(WorldStateSaveKey, payload);
             PlayerPrefs.Save();
@@ -1288,6 +1307,19 @@ public class GameStateManager : MonoBehaviour
 
             ApplyStoryProgressionSaveData(saveData.storyProgression);
 
+            if (HeroProgressionManager.Instance != null)
+            {
+                if (saveData.partyComposition != null)
+                {
+                    HeroProgressionManager.Instance.ApplyPartyCompositionSnapshot(saveData.partyComposition);
+                }
+
+                if (saveData.heroProgression != null)
+                {
+                    HeroProgressionManager.Instance.ApplyHeroProgressionSnapshot(saveData.heroProgression);
+                }
+            }
+
             PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
             if (guardSpawner != null)
             {
@@ -1324,6 +1356,7 @@ public class GameStateManager : MonoBehaviour
         SaveWorldState();
 
         OnPuzzleCompleted?.Invoke();
+        PlayPuzzleSolvedSting();
 
         PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
         if (guardSpawner != null)
@@ -1335,6 +1368,15 @@ public class GameStateManager : MonoBehaviour
     public void MarkPuzzleSolved()
     {
         PuzzleSolved = true;
+    }
+
+    private static void PlayPuzzleSolvedSting()
+    {
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandlePuzzleSolved();
+        }
     }
 
     public void OnCombatEnded(bool playerWon)
@@ -1884,6 +1926,17 @@ public class GameStateManager : MonoBehaviour
         devToolsObject.AddComponent<DevModeController>();
     }
 
+    private static void EnsureAudioManager()
+    {
+        if (AudioManager.Instance != null)
+        {
+            return;
+        }
+
+        GameObject audioObject = new GameObject("AudioManager");
+        audioObject.AddComponent<AudioManager>();
+    }
+
     public bool IsDeveloperGodModeAllowed()
     {
         return enableDeveloperGodMode && (Application.isEditor || Debug.isDebugBuild);
@@ -2085,6 +2138,107 @@ public class GameStateManager : MonoBehaviour
     {
         hasBootstrappedFlowForCurrentScene = false;
         EnsureIslandFlowController();
+    }
+
+    public bool TravelToIsland(string destinationIslandId, Vector3 destinationSpawn)
+    {
+        if (isTransitioning)
+        {
+            return false;
+        }
+
+        if (currentState != GameState.Exploration)
+        {
+            return false;
+        }
+
+        string resolvedIslandId = IslandThemeRegistry.ResolveIslandId(destinationIslandId);
+        if (string.IsNullOrEmpty(resolvedIslandId))
+        {
+            return false;
+        }
+
+        IslandProgressionManager progressionManager = IslandProgressionManager.Instance;
+        if (progressionManager == null)
+        {
+            return false;
+        }
+
+        if (!progressionManager.CanTravelToIsland(resolvedIslandId))
+        {
+            return false;
+        }
+
+        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+        if (player == null)
+        {
+            return false;
+        }
+
+        Vector3 safeSpawn = ResolveSafeReturnPosition(destinationSpawn);
+        if (!IsFiniteVector(safeSpawn))
+        {
+            return false;
+        }
+
+        string previousIslandId = progressionManager.ActiveIslandId;
+        Vector3 currentPosition = player.transform.position;
+        if (IsFiniteVector(currentPosition))
+        {
+            progressionManager.RecordIslandReturnPosition(previousIslandId, currentPosition);
+        }
+
+        if (!progressionManager.TrySetActiveIslandForTravel(resolvedIslandId))
+        {
+            return false;
+        }
+
+        pendingReturnPosition = safeSpawn;
+        hasPendingReturnPosition = true;
+        hasPendingCombatReturnPosition = false;
+        pendingBossIslandIdForDefeatTracking = null;
+
+        HandleIslandTravelFlowReset();
+        SaveWorldState();
+        Debug.Log($"[GameStateManager] Travel fade pipeline: '{previousIslandId}' -> '{resolvedIslandId}' at {safeSpawn}.");
+
+        StartCoroutine(TravelFadeAndRepositionRoutine(safeSpawn));
+        return true;
+    }
+
+    private IEnumerator TravelFadeAndRepositionRoutine(Vector3 destinationSpawn)
+    {
+        EnsureFadeCanvas();
+        isTransitioning = true;
+        yield return FadeCanvas(1f, FadeDuration);
+
+        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+        if (player != null)
+        {
+            player.transform.position = destinationSpawn;
+            Rigidbody playerBody = player.GetComponent<Rigidbody>();
+            if (playerBody != null)
+            {
+                playerBody.linearVelocity = Vector3.zero;
+                playerBody.angularVelocity = Vector3.zero;
+            }
+        }
+
+        TopDownFollowCamera followCamera = FindFirstObjectByType<TopDownFollowCamera>();
+        if (followCamera != null)
+        {
+            followCamera.SetTarget(player != null ? player.transform : null, false);
+            followCamera.SnapToCurrentTarget();
+        }
+
+        if (IslandProgressionManager.Instance != null && IsFiniteVector(destinationSpawn))
+        {
+            IslandProgressionManager.Instance.RecordIslandReturnPosition(IslandProgressionManager.Instance.ActiveIslandId, destinationSpawn);
+        }
+
+        yield return FadeCanvas(0f, FadeDuration);
+        isTransitioning = false;
+        hasPendingReturnPosition = false;
     }
 
     private static string ResolvePuzzleEncounterId(string encounterId, string puzzleBoxId, string islandId)
@@ -2293,6 +2447,46 @@ public class GameStateManager : MonoBehaviour
         }
 
         SetEndingBranch(ShouldResolveBadEnding() ? EndingBranch.Bad : EndingBranch.Good);
+
+        if (!endingTriggered)
+        {
+            return;
+        }
+
+        OnFinalBossDefeated();
+    }
+
+    public void OnFinalBossDefeated()
+    {
+        if (!endingTriggered)
+        {
+            return;
+        }
+
+        Debug.Log($"[GameStateManager] Final boss defeated. Routing to {(resolvedEndingBranch == EndingBranch.Bad ? "bad" : "good")} ending cutscene.");
+
+        if (resolvedEndingBranch == EndingBranch.Good)
+        {
+            AudioManager audioManager = AudioManager.Instance;
+            if (audioManager != null)
+            {
+                audioManager.HandleEndingMusic();
+            }
+
+            NarrativeBeatDirector director = FindFirstObjectByType<NarrativeBeatDirector>();
+            if (director != null && !IsNarrativeBeatCompleted(NarrativeBeatDirector.GoodEndingBeatIdPublic))
+            {
+                director.ForceShowGoodEndingBeatForDebug();
+            }
+        }
+        else
+        {
+            NarrativeBeatDirector director = FindFirstObjectByType<NarrativeBeatDirector>();
+            if (director != null && !IsNarrativeBeatCompleted(NarrativeBeatDirector.BadEndingBeatIdPublic))
+            {
+                director.ForceShowBadEndingBeatForDebug();
+            }
+        }
     }
 
     private bool ShouldResolveBadEnding()

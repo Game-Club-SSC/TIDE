@@ -996,4 +996,161 @@ public class HeroProgressionManager : MonoBehaviour
             instance.GrantXp(needed);
         }
     }
+
+    [Serializable]
+    public sealed class HeroProgressionSnapshot
+    {
+        public List<string> heroIds = new List<string>();
+        public List<int> levels = new List<int>();
+        public List<int> currentXpValues = new List<int>();
+    }
+
+    [Serializable]
+    public sealed class PartyCompositionSnapshot
+    {
+        public List<string> activeHeroIds = new List<string>();
+        public List<string> reserveHeroIds = new List<string>();
+    }
+
+    public HeroProgressionSnapshot CaptureHeroProgressionSnapshot()
+    {
+        HeroProgressionSnapshot snapshot = new HeroProgressionSnapshot();
+        foreach (KeyValuePair<string, HeroProgressionState> pair in heroStates)
+        {
+            if (pair.Value == null || string.IsNullOrEmpty(pair.Key))
+            {
+                continue;
+            }
+
+            snapshot.heroIds.Add(pair.Key);
+            snapshot.levels.Add(Mathf.Max(1, pair.Value.level));
+            snapshot.currentXpValues.Add(Mathf.Max(0, pair.Value.currentXp));
+        }
+
+        return snapshot;
+    }
+
+    public void ApplyHeroProgressionSnapshot(HeroProgressionSnapshot snapshot)
+    {
+        if (snapshot == null || snapshot.heroIds == null)
+        {
+            return;
+        }
+
+        int count = Mathf.Min(snapshot.heroIds.Count, snapshot.levels.Count);
+        int xpCount = snapshot.currentXpValues != null ? snapshot.currentXpValues.Count : 0;
+
+        for (int i = 0; i < count; i++)
+        {
+            string heroId = snapshot.heroIds[i];
+            if (string.IsNullOrEmpty(heroId))
+            {
+                continue;
+            }
+
+            EnsureHero(heroId);
+            HeroProgressionState state = heroStates[heroId];
+            state.level = Mathf.Max(1, snapshot.levels[i]);
+            if (i < xpCount)
+            {
+                state.currentXp = Mathf.Max(0, snapshot.currentXpValues[i]);
+            }
+            else
+            {
+                state.currentXp = 0;
+            }
+        }
+    }
+
+    public PartyCompositionSnapshot CapturePartyCompositionSnapshot()
+    {
+        PartyCompositionSnapshot snapshot = new PartyCompositionSnapshot();
+        PartyManager partyManager = PartyManager.Instance;
+        if (partyManager == null || partyManager.PartyData == null)
+        {
+            return snapshot;
+        }
+
+        HeroData[] active = partyManager.GetActiveParty();
+        HeroData[] reserve = partyManager.GetReserveParty();
+        AppendHeroIds(active, snapshot.activeHeroIds);
+        AppendHeroIds(reserve, snapshot.reserveHeroIds);
+        return snapshot;
+    }
+
+    public void ApplyPartyCompositionSnapshot(PartyCompositionSnapshot snapshot)
+    {
+        if (snapshot == null)
+        {
+            return;
+        }
+
+        PartyManager partyManager = PartyManager.Instance;
+        if (partyManager == null || partyManager.PartyData == null)
+        {
+            return;
+        }
+
+        PartyData partyData = partyManager.PartyData;
+        partyData.activeSlots = ResolveHeroDataSlots(snapshot.activeHeroIds, partyData.maxActiveSlots, partyData.activeSlots);
+        partyData.reserveSlots = ResolveHeroDataSlots(snapshot.reserveHeroIds, partyData.maxReserveSlots, partyData.reserveSlots);
+    }
+
+    private static void AppendHeroIds(HeroData[] heroes, List<string> target)
+    {
+        if (heroes == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < heroes.Length; i++)
+        {
+            if (heroes[i] != null && !string.IsNullOrEmpty(heroes[i].heroId))
+            {
+                target.Add(heroes[i].heroId);
+            }
+        }
+    }
+
+    private static HeroData[] ResolveHeroDataSlots(List<string> ids, int slotLimit, HeroData[] fallback)
+    {
+        int length = Mathf.Max(0, slotLimit);
+        if (ids != null && ids.Count > 0)
+        {
+            length = Mathf.Min(length == 0 ? ids.Count : length, ids.Count);
+        }
+        else if (fallback != null)
+        {
+            length = Mathf.Min(length == 0 ? fallback.Length : length, fallback.Length);
+            HeroData[] existing = new HeroData[length];
+            for (int i = 0; i < length; i++)
+            {
+                existing[i] = fallback[i];
+            }
+            return existing;
+        }
+
+        HeroData[] slots = new HeroData[length];
+        if (ids == null)
+        {
+            return slots;
+        }
+
+        for (int i = 0; i < length; i++)
+        {
+            string id = ids[i];
+            if (string.IsNullOrEmpty(id))
+            {
+                continue;
+            }
+
+            HeroData hero = HeroDatabase.FindHeroById(id);
+            if (hero != null)
+            {
+                slots[i] = hero;
+            }
+        }
+
+        return slots;
+    }
 }

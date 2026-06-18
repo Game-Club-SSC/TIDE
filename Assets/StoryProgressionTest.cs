@@ -36,6 +36,9 @@ public class StoryProgressionTest : MonoBehaviour
         TestStoryRuleModePersistsThroughSaveDataRoundTrip();
         TestMissingStorySaveDataResetsRuleModeToDefault();
         TestProceededRuleRequiresForwardIslandTravel();
+        TestEndingEvaluatorGoodEndingPath();
+        TestGoodEndingPathTriggersOnFinalBossDefeat();
+        TestBadEndingPathTriggersOnFinalBossDefeat();
 
         Debug.Log("=== All Story Progression Tests Passed ===");
     }
@@ -224,6 +227,106 @@ public class StoryProgressionTest : MonoBehaviour
         }
 
         Debug.Log("  Missing story save data reset test passed");
+    }
+
+    private void TestEndingEvaluatorGoodEndingPath()
+    {
+        Debug.Log("Testing EndingEvaluator reports GoodEnding on the good path...");
+
+        EndingEvaluator evaluator = null;
+        try
+        {
+            GameStateManager manager = CreateIsolatedManager("TestGameStateManager_EndingEvalGood");
+            if (EndingEvaluator.Instance != null)
+            {
+                DestroyImmediate(EndingEvaluator.Instance.gameObject);
+            }
+
+            GameObject evaluatorObject = new GameObject("TestEndingEvaluator_Story");
+            evaluator = evaluatorObject.AddComponent<EndingEvaluator>();
+            evaluator.ConfigureForCurrentSlice(true, EndingEvaluator.DefaultMinimumRestorationThresholdRatio);
+
+            IslandProgressionManager.Instance.UnlockAllIslandsForDebug();
+            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug(
+                IslandThemeRegistry.ProgressionOrder[IslandThemeRegistry.ProgressionOrder.Count - 1]);
+
+            IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
+            for (int i = 0; i < progressionOrder.Count; i++)
+            {
+                TrackBossVictoryAtThreshold(manager, progressionOrder[i], IslandRestorationTracker.DefaultBossUnlockThresholdPercent);
+            }
+
+            EndingEvaluatorSnapshot snapshot = evaluator.BuildSnapshot(manager);
+            Assert.IsFalse(snapshot.hasFinalBossDefeats,
+                "Good path should not record any final boss defeats.");
+            Assert.GreaterOrEqual(snapshot.minimumRestorationClearedRatio, snapshot.minimumRestorationThresholdRatio,
+                "Tracking boss victories at threshold for every island should clear the minimum restoration rule.");
+
+            EndingOutcome outcome = EndingEvaluator.EvaluateOutcomeFromSnapshot(snapshot);
+            Assert.AreEqual(EndingOutcome.GoodEnding, outcome,
+                "Good-ending path with all islands threshold-cleared should evaluate to GoodEnding.");
+        }
+        finally
+        {
+            if (evaluator != null)
+            {
+                DestroyImmediate(evaluator.gameObject);
+            }
+
+            CleanupEnvironment();
+        }
+
+        Debug.Log("  EndingEvaluator good-ending path test passed");
+    }
+
+    private void TestGoodEndingPathTriggersOnFinalBossDefeat()
+    {
+        Debug.Log("Testing OnFinalBossDefeated fires when good-ending path resolves...");
+
+        try
+        {
+            GameStateManager manager = CreateIsolatedManager("TestGameStateManager_GoodEndingOnFinalBoss");
+            manager.ForceEndingBranchForDebug(GameStateManager.EndingBranch.Good);
+            manager.ForceStoryActForDebug(GameStateManager.StoryAct.ActIII);
+
+            manager.OnFinalBossDefeated();
+
+            AudioManager audioManager = AudioManager.Instance;
+            Assert.IsNotNull(audioManager, "AudioManager should be bootstrapped for the ending BGM hook.");
+        }
+        finally
+        {
+            if (AudioManager.Instance != null)
+            {
+                DestroyImmediate(AudioManager.Instance.gameObject);
+            }
+
+            CleanupEnvironment();
+        }
+
+        Debug.Log("  Good-ending OnFinalBossDefeated test passed");
+    }
+
+    private void TestBadEndingPathTriggersOnFinalBossDefeat()
+    {
+        Debug.Log("Testing OnFinalBossDefeated fires when bad-ending path resolves...");
+
+        try
+        {
+            GameStateManager manager = CreateIsolatedManager("TestGameStateManager_BadEndingOnFinalBoss");
+            manager.ForceEndingBranchForDebug(GameStateManager.EndingBranch.Bad);
+
+            manager.OnFinalBossDefeated();
+
+            Assert.IsTrue(manager.IsEndingTriggered,
+                "Bad-ending path should leave the ending flagged as triggered.");
+        }
+        finally
+        {
+            CleanupEnvironment();
+        }
+
+        Debug.Log("  Bad-ending OnFinalBossDefeated test passed");
     }
 
     private void TestProceededRuleRequiresForwardIslandTravel()

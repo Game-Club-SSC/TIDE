@@ -28,6 +28,10 @@ public class SkillData : ScriptableObject
     public float restoreCasterPercentOfDamage = 0f;
     public SkillTarget target;
 
+    [Header("Element")]
+    [Tooltip("Element used for elemental matchup. Falls back to the actor's element when set to None.")]
+    public CombatUnit.Element element = CombatUnit.Element.None;
+
     [Header("Status Effect")]
     public StatusEffectType appliedEffectType = StatusEffectType.None;
     public int effectDuration = 0;

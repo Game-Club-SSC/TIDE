@@ -13,6 +13,9 @@ public class IslandProgressionTravelTest : MonoBehaviour
         TestIslandRestorationUnlocksNextDestination();
         TestSnapshotRoundTripPreservesUnlocksAndReturnPositions();
         TestLegacyIslandAliasResolvesToCanonicalIds();
+        TestBoatTravelRefusesUnrestoredDestination();
+        TestBoatTravelAllowsRestoredDestination();
+        TestBoatTravelPipelineRoutesThroughGameStateManager();
 
         Debug.Log("=== All Island Progression + Travel Tests Passed ===");
     }
@@ -185,6 +188,214 @@ public class IslandProgressionTravelTest : MonoBehaviour
             "Legacy alias for the final island should be recognized.");
 
         Debug.Log("  Legacy island-id alias resolution test passed");
+    }
+
+    private void TestBoatTravelRefusesUnrestoredDestination()
+    {
+        Debug.Log("Testing boat travel refuses unrestored destinations...");
+
+        GameStateManager manager = null;
+        GameObject trackerObject = null;
+        GameObject progressionObject = null;
+        GameObject boatObject = null;
+
+        try
+        {
+            IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BoatUnrestored");
+            trackerObject = tracker.gameObject;
+
+            IslandProgressionManager progression = CreateIsolatedProgressionManager("TestProgression_BoatUnrestored");
+            progressionObject = progression.gameObject;
+            progression.UnlockAllIslandsForDebug();
+
+            manager = CreateIsolatedManager("TestGameStateManager_BoatUnrestored");
+
+            IslandBoatInteractable boat = CreateBoat("TestBoat_Unrestored");
+            boatObject = boat.gameObject;
+
+            InvokePrivate(boat, "EnsureDestinationList");
+            InvokePrivate(boat, "RefreshDestinationOrder");
+
+            string unrestoredIsland = "island_gluttony";
+            bool canTravel = (bool)InvokePrivate(boat, "IsIslandTravelEligible", progression, unrestoredIsland);
+            Assert.IsFalse(canTravel,
+                "Boat should refuse to travel to an unrestored destination even when unlocked.");
+
+            Debug.Log("  Boat travel unrestored rejection test passed");
+        }
+        finally
+        {
+            if (boatObject != null)
+            {
+                DestroyImmediate(boatObject);
+            }
+
+            if (manager != null)
+            {
+                DestroyImmediate(manager.gameObject);
+            }
+
+            if (progressionObject != null)
+            {
+                DestroyImmediate(progressionObject);
+            }
+
+            if (trackerObject != null)
+            {
+                DestroyImmediate(trackerObject);
+            }
+        }
+    }
+
+    private void TestBoatTravelAllowsRestoredDestination()
+    {
+        Debug.Log("Testing boat travel allows restored destinations...");
+
+        GameStateManager manager = null;
+        GameObject trackerObject = null;
+        GameObject progressionObject = null;
+        GameObject boatObject = null;
+
+        try
+        {
+            IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BoatRestored");
+            trackerObject = tracker.gameObject;
+
+            IslandProgressionManager progression = CreateIsolatedProgressionManager("TestProgression_BoatRestored");
+            progressionObject = progression.gameObject;
+            progression.UnlockAllIslandsForDebug();
+
+            string restoredIsland = "island_gluttony";
+            tracker.RecordEncounterCompletion(restoredIsland, "boat_c1", EncounterType.Combat, 0.5f);
+            tracker.RecordEncounterCompletion(restoredIsland, "boat_p1", EncounterType.Puzzle, 0.5f);
+            Assert.IsTrue(tracker.IsIslandRestored(restoredIsland),
+                "Setup precondition: gluttony should be marked restored.");
+
+            manager = CreateIsolatedManager("TestGameStateManager_BoatRestored");
+
+            IslandBoatInteractable boat = CreateBoat("TestBoat_Restored");
+            boatObject = boat.gameObject;
+
+            bool canTravel = (bool)InvokePrivate(boat, "IsIslandTravelEligible", progression, restoredIsland);
+            Assert.IsTrue(canTravel,
+                "Boat should allow travel to a restored destination.");
+
+            Debug.Log("  Boat travel restored acceptance test passed");
+        }
+        finally
+        {
+            if (boatObject != null)
+            {
+                DestroyImmediate(boatObject);
+            }
+
+            if (manager != null)
+            {
+                DestroyImmediate(manager.gameObject);
+            }
+
+            if (progressionObject != null)
+            {
+                DestroyImmediate(progressionObject);
+            }
+
+            if (trackerObject != null)
+            {
+                DestroyImmediate(trackerObject);
+            }
+        }
+    }
+
+    private void TestBoatTravelPipelineRoutesThroughGameStateManager()
+    {
+        Debug.Log("Testing GameStateManager.TravelToIsland routes through the fade pipeline...");
+
+        GameStateManager manager = null;
+        GameObject trackerObject = null;
+        GameObject progressionObject = null;
+        GameObject playerObject = null;
+
+        try
+        {
+            IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BoatPipeline");
+            trackerObject = tracker.gameObject;
+
+            IslandProgressionManager progression = CreateIsolatedProgressionManager("TestProgression_BoatPipeline");
+            progressionObject = progression.gameObject;
+            progression.UnlockAllIslandsForDebug();
+
+            string destinationIsland = "island_gluttony";
+            tracker.RecordEncounterCompletion(destinationIsland, "pipeline_c1", EncounterType.Combat, 0.5f);
+            tracker.RecordEncounterCompletion(destinationIsland, "pipeline_p1", EncounterType.Puzzle, 0.5f);
+
+            manager = CreateIsolatedManager("TestGameStateManager_BoatPipeline");
+
+            playerObject = new GameObject("TestPlayerForBoat");
+            playerObject.transform.position = Vector3.zero;
+            IsometricPlayer player = playerObject.AddComponent<IsometricPlayer>();
+
+            Vector3 destinationSpawn = new Vector3(20f, 31.54f, 5f);
+            bool travelInitiated = manager.TravelToIsland(destinationIsland, destinationSpawn);
+            Assert.IsTrue(travelInitiated,
+                "GameStateManager.TravelToIsland should succeed for an unlocked + restored destination.");
+            Assert.IsTrue(manager.IsTransitioning,
+                "TravelToIsland should mark the manager as transitioning for the fade pipeline.");
+
+            Debug.Log("  Boat travel fade pipeline routing test passed");
+        }
+        finally
+        {
+            if (playerObject != null)
+            {
+                DestroyImmediate(playerObject);
+            }
+
+            if (manager != null)
+            {
+                DestroyImmediate(manager.gameObject);
+            }
+
+            if (progressionObject != null)
+            {
+                DestroyImmediate(progressionObject);
+            }
+
+            if (trackerObject != null)
+            {
+                DestroyImmediate(trackerObject);
+            }
+        }
+    }
+
+    private static IslandBoatInteractable CreateBoat(string boatName)
+    {
+        GameObject boatObject = new GameObject(boatName);
+        IslandBoatInteractable boat = boatObject.AddComponent<IslandBoatInteractable>();
+        return boat;
+    }
+
+    private static GameStateManager CreateIsolatedManager(string managerName)
+    {
+        GameObject managerObject = new GameObject(managerName);
+        GameStateManager manager = managerObject.AddComponent<GameStateManager>();
+        SetPrivateField(manager, "enablePersistentSaveData", false);
+        return manager;
+    }
+
+    private static object InvokePrivate(object target, string methodName, params object[] args)
+    {
+        System.Reflection.MethodInfo method = target.GetType().GetMethod(methodName,
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Assert.IsNotNull(method, $"Method '{methodName}' should exist for verification.");
+        return method.Invoke(target, args);
+    }
+
+    private static void SetPrivateField(object target, string fieldName, object value)
+    {
+        System.Reflection.FieldInfo field = target.GetType().GetField(fieldName,
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"Field '{fieldName}' should exist for verification.");
+        field.SetValue(target, value);
     }
 
     private static IslandRestorationTracker CreateIsolatedTracker(string trackerName)

@@ -39,6 +39,17 @@ public class HeroDatabase : ScriptableObject
         return allHeroes;
     }
 
+    public static HeroData FindHeroById(string heroId)
+    {
+        if (string.IsNullOrEmpty(heroId))
+        {
+            return null;
+        }
+
+        HeroDatabase database = Resources.Load<HeroDatabase>("HeroDatabase");
+        return database != null ? database.GetHero(heroId) : null;
+    }
+
     public bool IsValid()
     {
         if (allHeroes == null || allHeroes.Length != 5)

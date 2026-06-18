@@ -231,6 +231,7 @@ public class BossEncounterGate : MonoBehaviour
         if (isBossUnlocked)
         {
             Debug.Log($"[BossEncounterGate] Boss unlocked on '{targetIsland}' at {percent:F1}% (threshold: {bossUnlockThresholdPercent}%).");
+            PlayBossIntroSting();
             OnBossUnlocked?.Invoke();
         }
         else
@@ -251,6 +252,15 @@ public class BossEncounterGate : MonoBehaviour
         if (tracker != null)
         {
             tracker.OnRestorationChanged += HandleRestorationChanged;
+        }
+    }
+
+    private static void PlayBossIntroSting()
+    {
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleBossIntro();
         }
     }
 
