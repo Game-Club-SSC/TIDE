@@ -8,6 +8,8 @@ public class TideBreakData : ScriptableObject
     [Header("Info")]
     public string abilityName;
     [TextArea] public string description;
+    [Tooltip("Optional heroId this TideBreak belongs to. Empty = shared.")]
+    public string heroId;
     
     [Header("Combat")]
     public float damageMultiplier = 2f;
