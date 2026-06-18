@@ -414,3 +414,142 @@ Assets/
 - ❌ Background music and sound effects
 - ❌ Dialogue and story events
 - ❌ UI/UX polish and final balancing
+
+---
+
+## 17. Vertical Slice 1–40 Systems (issues #218–#258)
+
+The post-vertical-slice cohort of issues added a fleet of new singletons, services, and tests. All live in flat `Assets/`. Playtest instructions per system are below.
+
+### 17.1 Sprite-based player visual (VS-14, 2D sprite in 3D world)
+- `BillboardSprite.cs` — keeps a `SpriteRenderer` facing the camera in the 3D world. Toggled via `FaceCamera`, `LockYAxis`, `RotationOffset`. Used by the overworld player root.
+- `ElementalCharacterFactory.BuildExplorationPlayerSprite` — assembles `ElementalPlayerSprite` (sprite + ground shadow quad) under the player's transform. Replaces the legacy procedural 3D primitives when `IsometricPlayer.use2DSpriteVisual = true`.
+- `IsometricPlayer.DisablePrimitiveRenderers` — disables the default `MeshRenderer` on the player GameObject so the 2D sprite is the only thing drawn.
+- **Test:** `PlayerSpriteVisualTestSuite.cs` — "Run Player Sprite Visual Tests". Verifies sprite + shadow build, billboard, dash works in sprite mode, 3D legacy still builds, mode toggling removes the old root, style swap rebuilds sprite.
+- **Playtest in Editor:** open `level_1`, enter Play mode, walk around. The player should appear as a sprite that always faces the camera. The cube primitive is hidden. Press `LeftAlt` to dash and `Space` to hop — both should still work. Toggle the legacy 3D mode in the inspector (`use2DSpriteVisual` on the player object) to confirm the procedural robot still builds and the sprite disappears.
+
+### 17.2 Procedural audio (VS-15)
+- `ProceduralAudioBuilder.cs` — synthesizes 4 BGM loops (Exploration, Combat, Puzzle, Ending) and 5 stings (Victory, Defeat, PuzzleSolved, BossIntro, TravelFanfare) from sine + exponential-decay envelopes. Used when no imported `AudioClip` is wired in.
+- `AudioManager.GetOrGenerateClip` — falls back to the procedural builder per-cue when the serialized field is null.
+- **Test:** `ProceduralAudioBuilderTest.cs` — "Run Procedural Audio Builder Tests". Verifies every cue has audible signal and stings decay head-to-tail.
+- **Playtest:** enter Play mode. The `AudioManager` instance should crossfade BGM across scene loads (Exploration ↔ Combat ↔ Puzzle). Boss intro sting fires when `BossEncounterGate` unlocks a boss.
+
+### 17.3 Crit stats (VS-10)
+- `HeroData.baseCritRate` (0–1) and `baseCritDamage` (≥0) with Range/Min guards.
+- `EnemyData.baseCritRate` and `baseCritDamage` mirror the above.
+- `HeroProgressionManager.ApplyStatGrowth` and `CombatSceneBootstrap.ApplyEnemyDataToUnit` propagate crit stats onto spawned `CombatUnit`s.
+- `BattleManager.ResolveAttack` rolls `Random.value < actor.CritRate` and multiplies damage by `actor.CritDamage` when triggered.
+- **Test:** `CritStatsTest.cs` — "Run Crit Stats Tests". Verifies defaults, ranges, and clamps.
+- **Playtest:** fight any encounter. Crits should now land with the new per-asset crit rate. Inspect the BattleManager console for the "CRITICAL HIT!" log line.
+
+### 17.4 Per-element gear (VS-16) + Tide Break unlocks (VS-17)
+- `GearSetData.element`, `GearSetData.tier`, `GearSetData.MatchesElement` (helper).
+- `GearSetFactory` produces 5 element-themed starter sets (iron_guard, ember_weave, tide_charm, zephyr_mail, cosmic_lattice) plus a universal fallback.
+- `HeroProgressionManager.EnsureStarterGearRegistry` auto-populates the registry on first boot; `GetGearSetForElement` picks the lowest-tier set matching the hero's element.
+- **Test:** `GearSetFactoryTest.cs` — "Run Gear Set Factory Tests". Verifies element coverage, matching, validity, clamping, and registry lookup.
+- **Playtest:** open Smithy (smithy interactable), equip a fire hero with ember_weave. The Fire-themed gear should apply ATK/DEF/HP bonuses via `TotalAttackPercent`/`TotalDefensePercent`/`TotalHpPercent`.
+- **Tide Break unlocks:** already handled by `TideBreakData.GetForElement(elementId, heroLevel)` filtering on `unlockLevel`. Each hero in `HeroTideBreakFactory` has a level-1 AOE and a level-3 single-target.
+
+### 17.5 Pre-final-boss conversation (VS-12) + Self-harm bad-ending beat (VS-13)
+- `AcceptanceConversation.cs` — singleton with 3 dialogue lines. Gated on `island_pride` being active and `IslandRestorationTracker.GetRestorationPercent` ≥ 75%. `ForcePlayForDebug` bypasses the gate.
+- `SelfHarmBeat.cs` — singleton with 4 lines. Gated on `GameStateManager.EndingBranch == Bad` and `IsEndingTriggered`.
+- `NarrativeBeatsData.cs` — string constants for the 5 beat IDs and a `GetAllBeats()` catalog.
+- **Test:** `NarrativeSystemsTest.cs` — "Run Narrative Systems Tests". Verifies gating, event firing, and catalog completeness.
+- **Playtest:** set `IslandProgressionManager.ActiveIslandId = "island_pride"` and force restoration to 80% via dev menu, then trigger `AcceptanceConversation.ForcePlayForDebug` (or call `PlayAcceptanceConversation` once the gate passes). The 3 lines should log + fire `OnAcceptanceConversationFinished`. For self-harm: complete a bad-ending run, then call `SelfHarmBeat.ForcePlayForDebug`.
+
+### 17.6 Ancient text authoring (VS-18)
+- `AncientTextAuthoring.cs` — static class with 18 baseline `AncientTextData` entries covering Gluttony/Greed/Sloth/Wrath/Envy/Pride across Acts I/II/III.
+- `GetAllAuthoredTexts()` merges the baseline with `Resources.LoadAll<AncientTextData>("AncientTexts")`.
+- **Test:** `NarrativeSystemsTest.cs` (TestAncientTextAuthoring* cases) verifies count, validity, sin coverage, and act coverage.
+
+### 17.7 Relationship tracker (VS-19)
+- `RelationshipTracker.cs` — singleton. Per-heroId affinity 0–100. `GetRelationshipTier` returns `Stranger/Acquaintance/Friend/Close/Bonded`. Configurable thresholds. `OnAffinityChanged` and `OnTierChanged` events.
+- **Test:** `NarrativeSystemsTest.cs` covers clamping, tier thresholds, and tier-transition events.
+
+### 17.8 Power budget per island (VS-20)
+- `PowerBudgetTracker.cs` — singleton. `TryConsumeBudget(islandId, cost)` returns false if the budget is insufficient. Default 3 per island. Refunds supported.
+- **Test:** `NarrativeSystemsTest.cs` covers default seeding, in-budget consumption, and rejection of over-budget consumption.
+
+### 17.9 Teleport anchors + travel validation (VS-21)
+- `TeleportAnchor.cs` — MonoBehaviour with `anchorId`, `islandId`, `spawnPosition`, `isSceneEntrance`, `isBoatDock`. Static registry by id and by island.
+- `TravelValidationService.ValidateTravel` — checks the destination is unlocked, fully restored, and has a boat-dock anchor. Returns a `ValidationResult` with failure reason.
+- **Test:** `TravelValidationTest.cs` covers register/unregister, dock lookup, unrestored rejection, and empty-destination rejection.
+
+### 17.10 Per-hero Tide Breaks (VS-22)
+- `TideBreakData.heroId` — new field for per-hero ownership.
+- `HeroTideBreakFactory` generates 2 unique Tide Breaks per hero (AOE at level 1, single-target at level 3) for all 5 elements. `GetTideBreaksForHero` filters by heroId, element, and hero level.
+- **Test:** `HeroTideBreakFactoryTest.cs` covers all five heroes.
+
+### 17.11 Party swap polish (VS-23)
+- `PartySwapService.cs` — `TryQueueSwap(activeHeroId, reserveHeroId, out reason)` validates the request (rejects self-swap, empty ids, missing manager). `GetReservableHeroIds` returns the reserve party's heroIds.
+- **Test:** `PartySwapServiceTest.cs` covers gating rules.
+
+### 17.12 Mobile touch controller (VS-24)
+- `MobileTouchController.cs` — singleton. D-pad input clamped to unit magnitude, 4 action buttons (Interact / Dash / Hop / Sprint), visibility toggle, ScreenSpaceOverlay canvas.
+- **Test:** `MobileTouchControllerTest.cs` covers clamp, press/release, and visibility.
+
+### 17.13 Per-island content packs (VS-25)
+- `PerIslandContentRegistry.cs` — 6 packs (gluttony through pride), each with `islandId`, `displayName`, `encounterIdPrefix`, `recommendedLevel`, `bossId`. `GetPackForIsland` lookup.
+- **Test:** `VerticalSliceRegressionRunnerTest.cs` (TestPerIslandContentRegistryCoverage) verifies the 6 packs.
+
+### 17.14 Greed/Gluttony puzzle variants (VS-26)
+- `PuzzleVariantService.cs` — wraps `PuzzleData.enableConsumption`, `consumptionAmount`, `enableGreedEconomy`, `coinTileYield`. `GetVariantLabel` returns gluttony/greed/default.
+- **Test:** `VerticalSliceRegressionRunnerTest.cs` (TestPuzzleVariantService*).
+
+### 17.15 Sloth status effects (VS-27)
+- `SlothStatusEffectSet.cs` — `CreateSlowEffect(sourceName, duration, magnitude)` and `CreateDrowsyEffect(sourceName, duration)`. `IsSlothEffectType` helper.
+- **Test:** `VerticalSliceRegressionRunnerTest.cs` (TestSlothStatusEffect*).
+
+### 17.16 Envy mirror mechanic (VS-28)
+- `EnvyMirrorService.cs` — `SetMirrorEnabled`, `SetMirroredElement`, `GetMirrorElementFor`, `GetMirrorSkillFor` (builds a half-cost / multiplier-scaled SkillData clone).
+- **Test:** `VerticalSliceRegressionRunnerTest.cs` (TestEnvyMirror*).
+
+### 17.17 Difficulty pass (VS-29) + Difficulty modes (VS-37)
+- `DifficultyModeService.cs` — singleton with Story / Standard / Hardcore. `GetDamageMultiplierForPlayer/Enemy`, `GetXpMultiplier`, `GetCurrencyMultiplier`, `AllowsFleeInCombat`. Hardcore removes flee and currency.
+- **Test:** `GameSystemsTest.cs` covers the difficulty gating rules.
+
+### 17.18 BattleHud polish (VS-30)
+- `BattleHudPolishService.cs` — `GetCritFlashColor`, `GetCritFlashDuration`, `GetStatusEffectIconColor` per `StatusEffectType`, `GetStatusEffectLabel`, `GetMomentumBarColor` gradient.
+- **Test:** `VerticalSliceRegressionRunnerTest.cs` (TestBattleHud*).
+
+### 17.19 PlayerCustomizationUI palette + premium unlock (VS-31)
+- `PlayerCustomizationCatalog.cs` — 7 palettes (3 default, 4 premium), `UnlockPalette`, `IsPaletteUnlocked`, `GetRequiredCurrencyFor`, `ResetForDebug`.
+- **Test:** `VerticalSliceRegressionRunnerTest.cs` (TestPlayerCustomization*).
+
+### 17.20 Vertical slice regression runner (VS-32)
+- `VerticalSliceRegressionRunner.cs` — singleton with 32+ issue checks (one per VS issue). `RunRegression` logs pass/fail per issue. `RegressionCheckHelpers` provides `LogicOk` adapters per subsystem.
+- **Test:** `VerticalSliceRegressionRunnerTest.cs` covers registration, execution, and per-subsystem logic.
+
+### 17.21 GameStateManager refactor (VS-33)
+- The refactor was scoped as incremental extraction. New singletons split out of `GameStateManager`:
+  - `WorldSaveService.cs` — owns the `TIDE_WORLD_STATE_V1` `PlayerPrefs` key, `enablePersistentSaveData` flag, `TryWriteJson`/`TryLoadJson`/`Clear`/`SetPersistentSaveEnabled`. `OnSavePersisted`/`OnSaveLoaded`/`OnSaveCleared` events.
+  - `StoryProgressionService.cs` — owns `CurrentAct`/`HighestActReached`/`ResolvedEndingBranch`/`IsEndingTriggered` plus `OnStoryActChanged`/`OnEndingBranchChanged`/`OnEndingTriggered` events. `SetCurrentAct`/`SetEndingBranch`/`TriggerEnding`/`ResetForDebug`.
+  - Plus the prior batch (`AcceptanceConversation`, `SelfHarmBeat`, `RelationshipTracker`, `PowerBudgetTracker`, `DifficultyModeService`, `NewGamePlusService`, `VerticalSliceRegressionRunner`, `MobileTouchController`).
+- `GameStateManager` now focuses on scene transitions, combat outcome orchestration, and the public surface (Pending* fields, FlowController hookup).
+- **Test:** `GameStateManagerRefactorTest.cs` — "Run GameStateManager Refactor Tests". Verifies WorldSaveService write/read/clear/disable and StoryProgressionService act/ending/trigger/reset.
+
+### 17.22 Playtest documentation (VS-34)
+- This section (`## 17`) is the canonical per-system playtest reference.
+- `AGENTS.md` references this file as the deep-dive doc.
+- **Test:** `VerticalSliceRegressionRunner` check #34 returns true.
+
+### 17.23 Phone web controller auth (VS-35)
+- `PhoneControllerAuthService.cs` — `GenerateToken`, `ValidateToken`, `RegisterToken` (custom lifetime), `GetActiveTokenCount`, `RevokeAllTokens`. 1h default lifetime.
+- **Test:** `VerticalSliceRegressionRunnerTest.cs` (TestPhoneControllerAuth*).
+
+### 17.24 New Game+ (VS-36)
+- `NewGamePlusService.cs` — singleton. `RegisterCompletion`, `CanStartNewGamePlus`, `StartNewGamePlus`, `EndNewGamePlus`. Scaled enemy/xp multipliers via `Mathf.Pow(base, loopIndex)`. `GetCarryOverHeroIds` returns the active party.
+- **Test:** `GameSystemsTest.cs` (TestNewGamePlusService).
+
+### 17.25 Localization (VS-38)
+- `LocalizationService.cs` — static. English + Spanish dictionary with 20+ ui.* keys. `SetLanguage`, `Get`, `HasKey`, `GetAllKeys`.
+- **Test:** `GameSystemsTest.cs` (TestLocalizationService) verifies key lookup and language switching.
+
+### 17.26 Dev cheat feature flags (VS-39)
+- `DevCheatFeatureFlags.cs` — exactly 32 boolean/float flags. `GetAllFlagIds`, `LogicOk`, `ResetAllForDebug`.
+- **Test:** `VerticalSliceRegressionRunnerTest.cs` (TestDevCheatFeatureFlagsCoverage) asserts 32 flags.
+
+### 17.27 Performance budget (VS-40)
+- `PerformanceBudgetMonitor.cs` — singleton. Tracks `TargetFrameRate=60`, `MaxHeroes=6`, `MaxEnemies=6`, `MaxFrameMs=16.67`. Records per-frame timing into a 600-frame rolling queue, exposes `CurrentAverageFrameMs`, `Min/MaxObservedFrameMs`, `IsMeetingBudget`. `IsWithinUnitCap(heroCount, enemyCount)` enforces the 6+6 cap.
+- **Test:** `PerformanceBudgetMonitorTest.cs` — "Run Performance Budget Monitor Tests". Verifies singleton, unit cap, frame recording, reset, and defaults.
+- **Playtest:** open Unity Profiler in a development build, run a Combat scene with the maximum party (3 active + 3 reserve enemy), watch the `PerformanceBudgetMonitor.CurrentAverageFrameMs` log line. Look for per-frame allocations in `ResolveAttack` and `ApplyStatusEffect`.
