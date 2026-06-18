@@ -10,6 +10,13 @@ public class GearSetData : ScriptableObject
     [Tooltip("Human-readable display name (e.g. Iron Guard Set).")]
     public string displayName;
 
+    [Tooltip("Element this gear set is themed for. None = universal.")]
+    public CombatUnit.Element element = CombatUnit.Element.None;
+
+    [Tooltip("Tier for progression gating. Higher = unlocked later.")]
+    [Min(0)]
+    public int tier;
+
     [TextArea]
     public string description;
 
@@ -50,5 +57,10 @@ public class GearSetData : ScriptableObject
     {
         return !string.IsNullOrEmpty(setId)
             && !string.IsNullOrEmpty(displayName);
+    }
+
+    public bool MatchesElement(CombatUnit.Element heroElement)
+    {
+        return element == CombatUnit.Element.None || element == heroElement;
     }
 }

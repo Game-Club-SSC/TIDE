@@ -20,6 +20,7 @@ public class HeroProgressionManager : MonoBehaviour
 
     [Header("Gear")]
     [SerializeField] private GearSetData[] availableGearSets = System.Array.Empty<GearSetData>();
+    [SerializeField] private bool autoPopulateStarterGear = true;
 
     [Header("Smithy Economy")]
     [SerializeField] [Min(0)] private int baseSmithyDuplicateCost = 50;
@@ -80,7 +81,83 @@ public class HeroProgressionManager : MonoBehaviour
 
         Instance = this;
         enableCosmeticProgressionEconomy = runtimeCosmeticProgressionEconomyEnabled;
+        EnsureStarterGearRegistry();
         DontDestroyOnLoad(gameObject);
+    }
+
+    public void EnsureStarterGearRegistry()
+    {
+        if (!autoPopulateStarterGear)
+        {
+            return;
+        }
+
+        bool hasAny = availableGearSets != null && availableGearSets.Length > 0 && availableGearSets[0] != null;
+        if (hasAny)
+        {
+            return;
+        }
+
+        List<GearSetData> starter = new List<GearSetData>(GearSetFactory.CreateStarterGearSets());
+        availableGearSets = starter.ToArray();
+        Debug.Log($"[HeroProgressionManager] Auto-populated {availableGearSets.Length} starter gear sets.");
+    }
+
+    public void RegisterGearSet(GearSetData gear)
+    {
+        if (gear == null || !gear.IsValid())
+        {
+            return;
+        }
+
+        if (availableGearSets == null)
+        {
+            availableGearSets = new GearSetData[] { gear };
+            return;
+        }
+
+        for (int i = 0; i < availableGearSets.Length; i++)
+        {
+            if (availableGearSets[i] != null && availableGearSets[i].setId == gear.setId)
+            {
+                return;
+            }
+        }
+
+        List<GearSetData> updated = new List<GearSetData>(availableGearSets) { gear };
+        availableGearSets = updated.ToArray();
+    }
+
+    public GearSetData GetGearSetForHero(string heroId)
+    {
+        HeroData hero = HeroDatabase.FindHeroById(heroId);
+        CombatUnit.Element element = hero != null ? hero.element : CombatUnit.Element.Earth;
+        return GetGearSetForElement(element);
+    }
+
+    public GearSetData GetGearSetForElement(CombatUnit.Element element)
+    {
+        if (availableGearSets == null)
+        {
+            return null;
+        }
+
+        GearSetData bestMatch = null;
+        for (int i = 0; i < availableGearSets.Length; i++)
+        {
+            GearSetData set = availableGearSets[i];
+            if (set == null || !set.MatchesElement(element))
+            {
+                continue;
+            }
+
+            if (bestMatch == null || set.tier < bestMatch.tier)
+            {
+                bestMatch = set;
+            }
+        }
+
+        return bestMatch;
     }
 
     private void OnDestroy()
