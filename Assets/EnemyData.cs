@@ -29,6 +29,14 @@ public class EnemyData : ScriptableObject
     [Min(1)]
     public int baseSpeed = 1;
 
+    [Range(0f, 1f)]
+    [Tooltip("Base crit rate (0-1).")]
+    public float baseCritRate = 0.03f;
+
+    [Min(0f)]
+    [Tooltip("Base crit damage multiplier. 1.5 = 150% damage on crit.")]
+    public float baseCritDamage = 1.5f;
+
     [Header("Skills")]
     public SkillData[] skills = System.Array.Empty<SkillData>();
 

@@ -305,17 +305,30 @@ public class AudioManager : MonoBehaviour
     {
         switch (cue)
         {
-            case AudioCue.ExplorationBgm: return explorationBgm;
-            case AudioCue.CombatBgm: return combatBgm;
-            case AudioCue.PuzzleBgm: return puzzleBgm;
-            case AudioCue.EndingBgm: return endingBgm;
-            case AudioCue.CombatVictory: return combatVictorySting;
-            case AudioCue.CombatDefeat: return combatDefeatSting;
-            case AudioCue.PuzzleSolved: return puzzleSolvedSting;
-            case AudioCue.BossIntro: return bossIntroSting;
-            case AudioCue.TravelFanfare: return travelFanfareSting;
+            case AudioCue.ExplorationBgm: return GetOrGenerateClip(cue, ref explorationBgm, ProceduralAudioBuilder.BuildExplorationBgm);
+            case AudioCue.CombatBgm: return GetOrGenerateClip(cue, ref combatBgm, ProceduralAudioBuilder.BuildCombatBgm);
+            case AudioCue.PuzzleBgm: return GetOrGenerateClip(cue, ref puzzleBgm, ProceduralAudioBuilder.BuildPuzzleBgm);
+            case AudioCue.EndingBgm: return GetOrGenerateClip(cue, ref endingBgm, ProceduralAudioBuilder.BuildEndingBgm);
+            case AudioCue.CombatVictory: return GetOrGenerateClip(cue, ref combatVictorySting, ProceduralAudioBuilder.BuildCombatVictorySting);
+            case AudioCue.CombatDefeat: return GetOrGenerateClip(cue, ref combatDefeatSting, ProceduralAudioBuilder.BuildCombatDefeatSting);
+            case AudioCue.PuzzleSolved: return GetOrGenerateClip(cue, ref puzzleSolvedSting, ProceduralAudioBuilder.BuildPuzzleSolvedSting);
+            case AudioCue.BossIntro: return GetOrGenerateClip(cue, ref bossIntroSting, ProceduralAudioBuilder.BuildBossIntroSting);
+            case AudioCue.TravelFanfare: return GetOrGenerateClip(cue, ref travelFanfareSting, ProceduralAudioBuilder.BuildTravelFanfareSting);
             default: return null;
         }
+    }
+
+    private AudioClip GetOrGenerateClip(AudioCue cue, ref AudioClip field, System.Func<AudioClip> builder)
+    {
+        if (field == null)
+        {
+            field = builder();
+            if (field != null)
+            {
+                field.name = $"AutoAudio_{cue}";
+            }
+        }
+        return field;
     }
 
     private static bool IsBgmCue(AudioCue cue)

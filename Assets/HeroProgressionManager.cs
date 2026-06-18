@@ -485,6 +485,8 @@ public class HeroProgressionManager : MonoBehaviour
         unit.Attack = levelAttack + Mathf.RoundToInt(levelAttack * atkPercent);
         unit.Defense = levelDefense + Mathf.RoundToInt(levelDefense * defPercent);
         unit.Speed = levelSpeed;
+        unit.CritRate = Mathf.Clamp01(hero.baseCritRate);
+        unit.CritDamage = Mathf.Max(1f, hero.baseCritDamage);
 
         GearSetData gear = GetEquippedGearSet(hero.heroId);
         string gearTag = gear != null ? $", Gear={gear.setId}" : "";

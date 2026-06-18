@@ -850,6 +850,8 @@ public class CombatSceneBootstrap : MonoBehaviour
         unit.Attack = Mathf.Max(1, Mathf.RoundToInt(enemyData.baseAttack * islandTierMultiplier));
         unit.Defense = Mathf.Max(0, Mathf.RoundToInt(enemyData.baseDefense * islandTierMultiplier));
         unit.Speed = Mathf.Max(1, Mathf.RoundToInt(enemyData.baseSpeed * islandTierMultiplier));
+        unit.CritRate = Mathf.Clamp01(enemyData.baseCritRate);
+        unit.CritDamage = Mathf.Max(1f, enemyData.baseCritDamage);
 
         unit.SetSkills(enemyData.skills);
 

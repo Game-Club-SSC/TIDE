@@ -33,6 +33,14 @@ public class HeroData : ScriptableObject
     [Min(0)]
     public int baseSpeed = 10;
 
+    [Range(0f, 1f)]
+    [Tooltip("Base crit rate (0-1). Combined with level scaling at runtime.")]
+    public float baseCritRate = 0.05f;
+
+    [Min(0f)]
+    [Tooltip("Base crit damage multiplier. 1.5 = 150% damage on crit.")]
+    public float baseCritDamage = 1.5f;
+
     [Header("Starter Skills")]
     public SkillData[] starterSkills = System.Array.Empty<SkillData>();
 
