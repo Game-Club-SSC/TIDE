@@ -5,6 +5,9 @@ public static class ElementalCharacterFactory
     public const string PlayerModelRootName = "ElementalPlayerModel";
     public const string EnemyModelRootName = "ElementalEnemyModel";
     public const string BattleModelRootName = "ElementalBattleModel";
+    public const string PlayerSpriteRootName = "ElementalPlayerSprite";
+    public const string ShadowQuadName = "PlayerShadowQuad";
+    public const string PlayerSpriteRendererName = "PlayerSpriteRenderer";
 
     public static Transform BuildExplorationPlayerModel(
         Transform parent,
@@ -27,6 +30,84 @@ public static class ElementalCharacterFactory
             localScale,
             false,
             false);
+    }
+
+    public static Transform BuildExplorationPlayerSprite(
+        Transform parent,
+        string styleId,
+        CombatUnit.Element element,
+        Color primary,
+        Color accent,
+        Color glow,
+        Vector3 localOffset,
+        Vector3 localScale)
+    {
+        if (parent == null)
+        {
+            return null;
+        }
+
+        Transform existing = parent.Find(PlayerSpriteRootName);
+        if (existing != null)
+        {
+            Object.Destroy(existing.gameObject);
+        }
+
+        Transform shadowExisting = parent.Find(ShadowQuadName);
+        if (shadowExisting != null)
+        {
+            Object.Destroy(shadowExisting.gameObject);
+        }
+
+        GameObject root = new GameObject(PlayerSpriteRootName);
+        root.transform.SetParent(parent, false);
+        root.transform.localPosition = localOffset;
+        root.transform.localRotation = Quaternion.identity;
+
+        Vector3 validatedScale = localScale;
+        validatedScale.x = Mathf.Max(0.1f, validatedScale.x);
+        validatedScale.y = Mathf.Max(0.1f, validatedScale.y);
+        validatedScale.z = Mathf.Max(0.1f, validatedScale.z);
+        root.transform.localScale = validatedScale;
+
+        GameObject shadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        shadow.name = ShadowQuadName;
+        Object.Destroy(shadow.GetComponent<Collider>());
+        shadow.transform.SetParent(parent, false);
+        shadow.transform.localPosition = new Vector3(localOffset.x, 0.04f, localOffset.z);
+        shadow.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        shadow.transform.localScale = new Vector3(0.9f * validatedScale.x, 0.9f * validatedScale.z, 1f);
+
+        Renderer shadowRenderer = shadow.GetComponent<Renderer>();
+        if (shadowRenderer != null)
+        {
+            Material shadowMat = new Material(Shader.Find("Sprites/Default"));
+            shadowMat.color = new Color(0f, 0f, 0f, 0.45f);
+            shadowRenderer.sharedMaterial = shadowMat;
+            shadowRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            shadowRenderer.receiveShadows = false;
+        }
+
+        GameObject spriteObject = new GameObject(PlayerSpriteRendererName);
+        spriteObject.transform.SetParent(root.transform, false);
+        spriteObject.transform.localPosition = Vector3.zero;
+        spriteObject.transform.localRotation = Quaternion.identity;
+        spriteObject.transform.localScale = Vector3.one;
+
+        SpriteRenderer spriteRenderer = spriteObject.AddComponent<SpriteRenderer>();
+        Sprite sprite = FuturisticSpriteLibrary.GetPlayerOverworldSprite(styleId);
+        spriteRenderer.sprite = sprite;
+        spriteRenderer.color = Color.white;
+        spriteRenderer.sortingOrder = 100;
+        spriteRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        spriteRenderer.receiveShadows = false;
+
+        BillboardSprite billboard = spriteObject.AddComponent<BillboardSprite>();
+        billboard.FaceCamera = true;
+        billboard.LockYAxis = true;
+        billboard.SetSortingOrder(100);
+
+        return root.transform;
     }
 
     public static Transform BuildExplorationEnemyModel(

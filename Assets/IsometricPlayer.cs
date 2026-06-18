@@ -52,8 +52,9 @@ public class IsometricPlayer : MonoBehaviour
 
     [Header("Visual")]
     [SerializeField] private Color playerColor = new Color(0.2f, 0.8f, 0.2f, 1f);
-    [SerializeField] private Vector3 characterModelLocalOffset = Vector3.zero;
-    [SerializeField] private Vector3 characterModelLocalScale = Vector3.one;
+    [SerializeField] private Vector3 characterModelLocalOffset = new Vector3(0f, 0.55f, 0f);
+    [SerializeField] private Vector3 characterModelLocalScale = new Vector3(1.1f, 1.1f, 1.1f);
+    [SerializeField] private bool use2DSpriteVisual = true;
 
     private Rigidbody rb;
     private Camera cachedMainCamera;
@@ -82,6 +83,7 @@ public class IsometricPlayer : MonoBehaviour
     internal Vector3 DebugCurrentPlanarVelocity => currentPlanarVelocity;
     public bool AutoRunEnabled => autoRunEnabled;
     public bool AllowHop => allowHop;
+    public bool Use2DSpriteVisual => use2DSpriteVisual;
 
     private void Start()
     {
@@ -110,7 +112,44 @@ public class IsometricPlayer : MonoBehaviour
     private void Ensure3DVisualSetup()
     {
         RemoveLegacySpriteVisuals();
+        DisablePrimitiveRenderers();
         RebuildElementalPlayerModel();
+    }
+
+    private void DisablePrimitiveRenderers()
+    {
+        Renderer[] allRenderers = GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < allRenderers.Length; i++)
+        {
+            Renderer renderer = allRenderers[i];
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            if (renderer is SpriteRenderer)
+            {
+                continue;
+            }
+
+            if (renderer.transform == transform)
+            {
+                if (use2DSpriteVisual)
+                {
+                    renderer.enabled = false;
+                }
+                continue;
+            }
+
+            string renderName = renderer.gameObject.name;
+            if (renderName == ElementalCharacterFactory.PlayerModelRootName
+                || renderName == ElementalCharacterFactory.PlayerSpriteRootName
+                || renderName == ElementalCharacterFactory.ShadowQuadName
+                || renderName == ElementalCharacterFactory.PlayerSpriteRendererName)
+            {
+                continue;
+            }
+        }
     }
 
     private void RemoveLegacySpriteVisuals()
@@ -253,7 +292,7 @@ public class IsometricPlayer : MonoBehaviour
         FuturisticSpriteLibrary.SetCurrentMainPlayerStyle(currentStyleId);
         ApplyCurrentStyleVisual();
 
-        Debug.Log($"[IsometricPlayer] Equipped 3D style: {currentStyleId}.");
+        Debug.Log($"[IsometricPlayer] Equipped {(use2DSpriteVisual ? "2D sprite" : "3D")} style: {currentStyleId}.");
     }
 
     private void RebuildElementalPlayerModel()
@@ -270,18 +309,36 @@ public class IsometricPlayer : MonoBehaviour
         Color glow = useManualColorOverride ? Color.Lerp(primary, Color.white, 0.48f) : style.GlowColor;
 
         playerColor = primary;
-        characterModelRoot = ElementalCharacterFactory.BuildExplorationPlayerModel(
-            transform,
-            style.Element,
-            primary,
-            accent,
-            glow,
-            characterModelLocalOffset,
-            characterModelLocalScale);
+
+        if (use2DSpriteVisual)
+        {
+            characterModelRoot = ElementalCharacterFactory.BuildExplorationPlayerSprite(
+                transform,
+                style.Id,
+                style.Element,
+                primary,
+                accent,
+                glow,
+                characterModelLocalOffset,
+                characterModelLocalScale);
+        }
+        else
+        {
+            characterModelRoot = ElementalCharacterFactory.BuildExplorationPlayerModel(
+                transform,
+                style.Element,
+                primary,
+                accent,
+                glow,
+                characterModelLocalOffset,
+                characterModelLocalScale);
+        }
 
         if (characterModelRoot != null)
         {
-            characterModelRoot.name = ElementalCharacterFactory.PlayerModelRootName;
+            characterModelRoot.name = use2DSpriteVisual
+                ? ElementalCharacterFactory.PlayerSpriteRootName
+                : ElementalCharacterFactory.PlayerModelRootName;
         }
 
         ConfigureModelRendererVisibility();
@@ -734,6 +791,19 @@ public class IsometricPlayer : MonoBehaviour
     public void ToggleAutoRunEnabled() => autoRunEnabled = !autoRunEnabled;
     public void SetAllowHop(bool enabled) => allowHop = enabled;
     public void ToggleAllowHop() => allowHop = !allowHop;
+    public void SetUse2DSpriteVisual(bool enabled)
+    {
+        if (use2DSpriteVisual == enabled)
+        {
+            return;
+        }
+        use2DSpriteVisual = enabled;
+        RebuildElementalPlayerModel();
+    }
+    public void ToggleUse2DSpriteVisual()
+    {
+        SetUse2DSpriteVisual(!use2DSpriteVisual);
+    }
     public void SetAutoFaceOnInteract(bool enabled) => autoFaceOnInteract = enabled;
     public void ToggleAutoFaceOnInteract() => autoFaceOnInteract = !autoFaceOnInteract;
     public void SetUseCameraFollowPolish(bool enabled) => useCameraFollowPolish = enabled;
