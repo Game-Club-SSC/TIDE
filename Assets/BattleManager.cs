@@ -265,18 +265,59 @@ public class BattleManager : MonoBehaviour
     private bool canSwapDuringPlayerInput = true;
     private int failedFleeAttemptsThisBattle;
 
+    // Relationship combat effects (computed at battle start from bond levels)
+    private float relationshipDamageMultiplier = 1f;
+    private float relationshipDefenseMultiplier = 1f;
+    private float relationshipHealingMultiplier = 1f;
+    private float relationshipTideBreakMultiplier = 1f;
+    private float relationshipClashBonus = 0f;
+    private float relationshipTeamUpChance = 0f;
+    private float averageBondLevel = 50f;
+
     [Header("Envy Mirror")]
     [SerializeField] private bool isBossEncounter;
     public bool EnableEnvyMirror;
     private SkillData lastPlayerSkill;
     private CombatUnit lastAttacker;
     private HashSet<CombatUnit> envyCovetActors = new HashSet<CombatUnit>();
+    private Dictionary<CombatUnit, CombatUnit.Element> originalEnemyElements = new Dictionary<CombatUnit, CombatUnit.Element>();
     private bool currentActorShouldSkip;
+
+    [Header("Vice AI")]
+    [SerializeField] private ViceAIProfile[] viceProfiles;
+    private ViceAIProfile activeViceProfile;
 
     public void ConfigureEnvyContext(bool enableMirror, bool boss)
     {
         EnableEnvyMirror = enableMirror;
         isBossEncounter = boss;
+    }
+
+    /// <summary>
+    /// Looks up the ViceAIProfile for the given vice type from the assigned
+    /// viceProfiles array and sets it as the active profile for this battle.
+    /// Call this during battle setup, before the first turn begins.
+    /// </summary>
+    public void ConfigureViceAI(ViceType viceType)
+    {
+        activeViceProfile = null;
+
+        if (viceProfiles == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < viceProfiles.Length; i++)
+        {
+            if (viceProfiles[i] != null && viceProfiles[i].vice == viceType)
+            {
+                activeViceProfile = viceProfiles[i];
+                Debug.Log($"[BattleManager] Active vice AI set to {viceType}: {activeViceProfile.gimmickDescription}");
+                return;
+            }
+        }
+
+        Debug.LogWarning($"[BattleManager] No ViceAIProfile found for {viceType}.");
     }
 
     private void Awake()
@@ -320,6 +361,51 @@ public class BattleManager : MonoBehaviour
         canSwapDuringPlayerInput = true;
         failedFleeAttemptsThisBattle = 0;
         TransitionToPhase(BattlePhase.StartBattle, "StartBattle");
+    }
+
+    /// <summary>
+    /// Computes all relationship-based combat multipliers from hero bond levels
+    /// and stores them for use during this battle.
+    /// </summary>
+    private void ComputeRelationshipEffects()
+    {
+        IReadOnlyList<CombatUnit> allies = allyUnits;
+        relationshipDamageMultiplier = RelationshipCombatEffects.GetTeamDamageMultiplier(allies);
+        relationshipDefenseMultiplier = RelationshipCombatEffects.GetTeamDefenseMultiplier(allies);
+        relationshipHealingMultiplier = RelationshipCombatEffects.GetTeamHealingMultiplier(allies);
+        relationshipTideBreakMultiplier = RelationshipCombatEffects.GetTideBreakMultiplier(allies);
+        relationshipClashBonus = RelationshipCombatEffects.GetClashBonus(allies);
+        relationshipTeamUpChance = RelationshipCombatEffects.GetTeamUpChance(allies);
+
+        // Store average bond for logging
+        DialogueSystem dialogue = DialogueSystem.Instance;
+        if (dialogue != null && allies.Count >= 2)
+        {
+            int totalBond = 0;
+            int pairCount = 0;
+            for (int i = 0; i < allies.Count; i++)
+            {
+                CombatUnit a = allies[i];
+                if (a == null || !a.IsAlive) continue;
+                for (int j = i + 1; j < allies.Count; j++)
+                {
+                    CombatUnit b = allies[j];
+                    if (b == null || !b.IsAlive) continue;
+                    totalBond += dialogue.GetBondLevel(a.UnitName, b.UnitName);
+                    pairCount++;
+                }
+            }
+            averageBondLevel = pairCount > 0 ? (float)totalBond / pairCount : 50f;
+        }
+        else
+        {
+            averageBondLevel = 50f;
+        }
+
+        Debug.Log($"[BattleManager] Relationship effects: DMG x{relationshipDamageMultiplier:F2}, " +
+            $"DEF x{relationshipDefenseMultiplier:F2}, Heal x{relationshipHealingMultiplier:F2}, " +
+            $"TideBreak x{relationshipTideBreakMultiplier:F2}, Clash +{relationshipClashBonus:F2}, " +
+            $"TeamUp {relationshipTeamUpChance:F2} (avg bond {averageBondLevel:F0})");
     }
 
     public void AdvancePhase()
@@ -415,8 +501,41 @@ public class BattleManager : MonoBehaviour
                 lastAttacker = null;
                 lastPlayerSkill = null;
                 envyCovetActors.Clear();
+                originalEnemyElements.Clear();
+                foreach (CombatUnit enemy in enemyUnits)
+                {
+                    if (enemy != null)
+                    {
+                        originalEnemyElements[enemy] = enemy.ElementType;
+                    }
+                }
+
+                // Compute relationship combat effects from hero bond levels
+                ComputeRelationshipEffects();
+
+                // Show team dynamic description in the HUD
+                if (cachedBattleHud == null)
+                {
+                    cachedBattleHud = FindFirstObjectByType<BattleHud>();
+                }
+                if (cachedBattleHud != null)
+                {
+                    cachedBattleHud.ShowTeamDynamicDescription(
+                        RelationshipCombatEffects.GetTeamDynamicDescription(allyUnits));
+                }
                 break;
             case BattlePhase.PlayerInput:
+                // Reset enemy elements to originals before computing new actions (for Envy Mirror)
+                if (EnableEnvyMirror)
+                {
+                    foreach (CombatUnit enemy in enemyUnits)
+                    {
+                        if (enemy != null && originalEnemyElements.TryGetValue(enemy, out CombatUnit.Element original))
+                        {
+                            enemy.ElementType = original;
+                        }
+                    }
+                }
                 BeginPlayerInputPhase();
                 break;
             case BattlePhase.ActionExecution:
@@ -553,6 +672,9 @@ public class BattleManager : MonoBehaviour
             if (ally != null) ally.SkipTurnThisRound = false;
         }
 
+        // Clear envy covet state from previous turn
+        envyCovetActors.Clear();
+
         CacheEnemyActions();
 
         if (playerInputUnits.Count == 0)
@@ -674,6 +796,7 @@ public class BattleManager : MonoBehaviour
 
     private PlannedAction ComputeEnemyAction(CombatUnit actor)
     {
+        // TideBreak has absolute priority regardless of vice profile
         if (momentumState.IsEnemyTideBreakReady)
         {
             CombatUnit tbTarget = GetRandomLivingOpponent(actor);
@@ -685,7 +808,18 @@ public class BattleManager : MonoBehaviour
             }
         }
 
-        CombatUnit target = GetRandomLivingOpponent(actor);
+        ViceAIProfile profile = activeViceProfile;
+
+        // Vice-driven: defend when HP is low
+        float hpRatio = actor.MaxHP > 0 ? (float)actor.HP / actor.MaxHP : 1f;
+        if (hpRatio < 0.3f && profile != null && UnityEngine.Random.value < profile.defendLowHpWeight)
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} defends due to low HP ({hpRatio:P0}) and vice profile.");
+            return new PlannedAction(CombatActionType.Defend, actor, null);
+        }
+
+        // Select target using profile-aware logic
+        CombatUnit target = SelectTargetWithProfile(actor, profile);
         if (target == null)
         {
             return new PlannedAction(CombatActionType.Attack, actor, null);
@@ -694,19 +828,34 @@ public class BattleManager : MonoBehaviour
         SkillData advantageousSkill = SelectAdvantageousSkillForActor(actor);
         if (advantageousSkill != null && actor.CanUseSkill(advantageousSkill))
         {
-            Debug.Log($"[BattleManager] {actor.UnitName} picks element-advantageous skill {advantageousSkill.skillName}.");
-            return new PlannedAction(CombatActionType.Skill, actor, target, advantageousSkill);
+            float skillChance = profile != null ? profile.skillUsageWeight : 1f;
+            if (UnityEngine.Random.value < skillChance)
+            {
+                Debug.Log($"[BattleManager] {actor.UnitName} picks element-advantageous skill {advantageousSkill.skillName}.");
+                return new PlannedAction(CombatActionType.Skill, actor, target, advantageousSkill);
+            }
         }
 
+        // Skill usage: always use when no profile; weighted by skillUsageWeight when profile is set
         SkillData skill = GetFirstSupportedSkillForCurrentSlice(actor);
-        if (skill != null)
+        if (skill != null && actor.CanUseSkill(skill))
         {
-            if (actor.CanUseSkill(skill))
+            float skillChance = profile != null ? profile.skillUsageWeight : 1f;
+            if (UnityEngine.Random.value < skillChance)
             {
                 return new PlannedAction(CombatActionType.Skill, actor, target, skill);
             }
         }
 
+        // Vice-driven: may choose to defend instead of attacking
+        float attackChance = profile != null ? profile.aggressionWeight : 1f;
+        if (UnityEngine.Random.value >= attackChance)
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} defends due to low aggression weight ({attackChance}).");
+            return new PlannedAction(CombatActionType.Defend, actor, null);
+        }
+
+        // Envy Mirror (existing mechanic, unaffected by vice profile)
         if (EnableEnvyMirror && lastAttacker != null)
         {
             actor.ElementType = lastAttacker.ElementType;
@@ -969,8 +1118,16 @@ public class BattleManager : MonoBehaviour
         string clashReason = neutralQteTriggered ? "neutral QTE" : "element advantage";
         Debug.Log($"[BattleManager] {winner.UnitName} wins the clash! ({clashReason})", this);
 
-        int winnerDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(winner.Attack * GameConstants.ClashWinnerMultiplier));
-        int loserDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(loser.Attack * GameConstants.ClashLoserMultiplier));
+        // Apply relationship clash bonus: allies deal more damage, enemies deal less
+        float winnerClashMod = winner.Type == CombatUnit.UnitType.Ally
+            ? 1f + Mathf.Max(0f, relationshipClashBonus)
+            : 1f - Mathf.Max(0f, relationshipClashBonus);
+        float loserClashMod = loser.Type == CombatUnit.UnitType.Ally
+            ? 1f + Mathf.Max(0f, relationshipClashBonus)
+            : 1f - Mathf.Max(0f, relationshipClashBonus);
+
+        int winnerDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(winner.Attack * GameConstants.ClashWinnerMultiplier * winnerClashMod));
+        int loserDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(loser.Attack * GameConstants.ClashLoserMultiplier * loserClashMod));
 
         int loserHpBefore = loser.HP;
         loser.TakeDamage(winnerDmg);
@@ -1038,8 +1195,16 @@ public class BattleManager : MonoBehaviour
 
         Debug.Log($"[BattleManager] Clash is neutral. Both deal reduced damage.", this);
 
-        int dmgA = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(unitA.Attack * GameConstants.ClashNeutralMultiplier));
-        int dmgB = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(unitB.Attack * GameConstants.ClashNeutralMultiplier));
+        // Apply relationship clash bonus to neutral clash damage
+        float clashModA = unitA.Type == CombatUnit.UnitType.Ally
+            ? 1f + Mathf.Max(0f, relationshipClashBonus)
+            : 1f - Mathf.Max(0f, relationshipClashBonus);
+        float clashModB = unitB.Type == CombatUnit.UnitType.Ally
+            ? 1f + Mathf.Max(0f, relationshipClashBonus)
+            : 1f - Mathf.Max(0f, relationshipClashBonus);
+
+        int dmgA = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(unitA.Attack * GameConstants.ClashNeutralMultiplier * clashModA));
+        int dmgB = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(unitB.Attack * GameConstants.ClashNeutralMultiplier * clashModB));
 
         int hpBBefore = unitB.HP;
         unitB.TakeDamage(dmgA);
@@ -1153,9 +1318,13 @@ public class BattleManager : MonoBehaviour
             return false;
         }
 
-        if (ally.Speed != enemy.Speed)
+        // Apply relationship clash bonus to speed comparison
+        float allyEffectiveSpeed = ally.Speed + relationshipClashBonus * 10f;
+        float enemyEffectiveSpeed = enemy.Speed - relationshipClashBonus * 10f;
+
+        if (allyEffectiveSpeed != enemyEffectiveSpeed)
         {
-            return ally.Speed > enemy.Speed;
+            return allyEffectiveSpeed > enemyEffectiveSpeed;
         }
 
         return GetRegistrationOrder(ally) <= GetRegistrationOrder(enemy);
@@ -1336,6 +1505,12 @@ public class BattleManager : MonoBehaviour
         float attackMod = actor.GetAttackModifier();
         int baseDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+
+        // Apply relationship damage multiplier (only for ally attacks)
+        if (actor.Type == CombatUnit.UnitType.Ally)
+        {
+            multiplier *= relationshipDamageMultiplier;
+        }
         float variance = UnityEngine.Random.Range(0.8f, 1.2f);
         float modifiedDamageFloat = baseDamage * multiplier * variance;
         
@@ -1350,7 +1525,15 @@ public class BattleManager : MonoBehaviour
 
         MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
         int hpBefore = target.HP;
-        target.TakeDamage(modifiedDamage);
+
+        // Apply relationship defense multiplier (reduces damage when enemies hit allies)
+        int finalDamage = modifiedDamage;
+        if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
+        {
+            finalDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamage * relationshipDefenseMultiplier));
+        }
+        target.TakeDamage(finalDamage);
+
         int hpAfter = target.HP;
 
         string matchupFeedback = "";
@@ -1424,6 +1607,13 @@ public class BattleManager : MonoBehaviour
         int baseDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
         float skillMultiplierSingle = multiplier * skill.damageMultiplier;
+
+        // Apply relationship damage multiplier (only for ally skills)
+        if (actor.Type == CombatUnit.UnitType.Ally)
+        {
+            skillMultiplierSingle *= relationshipDamageMultiplier;
+        }
+
         float varianceSingle = UnityEngine.Random.Range(0.8f, 1.2f);
         float modifiedDamageFloatSingle = baseDamageSingle * skillMultiplierSingle * varianceSingle;
 
@@ -1443,13 +1633,23 @@ public class BattleManager : MonoBehaviour
 
         MatchupResult matchupSingle = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
         int hpBeforeSingle = target.HP;
-        target.TakeDamage(modifiedDamageSingle);
+
+        // Apply relationship defense multiplier (reduces damage when enemies hit allies)
+        int finalDamageSingle = modifiedDamageSingle;
+        if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
+        {
+            finalDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageSingle * relationshipDefenseMultiplier));
+        }
+        target.TakeDamage(finalDamageSingle);
+
         int hpAfterSingle = target.HP;
         int actualDamageSingle = Mathf.Max(0, hpBeforeSingle - hpAfterSingle);
 
         if (skill.restoreCasterPercentOfDamage > 0f && actualDamageSingle > 0)
         {
-            int restoredAmount = Mathf.Max(1, Mathf.RoundToInt(actualDamageSingle * skill.restoreCasterPercentOfDamage));
+            // Apply relationship healing multiplier (boosts lifesteal for allies)
+            float healMultiplier = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
+            int restoredAmount = Mathf.Max(1, Mathf.RoundToInt(actualDamageSingle * skill.restoreCasterPercentOfDamage * healMultiplier));
             actor.Heal(restoredAmount);
         }
 
@@ -1519,6 +1719,12 @@ public class BattleManager : MonoBehaviour
 
         Debug.Log($"[BattleManager] *** TIDE BREAK! {actor.UnitName} unleashes {abilityName}! ***", this);
 
+        // Apply relationship tide break multiplier (only for ally tide breaks)
+        if (actor.Type == CombatUnit.UnitType.Ally)
+        {
+            damageMultiplier *= relationshipTideBreakMultiplier;
+        }
+
         if (targetType == SkillTarget.AllEnemies)
         {
             CombatUnit.UnitType targetTypeUnit = actor.Type == CombatUnit.UnitType.Ally ? CombatUnit.UnitType.Enemy : CombatUnit.UnitType.Ally;
@@ -1530,10 +1736,18 @@ public class BattleManager : MonoBehaviour
                 float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
                 float variance = UnityEngine.Random.Range(0.8f, 1.2f);
                 int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * damageMultiplier * elementMultiplier * variance));
+
+                // Apply relationship defense multiplier (reduces damage when enemies hit allies)
+                int finalDmg = modifiedDmg;
+                if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
+                {
+                    finalDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDmg * relationshipDefenseMultiplier));
+                }
+
                 int hpBefore = target.HP;
-                target.TakeDamage(modifiedDmg);
+                target.TakeDamage(finalDmg);
                 TriggerBattleHitFeedback(actor, target, false, true);
-                totalDamage += modifiedDmg;
+                totalDamage += (hpBefore - target.HP);
                 Debug.Log($"  -> {target.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {target.HP}", this);
             }
             Debug.Log($"[BattleManager] {abilityName} hits {targets.Count} targets for {totalDamage} total.", this);
@@ -1557,10 +1771,18 @@ public class BattleManager : MonoBehaviour
             float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
             float variance = UnityEngine.Random.Range(0.8f, 1.2f);
             int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * damageMultiplier * elementMultiplier * variance));
+
+            // Apply relationship defense multiplier (reduces damage when enemies hit allies)
+            int finalDmg = modifiedDmg;
+            if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
+            {
+                finalDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDmg * relationshipDefenseMultiplier));
+            }
+
             int hpBefore = target.HP;
-            target.TakeDamage(modifiedDmg);
+            target.TakeDamage(finalDmg);
             TriggerBattleHitFeedback(actor, target, false, true);
-            Debug.Log($"  -> {target.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {target.HP}", this);
+            Debug.Log($"  -> {target.UnitName} takes {finalDmg} damage. HP {hpBefore} -> {target.HP}", this);
         }
 
         momentumState.Reset();
@@ -1580,6 +1802,56 @@ public class BattleManager : MonoBehaviour
         }
 
         return candidates[UnityEngine.Random.Range(0, candidates.Count)];
+    }
+
+    /// <summary>
+    /// Selects a target using the active vice profile's targetWeakestWeight.
+    /// When no profile is set or the weight roll fails, falls back to random targeting.
+    /// </summary>
+    private CombatUnit SelectTargetWithProfile(CombatUnit actor, ViceAIProfile profile)
+    {
+        if (profile != null && profile.targetWeakestWeight > 0f
+            && UnityEngine.Random.value < profile.targetWeakestWeight)
+        {
+            return GetWeakestLivingOpponent(actor);
+        }
+
+        return GetRandomLivingOpponent(actor);
+    }
+
+    /// <summary>
+    /// Returns the living opponent with the lowest HP ratio (current HP / max HP).
+    /// Used by vices that focus fire on weakened targets.
+    /// </summary>
+    private CombatUnit GetWeakestLivingOpponent(CombatUnit actor)
+    {
+        CombatUnit.UnitType targetType = actor.Type == CombatUnit.UnitType.Ally
+            ? CombatUnit.UnitType.Enemy
+            : CombatUnit.UnitType.Ally;
+
+        IReadOnlyList<CombatUnit> candidates = GetAliveUnits(targetType);
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        CombatUnit weakest = candidates[0];
+        float lowestHpRatio = weakest.MaxHP > 0 ? (float)weakest.HP / weakest.MaxHP : 1f;
+
+        for (int i = 1; i < candidates.Count; i++)
+        {
+            float hpRatio = candidates[i].MaxHP > 0
+                ? (float)candidates[i].HP / candidates[i].MaxHP
+                : 1f;
+
+            if (hpRatio < lowestHpRatio)
+            {
+                lowestHpRatio = hpRatio;
+                weakest = candidates[i];
+            }
+        }
+
+        return weakest;
     }
 
     private bool IsValidTarget(CombatUnit actor, CombatUnit target)

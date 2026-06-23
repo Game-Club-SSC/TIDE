@@ -320,24 +320,16 @@ public class CombatSceneBootstrap : MonoBehaviour
         {
             for (int i = 0; i < playerSpawnPoints.Length; i++)
             {
-                if (playerSpawnPoints[i] != null)
+                if (playerSpawnPoints[i] != null && i < activeHeroes.Length && activeHeroes[i] != null)
                 {
                     GameObject unitObject = SpawnOrCreateUnit(playerUnitPrefab, playerSpawnPoints[i], $"PlayerUnit_{i + 1}", allyUnitColor);
                     CombatUnit unit = GetOrAddCombatUnit(unitObject);
                     unit.Type = CombatUnit.UnitType.Ally;
                     SetUnitColor(unitObject, allyUnitColor);
 
-                    if (i < activeHeroes.Length && activeHeroes[i] != null)
-                    {
-                        ApplyHeroToUnit(unit, activeHeroes[i]);
-                    }
-                    else
-                    {
-                        unit.UnitName = $"Ally_{i + 1}";
-                        Debug.Log($"[CombatSceneBootstrap] No hero data for active slot {i}. Using fallback stats.");
-                    }
+                    ApplyHeroToUnit(unit, activeHeroes[i]);
 
-                    if (!useSpriteBattleVisuals && (i >= activeHeroes.Length || activeHeroes[i] == null))
+                    if (!useSpriteBattleVisuals)
                     {
                         EnsureBattleElementalAllyVisual(unitObject, null, unit.ElementType);
                     }

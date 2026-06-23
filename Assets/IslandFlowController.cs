@@ -97,7 +97,7 @@ public class IslandFlowController : MonoBehaviour
         hasLoggedDeadlockWarning = false;
 
         int restoredIndex = GetNextIncompleteEncounterIndex();
-        currentEncounterIndex = Mathf.Clamp(restoredIndex, 0, islandConfig.encounters.Length);
+        currentEncounterIndex = Mathf.Clamp(restoredIndex, 0, Mathf.Max(0, islandConfig.encounters.Length - 1));
 
         if (GameStateManager.Instance != null)
         {
@@ -169,7 +169,8 @@ public class IslandFlowController : MonoBehaviour
         if (!playerWon)
         {
             awaitingEncounterResolution = false;
-            Debug.Log("[IslandFlowController] Combat encounter failed or fled. Flow paused on current encounter.");
+            Debug.Log("[IslandFlowController] Combat encounter failed or fled. Resuming flow on current encounter.");
+            LoadCurrentEncounter();
             return;
         }
 
@@ -224,11 +225,11 @@ public class IslandFlowController : MonoBehaviour
         }
 
         string encounterId = GetEncounterId(encounter, currentEncounterIndex);
-        if (tracker != null && tracker.HasClearedEncounter(activeIslandId, encounterId))
+        while (tracker != null && tracker.HasClearedEncounter(activeIslandId, encounterId) && currentEncounterIndex < islandConfig.encounters.Length - 1)
         {
             currentEncounterIndex++;
-            LoadCurrentEncounter();
-            return;
+            encounter = islandConfig.encounters[currentEncounterIndex];
+            encounterId = GetEncounterId(encounter, currentEncounterIndex);
         }
 
         int subsection = currentEncounterIndex / 2;

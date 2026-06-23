@@ -52,6 +52,9 @@ public class GameStateManager : MonoBehaviour
         public StoryProgressionSaveData storyProgression;
         public HeroProgressionManager.HeroProgressionSnapshot heroProgression;
         public HeroProgressionManager.PartyCompositionSnapshot partyComposition;
+        public bool ceremonyIntroCompleted;
+        public TideBreakProgressionManager.TideBreakSaveData tideBreakProgression;
+        public AncientTextRevealDirector.RevealDirectorSaveData ancientTextReveal;
     }
 
     [Serializable]
@@ -113,6 +116,20 @@ public class GameStateManager : MonoBehaviour
     public EndingBranch ResolvedEndingBranch => resolvedEndingBranch;
     public bool IsEndingTriggered => endingTriggered;
     public MinimumRestorationBadEndingRuleMode MinimumRestorationBadEndingRule => minimumRestorationBadEndingRuleMode;
+    public bool CeremonyIntroCompleted
+    {
+        get => ceremonyIntroCompleted;
+        set
+        {
+            if (ceremonyIntroCompleted == value)
+            {
+                return;
+            }
+
+            ceremonyIntroCompleted = value;
+            SaveWorldState();
+        }
+    }
 
     private const float FadeDuration = 0.2f;
     private const float ExplorationPositionSyncInterval = 0.2f;
@@ -176,6 +193,7 @@ public class GameStateManager : MonoBehaviour
     private StoryAct highestStoryActReached = StoryAct.ActI;
     private EndingBranch resolvedEndingBranch = EndingBranch.None;
     private bool endingTriggered;
+    private bool ceremonyIntroCompleted;
     private string observedActiveIslandId;
     private string pendingBadEndingThresholdEventIslandId;
     private int finalBossDefeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding;
@@ -751,6 +769,7 @@ public class GameStateManager : MonoBehaviour
         if (defeats >= Mathf.Max(1, defeatsForBadEndingThreshold))
         {
             SetEndingBranch(EndingBranch.Bad);
+            PlayEndingSequence(resolvedEndingBranch);
             return true;
         }
 
@@ -848,6 +867,7 @@ public class GameStateManager : MonoBehaviour
         finalBossDefeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding;
         resolvedEndingBranch = EndingBranch.None;
         endingTriggered = false;
+        ceremonyIntroCompleted = false;
         minimumRestorationBadEndingRuleMode = MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
         pendingBadEndingThresholdEventIslandId = null;
         thresholdOnlyBossVictoryIslandIds.Clear();
@@ -934,6 +954,18 @@ public class GameStateManager : MonoBehaviour
         resolvedEndingBranch = branch;
         endingTriggered = true;
         SaveWorldState();
+    }
+
+    private static void PlayEndingSequence(EndingBranch branch)
+    {
+        EndingSequenceDirector director = EndingSequenceDirector.Instance;
+        if (director == null)
+        {
+            GameObject go = new GameObject("EndingSequenceDirector");
+            director = go.AddComponent<EndingSequenceDirector>();
+        }
+
+        director.PlayEnding(branch);
     }
 
     private static StoryAct ClampStoryAct(StoryAct act)
@@ -1173,6 +1205,17 @@ public class GameStateManager : MonoBehaviour
             }
 
             saveData.storyProgression = CaptureStoryProgressionSaveData();
+            saveData.ceremonyIntroCompleted = ceremonyIntroCompleted;
+
+            if (TideBreakProgressionManager.Instance != null)
+            {
+                saveData.tideBreakProgression = TideBreakProgressionManager.Instance.GetSaveData();
+            }
+
+            if (AncientTextRevealDirector.Instance != null)
+            {
+                saveData.ancientTextReveal = AncientTextRevealDirector.Instance.CaptureSaveData();
+            }
 
             if (HeroProgressionManager.Instance != null)
             {
@@ -1300,12 +1343,23 @@ public class GameStateManager : MonoBehaviour
                 HeroProgressionManager.Instance.ApplyGearSnapshot(saveData.gearProgression);
             }
 
-            if (IslandProgressionManager.Instance != null)
+            if (IslandProgressionManager.Instance != null && saveData.progressionSnapshot != null)
             {
                 IslandProgressionManager.Instance.ApplySnapshot(saveData.progressionSnapshot);
             }
 
             ApplyStoryProgressionSaveData(saveData.storyProgression);
+            ceremonyIntroCompleted = saveData.ceremonyIntroCompleted;
+
+            if (TideBreakProgressionManager.Instance != null && saveData.tideBreakProgression != null)
+            {
+                TideBreakProgressionManager.Instance.ApplySaveData(saveData.tideBreakProgression);
+            }
+
+            if (AncientTextRevealDirector.Instance != null && saveData.ancientTextReveal != null)
+            {
+                AncientTextRevealDirector.Instance.ApplySaveData(saveData.ancientTextReveal);
+            }
 
             if (HeroProgressionManager.Instance != null)
             {
@@ -1403,7 +1457,7 @@ public class GameStateManager : MonoBehaviour
             TrackBossVictoryThresholdProgress(bossTrackedIslandId, preBossRestorationPercent);
         }
 
-        if (playerWon && IslandRestorationTracker.Instance != null && !string.IsNullOrEmpty(PendingCombatEncounterId))
+        if (playerWon && IslandRestorationTracker.Instance != null && !string.IsNullOrEmpty(PendingCombatEncounterId) && !string.IsNullOrEmpty(PendingCombatIslandId))
         {
             string islandId = IslandThemeRegistry.ResolveIslandId(PendingCombatIslandId);
             float contribution = PendingCombatRestorationValue > 0f ? PendingCombatRestorationValue : 0.001f;
@@ -1423,10 +1477,7 @@ public class GameStateManager : MonoBehaviour
             GrantBattleRewards();
         }
 
-        if (playerWon)
-        {
-            SaveWorldState();
-        }
+        SaveWorldState();
 
         if (playerWon && isFinalBossEncounter)
         {
@@ -1642,6 +1693,7 @@ public class GameStateManager : MonoBehaviour
             }
 
             PuzzleSolved = false;
+            pendingSolvedPuzzleBoxId = null;
 
             if (returnedFromPuzzleScene)
             {
@@ -1701,6 +1753,16 @@ public class GameStateManager : MonoBehaviour
             }
 
             cameraSnapRoutine = StartCoroutine(SnapFollowCameraAfterLoad());
+
+            // Trigger the ceremony intro on first load if not yet completed
+            if (!ceremonyIntroCompleted && !isTransitioning)
+            {
+                CeremonyIntroDirector introDirector = FindFirstObjectByType<CeremonyIntroDirector>();
+                if (introDirector != null)
+                {
+                    introDirector.PlayCeremonyIntro();
+                }
+            }
 
             if (isFlowControlledCombat)
             {
@@ -1857,6 +1919,18 @@ public class GameStateManager : MonoBehaviour
             GameObject progressionObject = new GameObject("IslandProgressionManager");
             progressionObject.AddComponent<IslandProgressionManager>();
         }
+
+        if (TideBreakProgressionManager.Instance == null)
+        {
+            GameObject tideBreakObject = new GameObject("TideBreakProgressionManager");
+            tideBreakObject.AddComponent<TideBreakProgressionManager>();
+        }
+
+        if (AncientTextRevealDirector.Instance == null)
+        {
+            GameObject revealDirectorObject = new GameObject("AncientTextRevealDirector");
+            revealDirectorObject.AddComponent<AncientTextRevealDirector>();
+        }
     }
 
     private void BindProgressionManagerEvents()
@@ -1869,6 +1943,17 @@ public class GameStateManager : MonoBehaviour
         IslandProgressionManager.Instance.OnActiveIslandChanged -= HandleActiveIslandChanged;
         IslandProgressionManager.Instance.OnActiveIslandChanged += HandleActiveIslandChanged;
         observedActiveIslandId = IslandProgressionManager.Instance.ActiveIslandId;
+
+        // Wire hero level-ups to TideBreak progression
+        if (HeroProgressionManager.Instance != null)
+        {
+            HeroProgressionManager.Instance.OnHeroLeveledUp -= HandleHeroLeveledUpForTideBreaks;
+            HeroProgressionManager.Instance.OnHeroLeveledUp += HandleHeroLeveledUpForTideBreaks;
+        }
+
+        // Wire island changes to ancient text reveal checks
+        IslandProgressionManager.Instance.OnActiveIslandChanged -= HandleActiveIslandChangedForReveals;
+        IslandProgressionManager.Instance.OnActiveIslandChanged += HandleActiveIslandChangedForReveals;
     }
 
     private void UnbindProgressionManagerEvents()
@@ -1879,6 +1964,12 @@ public class GameStateManager : MonoBehaviour
         }
 
         IslandProgressionManager.Instance.OnActiveIslandChanged -= HandleActiveIslandChanged;
+        IslandProgressionManager.Instance.OnActiveIslandChanged -= HandleActiveIslandChangedForReveals;
+
+        if (HeroProgressionManager.Instance != null)
+        {
+            HeroProgressionManager.Instance.OnHeroLeveledUp -= HandleHeroLeveledUpForTideBreaks;
+        }
     }
 
     private void HandleActiveIslandChanged(string islandId)
@@ -1908,6 +1999,26 @@ public class GameStateManager : MonoBehaviour
         }
 
         ReconcileStoryProgressionFromIslandState();
+    }
+
+    private void HandleHeroLeveledUpForTideBreaks(string heroId, int newLevel)
+    {
+        if (TideBreakProgressionManager.Instance != null)
+        {
+            TideBreakProgressionManager.Instance.OnHeroLevelUp(heroId, newLevel);
+        }
+    }
+
+    private void HandleActiveIslandChangedForReveals(string islandId)
+    {
+        if (AncientTextRevealDirector.Instance == null)
+        {
+            return;
+        }
+
+        string resolvedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
+        float restorationPercent = GetIslandRestorationPercent(resolvedIslandId);
+        AncientTextRevealDirector.Instance.CheckForNewReveals(resolvedIslandId, restorationPercent);
     }
 
     private void EnsureDeveloperTools()
@@ -1966,6 +2077,7 @@ public class GameStateManager : MonoBehaviour
         finalBossDefeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding;
         resolvedEndingBranch = EndingBranch.None;
         endingTriggered = false;
+        ceremonyIntroCompleted = false;
         minimumRestorationBadEndingRuleMode = MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
         pendingBadEndingThresholdEventIslandId = null;
         observedActiveIslandId = IslandProgressionManager.Instance != null
@@ -2487,6 +2599,7 @@ public class GameStateManager : MonoBehaviour
                 director.ForceShowBadEndingBeatForDebug();
             }
         }
+        PlayEndingSequence(resolvedEndingBranch);
     }
 
     private bool ShouldResolveBadEnding()

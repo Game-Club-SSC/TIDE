@@ -273,6 +273,10 @@ public class TideTile : MonoBehaviour
         labelObject.transform.localRotation = LabelTopDownRotation;
 
         valueLabel = labelObject.AddComponent<TextMeshPro>();
+        if (valueLabel.font == null)
+        {
+            valueLabel.font = TMP_Settings.defaultFontAsset;
+        }
         valueLabel.alignment = TextAlignmentOptions.Center;
         valueLabel.fontSize = 12f;
         valueLabel.textWrappingMode = TextWrappingModes.NoWrap;

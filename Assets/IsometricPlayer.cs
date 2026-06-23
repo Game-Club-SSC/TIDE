@@ -388,6 +388,16 @@ public class IsometricPlayer : MonoBehaviour
         float keyboardH = Input.GetAxisRaw("Horizontal");
         float keyboardV = Input.GetAxisRaw("Vertical");
 
+        // Read mobile touch input (highest priority on native mobile)
+        float mobileH = 0f;
+        float mobileV = 0f;
+        MobileTouchInputManager mobileInput = MobileTouchInputManager.Instance;
+        if (mobileInput != null && mobileInput.IsMobilePlatform)
+        {
+            mobileH = mobileInput.MoveH;
+            mobileV = mobileInput.MoveV;
+        }
+
         // Read phone input (if available and paired)
         float phoneH = 0f;
         float phoneV = 0f;
@@ -398,9 +408,19 @@ public class IsometricPlayer : MonoBehaviour
             phoneV = phoneBridge.PhoneInputV;
         }
 
-        // Combine inputs: phone input takes priority when active
-        float h = phoneH != 0f ? phoneH : keyboardH;
-        float v = phoneV != 0f ? phoneV : keyboardV;
+        // Read gamepad input (if connected)
+        float gamepadH = 0f;
+        float gamepadV = 0f;
+        GamepadInputManager gamepad = GamepadInputManager.Instance;
+        if (gamepad != null && gamepad.IsGamepadConnected)
+        {
+            gamepadH = gamepad.MoveH;
+            gamepadV = gamepad.MoveV;
+        }
+
+        // Combine inputs: mobile > phone > gamepad > keyboard
+        float h = mobileH != 0f ? mobileH : (phoneH != 0f ? phoneH : (gamepadH != 0f ? gamepadH : keyboardH));
+        float v = mobileV != 0f ? mobileV : (phoneV != 0f ? phoneV : (gamepadV != 0f ? gamepadV : keyboardV));
 
         Vector3 rawInput = new Vector3(h, 0f, v);
         inputVector = rawInput.normalized;
@@ -409,9 +429,17 @@ public class IsometricPlayer : MonoBehaviour
             inputVector = Vector3.forward;
         }
 
-        // Handle hop from keyboard or phone
+        // Handle hop from keyboard, phone, gamepad, or mobile touch
         bool hopRequested = Input.GetKeyDown(hopKey);
         if (phoneBridge != null && phoneBridge.IsPaired && phoneBridge.PhoneHopPressed)
+        {
+            hopRequested = true;
+        }
+        if (gamepad != null && gamepad.IsGamepadConnected && gamepad.HopPressed)
+        {
+            hopRequested = true;
+        }
+        if (mobileInput != null && mobileInput.IsMobilePlatform && mobileInput.HopPressed)
         {
             hopRequested = true;
         }
@@ -420,9 +448,17 @@ public class IsometricPlayer : MonoBehaviour
             TryHop();
         }
 
-        // Handle dash from keyboard or phone
+        // Handle dash from keyboard, phone, gamepad, or mobile touch
         bool dashRequested = Input.GetKeyDown(dashKey);
         if (phoneBridge != null && phoneBridge.IsPaired && phoneBridge.PhoneDashPressed)
+        {
+            dashRequested = true;
+        }
+        if (gamepad != null && gamepad.IsGamepadConnected && gamepad.DashPressed)
+        {
+            dashRequested = true;
+        }
+        if (mobileInput != null && mobileInput.IsMobilePlatform && mobileInput.DashPressed)
         {
             dashRequested = true;
         }
@@ -486,10 +522,20 @@ public class IsometricPlayer : MonoBehaviour
             return dashDirection * dashSpeed;
         }
 
-        // Check phone interact button as well as keyboard
+        // Check phone, gamepad, and mobile touch interact buttons as well as keyboard
         bool interactKeyDown = Input.GetKey(interactKey);
         PhoneInputBridge phoneForInteract = PhoneInputBridge.Instance;
         if (phoneForInteract != null && phoneForInteract.IsPaired && phoneForInteract.PhoneInteractPressed)
+        {
+            interactKeyDown = true;
+        }
+        GamepadInputManager gamepadForInteract = GamepadInputManager.Instance;
+        if (gamepadForInteract != null && gamepadForInteract.IsGamepadConnected && gamepadForInteract.InteractPressed)
+        {
+            interactKeyDown = true;
+        }
+        MobileTouchInputManager mobileForInteract = MobileTouchInputManager.Instance;
+        if (mobileForInteract != null && mobileForInteract.IsMobilePlatform && mobileForInteract.InteractPressed)
         {
             interactKeyDown = true;
         }
@@ -539,6 +585,18 @@ public class IsometricPlayer : MonoBehaviour
         {
             sprintActive = true;
         }
+        // Also check gamepad sprint
+        GamepadInputManager gamepadForSprint = GamepadInputManager.Instance;
+        if (gamepadForSprint != null && gamepadForSprint.IsGamepadConnected && gamepadForSprint.SprintHeld)
+        {
+            sprintActive = true;
+        }
+        // Also check mobile touch sprint toggle
+        MobileTouchInputManager mobileForSprint = MobileTouchInputManager.Instance;
+        if (mobileForSprint != null && mobileForSprint.IsMobilePlatform && mobileForSprint.SprintHeld)
+        {
+            sprintActive = true;
+        }
         float speed = sprintActive ? sprintSpeed : walkSpeed;
         return moveDir.normalized * speed;
     }
@@ -546,7 +604,7 @@ public class IsometricPlayer : MonoBehaviour
     private Vector3 MovePlanarVelocityTowards(Vector3 currentVelocity, Vector3 targetVelocity)
     {
         float deltaTime = Time.fixedDeltaTime;
-        float rate = targetVelocity.sqrMagnitude > currentVelocity.sqrMagnitude ? acceleration : deceleration;
+        float rate = targetVelocity.sqrMagnitude > InputDeadZoneSqr ? acceleration : deceleration;
         return Vector3.MoveTowards(currentVelocity, targetVelocity, Mathf.Max(0.01f, rate) * deltaTime);
     }
 

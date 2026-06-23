@@ -80,7 +80,7 @@ public class IslandRestorationTracker : MonoBehaviour
             return false;
         }
 
-        if (value <= 0f)
+        if (value <= 0f || float.IsNaN(value))
         {
             return false;
         }

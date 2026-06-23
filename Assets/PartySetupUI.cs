@@ -454,6 +454,14 @@ public class PartySetupUI : MonoBehaviour
                 }
             }
 
+            if (currentIndex == -1)
+            {
+                // Current gear set not in available list — unequip first
+                HeroProgressionManager.Instance.UnequipGearSet(heroId);
+                RebuildPanel();
+                return;
+            }
+
             int nextIndex = (currentIndex + 1) % (available.Count + 1);
             if (nextIndex < available.Count)
             {

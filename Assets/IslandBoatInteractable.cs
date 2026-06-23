@@ -288,6 +288,13 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             return;
         }
 
+        IslandBacktrackingManager backtrackingManager = IslandBacktrackingManager.Instance;
+        if (backtrackingManager != null && !backtrackingManager.CanVisitIsland(destinationIslandId))
+        {
+            Debug.LogWarning($"[IslandBoatInteractable] Island '{destinationIslandId}' is not yet accessible. Complete more islands to unlock backtracking.");
+            return;
+        }
+
         IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
         if (player == null)
         {
@@ -402,7 +409,11 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             if (IslandProgressionManager.Instance != null
                 && IslandProgressionManager.Instance.IsIslandUnlocked(orderedDestinationIds[i]))
             {
-                return i;
+                IslandBacktrackingManager backtrackingManager = IslandBacktrackingManager.Instance;
+                if (backtrackingManager == null || backtrackingManager.CanVisitIsland(orderedDestinationIds[i]))
+                {
+                    return i;
+                }
             }
         }
 
@@ -634,12 +645,14 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             bool isActive = string.Equals(activeIslandId, islandId, StringComparison.Ordinal);
             bool isUnlocked = progressionManager == null || progressionManager.IsIslandUnlocked(islandId);
             bool isRestored = IsIslandTravelEligible(progressionManager, islandId);
-            bool isLockedSelection = isSelected && !isUnlocked;
-            bool isUnrestoredSelection = isSelected && isUnlocked && !isRestored && !isActive;
+            IslandBacktrackingManager backtrackingManager = IslandBacktrackingManager.Instance;
+            bool isBacktrackingAccessible = backtrackingManager == null || backtrackingManager.CanVisitIsland(islandId);
+            bool isFullyAccessible = isUnlocked && isBacktrackingAccessible;
+            bool isLockedSelection = isSelected && !isFullyAccessible;
 
             string pointer = isSelected ? ">" : " ";
             string indexText = (i + 1).ToString();
-            string lockTag = isUnlocked ? string.Empty : "[LOCKED] ";
+            string lockTag = isFullyAccessible ? string.Empty : (isUnlocked ? "[RESTRICTED] " : "[LOCKED] ");
             string unrestoredTag = isUnlocked && !isRestored && !isActive ? "[UNRESTORED] " : string.Empty;
             string activeTag = isActive ? "[ACTIVE] " : string.Empty;
             string line = $"{pointer} {indexText}. {activeTag}{lockTag}{unrestoredTag}{BuildIslandDisplayName(islandId)}";
@@ -655,7 +668,14 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
 
             if (isLockedSelection)
             {
-                text += "    Complete the current island restoration to unlock this destination.\n";
+                if (!isUnlocked)
+                {
+                    text += "    Complete the current island restoration to unlock this destination.\n";
+                }
+                else if (!isBacktrackingAccessible)
+                {
+                    text += "    Not yet accessible. Restore more islands to unlock backtracking.\n";
+                }
             }
 
             if (isUnrestoredSelection)

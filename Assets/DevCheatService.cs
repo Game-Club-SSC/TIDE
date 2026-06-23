@@ -246,6 +246,11 @@ public class DevCheatService : MonoBehaviour
         }
 
         TeleportToActiveIslandSpawn();
+
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.SaveWorldState();
+        }
     }
 
     public void TeleportToActiveIslandSpawn()

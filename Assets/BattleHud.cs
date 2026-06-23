@@ -86,6 +86,11 @@ public class BattleHud : MonoBehaviour
     // State display
     private Text turnLabel;
 
+    // Team dynamic overlay
+    private GameObject teamDynamicOverlay;
+    private Text teamDynamicLabel;
+    private float teamDynamicDisplayTimer;
+
     private bool targetPanelRequestedOpen;
     private bool tideBreakPanelRequestedOpen;
     private bool skillPanelRequestedOpen;
@@ -162,6 +167,15 @@ public class BattleHud : MonoBehaviour
             if (critDisplayTimer <= 0f)
             {
                 critOverlay.SetActive(false);
+            }
+        }
+
+        if (teamDynamicOverlay != null && teamDynamicOverlay.activeSelf)
+        {
+            teamDynamicDisplayTimer -= Time.deltaTime;
+            if (teamDynamicDisplayTimer <= 0f)
+            {
+                teamDynamicOverlay.SetActive(false);
             }
         }
     }
@@ -1417,6 +1431,7 @@ public class BattleHud : MonoBehaviour
         CreateDefeatOverlay(canvasObject.transform);
         CreateClashOverlay(canvasObject.transform);
         CreateCritOverlay(canvasObject.transform);
+        CreateTeamDynamicOverlay(canvasObject.transform);
     }
 
     private void EnsureEventSystem()
@@ -1847,6 +1862,63 @@ public class BattleHud : MonoBehaviour
         critLabel.raycastTarget = false;
 
         critOverlay.SetActive(false);
+    }
+
+    private void CreateTeamDynamicOverlay(Transform parent)
+    {
+        teamDynamicOverlay = new GameObject("TeamDynamicOverlay", typeof(RectTransform));
+        teamDynamicOverlay.transform.SetParent(parent, false);
+
+        RectTransform rootRect = teamDynamicOverlay.GetComponent<RectTransform>();
+        rootRect.anchorMin = new Vector2(0.15f, 0.88f);
+        rootRect.anchorMax = new Vector2(0.85f, 0.97f);
+        rootRect.offsetMin = Vector2.zero;
+        rootRect.offsetMax = Vector2.zero;
+
+        Image bgImg = teamDynamicOverlay.AddComponent<Image>();
+        bgImg.color = new Color(0f, 0f, 0f, 0.7f);
+        bgImg.raycastTarget = false;
+
+        GameObject labelObj = new GameObject("TeamDynamicLabel", typeof(RectTransform));
+        labelObj.transform.SetParent(teamDynamicOverlay.transform, false);
+        RectTransform labelRect = labelObj.GetComponent<RectTransform>();
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(12f, 4f);
+        labelRect.offsetMax = new Vector2(-12f, -4f);
+        teamDynamicLabel = labelObj.AddComponent<Text>();
+        teamDynamicLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        teamDynamicLabel.fontSize = 18;
+        teamDynamicLabel.fontStyle = FontStyle.Bold;
+        teamDynamicLabel.alignment = TextAnchor.MiddleCenter;
+        teamDynamicLabel.color = new Color(0.8f, 0.9f, 1f);
+        teamDynamicLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+        teamDynamicLabel.verticalOverflow = VerticalWrapMode.Overflow;
+        teamDynamicLabel.raycastTarget = false;
+        teamDynamicLabel.text = "";
+
+        teamDynamicOverlay.SetActive(false);
+    }
+
+    /// <summary>
+    /// Displays the team dynamic description overlay at the top of the battle HUD.
+    /// Shows for a few seconds at battle start.
+    /// </summary>
+    public void ShowTeamDynamicDescription(string description)
+    {
+        if (teamDynamicOverlay == null || teamDynamicLabel == null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(description))
+        {
+            return;
+        }
+
+        teamDynamicLabel.text = description;
+        teamDynamicOverlay.SetActive(true);
+        teamDynamicDisplayTimer = 4.0f;
     }
 
     private GameObject CreatePanel(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Color bgColor)

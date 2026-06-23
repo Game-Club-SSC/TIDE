@@ -22,6 +22,16 @@ public class TideBreakData : ScriptableObject
     [Header("Unlock")]
     public int unlockLevel = 1;
 
+    [Tooltip("Element the hero must match to unlock this TideBreak. Empty string = any element.")]
+    public string requiredHeroElement = "";
+
+    [TextArea(1, 3)]
+    [Tooltip("Human-readable description shown to the player (e.g. 'Reach Level 5').")]
+    public string unlockDescription = "";
+
+    [Tooltip("If true, this TideBreak is hidden until revealed by an ancient text.")]
+    public bool isHidden;
+
     private static TideBreakData[] allCached;
 
     public static List<TideBreakData> GetForElement(int elementId, int heroLevel)

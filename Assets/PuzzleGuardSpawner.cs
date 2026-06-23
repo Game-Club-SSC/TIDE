@@ -156,11 +156,19 @@ public class PuzzleGuardSpawner : MonoBehaviour
         }
 
         body.freezeRotation = true;
+        body.isKinematic = true;
 
         EncounterConfig encounterConfig = LoadEncounterById(encounterId);
         if (encounterConfig == null)
         {
             encounterConfig = LoadEncounterById("encounter_imp_trio");
+        }
+
+        if (encounterConfig == null)
+        {
+            Debug.LogWarning($"[PuzzleGuardSpawner] No encounter config found for id '{encounterId}' or fallback. Destroying guard.");
+            Destroy(guardObject);
+            return null;
         }
 
         OverworldEnemy enemy = guardObject.AddComponent<OverworldEnemy>();

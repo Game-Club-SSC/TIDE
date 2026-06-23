@@ -1162,9 +1162,8 @@ public class TideManager : MonoBehaviour
             {
                 neighbor.ApplyPlace(delta);
                 Debug.Log($"[TideManager] Greed coin yield: added {delta} to tile ({nCol},{nRow}).");
+                return;
             }
-
-            return;
         }
     }
 
@@ -1219,7 +1218,7 @@ public class TideManager : MonoBehaviour
                 TideTile tile = activeTiles[row, col];
                 if (tile == null)
                 {
-                    return;
+                    continue;
                 }
 
                 grid[row, col] = tile.CurrentTideValue;

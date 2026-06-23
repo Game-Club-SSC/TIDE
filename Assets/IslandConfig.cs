@@ -11,7 +11,7 @@ public enum EncounterType
 public class IslandConfig : ScriptableObject
 {
     public string islandId = "island_lust";
-    public string viceName = "Greed";
+    public string viceName = "Lust";
     public Color vicePrimaryColor = new Color(1f, 0.84f, 0f);
     public Color viceSecondaryColor = new Color(0.55f, 0.41f, 0.08f);
 

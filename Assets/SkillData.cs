@@ -5,7 +5,8 @@ public enum SkillTarget
     SingleEnemy,
     AllEnemies,
     Self,
-    SingleAlly
+    SingleAlly,
+    AllAllies
 }
 
 [CreateAssetMenu(fileName = "SkillData", menuName = "TIDE/Skill Data")]

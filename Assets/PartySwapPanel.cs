@@ -242,7 +242,7 @@ public class PartySwapPanel : MonoBehaviour
             Image img = btn.GetComponent<Image>();
             if (img != null)
             {
-                img.color = (activeUnits[i] == selectedActiveUnit) ? new Color(0.4f, 0.4f, 0.6f, 1f) : new Color(0.2f, 0.2f, 0.3f, 1f);
+                img.color = (i < activeUnits.Count && activeUnits[i] == selectedActiveUnit) ? new Color(0.4f, 0.4f, 0.6f, 1f) : new Color(0.2f, 0.2f, 0.3f, 1f);
             }
         }
         // Highlight reserve buttons if an active hero is selected (optional)

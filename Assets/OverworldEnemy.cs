@@ -51,6 +51,7 @@ public class OverworldEnemy : MonoBehaviour
     [SerializeField] private float puzzleGuardFallbackLogCooldown = 5f;
 
     [Header("Visual")]
+    [SerializeField] private IslandEnemyVisualProfile visualProfile;
     [SerializeField] private Color enemyColor = new Color(0.89f, 0.38f, 0.25f);
     [SerializeField] private Color alertIndicatorColor = Color.yellow;
     [SerializeField] private Vector3 indicatorWorldOffset = new Vector3(0f, 1.8f, 0f);
@@ -78,6 +79,8 @@ public class OverworldEnemy : MonoBehaviour
     private CombatUnit.Element visualElement = CombatUnit.Element.Fire;
     private bool startupClearCheckComplete;
     private bool isRebuildingModel;
+    private bool isFloating;
+    private float floatingBaseY;
     private float puzzleGuardChaseLockUntilTime;
     private float puzzleGuardReturnStuckTimer;
     private float puzzleGuardLastReturnDistance;
@@ -102,6 +105,12 @@ public class OverworldEnemy : MonoBehaviour
         }
 
         ResolveVisualElement();
+
+        if (visualProfile != null)
+        {
+            ApplyVisualProfile(visualProfile);
+        }
+
         Ensure3DVisualSetup();
 
         if (isPuzzleGuard)
@@ -514,6 +523,14 @@ public class OverworldEnemy : MonoBehaviour
                 }
             }
         }
+
+        if (isFloating)
+        {
+            float bobOffset = Mathf.Sin(Time.time * 1.5f) * 0.08f;
+            Vector3 pos = transform.position;
+            pos.y = floatingBaseY + (visualProfile != null ? visualProfile.floatHeight : 0.3f) + bobOffset;
+            transform.position = pos;
+        }
     }
 
     private void UpdateBillboard(Transform indicator)
@@ -602,13 +619,93 @@ public class OverworldEnemy : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Applies an island-specific visual profile to this enemy, overriding the
+    /// default element-derived colors and behavior. Call before Ensure3DVisualSetup
+    /// for full effect, or at runtime to re-theme the enemy.
+    /// </summary>
+    public void ApplyVisualProfile(IslandEnemyVisualProfile profile)
+    {
+        if (profile == null)
+        {
+            return;
+        }
+
+        visualProfile = profile;
+
+        // Override enemyColor from profile
+        enemyColor = profile.primaryColor;
+
+        // Map island to a CombatUnit.Element for the model factory
+        visualElement = ResolveVisualElementForIsland(profile.islandId);
+
+        // Apply scale to the character model if it already exists
+        if (characterModelRoot != null)
+        {
+            ApplyProfileScale();
+            ApplyProfileColorsToModel();
+        }
+
+        // Apply floating behavior
+        isFloating = profile.floatsAboveGround;
+        if (isFloating)
+        {
+            floatingBaseY = transform.position.y;
+        }
+
+        // Recolor indicators
+        if (arrowRenderer != null)
+        {
+            arrowRenderer.color = enemyColor;
+        }
+
+        if (exclamationRenderer != null)
+        {
+            exclamationRenderer.color = profile.eyeColor;
+        }
+
+        Debug.Log($"[OverworldEnemy] {name}: Applied visual profile for '{profile.islandId}'.");
+    }
+
+    private static CombatUnit.Element ResolveVisualElementForIsland(string islandId)
+    {
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return CombatUnit.Element.Fire;
+        }
+
+        switch (islandId)
+        {
+            case "island_lust":     return CombatUnit.Element.Water;
+            case "island_gluttony": return CombatUnit.Element.Earth;
+            case "island_greed":    return CombatUnit.Element.Earth;
+            case "island_sloth":    return CombatUnit.Element.Air;
+            case "island_wrath":    return CombatUnit.Element.Fire;
+            case "island_envy":     return CombatUnit.Element.Space;
+            case "island_pride":    return CombatUnit.Element.Space;
+            default:                return CombatUnit.Element.Fire;
+        }
+    }
+
     private void ApplyEnemyColor()
     {
-        enemyColor = ElementalCharacterFactory.GetElementPrimaryColor(visualElement);
+        if (visualProfile != null)
+        {
+            enemyColor = visualProfile.primaryColor;
+        }
+        else
+        {
+            enemyColor = ElementalCharacterFactory.GetElementPrimaryColor(visualElement);
+        }
 
         if (arrowRenderer != null)
         {
             arrowRenderer.color = enemyColor;
+        }
+
+        if (exclamationRenderer != null && visualProfile != null)
+        {
+            exclamationRenderer.color = visualProfile.eyeColor;
         }
     }
 
@@ -635,9 +732,73 @@ public class OverworldEnemy : MonoBehaviour
             Debug.LogWarning($"[OverworldEnemy] Could not build model root for {name}.");
         }
 
+        if (visualProfile != null && characterModelRoot != null)
+        {
+            ApplyProfileColorsToModel();
+            ApplyProfileScale();
+        }
+
         ConfigureModelRendererVisibility();
         ApplyEnemyColor();
         isRebuildingModel = false;
+    }
+
+    private void ApplyProfileColorsToModel()
+    {
+        if (visualProfile == null || characterModelRoot == null)
+        {
+            return;
+        }
+
+        Color primary = visualProfile.primaryColor;
+        Color secondary = visualProfile.secondaryColor;
+        Color eye = visualProfile.eyeColor;
+
+        Renderer[] renderers = characterModelRoot.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null || renderer.sharedMaterial == null)
+            {
+                continue;
+            }
+
+            string partName = renderer.gameObject.name;
+
+            if (partName.Contains("Head") || partName.Contains("Torso"))
+            {
+                renderer.material.color = Color.Lerp(primary, Color.white, 0.12f);
+            }
+            else if (partName.Contains("Visor") || partName.Contains("Eye"))
+            {
+                renderer.material.color = eye;
+            }
+            else if (partName.Contains("Arm") || partName.Contains("Leg")
+                     || partName.Contains("Waist") || partName.Contains("Claw"))
+            {
+                renderer.material.color = secondary;
+            }
+            else if (partName.Contains("Horn") || partName.Contains("Chest")
+                     || partName.Contains("Boot"))
+            {
+                renderer.material.color = Color.Lerp(secondary, Color.black, 0.25f);
+            }
+            else
+            {
+                renderer.material.color = primary;
+            }
+        }
+    }
+
+    private void ApplyProfileScale()
+    {
+        if (visualProfile == null || characterModelRoot == null)
+        {
+            return;
+        }
+
+        characterModelLocalScale = visualProfile.baseScale;
+        characterModelRoot.localScale = visualProfile.baseScale;
     }
 
     private void ConfigureModelRendererVisibility()
@@ -838,12 +999,17 @@ public class OverworldEnemy : MonoBehaviour
         if (distanceToAnchor < puzzleGuardLastReturnDistance - Mathf.Max(0.01f, puzzleGuardReturnProgressThreshold))
         {
             puzzleGuardReturnStuckTimer = 0f;
-            puzzleGuardLastReturnDistance = distanceToAnchor;
+        }
+        else if (distanceToAnchor < puzzleGuardLastReturnDistance)
+        {
+            // Moving toward anchor but not enough progress — reset stuck timer but track distance
+            puzzleGuardReturnStuckTimer = 0f;
         }
         else
         {
             puzzleGuardReturnStuckTimer += Time.deltaTime;
         }
+        puzzleGuardLastReturnDistance = distanceToAnchor;
 
         if (puzzleGuardReturnStuckTimer >= Mathf.Max(0.1f, puzzleGuardReturnStuckTimeout))
         {

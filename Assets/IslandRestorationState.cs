@@ -116,8 +116,8 @@ public class IslandRestorationState
             islandId = snapshot.islandId;
         }
 
-        combatContribution = Mathf.Max(0f, snapshot.combatContribution);
-        puzzleContribution = Mathf.Max(0f, snapshot.puzzleContribution);
+        combatContribution = float.IsNaN(snapshot.combatContribution) ? 0f : Mathf.Max(0f, snapshot.combatContribution);
+        puzzleContribution = float.IsNaN(snapshot.puzzleContribution) ? 0f : Mathf.Max(0f, snapshot.puzzleContribution);
         totalContribution = Mathf.Clamp01(combatContribution + puzzleContribution);
         combatEncountersCompleted = Mathf.Max(0, snapshot.combatEncountersCompleted);
         puzzleEncountersCompleted = Mathf.Max(0, snapshot.puzzleEncountersCompleted);

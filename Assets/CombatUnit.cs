@@ -70,6 +70,12 @@ public class CombatUnit : MonoBehaviour
     [SerializeField] protected bool isDefending = false;
     public bool SkipTurnThisRound { get; set; }
 
+    // Shield HP (temporary HP buffer from Shield effect)
+    [SerializeField] protected float shieldHp = 0f;
+
+    // Taunt tracking
+    private CombatUnit tauntedBy = null;
+
     // XP reward (set on enemies)
     [Header("XP")]
     [SerializeField] protected int xpReward;
@@ -174,6 +180,64 @@ public class CombatUnit : MonoBehaviour
     public int XpReward { get => xpReward; set => xpReward = value; }
     public bool IsDefending => isDefending;
 
+    /// <summary>
+    /// Current shield HP acting as a temporary damage buffer.
+    /// Shield absorbs incoming damage before HP is reduced.
+    /// </summary>
+    public float ShieldHp
+    {
+        get => shieldHp;
+        set => shieldHp = Mathf.Max(0f, value);
+    }
+
+    /// <summary>
+    /// Whether this unit is currently stunned (skips its next turn).
+    /// Set during ProcessTurnStartEffects when a Stun effect is active.
+    /// </summary>
+    public bool IsStunned { get; private set; }
+
+    /// <summary>
+    /// Whether this unit is currently taunted, forcing it to target a specific enemy.
+    /// </summary>
+    public bool IsTaunted => tauntedBy != null && tauntedBy.IsAlive;
+
+    /// <summary>
+    /// The unit that is taunting this unit, if any. Null when not taunted.
+    /// </summary>
+    public CombatUnit TauntedBy => IsTaunted ? tauntedBy : null;
+
+    /// <summary>
+    /// Whether this unit currently has an AccuracyDown debuff active.
+    /// </summary>
+    public bool IsAccuracyDown
+    {
+        get
+        {
+            for (int i = 0; i < activeEffects.Count; i++)
+            {
+                if (activeEffects[i] != null && activeEffects[i].Type == StatusEffectType.AccuracyDown)
+                    return true;
+            }
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Whether this unit currently has an AccuracyBuff active.
+    /// </summary>
+    public bool IsAccuracyBuff
+    {
+        get
+        {
+            for (int i = 0; i < activeEffects.Count; i++)
+            {
+                if (activeEffects[i] != null && activeEffects[i].Type == StatusEffectType.AccuracyBuff)
+                    return true;
+            }
+            return false;
+        }
+    }
+
     public bool CanUseSkill(SkillData skill)
     {
         return isAlive && skill != null && mp >= skill.mpCost;
@@ -212,6 +276,7 @@ public class CombatUnit : MonoBehaviour
 
     /// <summary>
     /// Applies damage to the unit, reducing HP and potentially triggering death.
+    /// Shield HP absorbs damage before HP is reduced.
     /// </summary>
     /// <param name="damage">Amount of damage to apply</param>
     public virtual void TakeDamage(int damage)
@@ -227,7 +292,20 @@ public class CombatUnit : MonoBehaviour
         float defenseMod = GetDefenseModifier();
         int effectiveDefense = Mathf.Max(0, Mathf.RoundToInt(defense * (1f + defenseMod)));
         int actualDamage = Mathf.Max(1, modifiedDamage - effectiveDefense);
-        HP = HP - actualDamage;
+
+        // Shield absorbs damage before HP is reduced
+        if (shieldHp > 0f)
+        {
+            float shieldAbsorb = Mathf.Min(shieldHp, actualDamage);
+            shieldHp -= shieldAbsorb;
+            actualDamage -= Mathf.RoundToInt(shieldAbsorb);
+            Debug.Log($"[CombatUnit] {unitName}'s shield absorbed {Mathf.RoundToInt(shieldAbsorb)} damage. Shield HP: {shieldHp:F0}");
+        }
+
+        if (actualDamage > 0)
+        {
+            HP = HP - actualDamage;
+        }
 
         Debug.Log($"[CombatUnit] {unitName} took {actualDamage} damage (from {damage}). HP: {HP}/{maxHp}");
 
@@ -296,6 +374,9 @@ public class CombatUnit : MonoBehaviour
 
     public void ProcessTurnStartEffects()
     {
+        // Reset stun flag at the start of processing; it will be re-set if Stun is active
+        IsStunned = false;
+
         // Process effects at start of turn
         for (int i = activeEffects.Count - 1; i >= 0; i--)
         {
@@ -307,11 +388,46 @@ public class CombatUnit : MonoBehaviour
                 continue;
             }
 
-            if (effect.Type == StatusEffectType.Poison)
+            switch (effect.Type)
             {
-                TakeDamage((int)effect.Magnitude);
-                Debug.Log($"[CombatUnit] {unitName} took {effect.Magnitude} poison damage from {effect.SourceName}.");
+                case StatusEffectType.Poison:
+                {
+                    int poisonDamage = Mathf.Max(1, (int)effect.Magnitude);
+                    TakeDamage(poisonDamage);
+                    Debug.Log($"[CombatUnit] {unitName} took {poisonDamage} poison damage from {effect.SourceName}.");
+                    break;
+                }
+                case StatusEffectType.Burn:
+                {
+                    // Burn deals 1.5x the magnitude as damage (higher than poison)
+                    int burnDamage = Mathf.Max(1, Mathf.RoundToInt(effect.Magnitude * 1.5f));
+                    TakeDamage(burnDamage);
+                    Debug.Log($"[CombatUnit] {unitName} took {burnDamage} burn damage from {effect.SourceName}.");
+                    break;
+                }
+                case StatusEffectType.Regeneration:
+                {
+                    int healAmount = Mathf.Max(1, (int)effect.Magnitude);
+                    Heal(healAmount);
+                    Debug.Log($"[CombatUnit] {unitName} regenerated {healAmount} HP from {effect.SourceName}.");
+                    break;
+                }
+                case StatusEffectType.Stun:
+                {
+                    IsStunned = true;
+                    SkipTurnThisRound = true;
+                    Debug.Log($"[CombatUnit] {unitName} is stunned by {effect.SourceName} and will skip their turn.");
+                    break;
+                }
+                case StatusEffectType.Shield:
+                {
+                    // Shield does nothing on tick; it absorbs damage in TakeDamage
+                    break;
+                }
+                default:
+                    break;
             }
+
             effect.Tick();
             if (effect.Duration <= 0)
             {
@@ -319,6 +435,39 @@ public class CombatUnit : MonoBehaviour
                 activeEffects.RemoveAt(i);
             }
         }
+
+        // Update taunt state: find an active Taunt effect and set tauntedBy accordingly
+        tauntedBy = null;
+        for (int i = 0; i < activeEffects.Count; i++)
+        {
+            StatusEffect effect = activeEffects[i];
+            if (effect != null && effect.Type == StatusEffectType.Taunt)
+            {
+                // Taunt source is the unit taunting us; look up by name is not possible here,
+                // so tauntedBy is set externally via ApplyTaunt or by the battle manager.
+                // If already set, keep the existing reference.
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sets the unit that is taunting this unit. Called by the battle system
+    /// when a Taunt effect is applied.
+    /// </summary>
+    /// <param name="taunter">The unit exerting the taunt</param>
+    public void SetTaunter(CombatUnit taunter)
+    {
+        tauntedBy = taunter;
+        Debug.Log($"[CombatUnit] {unitName} is now taunted by {taunter?.UnitName ?? "none"}.");
+    }
+
+    /// <summary>
+    /// Clears the taunt state, allowing free target selection.
+    /// </summary>
+    public void ClearTaunt()
+    {
+        tauntedBy = null;
     }
 
     public float GetAttackModifier()
@@ -330,6 +479,8 @@ public class CombatUnit : MonoBehaviour
                 total += effect.Magnitude;
             else if (effect.Type == StatusEffectType.DebuffAttack)
                 total -= effect.Magnitude;
+            else if (effect.Type == StatusEffectType.Berserk)
+                total += effect.Magnitude;
         }
         return Mathf.Clamp(total, -0.5f, 1.0f);
     }
@@ -343,8 +494,34 @@ public class CombatUnit : MonoBehaviour
                 total += effect.Magnitude;
             else if (effect.Type == StatusEffectType.DebuffDefense)
                 total -= effect.Magnitude;
+            else if (effect.Type == StatusEffectType.Berserk)
+                total -= effect.Magnitude;
         }
+
+        // Shield provides a flat defense bonus while active
+        if (shieldHp > 0f)
+        {
+            total += 0.1f;
+        }
+
         return Mathf.Clamp(total, -0.5f, 1.0f);
+    }
+
+    /// <summary>
+    /// Returns the combined accuracy modifier from all active effects.
+    /// Positive values increase hit chance; negative values decrease it.
+    /// </summary>
+    public float GetAccuracyModifier()
+    {
+        float total = 0f;
+        foreach (StatusEffect effect in activeEffects)
+        {
+            if (effect.Type == StatusEffectType.AccuracyBuff)
+                total += effect.Magnitude;
+            else if (effect.Type == StatusEffectType.AccuracyDown)
+                total -= effect.Magnitude;
+        }
+        return Mathf.Clamp(total, -0.5f, 0.5f);
     }
 
     public int GetEffectiveSpeed()
@@ -363,6 +540,9 @@ public class CombatUnit : MonoBehaviour
 
     public bool ShouldSkipTurn()
     {
+        // Stun always skips the turn
+        if (IsStunned) return true;
+
         float highestDrowsy = 0f;
         for (int i = 0; i < activeEffects.Count; i++)
         {
@@ -378,6 +558,9 @@ public class CombatUnit : MonoBehaviour
     public void ClearAllStatusEffects()
     {
         activeEffects.Clear();
+        IsStunned = false;
+        tauntedBy = null;
+        shieldHp = 0f;
         Debug.Log($"[CombatUnit] {unitName} cleared all status effects.");
     }
 
@@ -394,7 +577,11 @@ public class CombatUnit : MonoBehaviour
 
         if (amount <= 0)
         {
-            return true;
+            if (amount < 0)
+            {
+                Debug.LogWarning($"[CombatUnit] SpendMp called with negative amount {amount}. Treating as no-op.");
+            }
+            return amount == 0;
         }
 
         if (mp >= amount)

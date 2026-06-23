@@ -77,7 +77,7 @@ public class PartyManager : MonoBehaviour
             return System.Array.Empty<HeroData>();
         }
 
-        return partyData.activeSlots;
+        return (HeroData[])partyData.activeSlots.Clone();
     }
 
     public HeroData[] GetReserveParty()
@@ -87,7 +87,7 @@ public class PartyManager : MonoBehaviour
             return System.Array.Empty<HeroData>();
         }
 
-        return partyData.reserveSlots;
+        return (HeroData[])partyData.reserveSlots.Clone();
     }
 
     public bool SwapActiveReserve(int activeIndex, int reserveIndex)

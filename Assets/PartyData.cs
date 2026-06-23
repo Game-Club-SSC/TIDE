@@ -252,8 +252,8 @@ public class PartyData : ScriptableObject
             }
         }
 
-        activeSlots = newActive;
-        reserveSlots = newReserve;
+        for (int i = 0; i < 3; i++) activeSlots[i] = newActive[i];
+        for (int i = 0; i < 2; i++) reserveSlots[i] = newReserve[i];
         return true;
     }
 
