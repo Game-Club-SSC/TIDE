@@ -276,18 +276,16 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             return;
         }
 
-        if (!progressionManager.CanTravelToIsland(destinationIslandId))
+        // Validate via TravelValidationService (unlocked + dock exists)
+        string fromIslandId = progressionManager.ActiveIslandId;
+        TravelValidationService.ValidationResult validation = TravelValidationService.ValidateTravel(fromIslandId, destinationIslandId);
+        if (!validation.CanTravel)
         {
-            Debug.LogWarning($"[IslandBoatInteractable] Island '{destinationIslandId}' is still locked.");
+            Debug.LogWarning($"[IslandBoatInteractable] Travel validation failed: {validation.FailureReason}");
             return;
         }
 
-        if (!IsIslandTravelEligible(progressionManager, destinationIslandId))
-        {
-            Debug.LogWarning($"[IslandBoatInteractable] Island '{destinationIslandId}' is not yet restored for travel.");
-            return;
-        }
-
+        // Backtracking check (not covered by TravelValidationService)
         IslandBacktrackingManager backtrackingManager = IslandBacktrackingManager.Instance;
         if (backtrackingManager != null && !backtrackingManager.CanVisitIsland(destinationIslandId))
         {
@@ -295,48 +293,17 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             return;
         }
 
-        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
-        if (player == null)
+        // Resolve spawn position: prefer TeleportAnchor dock, fall back to configured offsets
+        Vector3 destinationSpawn = ResolveDestinationSpawn(destinationIslandId, progressionManager, validation.Destination);
+
+        // Delegate to GameStateManager's fade pipeline (fade → teleport → snap camera → fade back)
+        if (!gameStateManager.TravelToIsland(destinationIslandId, destinationSpawn))
         {
-            Debug.LogWarning("[IslandBoatInteractable] Player not found. Cannot complete travel.");
+            Debug.LogWarning($"[IslandBoatInteractable] GameStateManager rejected travel to '{destinationIslandId}'.");
             return;
         }
 
-        string previousIslandId = progressionManager.ActiveIslandId;
-        Vector3 currentPosition = player.transform.position;
-        if (IsFiniteVector(currentPosition))
-        {
-            progressionManager.RecordIslandReturnPosition(previousIslandId, currentPosition);
-        }
-
-        if (!progressionManager.TrySetActiveIslandForTravel(destinationIslandId))
-        {
-            Debug.LogWarning($"[IslandBoatInteractable] Failed to set active island to '{destinationIslandId}'.");
-            return;
-        }
-
-        Vector3 destinationSpawn = ResolveDestinationSpawn(destinationIslandId, progressionManager);
-        player.transform.position = destinationSpawn;
-
-        Rigidbody playerBody = player.GetComponent<Rigidbody>();
-        if (playerBody != null)
-        {
-            playerBody.linearVelocity = Vector3.zero;
-            playerBody.angularVelocity = Vector3.zero;
-        }
-
-        TopDownFollowCamera followCamera = FindFirstObjectByType<TopDownFollowCamera>();
-        if (followCamera != null)
-        {
-            followCamera.SetTarget(player.transform, false);
-            followCamera.SnapToCurrentTarget();
-        }
-
-        progressionManager.RecordIslandReturnPosition(destinationIslandId, destinationSpawn);
-        gameStateManager.HandleIslandTravelFlowReset();
-        gameStateManager.SaveWorldState();
-
-        Debug.Log($"[IslandBoatInteractable] Traveled from '{previousIslandId}' to '{destinationIslandId}' at {destinationSpawn}.");
+        Debug.Log($"[IslandBoatInteractable] Traveled from '{fromIslandId}' to '{destinationIslandId}' at {destinationSpawn}.");
         PlayTravelFanfare();
         CloseTravelPanel();
     }
@@ -346,8 +313,18 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         return SceneManager.GetActiveScene().name == GameStateManager.MainSceneName;
     }
 
-    private Vector3 ResolveDestinationSpawn(string destinationIslandId, IslandProgressionManager progressionManager)
+    private Vector3 ResolveDestinationSpawn(
+        string destinationIslandId,
+        IslandProgressionManager progressionManager,
+        TeleportAnchor dockAnchor)
     {
+        // 1. Prefer TeleportAnchor boat dock if available
+        if (dockAnchor != null && IsFiniteVector(dockAnchor.SpawnPosition))
+        {
+            return ResolveSafeSpawnPosition(dockAnchor.SpawnPosition);
+        }
+
+        // 2. Return to previously recorded position on this island
         if (progressionManager != null
             && progressionManager.TryGetIslandReturnPosition(destinationIslandId, out Vector3 returnPosition)
             && IsFiniteVector(returnPosition))
@@ -355,12 +332,14 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             return ResolveSafeSpawnPosition(returnPosition);
         }
 
+        // 3. Configured per-destination spawn
         if (TryGetSpawnPositionForIsland(destinationIslandId, out Vector3 configuredSpawn)
             && IsFiniteVector(configuredSpawn))
         {
             return ResolveSafeSpawnPosition(configuredSpawn);
         }
 
+        // 4. Computed fallback
         return ResolveFallbackSpawn(destinationIslandId);
     }
 
@@ -649,6 +628,7 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             bool isBacktrackingAccessible = backtrackingManager == null || backtrackingManager.CanVisitIsland(islandId);
             bool isFullyAccessible = isUnlocked && isBacktrackingAccessible;
             bool isLockedSelection = isSelected && !isFullyAccessible;
+            bool isUnrestoredSelection = isSelected && isUnlocked && !isRestored && !isActive;
 
             string pointer = isSelected ? ">" : " ";
             string indexText = (i + 1).ToString();
@@ -680,7 +660,7 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
 
             if (isUnrestoredSelection)
             {
-                text += "    Finish restoring this island before traveling to it.\n";
+                text += "    This island has unfinished restoration work.\n";
             }
         }
 
