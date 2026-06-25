@@ -69,6 +69,7 @@ public class BattleManager : MonoBehaviour
 {
     [Header("Debug Flow")]
     [SerializeField] private bool autoAdvancePhases = true;
+    [NonSerialized] public bool autoStartBattle = true;
     [SerializeField] private float autoAdvanceDelay = 1.25f;
     [SerializeField] private KeyCode advancePhaseKey = KeyCode.N;
     [SerializeField] private KeyCode victoryKey = KeyCode.V;
@@ -345,7 +346,10 @@ public class BattleManager : MonoBehaviour
 
     private void Start()
     {
-        StartBattle();
+        if (autoStartBattle)
+        {
+            StartBattle();
+        }
     }
 
     private void Update()

@@ -78,6 +78,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         SpawnCombatUnits();
         EnsureBattleHud();
         EnsureBattleEscapeMenu();
+        TryStartBossIntro();
     }
 
     private void EnsureGameManager()
@@ -903,5 +904,32 @@ public class CombatSceneBootstrap : MonoBehaviour
 
         GameObject menuObject = new GameObject("BattleEscapeMenu");
         menuObject.AddComponent<BattleEscapeMenu>();
+    }
+
+    /// <summary>
+    /// Detects a boss encounter and starts the intro cutscene.
+    /// Suppresses BattleManager auto-start so the intro plays first.
+    /// </summary>
+    private void TryStartBossIntro()
+    {
+        if (!currentEncounterIsBoss)
+        {
+            return;
+        }
+
+        BattleManager bm = GetComponent<BattleManager>();
+        if (bm == null)
+        {
+            return;
+        }
+
+        // Prevent BattleManager from auto-starting in its Start() method
+        bm.autoStartBattle = false;
+
+        // Create and play the boss intro
+        GameObject introObject = new GameObject("BossIntroDirector");
+        introObject.transform.SetParent(transform, false);
+        BossIntroDirector director = introObject.AddComponent<BossIntroDirector>();
+        director.PlayIntro();
     }
 }
