@@ -17,6 +17,9 @@ public class AudioManagerTest : MonoBehaviour
         TestMuteToggleAffectsVolume();
         TestStingCooldownPreventsStacking();
         TestSceneLoadedTriggersExplorationBgm();
+        TestNewHandlerMethodsDoNotThrow();
+        TestVolumePersistenceViaPlayerPrefs();
+        TestIslandBgmRouting();
 
         Debug.Log("=== All Audio Manager Tests Passed ===");
     }
@@ -162,6 +165,140 @@ public class AudioManagerTest : MonoBehaviour
         }
 
         Debug.Log("  Scene-loaded cue routing test passed");
+    }
+
+    private void TestNewHandlerMethodsDoNotThrow()
+    {
+        Debug.Log("Testing all new handler methods do not throw...");
+
+        AudioManager manager = null;
+        try
+        {
+            manager = CreateIsolatedAudioManager("TestAudioManager_NewHandlers");
+
+            // Combat SFX
+            Assert.DoesNotThrow(() => manager.HandleAttackHit(), "HandleAttackHit should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleAttackMiss(), "HandleAttackMiss should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleAttackCrit(), "HandleAttackCrit should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleHeal(), "HandleHeal should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleTideBreakActivation(), "HandleTideBreakActivation should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleQTESuccess(), "HandleQTESuccess should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleQTEFail(), "HandleQTEFail should not throw.");
+
+            // Interaction SFX
+            Assert.DoesNotThrow(() => manager.HandleTileTake(), "HandleTileTake should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleTilePlace(), "HandleTilePlace should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleBoatDepart(), "HandleBoatDepart should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleBoatArrive(), "HandleBoatArrive should not throw.");
+            Assert.DoesNotThrow(() => manager.HandlePuzzleMilestone(), "HandlePuzzleMilestone should not throw.");
+
+            // UI SFX
+            Assert.DoesNotThrow(() => manager.HandleMenuClick(), "HandleMenuClick should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleMenuOpen(), "HandleMenuOpen should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleMenuClose(), "HandleMenuClose should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleLevelUp(), "HandleLevelUp should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleGearEquip(), "HandleGearEquip should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleDialogueAdvance(), "HandleDialogueAdvance should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleStatusEffectApply(), "HandleStatusEffectApply should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleStatusEffectExpire(), "HandleStatusEffectExpire should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleAncientTextFound(), "HandleAncientTextFound should not throw.");
+
+            // BGM handlers
+            Assert.DoesNotThrow(() => manager.HandleBossBattleBgm(), "HandleBossBattleBgm should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleMenuBgm(), "HandleMenuBgm should not throw.");
+            Assert.DoesNotThrow(() => manager.HandleActTransition(), "HandleActTransition should not throw.");
+
+            // Per-island BGM
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandGreedBgm), "PlayCue(IslandGreedBgm) should not throw.");
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandSlothBgm), "PlayCue(IslandSlothBgm) should not throw.");
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandEnvyBgm), "PlayCue(IslandEnvyBgm) should not throw.");
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandLustBgm), "PlayCue(IslandLustBgm) should not throw.");
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandWrathBgm), "PlayCue(IslandWrathBgm) should not throw.");
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandPrideBgm), "PlayCue(IslandPrideBgm) should not throw.");
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandGluttonyBgm), "PlayCue(IslandGluttonyBgm) should not throw.");
+        }
+        finally
+        {
+            Cleanup();
+        }
+
+        Debug.Log("  New handler methods test passed");
+    }
+
+    private void TestVolumePersistenceViaPlayerPrefs()
+    {
+        Debug.Log("Testing volume settings persist via PlayerPrefs...");
+
+        AudioManager manager = null;
+        try
+        {
+            manager = CreateIsolatedAudioManager("TestAudioManager_Persistence");
+
+            // Set custom volumes
+            manager.SetBgmVolume(0.42f);
+            manager.SetSfxVolume(0.87f);
+            manager.SetMute(true);
+
+            // Verify PlayerPrefs keys exist
+            Assert.AreEqual(0.42f, PlayerPrefs.GetFloat("Audio_BgmVolume", -1f), 0.01f,
+                "BGM volume should be saved to PlayerPrefs.");
+            Assert.AreEqual(0.87f, PlayerPrefs.GetFloat("Audio_SfxVolume", -1f), 0.01f,
+                "SFX volume should be saved to PlayerPrefs.");
+            Assert.AreEqual(1, PlayerPrefs.GetInt("Audio_Muted", -1),
+                "Mute state should be saved to PlayerPrefs.");
+
+            // Cleanup test PlayerPrefs
+            PlayerPrefs.DeleteKey("Audio_BgmVolume");
+            PlayerPrefs.DeleteKey("Audio_SfxVolume");
+            PlayerPrefs.DeleteKey("Audio_Muted");
+        }
+        finally
+        {
+            Cleanup();
+        }
+
+        Debug.Log("  Volume persistence test passed");
+    }
+
+    private void TestIslandBgmRouting()
+    {
+        Debug.Log("Testing island scene name routes to correct BGM cue...");
+
+        AudioManager manager = null;
+        try
+        {
+            manager = CreateIsolatedAudioManager("TestAudioManager_IslandRoute");
+
+            FieldInfo handlerField = typeof(AudioManager).GetMethod(
+                "HandleSceneLoaded",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(handlerField, "HandleSceneLoaded method not found.");
+
+            // Test island routing via reflection
+            FieldInfo resolveField = typeof(AudioManager).GetMethod(
+                "ResolveIslandCue",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            // ResolveIslandCue is static, get it differently
+            MethodInfo resolveMethod = typeof(AudioManager).GetMethod(
+                "ResolveIslandCue",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(resolveMethod, "ResolveIslandCue method not found.");
+
+            Assert.AreEqual(AudioCue.IslandGreedBgm, resolveMethod.Invoke(null, new object[] { "level_greed" }),
+                "level_greed should map to IslandGreedBgm.");
+            Assert.AreEqual(AudioCue.IslandSlothBgm, resolveMethod.Invoke(null, new object[] { "level_sloth" }),
+                "level_sloth should map to IslandSlothBgm.");
+            Assert.AreEqual(AudioCue.IslandWrathBgm, resolveMethod.Invoke(null, new object[] { "level_wrath" }),
+                "level_wrath should map to IslandWrathBgm.");
+            Assert.IsNull(resolveMethod.Invoke(null, new object[] { "unknown_scene" }),
+                "Unknown scene should return null.");
+        }
+        finally
+        {
+            Cleanup();
+        }
+
+        Debug.Log("  Island BGM routing test passed");
     }
 
     private static AudioManager CreateIsolatedAudioManager(string objectName)

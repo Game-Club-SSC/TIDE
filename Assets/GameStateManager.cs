@@ -933,6 +933,12 @@ public class GameStateManager : MonoBehaviour
         if (changed)
         {
             SaveWorldState();
+
+            AudioManager audioManager = AudioManager.Instance;
+            if (audioManager != null)
+            {
+                audioManager.HandleActTransition();
+            }
         }
     }
 
