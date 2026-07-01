@@ -72,7 +72,7 @@ public class NarrativeSystemsTest : MonoBehaviour
         }
     }
 
-    private void TestAcceptanceConversationPlaysThreeLinesAndFiresFinished()
+    private void TestAcceptanceConversationPlaysAllLinesAndFiresFinished()
     {
         Cleanup();
         try
@@ -86,7 +86,7 @@ public class NarrativeSystemsTest : MonoBehaviour
             conv.OnAcceptanceConversationFinished += () => finished = true;
 
             conv.ForcePlayForDebug();
-            Assert.AreEqual(AcceptanceConversation.LineCount, lineCount, "Should fire 3 line events.");
+            Assert.AreEqual(AcceptanceConversation.LineCount, lineCount, "Should fire all line events.");
             Assert.IsTrue(finished, "Finished event should fire.");
             Assert.IsTrue(conv.HasPlayed, "HasPlayed should be true after force play.");
             Assert.IsFalse(conv.IsPlaying, "IsPlaying should clear after finish.");

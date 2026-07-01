@@ -7,7 +7,7 @@ public class AcceptanceConversation : MonoBehaviour
 {
     public const string FinalBossIslandId = "island_pride";
     public const float RestorationThreshold = 0.75f;
-    public const int LineCount = 3;
+    public const int LineCount = 10;
 
     public static AcceptanceConversation Instance { get; private set; }
 
@@ -136,16 +136,45 @@ public class AcceptanceConversation : MonoBehaviour
     {
         string[] lines = new string[LineCount];
         StringBuilder sb = new StringBuilder();
-        sb.Append("I've carried the tide through every island.");
+
+        sb.Append("This is it. The last island.");
         lines[0] = sb.ToString();
         sb.Clear();
 
-        sb.Append("If I turn back now, the rift widens. If I press on, it costs me.");
+        sb.Append("The texts call it the Shore of Self. Where the tide meets its source.");
         lines[1] = sb.ToString();
         sb.Clear();
 
-        sb.Append("Then I'll pay it. We end this together.");
+        sb.Append("I've carried the tide through every island. If I turn back now, the rift widens.");
         lines[2] = sb.ToString();
+        sb.Clear();
+
+        sb.Append("If you press on, it costs you. If you turn back, it costs everyone.");
+        lines[3] = sb.ToString();
+        sb.Clear();
+
+        sb.Append("The cost was always part of the equation. We just didn't want to read the fine print.");
+        lines[4] = sb.ToString();
+        sb.Clear();
+
+        sb.Append("Then we end this together. One way or another.");
+        lines[5] = sb.ToString();
+        sb.Clear();
+
+        sb.Append("That's all I needed to hear. The tide will carry us — even through the end.");
+        lines[6] = sb.ToString();
+        sb.Clear();
+
+        sb.Append("Whatever happens on that shore... we faced it together. That's what matters.");
+        lines[7] = sb.ToString();
+        sb.Clear();
+
+        sb.Append("We've come too far to let doubt be the thing that breaks us. Together. As five. As we started.");
+        lines[8] = sb.ToString();
+        sb.Clear();
+
+        sb.Append("And so the five walk toward the final shore, carrying the weight of every choice that brought them here.");
+        lines[9] = sb.ToString();
 
         return lines;
     }
