@@ -52,6 +52,19 @@ public class DevMenuUI : MonoBehaviour
             canvas.enabled = visible;
         }
 
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            if (visible)
+            {
+                audioManager.HandleMenuOpen();
+            }
+            else
+            {
+                audioManager.HandleMenuClose();
+            }
+        }
+
         if (visible)
         {
             EnsureEventSystem();
@@ -144,6 +157,17 @@ public class DevMenuUI : MonoBehaviour
             {
                 DevCheatService.Instance.ShowDebugOverlay = !DevCheatService.Instance.ShowDebugOverlay;
             }
+        });
+
+        AddActionButton(buttonGridObject.transform, "Audio Settings", () =>
+        {
+            AudioSettingsUI settingsUI = FindFirstObjectByType<AudioSettingsUI>();
+            if (settingsUI == null)
+            {
+                GameObject settingsObj = new GameObject("AudioSettingsUI");
+                settingsUI = settingsObj.AddComponent<AudioSettingsUI>();
+            }
+            settingsUI.Toggle();
         });
 
         AddMovementButton(buttonGridObject.transform, "Auto-Run Toggle", player => player.ToggleAutoRunEnabled());
@@ -293,7 +317,15 @@ public class DevMenuUI : MonoBehaviour
         image.color = new Color(0.14f, 0.22f, 0.34f, 1f);
         Button button = buttonObject.GetComponent<Button>();
         button.targetGraphic = image;
-        button.onClick.AddListener(action);
+        button.onClick.AddListener(() =>
+        {
+            AudioManager audioManager = AudioManager.Instance;
+            if (audioManager != null)
+            {
+                audioManager.HandleMenuClick();
+            }
+            action?.Invoke();
+        });
 
         Text buttonText = CreateText(buttonObject.transform, "Text", label, 16, FontStyle.Bold, TextAnchor.MiddleCenter);
         RectTransform textRect = buttonText.GetComponent<RectTransform>();

@@ -919,6 +919,7 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         if (audioManager != null)
         {
             audioManager.HandleTravel();
+            audioManager.HandleBoatDepart();
         }
     }
 

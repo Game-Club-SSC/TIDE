@@ -5,7 +5,12 @@ using UnityEngine;
 /// Singleton audio manager that controls music, SFX, and ambient audio.
 /// All methods log their calls so designers can see what's being triggered.
 /// Audio clips are serialized placeholders -- assign real clips in the Inspector.
+///
+/// NOTE: This class is superseded by AudioManager, which now includes all
+/// SFX types, per-island BGM, act transitions, and PlayerPrefs volume
+/// persistence.保留 for reference only.
 /// </summary>
+[System.Obsolete("Use AudioManager instead. GameAudioManager is retained for reference only.")]
 [DisallowMultipleComponent]
 public class GameAudioManager : MonoBehaviour
 {
