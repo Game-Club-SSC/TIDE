@@ -78,7 +78,7 @@ public static class AcceptanceConversationGating
 {
     public static bool Ok()
     {
-        return AcceptanceConversation.LineCount == 3
+        return AcceptanceConversation.LineCount == 10
             && !string.IsNullOrEmpty(AcceptanceConversation.FinalBossIslandId);
     }
 }
