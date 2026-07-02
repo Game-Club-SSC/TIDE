@@ -582,12 +582,15 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         labelRect.offsetMax = new Vector2(-36f, -32f);
 
         travelLabel = labelObject.GetComponent<Text>();
-        Font boatFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (boatFont == null)
-        {
-            boatFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
-        travelLabel.font = boatFont;
+Font boatFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+if (boatFont == null)
+{
+    Debug.LogError("[IslandBoatInteractable] LegacyRuntime.ttf not found. Travel label will use Unity default font.");
+}
+else
+{
+    travelLabel.font = boatFont;
+}
         travelLabel.fontSize = Mathf.Max(14, panelFontSize);
         travelLabel.fontStyle = FontStyle.Normal;
         travelLabel.alignment = TextAnchor.UpperLeft;
