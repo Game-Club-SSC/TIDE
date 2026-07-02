@@ -582,7 +582,12 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         labelRect.offsetMax = new Vector2(-36f, -32f);
 
         travelLabel = labelObject.GetComponent<Text>();
-        travelLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        Font boatFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (boatFont == null)
+        {
+            boatFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        }
+        travelLabel.font = boatFont;
         travelLabel.fontSize = Mathf.Max(14, panelFontSize);
         travelLabel.fontStyle = FontStyle.Normal;
         travelLabel.alignment = TextAnchor.UpperLeft;
