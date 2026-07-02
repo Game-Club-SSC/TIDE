@@ -732,8 +732,8 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         float resolvedY = candidatePosition.y;
         if (Mathf.Abs(resolvedY) < 0.001f)
         {
-            float transformY = Mathf.Abs(transform.position.y) > 0.001f ? transform.position.y : fallback.y;
-            resolvedY = Mathf.Abs(transformY) > 0.001f ? transformY : 1f;
+            float fallbackY = Mathf.Abs(fallback.y) > 0.001f ? fallback.y : 1f;
+            resolvedY = fallbackY;
         }
 
         return new Vector3(candidatePosition.x, resolvedY, candidatePosition.z);
