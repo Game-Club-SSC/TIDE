@@ -164,6 +164,7 @@ public class NarrativeBeatDirector : MonoBehaviour
         if (logUi == null)
         {
             GameObject logObject = new GameObject("AncientTextLogUI");
+            logObject.transform.SetParent(transform);
             logUi = logObject.AddComponent<AncientTextLogUI>();
         }
 

@@ -790,6 +790,18 @@ public class FateEncounterDirector : MonoBehaviour
             {
                 spawnedFateBoss.transform.position = fateBossSpawnPoint.position;
             }
+
+            // Apply configured stats to the runtime-built boss
+            CombatUnit fateUnit = spawnedFateBoss.GetComponent<CombatUnit>();
+            if (fateUnit != null)
+            {
+                fateUnit.MaxHP = fateMaxHp;
+                fateUnit.HP = fateMaxHp;
+                fateUnit.Attack = fateAttack;
+                fateUnit.Defense = fateDefense;
+                fateUnit.Speed = fateSpeed;
+                fateUnit.ElementType = fateBaseElement;
+            }
         }
 
         spawnedFateBoss.name = "Fate_The_Inevitable";

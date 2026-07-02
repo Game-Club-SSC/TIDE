@@ -582,7 +582,15 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         labelRect.offsetMax = new Vector2(-36f, -32f);
 
         travelLabel = labelObject.GetComponent<Text>();
-        travelLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+Font boatFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+if (boatFont == null)
+{
+    Debug.LogError("[IslandBoatInteractable] LegacyRuntime.ttf not found. Travel label will use Unity default font.");
+}
+else
+{
+    travelLabel.font = boatFont;
+}
         travelLabel.fontSize = Mathf.Max(14, panelFontSize);
         travelLabel.fontStyle = FontStyle.Normal;
         travelLabel.alignment = TextAnchor.UpperLeft;
@@ -727,8 +735,8 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         float resolvedY = candidatePosition.y;
         if (Mathf.Abs(resolvedY) < 0.001f)
         {
-            float transformY = Mathf.Abs(transform.position.y) > 0.001f ? transform.position.y : fallback.y;
-            resolvedY = Mathf.Abs(transformY) > 0.001f ? transformY : 1f;
+            float fallbackY = Mathf.Abs(fallback.y) > 0.001f ? fallback.y : 1f;
+            resolvedY = fallbackY;
         }
 
         return new Vector3(candidatePosition.x, resolvedY, candidatePosition.z);

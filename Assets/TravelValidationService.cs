@@ -37,10 +37,10 @@ public static class TravelValidationService
         IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
         if (tracker != null)
         {
-            float restoration = tracker.GetRestorationPercent(toIslandId);
-            if (restoration < 1f)
+            if (!tracker.IsIslandRestored(toIslandId))
             {
-                return new ValidationResult(false, $"Destination '{toIslandId}' is unrestored ({restoration * 100f:F0}%).", null);
+                float restoration = tracker.GetRestorationPercent(toIslandId);
+                return new ValidationResult(false, $"Destination '{toIslandId}' is unrestored ({restoration:F0}%).", null);
             }
         }
 

@@ -15,6 +15,12 @@ public class IslandConfig : ScriptableObject
     public Color vicePrimaryColor = new Color(1f, 0.84f, 0f);
     public Color viceSecondaryColor = new Color(0.55f, 0.41f, 0.08f);
 
+    [Tooltip("Optional per-island audio profile for BGM, SFX, and ambient clips.")]
+    public IslandAudioProfile audioProfile;
+
+    [Tooltip("Optional visual profile for environment art (ground, walls, water, corruption colors).")]
+    public IslandVisualProfile visualProfile;
+
     [Tooltip("Ordered list of encounters for the current slice. Typical layout is 4 combat/puzzle pairs followed by a boss combat.")]
     public EncounterDefinition[] encounters;
 }

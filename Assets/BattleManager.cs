@@ -832,7 +832,7 @@ public class BattleManager : MonoBehaviour
         SkillData advantageousSkill = SelectAdvantageousSkillForActor(actor);
         if (advantageousSkill != null && actor.CanUseSkill(advantageousSkill))
         {
-            float skillChance = profile != null ? profile.skillUsageWeight : 1f;
+            float skillChance = profile != null ? Mathf.Max(profile.skillUsageWeight, 0.70f) : 1f;
             if (UnityEngine.Random.value < skillChance)
             {
                 Debug.Log($"[BattleManager] {actor.UnitName} picks element-advantageous skill {advantageousSkill.skillName}.");

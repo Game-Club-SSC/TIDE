@@ -10,6 +10,12 @@ public enum EnemyState
     Returning
 }
 
+public enum EnemyBehaviorType
+{
+    Aggressive,
+    Passive
+}
+
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(Collider))]
@@ -29,6 +35,16 @@ public class OverworldEnemy : MonoBehaviour
     [SerializeField] private bool requireLineOfSightForAggro;
     [SerializeField] private float aggroLineOfSightHeight = 0.6f;
     [SerializeField] private LayerMask aggroLineOfSightMask = ~0;
+
+    [Header("Stealth")]
+    [Tooltip("Enemy behavior type: Passive = can be sneaked past, Aggressive = always chases on sight")]
+    [SerializeField] private EnemyBehaviorType behaviorType = EnemyBehaviorType.Aggressive;
+    [Tooltip("Angle of vision cone in degrees (180 = half-circle, 360 = all around)")]
+    [SerializeField] private float visionConeAngle = 180f;
+    [Tooltip("Player speed threshold - below this speed, stealth detection is harder")]
+    [SerializeField] private float stealthSpeedThreshold = 2f;
+    [Tooltip("Multiplier to aggro range when player is moving fast")]
+    [SerializeField] private float chaseSpeedAggroMultiplier = 1.3f;
 
     [Header("Chase")]
     [SerializeField] private float chaseSpeed = 6f;
@@ -441,12 +457,77 @@ public class OverworldEnemy : MonoBehaviour
         }
 
         float distance = GetPlanarDistance(transform.position, playerTransform.position);
-        if (distance <= Mathf.Max(arrivalThreshold, proximityAggroRange))
+        float effectiveAggroRange = proximityAggroRange;
+
+        // Adjust aggro range based on player speed for stealth mechanics
+        if (behaviorType == EnemyBehaviorType.Passive)
         {
+            float playerSpeed = GetPlayerSpeed();
+            if (playerSpeed > stealthSpeedThreshold)
+            {
+                effectiveAggroRange *= chaseSpeedAggroMultiplier;
+            }
+            else
+            {
+                // When player is moving slowly, reduce detection range for stealth
+                effectiveAggroRange *= 0.7f;
+            }
+        }
+
+        if (distance <= Mathf.Max(arrivalThreshold, effectiveAggroRange))
+        {
+            // Check vision cone for passive enemies
+            if (behaviorType == EnemyBehaviorType.Passive && !IsPlayerInVisionCone())
+            {
+                return false;
+            }
+
             return HasAggroLineOfSightToPlayer();
         }
 
         return false;
+    }
+
+    private bool IsPlayerInVisionCone()
+    {
+        if (playerTransform == null)
+        {
+            return false;
+        }
+
+        Vector3 directionToPlayer = (playerTransform.position - transform.position);
+        directionToPlayer.y = 0f;
+
+        if (directionToPlayer.sqrMagnitude < 0.0001f)
+        {
+            return false;
+        }
+
+        directionToPlayer.Normalize();
+
+        Vector3 forward = transform.forward;
+        forward.y = 0f;
+
+        float angle = Vector3.Angle(forward, directionToPlayer);
+        return angle <= visionConeAngle * 0.5f;
+    }
+
+    private float GetPlayerSpeed()
+    {
+        if (playerTransform == null)
+        {
+            return 0f;
+        }
+
+        Rigidbody playerRb = playerTransform.GetComponent<Rigidbody>();
+        if (playerRb != null)
+        {
+            Vector3 velocity = playerRb.linearVelocity;
+            velocity.y = 0f;
+            return velocity.magnitude;
+        }
+
+        return 0f;
     }
 
     private bool ShouldStopChasing(float distanceToPlayer)
@@ -1205,6 +1286,7 @@ public class OverworldEnemy : MonoBehaviour
 
         if (IslandRestorationTracker.Instance == null)
         {
+            startupClearCheckComplete = true;
             return false;
         }
 
@@ -1307,9 +1389,35 @@ public class OverworldEnemy : MonoBehaviour
             }
         }
 
+        // Aggro range
         Gizmos.color = currentState == EnemyState.Chasing ? Color.red : Color.yellow;
         Gizmos.DrawWireSphere(transform.position, Mathf.Max(arrivalThreshold, proximityAggroRange));
 
+        // Vision cone for passive enemies
+        if (behaviorType == EnemyBehaviorType.Passive)
+        {
+            Gizmos.color = new Color(0f, 1f, 0f, 0.3f);
+            float halfAngle = visionConeAngle * 0.5f;
+            float coneLength = Mathf.Max(arrivalThreshold, proximityAggroRange);
+
+            Vector3 leftDir = Quaternion.Euler(0, -halfAngle, 0) * transform.forward;
+            Vector3 rightDir = Quaternion.Euler(0, halfAngle, 0) * transform.forward;
+
+            Gizmos.DrawLine(transform.position, transform.position + leftDir * coneLength);
+            Gizmos.DrawLine(transform.position, transform.position + rightDir * coneLength);
+
+            // Draw arc
+            int segments = 20;
+            for (int i = 0; i < segments; i++)
+            {
+                float angle1 = -halfAngle + (visionConeAngle * i / segments);
+                float angle2 = -halfAngle + (visionConeAngle * (i + 1) / segments);
+
+                Vector3 point1 = transform.position + Quaternion.Euler(0, angle1, 0) * transform.forward * coneLength;
+                Vector3 point2 = transform.position + Quaternion.Euler(0, angle2, 0) * transform.forward * coneLength;
+                Gizmos.DrawLine(point1, point2);
+            }
+        }
     }
 #endif
 }

@@ -14,6 +14,10 @@ public class TideTile : MonoBehaviour
     [Tooltip("Check this box if this is an 'X' tile that requires combat to unlock.")]
     public bool isSealed = false;
 
+    [Header("Corruption Transition")]
+    [Tooltip("Duration of smooth color transition when tide value changes (seconds).")]
+    [SerializeField] private float corruptionTransitionDuration = 0.4f;
+
     [SerializeField] private Vector2Int gridPosition;
 
     private Renderer cachedRenderer;
@@ -21,6 +25,8 @@ public class TideTile : MonoBehaviour
     private TextMeshPro valueLabel;
     private Vector3 baseScale;
     private Coroutine activeFlashCoroutine;
+    private Coroutine activeTransitionCoroutine;
+    private Color currentDisplayedColor;
     private static readonly Quaternion LabelTopDownRotation = Quaternion.Euler(90f, 0f, 0f);
 
     public Vector2Int GridPosition => gridPosition;
@@ -83,7 +89,7 @@ public class TideTile : MonoBehaviour
 
         currentTideValue -= amount;
         currentTideValue = Mathf.Clamp(currentTideValue, 1, 10);
-        RefreshVisuals();
+        StartCorruptionTransition();
     }
 
     public void ApplyPlace(int amount)
@@ -95,7 +101,7 @@ public class TideTile : MonoBehaviour
 
         currentTideValue += amount;
         currentTideValue = Mathf.Clamp(currentTideValue, 1, 10);
-        RefreshVisuals();
+        StartCorruptionTransition();
     }
 
     public void ApplyDecay(int decay)
@@ -107,7 +113,7 @@ public class TideTile : MonoBehaviour
 
         currentTideValue -= decay;
         currentTideValue = Mathf.Max(currentTideValue, 5);
-        RefreshVisuals();
+        StartCorruptionTransition();
         StartFlash(FlashDecay());
     }
 
@@ -241,7 +247,8 @@ public class TideTile : MonoBehaviour
         EnsureLabel();
         if (cachedMaterial != null)
         {
-            cachedMaterial.color = GetBaseColor();
+            currentDisplayedColor = GetBaseColor();
+            cachedMaterial.color = currentDisplayedColor;
         }
 
         if (valueLabel != null)
@@ -249,6 +256,60 @@ public class TideTile : MonoBehaviour
             valueLabel.text = isSealed ? "X" : currentTideValue.ToString();
             valueLabel.color = isSealed ? new Color(0.9f, 0.9f, 0.9f) : new Color(0.1f, 0.1f, 0.1f);
         }
+    }
+
+private void StartCorruptionTransition()
+{
+    EnsureLabel();
+    if (valueLabel != null)
+    {
+        valueLabel.text = isSealed ? "X" : currentTideValue.ToString();
+        valueLabel.color = isSealed ? new Color(0.9f, 0.9f, 0.9f) : new Color(0.1f, 0.1f, 0.1f);
+    }
+
+    if (activeTransitionCoroutine != null)
+    {
+        StopCoroutine(activeTransitionCoroutine);
+    }
+
+    activeTransitionCoroutine = StartCoroutine(TransitionCorruptionColor());
+}
+
+    private IEnumerator TransitionCorruptionColor()
+    {
+        Color startColor = currentDisplayedColor;
+        Color targetColor = GetBaseColor();
+        float elapsed = 0f;
+
+        while (elapsed < corruptionTransitionDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / corruptionTransitionDuration);
+            float smoothedT = Mathf.SmoothStep(0f, 1f, t);
+
+            if (cachedMaterial != null)
+            {
+                cachedMaterial.color = Color.Lerp(startColor, targetColor, smoothedT);
+            }
+
+            currentDisplayedColor = cachedMaterial != null ? cachedMaterial.color : targetColor;
+            yield return null;
+        }
+
+        currentDisplayedColor = targetColor;
+        if (cachedMaterial != null)
+        {
+            cachedMaterial.color = targetColor;
+        }
+
+        EnsureLabel();
+        if (valueLabel != null)
+        {
+            valueLabel.text = isSealed ? "X" : currentTideValue.ToString();
+            valueLabel.color = isSealed ? new Color(0.9f, 0.9f, 0.9f) : new Color(0.1f, 0.1f, 0.1f);
+        }
+
+        activeTransitionCoroutine = null;
     }
 
     private void EnsureLabel()
@@ -291,19 +352,22 @@ public class TideTile : MonoBehaviour
             return new Color(0.22f, 0.22f, 0.22f);
         }
 
+        // Tide 5 = normal/clean visuals (green)
         if (currentTideValue == 5)
         {
             return new Color(0.6f, 0.85f, 0.65f);
         }
 
+        // Tide 6-9 = corruption buildup (warm tones to bright white)
         if (currentTideValue > 5)
         {
             float intensity = Mathf.InverseLerp(6f, 10f, currentTideValue);
-            return Color.Lerp(new Color(0.93f, 0.82f, 0.55f), new Color(1f, 0.96f, 0.82f), intensity);
+            return Color.Lerp(new Color(0.85f, 0.78f, 0.5f), new Color(1f, 1f, 1f), intensity);
         }
 
+        // Tide 1-4 = evil corruption (cool tones to complete black)
         float deficit = Mathf.InverseLerp(4f, 1f, currentTideValue);
-        return Color.Lerp(new Color(0.45f, 0.62f, 0.8f), new Color(0.2f, 0.32f, 0.55f), deficit);
+        return Color.Lerp(new Color(0.45f, 0.62f, 0.8f), Color.black, deficit);
     }
 
     private void OnValidate()
@@ -316,6 +380,16 @@ public class TideTile : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (activeTransitionCoroutine != null)
+        {
+            StopCoroutine(activeTransitionCoroutine);
+        }
+
+        if (activeFlashCoroutine != null)
+        {
+            StopCoroutine(activeFlashCoroutine);
+        }
+
         if (cachedMaterial != null)
         {
             Destroy(cachedMaterial);

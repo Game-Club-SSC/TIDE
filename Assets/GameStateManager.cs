@@ -169,6 +169,7 @@ public class GameStateManager : MonoBehaviour
     public IslandRestorationTracker RestorationTracker => IslandRestorationTracker.Instance;
 
     public event Action OnPuzzleCompleted;
+    public event Action<StoryAct> OnStoryActChanged;
     private bool isFlowControlledCombat;
     private bool deferredFlowFromCombat;
     private bool hasDeferredFlowFromCombatResult;
@@ -917,6 +918,7 @@ public class GameStateManager : MonoBehaviour
     {
         StoryAct clampedAct = ClampStoryAct(act);
         bool changed = false;
+        bool actAdvanced = false;
 
         if ((int)clampedAct > (int)highestStoryActReached)
         {
@@ -928,6 +930,7 @@ public class GameStateManager : MonoBehaviour
         {
             currentStoryAct = clampedAct;
             changed = true;
+            actAdvanced = true;
         }
 
         if (changed)
@@ -939,6 +942,11 @@ public class GameStateManager : MonoBehaviour
             {
                 audioManager.HandleActTransition();
             }
+        }
+
+        if (actAdvanced)
+        {
+            OnStoryActChanged?.Invoke(currentStoryAct);
         }
     }
 
