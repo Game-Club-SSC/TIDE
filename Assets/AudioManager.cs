@@ -283,23 +283,25 @@ public class AudioManager : MonoBehaviour
         PlayCue(AudioCue.EndingBgm);
     }
 
-    public void HandleStoryActChanged(GameStateManager.StoryAct act)
+public void HandleStoryActChanged(GameStateManager.StoryAct act)
+{
+    if (activeCue != AudioCue.ExplorationBgm &&
+        activeCue != AudioCue.ActIIExplorationBgm &&
+        activeCue != AudioCue.ActIIIExplorationBgm)
     {
-        if (activeCue != AudioCue.ExplorationBgm)
-        {
-            return;
-        }
-
-        switch (act)
-        {
-            case GameStateManager.StoryAct.ActII:
-                PlayCue(AudioCue.ActIIExplorationBgm);
-                break;
-            case GameStateManager.StoryAct.ActIII:
-                PlayCue(AudioCue.ActIIIExplorationBgm);
-                break;
-        }
+        return;
     }
+
+    switch (act)
+    {
+        case GameStateManager.StoryAct.ActII:
+            PlayCue(AudioCue.ActIIExplorationBgm);
+            break;
+        case GameStateManager.StoryAct.ActIII:
+            PlayCue(AudioCue.ActIIIExplorationBgm);
+            break;
+    }
+}
 
     // ----- Island-Specific Audio -----
 
