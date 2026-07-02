@@ -113,12 +113,14 @@ public static class OfflineRegressionValidator
     /// <summary>
     /// Unity menu entry point. Visible as Tools > Offline Regression Validator.
     /// </summary>
-    [MenuItem("Tools/Offline Regression Validator/Run Full Validation")]
+#if UNITY_EDITOR
+    [UnityEditor.MenuItem("Tools/Offline Regression Validator/Run Full Validation")]
     public static void RunFromMenu()
     {
         string report = Run();
         Debug.Log(report);
     }
+#endif
 
     /// <summary>
     /// CLI-safe entry point. Returns the full report string.
