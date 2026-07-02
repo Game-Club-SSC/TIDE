@@ -258,15 +258,22 @@ public class TideTile : MonoBehaviour
         }
     }
 
-    private void StartCorruptionTransition()
+private void StartCorruptionTransition()
+{
+    EnsureLabel();
+    if (valueLabel != null)
     {
-        if (activeTransitionCoroutine != null)
-        {
-            StopCoroutine(activeTransitionCoroutine);
-        }
-
-        activeTransitionCoroutine = StartCoroutine(TransitionCorruptionColor());
+        valueLabel.text = isSealed ? "X" : currentTideValue.ToString();
+        valueLabel.color = isSealed ? new Color(0.9f, 0.9f, 0.9f) : new Color(0.1f, 0.1f, 0.1f);
     }
+
+    if (activeTransitionCoroutine != null)
+    {
+        StopCoroutine(activeTransitionCoroutine);
+    }
+
+    activeTransitionCoroutine = StartCoroutine(TransitionCorruptionColor());
+}
 
     private IEnumerator TransitionCorruptionColor()
     {
