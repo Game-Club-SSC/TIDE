@@ -417,6 +417,11 @@ public class AudioManager : MonoBehaviour
             stingSource.mute = isMuted;
         }
 
+        if (ambientSource != null)
+        {
+            ambientSource.mute = isMuted;
+        }
+
         if (sfxSource != null)
         {
             sfxSource.mute = isMuted;
@@ -896,6 +901,11 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
         {
             stingSource.volume = mute ? 0f : sfxVolume;
             stingSource.mute = mute;
+        }
+
+        if (ambientSource != null)
+        {
+            ambientSource.mute = mute;
         }
 
         if (sfxSource != null)
