@@ -928,6 +928,12 @@ public class TideManager : MonoBehaviour
         carriedAmount = takeAmount;
         carryingSource.ApplyTake(carriedAmount);
         OnCarriedAmountChanged?.Invoke();
+
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleTileTake();
+        }
     }
 
     private void TryTriggerSealedTileEncounter(TideTile sealedTile)
@@ -1096,6 +1102,12 @@ public class TideManager : MonoBehaviour
         hoveredTile.ApplyPlace(carriedAmount);
         ApplyConsumption(hoveredTile);
         ApplyGreedCoinYield(hoveredTile);
+
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleTilePlace();
+        }
         carriedAmount = 0;
         carryingSource = null;
         OnCarriedAmountChanged?.Invoke();

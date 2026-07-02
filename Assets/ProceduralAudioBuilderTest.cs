@@ -13,6 +13,9 @@ public class ProceduralAudioBuilderTest : MonoBehaviour
         TestStingClipsAreShortAndDecay();
         TestBuilderIsDeterministic();
         TestAllCueBuildersReturnClips();
+        TestNewSfxBuildersReturnClips();
+        TestNewBgmBuildersReturnClips();
+        TestPerIslandBgmBuildersReturnClips();
 
         Debug.Log("=== All Procedural Audio Builder Tests Passed ===");
     }
@@ -51,6 +54,10 @@ public class ProceduralAudioBuilderTest : MonoBehaviour
 
         AudioClip travel = ProceduralAudioBuilder.BuildTravelFanfareSting();
         AssertClipHasAudibleSignal(travel, "TravelFanfareSting");
+
+        AudioClip actTransition = ProceduralAudioBuilder.BuildActTransitionSting();
+        AssertClipHasAudibleSignal(actTransition, "ActTransitionSting");
+        AssertClipsStartsLouderThanItEnds(actTransition, "ActTransitionSting");
     }
 
     private void TestBuilderIsDeterministic()
@@ -77,6 +84,76 @@ public class ProceduralAudioBuilderTest : MonoBehaviour
         {
             AudioClip clip = builders[i]();
             Assert.IsNotNull(clip, $"Builder {i} should always return a clip.");
+        }
+    }
+
+    private void TestNewSfxBuildersReturnClips()
+    {
+        System.Func<AudioClip>[] sfxBuilders = {
+            ProceduralAudioBuilder.BuildAttackHitSfx,
+            ProceduralAudioBuilder.BuildAttackMissSfx,
+            ProceduralAudioBuilder.BuildAttackCritSfx,
+            ProceduralAudioBuilder.BuildHealSfx,
+            ProceduralAudioBuilder.BuildTideBreakSfx,
+            ProceduralAudioBuilder.BuildQTESuccessSfx,
+            ProceduralAudioBuilder.BuildQTEFailSfx,
+            ProceduralAudioBuilder.BuildTileTakeSfx,
+            ProceduralAudioBuilder.BuildTilePlaceSfx,
+            ProceduralAudioBuilder.BuildBoatDepartSfx,
+            ProceduralAudioBuilder.BuildBoatArriveSfx,
+            ProceduralAudioBuilder.BuildMenuClickSfx,
+            ProceduralAudioBuilder.BuildMenuOpenSfx,
+            ProceduralAudioBuilder.BuildMenuCloseSfx,
+            ProceduralAudioBuilder.BuildLevelUpSfx,
+            ProceduralAudioBuilder.BuildGearEquipSfx,
+            ProceduralAudioBuilder.BuildDialogueAdvanceSfx,
+            ProceduralAudioBuilder.BuildStatusEffectApplySfx,
+            ProceduralAudioBuilder.BuildStatusEffectExpireSfx,
+            ProceduralAudioBuilder.BuildAncientTextSfx,
+            ProceduralAudioBuilder.BuildPuzzleMilestoneSfx
+        };
+
+        for (int i = 0; i < sfxBuilders.Length; i++)
+        {
+            AudioClip clip = sfxBuilders[i]();
+            Assert.IsNotNull(clip, $"SFX builder {i} should always return a clip.");
+            AssertClipHasAudibleSignal(clip, $"SFX_{i}");
+        }
+    }
+
+    private void TestNewBgmBuildersReturnClips()
+    {
+        AudioClip bossBattle = ProceduralAudioBuilder.BuildBossBattleBgm();
+        Assert.IsNotNull(bossBattle, "Boss Battle BGM should be generated.");
+        AssertClipHasAudibleSignal(bossBattle, "BossBattleBgm");
+
+        AudioClip menuBgm = ProceduralAudioBuilder.BuildMenuBgm();
+        Assert.IsNotNull(menuBgm, "Menu BGM should be generated.");
+        AssertClipHasAudibleSignal(menuBgm, "MenuBgm");
+
+        AudioClip actTransition = ProceduralAudioBuilder.BuildActTransitionSting();
+        Assert.IsNotNull(actTransition, "Act transition sting should be generated.");
+    }
+
+    private void TestPerIslandBgmBuildersReturnClips()
+    {
+        System.Func<AudioClip>[] islandBuilders = {
+            ProceduralAudioBuilder.BuildIslandGreedBgm,
+            ProceduralAudioBuilder.BuildIslandSlothBgm,
+            ProceduralAudioBuilder.BuildIslandEnvyBgm,
+            ProceduralAudioBuilder.BuildIslandLustBgm,
+            ProceduralAudioBuilder.BuildIslandWrathBgm,
+            ProceduralAudioBuilder.BuildIslandPrideBgm,
+            ProceduralAudioBuilder.BuildIslandGluttonyBgm
+        };
+
+        string[] names = { "Greed", "Sloth", "Envy", "Lust", "Wrath", "Pride", "Gluttony" };
+
+        for (int i = 0; i < islandBuilders.Length; i++)
+        {
+            AudioClip clip = islandBuilders[i]();
+            Assert.IsNotNull(clip, $"Island {names[i]} BGM should be generated.");
+            AssertClipHasAudibleSignal(clip, $"Island{names[i]}Bgm");
         }
     }
 

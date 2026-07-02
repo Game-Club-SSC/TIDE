@@ -69,8 +69,31 @@ public static class AudioCatalogCoversCues
 {
     public static bool HasCueClips()
     {
-        AudioClip clip = ProceduralAudioBuilder.BuildExplorationBgm();
-        return clip != null && clip.length > 0f;
+        // Verify core BGM builders
+        AudioClip exploration = ProceduralAudioBuilder.BuildExplorationBgm();
+        if (exploration == null || exploration.length <= 0f) return false;
+
+        AudioClip combat = ProceduralAudioBuilder.BuildCombatBgm();
+        if (combat == null) return false;
+
+        AudioClip puzzle = ProceduralAudioBuilder.BuildPuzzleBgm();
+        if (puzzle == null) return false;
+
+        AudioClip ending = ProceduralAudioBuilder.BuildEndingBgm();
+        if (ending == null) return false;
+
+        // Verify new SFX builders
+        AudioClip attackHit = ProceduralAudioBuilder.BuildAttackHitSfx();
+        if (attackHit == null) return false;
+
+        AudioClip heal = ProceduralAudioBuilder.BuildHealSfx();
+        if (heal == null) return false;
+
+        // Verify per-island BGM
+        AudioClip greed = ProceduralAudioBuilder.BuildIslandGreedBgm();
+        if (greed == null) return false;
+
+        return true;
     }
 }
 
@@ -78,7 +101,7 @@ public static class AcceptanceConversationGating
 {
     public static bool Ok()
     {
-        return AcceptanceConversation.LineCount == 3
+        return AcceptanceConversation.LineCount == 10
             && !string.IsNullOrEmpty(AcceptanceConversation.FinalBossIslandId);
     }
 }

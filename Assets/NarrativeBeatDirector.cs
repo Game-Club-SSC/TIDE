@@ -1,5 +1,6 @@
 using System.Text;
 using UnityEngine;
+using System.Collections.Generic;
 
 [DisallowMultipleComponent]
 public class NarrativeBeatDirector : MonoBehaviour
@@ -173,7 +174,83 @@ public class NarrativeBeatDirector : MonoBehaviour
         }
 
         beatCooldownTimer = Mathf.Max(2f, beatRepeatCooldown);
+
+        // Wire dialogue trees to beat triggers
+        TryPlayLinkedDialogueTree(beatId);
+
         return true;
+    }
+
+    // ================================================================== //
+    //  Dialogue Tree Integration
+    // ================================================================== //
+
+    /// <summary>
+    /// Maps beat IDs to dialogue tree factory methods. When a beat fires,
+    /// the associated dialogue tree is played if available.
+    /// </summary>
+    private static readonly Dictionary<string, System.Func<DialogueTree>> BeatToDialogueMap =
+        new Dictionary<string, System.Func<DialogueTree>>
+    {
+        { IntroBeatId, HeroDialogueContent.CeremonyDialogue },
+        { PostRestorationBeatId, HeroDialogueContent.AncientTextReactionActI },
+        { ActTwoBeatId, HeroDialogueContent.AncientTextReactionActII },
+        { ActThreeBeatId, HeroDialogueContent.AncientTextReactionActIII },
+    };
+
+    /// <summary>
+    /// Maps island IDs to pre-boss dialogue tree factory methods.
+    /// </summary>
+    private static readonly Dictionary<string, System.Func<DialogueTree>> IslandToPreBossDialogue =
+        new Dictionary<string, System.Func<DialogueTree>>
+    {
+        { "island_greed", HeroDialogueContent.PreBossGreedDialogue },
+        { "island_sloth", HeroDialogueContent.PreBossAttachmentDialogue },
+        { "island_envy", HeroDialogueContent.PreBossJealousyDialogue },
+        { "island_lust", HeroDialogueContent.PreBossLustDialogue },
+        { "island_wrath", HeroDialogueContent.PreBossAngerDialogue },
+        { "island_pride", HeroDialogueContent.PreBossPrideDialogue },
+    };
+
+    /// <summary>
+    /// Attempts to play a dialogue tree linked to the given beat ID.
+    /// </summary>
+    private void TryPlayLinkedDialogueTree(string beatId)
+    {
+        if (DialogueSystem.Instance == null || DialogueSystem.Instance.IsDialogueActive)
+        {
+            return;
+        }
+
+        if (BeatToDialogueMap.TryGetValue(beatId, out System.Func<DialogueTree> treeFactory))
+        {
+            DialogueTree tree = treeFactory();
+            if (tree != null)
+            {
+                DialogueSystem.Instance.StartDialogueTree(tree);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Plays the pre-boss dialogue for the given island.
+    /// Call from IslandFlowController or DialogueTrigger when approaching a boss.
+    /// </summary>
+    public static void PlayPreBossDialogue(string islandId)
+    {
+        if (DialogueSystem.Instance == null || DialogueSystem.Instance.IsDialogueActive)
+        {
+            return;
+        }
+
+        if (IslandToPreBossDialogue.TryGetValue(islandId, out System.Func<DialogueTree> treeFactory))
+        {
+            DialogueTree tree = treeFactory();
+            if (tree != null)
+            {
+                DialogueSystem.Instance.StartDialogueTree(tree);
+            }
+        }
     }
 
     private void CacheExplorationStartPosition()

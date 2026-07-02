@@ -926,6 +926,14 @@ public class CombatSceneBootstrap : MonoBehaviour
         // Prevent BattleManager from auto-starting in its Start() method
         bm.autoStartBattle = false;
 
+        // Play boss intro sting and switch to boss battle BGM
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleBossIntro();
+            audioManager.HandleBossBattleBgm();
+        }
+
         // Create and play the boss intro
         GameObject introObject = new GameObject("BossIntroDirector");
         introObject.transform.SetParent(transform, false);

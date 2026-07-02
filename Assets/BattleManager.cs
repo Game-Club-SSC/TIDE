@@ -1279,6 +1279,19 @@ public class BattleManager : MonoBehaviour
         winner = qteSuccess ? ally : enemy;
         loser = qteSuccess ? enemy : ally;
 
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            if (qteSuccess)
+            {
+                audioManager.HandleQTESuccess();
+            }
+            else
+            {
+                audioManager.HandleQTEFail();
+            }
+        }
+
         string outcome = qteSuccess ? "SUCCESS (momentum toward player)" : "FAIL (momentum toward enemy)";
         Debug.Log($"[BattleManager] Neutral clash QTE resolved via {qteResolution}: {outcome}.", this);
         return true;
@@ -1655,6 +1668,12 @@ public class BattleManager : MonoBehaviour
             float healMultiplier = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
             int restoredAmount = Mathf.Max(1, Mathf.RoundToInt(actualDamageSingle * skill.restoreCasterPercentOfDamage * healMultiplier));
             actor.Heal(restoredAmount);
+
+            AudioManager audioManager = AudioManager.Instance;
+            if (audioManager != null)
+            {
+                audioManager.HandleHeal();
+            }
         }
 
         string matchupFeedbackSingle = "";
@@ -1691,6 +1710,12 @@ public class BattleManager : MonoBehaviour
         if (actor == null || !actor.IsAlive)
         {
             return;
+        }
+
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleTideBreakActivation();
         }
 
         // Determine which TideBreak data to use
@@ -1945,6 +1970,20 @@ public class BattleManager : MonoBehaviour
         if (!enableActionAnimations || actor == null || target == null)
         {
             return;
+        }
+
+        // Audio feedback for combat hits
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            if (isCrit)
+            {
+                audioManager.HandleAttackCrit();
+            }
+            else
+            {
+                audioManager.HandleAttackHit();
+            }
         }
 
         Transform actorVisual = ResolveActionVisualTransform(actor);

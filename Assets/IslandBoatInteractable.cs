@@ -927,6 +927,7 @@ else
         if (audioManager != null)
         {
             audioManager.HandleTravel();
+            audioManager.HandleBoatDepart();
         }
     }
 
