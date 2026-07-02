@@ -495,8 +495,15 @@ public class OverworldEnemy : MonoBehaviour
             return false;
         }
 
-        Vector3 directionToPlayer = (playerTransform.position - transform.position).normalized;
+        Vector3 directionToPlayer = (playerTransform.position - transform.position);
         directionToPlayer.y = 0f;
+
+        if (directionToPlayer.sqrMagnitude < 0.0001f)
+        {
+            return false;
+        }
+
+        directionToPlayer.Normalize();
 
         Vector3 forward = transform.forward;
         forward.y = 0f;
@@ -507,17 +514,17 @@ public class OverworldEnemy : MonoBehaviour
 
     private float GetPlayerSpeed()
     {
-        IsometricPlayer player = playerTransform.GetComponent<IsometricPlayer>();
-        if (player != null)
+        if (playerTransform == null)
         {
-            // Try to get speed from player's Rigidbody
-            Rigidbody playerRb = playerTransform.GetComponent<Rigidbody>();
-            if (playerRb != null)
-            {
-                Vector3 velocity = playerRb.linearVelocity;
-                velocity.y = 0f;
-                return velocity.magnitude;
-            }
+            return 0f;
+        }
+
+        Rigidbody playerRb = playerTransform.GetComponent<Rigidbody>();
+        if (playerRb != null)
+        {
+            Vector3 velocity = playerRb.linearVelocity;
+            velocity.y = 0f;
+            return velocity.magnitude;
         }
 
         return 0f;
@@ -1279,6 +1286,7 @@ public class OverworldEnemy : MonoBehaviour
 
         if (IslandRestorationTracker.Instance == null)
         {
+            startupClearCheckComplete = true;
             return false;
         }
 

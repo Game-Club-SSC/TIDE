@@ -117,6 +117,32 @@ public static class ProceduralAudioBuilder
         });
     }
 
+    public static AudioClip BuildExplorationBgmActII()
+    {
+        return BuildLoopedClip("Auto_ExplorationBgm_ActII", 10f, (t, n) =>
+        {
+            float chord = Mathf.Sin(2f * Mathf.PI * 98f * t)
+                        + 0.5f * Mathf.Sin(2f * Mathf.PI * 146.83f * t)
+                        + 0.3f * Mathf.Sin(2f * Mathf.PI * 196f * t);
+            float pad = Mathf.Sin(2f * Mathf.PI * 49f * t) * 0.5f;
+            float dissonance = 0.15f * Mathf.Sin(2f * Mathf.PI * 103.83f * t);
+            float swell = 0.5f + 0.5f * Mathf.Sin(2f * Mathf.PI * 0.12f * t);
+            return (chord + pad + dissonance) * 0.16f * swell;
+        });
+    }
+
+    public static AudioClip BuildExplorationBgmActIII()
+    {
+        return BuildLoopedClip("Auto_ExplorationBgm_ActIII", 12f, (t, n) =>
+        {
+            float root = Mathf.Sin(2f * Mathf.PI * 130.81f * t) * 0.5f;
+            float fifth = Mathf.Sin(2f * Mathf.PI * 196f * t) * 0.3f;
+            float octave = Mathf.Sin(2f * Mathf.PI * 261.63f * t) * 0.15f;
+            float breath = Mathf.Sin(2f * Mathf.PI * 0.08f * t) * 0.4f + 0.6f;
+            return (root + fifth + octave) * 0.18f * breath;
+        });
+    }
+
     private static AudioClip BuildLoopedClip(string name, float lengthSeconds, System.Func<float, int, float> sampleFn)
     {
         int sampleCount = Mathf.RoundToInt(SampleRate * lengthSeconds);

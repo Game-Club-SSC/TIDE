@@ -13,7 +13,9 @@ public enum AudioCue
     CombatDefeat,
     PuzzleSolved,
     BossIntro,
-    TravelFanfare
+    TravelFanfare,
+    ActIIExplorationBgm,
+    ActIIIExplorationBgm
 }
 
 [DisallowMultipleComponent]
@@ -26,6 +28,8 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip combatBgm;
     [SerializeField] private AudioClip puzzleBgm;
     [SerializeField] private AudioClip endingBgm;
+    [SerializeField] private AudioClip actIIExplorationBgm;
+    [SerializeField] private AudioClip actIIIExplorationBgm;
 
     [Header("Stingers")]
     [SerializeField] private AudioClip combatVictorySting;
@@ -33,6 +37,11 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip puzzleSolvedSting;
     [SerializeField] private AudioClip bossIntroSting;
     [SerializeField] private AudioClip travelFanfareSting;
+
+    [Header("Island Audio Profile")]
+    [SerializeField, Tooltip("Global default profiles keyed by island id. " +
+         "Islands with an IslandAudioProfile on their IslandConfig take priority.")]
+    private IslandAudioProfile[] islandProfiles;
 
     [Header("Mix")]
     [SerializeField, Range(0f, 1f)] private float bgmVolume = 0.7f;
@@ -43,7 +52,9 @@ public class AudioManager : MonoBehaviour
 
     private AudioSource bgmSource;
     private AudioSource stingSource;
+    private AudioSource ambientSource;
     private AudioCue? activeCue;
+    private IslandAudioProfile activeIslandProfile;
     private float lastStingTime = -10f;
     private Coroutine bgmFadeRoutine;
 
@@ -66,6 +77,13 @@ public class AudioManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         EnsureSources();
         SceneManager.sceneLoaded += HandleSceneLoaded;
+
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm != null)
+        {
+            gsm.OnStoryActChanged -= HandleStoryActChanged;
+            gsm.OnStoryActChanged += HandleStoryActChanged;
+        }
     }
 
     private void OnDisable()
@@ -73,6 +91,13 @@ public class AudioManager : MonoBehaviour
         if (Instance == this)
         {
             SceneManager.sceneLoaded -= HandleSceneLoaded;
+
+            GameStateManager gsm = GameStateManager.Instance;
+            if (gsm != null)
+            {
+                gsm.OnStoryActChanged -= HandleStoryActChanged;
+            }
+
             Instance = null;
         }
     }
@@ -95,6 +120,15 @@ public class AudioManager : MonoBehaviour
             stingSource.playOnAwake = false;
             stingSource.volume = SfxVolume;
             stingSource.spatialBlend = 0f;
+        }
+
+        if (ambientSource == null)
+        {
+            ambientSource = gameObject.AddComponent<AudioSource>();
+            ambientSource.loop = true;
+            ambientSource.playOnAwake = false;
+            ambientSource.volume = 0f;
+            ambientSource.spatialBlend = 0f;
         }
     }
 
@@ -121,7 +155,26 @@ public class AudioManager : MonoBehaviour
         }
         else if (string.Equals(sceneName, GameStateManager.MainSceneName, System.StringComparison.Ordinal))
         {
-            PlayCue(AudioCue.ExplorationBgm);
+            // Reset BGM pitch to default when returning to exploration
+            if (bgmSource != null)
+            {
+                bgmSource.pitch = 1f;
+            }
+
+            GameStateManager gsm = GameStateManager.Instance;
+            GameStateManager.StoryAct act = gsm != null ? gsm.CurrentStoryAct : GameStateManager.StoryAct.ActI;
+            switch (act)
+            {
+                case GameStateManager.StoryAct.ActII:
+                    PlayCue(AudioCue.ActIIExplorationBgm);
+                    break;
+                case GameStateManager.StoryAct.ActIII:
+                    PlayCue(AudioCue.ActIIIExplorationBgm);
+                    break;
+                default:
+                    PlayCue(AudioCue.ExplorationBgm);
+                    break;
+            }
         }
     }
 
@@ -230,6 +283,212 @@ public class AudioManager : MonoBehaviour
         PlayCue(AudioCue.EndingBgm);
     }
 
+    public void HandleStoryActChanged(GameStateManager.StoryAct act)
+    {
+        if (activeCue != AudioCue.ExplorationBgm)
+        {
+            return;
+        }
+
+        switch (act)
+        {
+            case GameStateManager.StoryAct.ActII:
+                PlayCue(AudioCue.ActIIExplorationBgm);
+                break;
+            case GameStateManager.StoryAct.ActIII:
+                PlayCue(AudioCue.ActIIIExplorationBgm);
+                break;
+        }
+    }
+
+    // ----- Island-Specific Audio -----
+
+    /// <summary>
+    /// Plays exploration BGM and ambient audio for the given island config.
+    /// Falls back to default exploration BGM if the island has no audio profile.
+    /// </summary>
+    public void PlayIslandAudio(IslandConfig islandConfig)
+    {
+        if (islandConfig == null)
+        {
+            PlayCue(AudioCue.ExplorationBgm);
+            return;
+        }
+
+        IslandAudioProfile profile = islandConfig.audioProfile ?? FindIslandProfile(islandConfig.islandId);
+        activeIslandProfile = profile;
+
+        if (profile == null)
+        {
+            PlayCue(AudioCue.ExplorationBgm);
+            return;
+        }
+
+        EnsureSources();
+
+        // Play island-specific exploration BGM if assigned, else fall back to default
+        if (profile.explorationBgm != null)
+        {
+            ApplyActToneShift(profile);
+            PlayBgm(AudioCue.ExplorationBgm, profile.explorationBgm);
+            OnCuePlayed?.Invoke(AudioCue.ExplorationBgm);
+        }
+        else
+        {
+            PlayCue(AudioCue.ExplorationBgm);
+        }
+
+        // Start island ambient loop
+        if (profile.ambientLoop != null)
+        {
+            ambientSource.clip = profile.ambientLoop;
+            ambientSource.volume = profile.ambientVolume * BgmVolume;
+            ambientSource.Play();
+        }
+        else
+        {
+            ambientSource.Stop();
+        }
+    }
+
+    /// <summary>
+    /// Plays combat BGM for the given island, with boss variant if flagged.
+    /// </summary>
+    public void PlayIslandCombatAudio(IslandConfig islandConfig, bool isBoss)
+    {
+        if (activeIslandProfile == null)
+        {
+            PlayCue(isBoss ? AudioCue.BossIntro : AudioCue.CombatBgm);
+            return;
+        }
+
+        AudioClip clip = isBoss ? activeIslandProfile.bossBgm : activeIslandProfile.combatBgm;
+        if (clip == null)
+        {
+            PlayCue(isBoss ? AudioCue.BossIntro : AudioCue.CombatBgm);
+            return;
+        }
+
+        EnsureSources();
+        ApplyActToneShift(activeIslandProfile);
+        PlayBgm(AudioCue.CombatBgm, clip);
+        OnCuePlayed?.Invoke(AudioCue.CombatBgm);
+    }
+
+    /// <summary>
+    /// Plays puzzle BGM for the current island.
+    /// </summary>
+    public void PlayIslandPuzzleAudio(IslandConfig islandConfig)
+    {
+        if (activeIslandProfile == null)
+        {
+            PlayCue(AudioCue.PuzzleBgm);
+            return;
+        }
+
+        AudioClip clip = activeIslandProfile.puzzleBgm;
+        if (clip == null)
+        {
+            PlayCue(AudioCue.PuzzleBgm);
+            return;
+        }
+
+        EnsureSources();
+        ApplyActToneShift(activeIslandProfile);
+        PlayBgm(AudioCue.PuzzleBgm, clip);
+        OnCuePlayed?.Invoke(AudioCue.PuzzleBgm);
+    }
+
+    /// <summary>
+    /// Plays an SFX override from the island profile if available.
+    /// Returns true if an island-specific clip was played.
+    /// </summary>
+    public bool PlayIslandSfx(string sfxKey)
+    {
+        if (activeIslandProfile == null)
+        {
+            return false;
+        }
+
+        AudioClip clip = null;
+        switch (sfxKey)
+        {
+            case "tidebreak": clip = activeIslandProfile.tideBreakSfx; break;
+            case "heal": clip = activeIslandProfile.healSfx; break;
+            case "attack_hit": clip = activeIslandProfile.attackHitSfx; break;
+        }
+
+        if (clip == null)
+        {
+            return false;
+        }
+
+        EnsureSources();
+        stingSource.PlayOneShot(clip, SfxVolume);
+        return true;
+    }
+
+    /// <summary>
+    /// Clears the active island profile, reverting to default audio.
+    /// </summary>
+    public void ClearIslandAudio()
+    {
+        activeIslandProfile = null;
+        if (ambientSource != null)
+        {
+            ambientSource.Stop();
+        }
+        if (bgmSource != null)
+        {
+            bgmSource.pitch = 1f;
+        }
+    }
+
+    public IslandAudioProfile ActiveIslandProfile => activeIslandProfile;
+
+    private IslandAudioProfile FindIslandProfile(string islandId)
+    {
+        if (islandProfiles == null || string.IsNullOrEmpty(islandId))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < islandProfiles.Length; i++)
+        {
+            if (islandProfiles[i] != null &&
+                string.Equals(islandProfiles[i].islandId, islandId, StringComparison.Ordinal))
+            {
+                return islandProfiles[i];
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Applies act-based pitch and volume modifiers to the BGM source.
+    /// Act I is brighter, Act II neutral, Act III somber.
+    /// </summary>
+    private void ApplyActToneShift(IslandAudioProfile profile)
+    {
+        if (profile == null || bgmSource == null)
+        {
+            return;
+        }
+
+        int actNumber = 1;
+        if (GameStateManager.Instance != null)
+        {
+            actNumber = (int)GameStateManager.Instance.CurrentStoryAct;
+        }
+
+        float pitch = profile.GetActPitch(actNumber);
+        bgmSource.pitch = Mathf.Clamp(pitch, 0.5f, 2f);
+
+        float actVolMult = profile.GetActVolumeMultiplier(actNumber);
+        bgmSource.volume = BgmVolume * actVolMult;
+    }
+
     private void PlayBgm(AudioCue cue, AudioClip clip)
     {
         if (bgmSource == null)
@@ -314,6 +573,8 @@ public class AudioManager : MonoBehaviour
             case AudioCue.PuzzleSolved: return GetOrGenerateClip(cue, ref puzzleSolvedSting, ProceduralAudioBuilder.BuildPuzzleSolvedSting);
             case AudioCue.BossIntro: return GetOrGenerateClip(cue, ref bossIntroSting, ProceduralAudioBuilder.BuildBossIntroSting);
             case AudioCue.TravelFanfare: return GetOrGenerateClip(cue, ref travelFanfareSting, ProceduralAudioBuilder.BuildTravelFanfareSting);
+            case AudioCue.ActIIExplorationBgm: return GetOrGenerateClip(cue, ref actIIExplorationBgm, ProceduralAudioBuilder.BuildExplorationBgmActII);
+            case AudioCue.ActIIIExplorationBgm: return GetOrGenerateClip(cue, ref actIIIExplorationBgm, ProceduralAudioBuilder.BuildExplorationBgmActIII);
             default: return null;
         }
     }
@@ -339,6 +600,8 @@ public class AudioManager : MonoBehaviour
             case AudioCue.CombatBgm:
             case AudioCue.PuzzleBgm:
             case AudioCue.EndingBgm:
+            case AudioCue.ActIIExplorationBgm:
+            case AudioCue.ActIIIExplorationBgm:
                 return true;
             default:
                 return false;
