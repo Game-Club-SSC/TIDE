@@ -280,6 +280,11 @@ public class IslandRestorationTracker : MonoBehaviour
                 }
 
                 string scopedIslandId = ResolveIslandId(stateSnapshot.islandId);
+                if (string.IsNullOrEmpty(scopedIslandId))
+                {
+                    Debug.LogWarning($"[IslandRestorationTracker] Skipping snapshot island with unresolved id '{stateSnapshot.islandId}'.");
+                    continue;
+                }
                 IslandRestorationState state = new IslandRestorationState(scopedIslandId);
                 state.ApplySnapshot(stateSnapshot);
                 islandStates[scopedIslandId] = state;
