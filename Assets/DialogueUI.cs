@@ -54,25 +54,25 @@ public class DialogueUI : MonoBehaviour
             return;
         }
 
-        // If a previous sequence is still in flight, stop its typewriter and invoke
-        // its callback before starting the new one. Otherwise the old typewriter
-        // coroutine can keep running and overwrite the new sequence's body text.
-        if (typewriterRoutine != null)
+        // Capture stale callback and clear BEFORE touching any state. We invoke
+        // it LAST so a re-entrant PlaySequence call from the stale callback can't
+        // be overwritten by the outer call's subsequent assignments.
+        Action staleCallback = onCompleteCallback;
+        onCompleteCallback = null;
+        Coroutine staleRoutine = typewriterRoutine;
+        typewriterRoutine = null;
+
+        // Cancel any in-flight typewriter immediately so it cannot keep writing
+        // to bodyText and overwrite the new sequence.
+        if (staleRoutine != null)
         {
-            StopCoroutine(typewriterRoutine);
-            typewriterRoutine = null;
+            StopCoroutine(staleRoutine);
         }
 
         isTyping = false;
         skipRequested = false;
 
-        if (onCompleteCallback != null)
-        {
-            Action stale = onCompleteCallback;
-            onCompleteCallback = null;
-            stale.Invoke();
-        }
-
+        // Set up the new sequence.
         currentEntries = entries;
         currentIndex = 0;
         onCompleteCallback = onComplete;
@@ -80,6 +80,12 @@ public class DialogueUI : MonoBehaviour
         EnsureCanvas();
         ShowPanel();
         ShowEntry(currentEntries[0]);
+
+        // Fire stale callback last so re-entry is safe (state is fully set).
+        if (staleCallback != null)
+        {
+            staleCallback.Invoke();
+        }
     }
 
     // ------------------------------------------------------------------ //
