@@ -12,6 +12,7 @@ public class PhoneInputBridge : MonoBehaviour
     [SerializeField] private bool autoFindPlayer = true;
 
     [Header("Joystick Settings")]
+    [Range(0f, 0.95f)]
     [SerializeField] private float joystickDeadZone = 0.15f;
     [SerializeField] private bool invertJoystickY = false;
 
@@ -102,6 +103,10 @@ public class PhoneInputBridge : MonoBehaviour
 
         CachePlayer();
 
+        // Clamp dead zone once per frame to keep the magnitude check and the
+        // normalization denominator consistent (and avoid divide-by-zero).
+        float effectiveDeadZone = Mathf.Clamp(joystickDeadZone, 0f, 0.95f);
+
         // Clear one-shot flags each frame
         phoneInteractPressed = false;
         phoneDashPressed = false;
@@ -126,7 +131,7 @@ public class PhoneInputBridge : MonoBehaviour
 
         // Determine if phone input is active
         float mag = new Vector2(phoneInputH, phoneInputV).magnitude;
-        phoneInputActive = mag > joystickDeadZone || phoneSprintHeld
+        phoneInputActive = mag > effectiveDeadZone || phoneSprintHeld
             || phoneInteractPressed || phoneDashPressed || phoneHopPressed;
     }
 
@@ -160,15 +165,17 @@ public class PhoneInputBridge : MonoBehaviour
 
         // Apply dead zone
         float mag = Mathf.Sqrt(x * x + y * y);
-        if (mag < joystickDeadZone)
+        // Clamp dead zone defensively to avoid divide-by-zero / negative denominator
+        float dz = Mathf.Clamp(joystickDeadZone, 0f, 0.95f);
+        if (mag < dz)
         {
             phoneInputH = 0f;
             phoneInputV = 0f;
             return;
         }
 
-        // Normalize after dead zone
-        float normalizedMag = (mag - joystickDeadZone) / (1f - joystickDeadZone);
+        // Normalize after dead zone (denominator guaranteed >= 0.05)
+        float normalizedMag = (mag - dz) / (1f - dz);
         normalizedMag = Mathf.Clamp01(normalizedMag);
 
         float angle = Mathf.Atan2(y, x);

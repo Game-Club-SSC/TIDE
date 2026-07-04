@@ -74,6 +74,12 @@ public class IslandRestorationTracker : MonoBehaviour
     {
         islandId = ResolveIslandId(islandId);
 
+        if (string.IsNullOrEmpty(islandId))
+        {
+            Debug.LogWarning("[IslandRestorationTracker] Cannot resolve island id. Skipping completion.");
+            return false;
+        }
+
         if (string.IsNullOrEmpty(encounterId))
         {
             Debug.LogWarning($"[IslandRestorationTracker] Encounter id is required for island '{islandId}'. Skipping completion.");
@@ -126,6 +132,12 @@ public class IslandRestorationTracker : MonoBehaviour
     {
         islandId = ResolveIslandId(islandId);
 
+        if (string.IsNullOrEmpty(islandId))
+        {
+            Debug.LogWarning("[IslandRestorationTracker] Cannot resolve island id. Skipping reset.");
+            return;
+        }
+
         IslandRestorationState state = GetOrCreateState(islandId);
         state.Reset();
         OnRestorationChanged?.Invoke(islandId, 0f);
@@ -140,6 +152,11 @@ public class IslandRestorationTracker : MonoBehaviour
     {
         islandId = ResolveIslandId(islandId);
 
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return 0f;
+        }
+
         if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
         {
             return 0f;
@@ -151,6 +168,13 @@ public class IslandRestorationTracker : MonoBehaviour
     public IslandRestorationState GetRestorationState(string islandId)
     {
         islandId = ResolveIslandId(islandId);
+
+        // Return an empty state (matches previous behavior for non-existent islands)
+        // rather than null, so 6 internal callers don't need null-guard changes.
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return new IslandRestorationState(string.Empty);
+        }
 
         if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
         {
@@ -168,6 +192,11 @@ public class IslandRestorationTracker : MonoBehaviour
     public bool IsIslandRestored(string islandId)
     {
         islandId = ResolveIslandId(islandId);
+
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return false;
+        }
 
         if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
         {
@@ -203,6 +232,11 @@ public class IslandRestorationTracker : MonoBehaviour
         }
 
         islandId = ResolveIslandId(islandId);
+
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return false;
+        }
 
         if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
         {
@@ -266,6 +300,13 @@ public class IslandRestorationTracker : MonoBehaviour
     {
         islandId = ResolveIslandId(islandId);
 
+        // All callers early-guard on null islandId, so this state is unreachable.
+        // Return empty state defensively rather than null to keep call sites simple.
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return new IslandRestorationState(string.Empty);
+        }
+
         if (!islandStates.TryGetValue(islandId, out IslandRestorationState state))
         {
             state = new IslandRestorationState(islandId);
@@ -292,6 +333,11 @@ public class IslandRestorationTracker : MonoBehaviour
     public void SetIslandRestorationPercentForDebug(string islandId, float percent)
     {
         string scopedIslandId = ResolveIslandId(islandId);
+        if (string.IsNullOrEmpty(scopedIslandId))
+        {
+            Debug.LogWarning("[IslandRestorationTracker] Cannot resolve island id for debug set.");
+            return;
+        }
         IslandRestorationState state = GetOrCreateState(scopedIslandId);
         state.Reset();
 

@@ -54,6 +54,25 @@ public class DialogueUI : MonoBehaviour
             return;
         }
 
+        // If a previous sequence is still in flight, stop its typewriter and invoke
+        // its callback before starting the new one. Otherwise the old typewriter
+        // coroutine can keep running and overwrite the new sequence's body text.
+        if (typewriterRoutine != null)
+        {
+            StopCoroutine(typewriterRoutine);
+            typewriterRoutine = null;
+        }
+
+        isTyping = false;
+        skipRequested = false;
+
+        if (onCompleteCallback != null)
+        {
+            Action stale = onCompleteCallback;
+            onCompleteCallback = null;
+            stale.Invoke();
+        }
+
         currentEntries = entries;
         currentIndex = 0;
         onCompleteCallback = onComplete;
