@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
+  m_Name: text_lust_deep
+  m_EditorClassIdentifier: Assembly-CSharp::AncientTextData
+  textId: lust_deep
+  title: Every Road, One Door
+  body: "We hoped, on this island, that the texts would branch \u2014 that somewhere
+    in the archive was a version left by heroes who found another way. We searched.
+    We read every word the past had left us. They all end at the same door.\n\nYou
+    may feel the shape of it now, even if you cannot yet say it. A pressure behind
+    the eyes. A reluctance to finish a sentence that starts with 'what happens when
+    \u2014.' That reluctance is wisdom and cowardice wearing the same coat, and we
+    will not tell you which to trust. We only tell you that the door is real, and
+    that pretending otherwise did not spare us; it only stole the days we could have
+    spent looking at each other instead of away.\n\nIf your group has begun to sense
+    it too, do not force the conversation. But do not flee it forever, either. There
+    is a middle place \u2014 knowing, and still choosing joy. We reached it late.
+    Reach it sooner than we did."

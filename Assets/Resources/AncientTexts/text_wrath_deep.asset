@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
+  m_Name: text_wrath_deep
+  m_EditorClassIdentifier: Assembly-CSharp::AncientTextData
+  textId: wrath_deep
+  title: When We Came Apart
+  body: "We should tell you the part we are ashamed of, because pride in the archive
+    would be its own kind of lie.\n\nThere was a stretch \u2014 after we understood,
+    before we accepted \u2014 when we could not stand the sight of one another. Every
+    glance was a reminder. The healer stopped meeting our eyes. The strong one picked
+    fights she did not want, just to feel something other than the ending. We fought
+    the islands and we fought each other, and for a while it was uncertain which
+    would finish us first.\n\nWe are not writing to warn you away from this. You
+    may not be able to avoid it; we could not. We are writing so that when it happens,
+    you will know it is a season and not a verdict. Groups come apart at the exact
+    place they are most afraid. The coming-apart is not the failure. Staying apart
+    is. We found our way back. It is the only thing we did that we are truly proud
+    of. Find your way back too."

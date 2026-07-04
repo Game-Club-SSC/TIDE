@@ -5,11 +5,11 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class TeleportAnchor : MonoBehaviour
 {
-    [SerializeField] private string anchorId;
-    [SerializeField] private string islandId = IslandThemeRegistry.DefaultIslandId;
-    [SerializeField] private Vector3 spawnPosition = Vector3.zero;
-    [SerializeField] private bool isSceneEntrance = true;
-    [SerializeField] private bool isBoatDock;
+    [SerializeField] internal string anchorId;
+    [SerializeField] internal string islandId = IslandThemeRegistry.DefaultIslandId;
+    [SerializeField] internal Vector3 spawnPosition = Vector3.zero;
+    [SerializeField] internal bool isSceneEntrance = true;
+    [SerializeField] internal bool isBoatDock;
 
     public string AnchorId => anchorId;
     public string IslandId => islandId;

@@ -106,7 +106,7 @@ public class GamepadInputManager : MonoBehaviour
         // A gamepad is "active" if it is connected and any button/axis has been pressed
         if (IsGamepadConnected && !IsGamepadActive)
         {
-            if (Input.anyButton || Mathf.Abs(Input.GetAxisRaw(HorizontalAxis)) > stickDeadZone || Mathf.Abs(Input.GetAxisRaw(VerticalAxis)) > stickDeadZone)
+            if (Input.anyKey || Mathf.Abs(Input.GetAxisRaw(HorizontalAxis)) > stickDeadZone || Mathf.Abs(Input.GetAxisRaw(VerticalAxis)) > stickDeadZone)
             {
                 IsGamepadActive = true;
                 Debug.Log("[GamepadInputManager] Gamepad input detected -- switching to gamepad prompts.");

@@ -7,7 +7,7 @@ public static class HeroTideBreakFactory
 
     public static IReadOnlyList<TideBreakData> GetTideBreaksForHero(string heroId, CombatUnit.Element element, int heroLevel)
     {
-        List<TideBreakData> all = GetAllHeroTideBreaks();
+        IReadOnlyList<TideBreakData> all = GetAllHeroTideBreaks();
         List<TideBreakData> result = new List<TideBreakData>();
         for (int i = 0; i < all.Count; i++)
         {
@@ -102,5 +102,11 @@ public static class HeroTideBreakFactory
         data.damageMultiplier = multiplier;
         data.name = $"TB_{heroId}_{name.Replace(' ', '_')}";
         return data;
+    }
+
+    public static bool BaselineOk()
+    {
+        IReadOnlyList<TideBreakData> all = GetAllHeroTideBreaks();
+        return all != null && all.Count > 0;
     }
 }

@@ -352,7 +352,7 @@ public static class PersonaUIStyle
         canvasObj.AddComponent<GraphicRaycaster>();
 
         // Ensure an EventSystem exists
-        if (Object.FindObjectOfType<EventSystem>() == null)
+        if (Object.FindFirstObjectByType<EventSystem>() == null)
         {
             GameObject esObj = new GameObject("EventSystem");
             esObj.AddComponent<EventSystem>();

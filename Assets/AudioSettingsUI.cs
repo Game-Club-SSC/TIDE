@@ -9,7 +9,7 @@ using UnityEngine.UI;
 public class AudioSettingsUI : MonoBehaviour
 {
     private Canvas canvas;
-    private GameObject panelRoot;
+    private Image panelRoot;
     private Slider bgmSlider;
     private Slider sfxSlider;
     private Toggle muteToggle;

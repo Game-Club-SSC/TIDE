@@ -30,7 +30,7 @@ public static class GameStateSerializer
         AppendJsonField(sb, "activeIsland", activeIsland, false);
 
         // Player position
-        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+        IsometricPlayer player = Object.FindFirstObjectByType<IsometricPlayer>();
         if (player != null)
         {
             Vector3 pos = player.transform.position;
@@ -66,14 +66,14 @@ public static class GameStateSerializer
         }
 
         // Battle state
-        BattleManager battle = FindFirstObjectByType<BattleManager>();
+        BattleManager battle = Object.FindFirstObjectByType<BattleManager>();
         if (battle != null)
         {
             AppendJsonField(sb, "battlePhase", battle.CurrentPhase.ToString(), false);
         }
 
         // Flow controller state
-        IslandFlowController flow = FindFirstObjectByType<IslandFlowController>();
+        IslandFlowController flow = Object.FindFirstObjectByType<IslandFlowController>();
         if (flow != null)
         {
             AppendJsonField(sb, "flowActive", flow.IsActive.ToString().ToLowerInvariant(), false);

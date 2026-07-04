@@ -12,6 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
   m_Name: text_pride_intro
   m_EditorClassIdentifier: 
-  textId: pride_intro_fragment
-  title: Fragment of Pride
-  body: "Pride builds a throne from borrowed praise.\nIt mistakes noise for worth and height for truth.\n\nOnly the balanced heart can stand without a crown."
+  textId: pride_intro
+  title: The Mirror's Last Lie
+  body: "Pride will offer you the most seductive story of all: that you are the exception.
+    That you, uniquely among all who came before, deserve more time \u2014 that the
+    balance could bend, just once, for someone as remarkable as you. The mirror-knights
+    will show you a self who grows old, who is owed a longer tale. It is the last
+    lie, and the hardest to refuse, because it is dressed as self-respect.\n\nRefuse
+    it anyway. Not by thinking less of yourself \u2014 think as highly as you like
+    \u2014 but by seeing clearly. You are not owed more because you are worthy. Worth
+    was never the currency. You were a gift the world gave itself, and gifts are
+    not diminished by being given back.\n\nWhen you set the mirror down, something
+    strange happens. The fear thins. Clarity comes in its place \u2014 cold at first,
+    then oddly clean. That clarity is the beginning of the only ending worth having.
+    Walk toward it with your eyes open."

@@ -361,7 +361,6 @@ public class DialogueTreeRunner : MonoBehaviour
 
         Text text = textObj.AddComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (text.font == null) text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
         text.fontSize = 20;
         text.color = Color.white;
         text.alignment = TextAnchor.MiddleLeft;
@@ -614,7 +613,6 @@ public class DialogueTreeRunner : MonoBehaviour
         GameObject speakerObj = CreateUIElement("SpeakerName", panelObj.transform);
         speakerText = speakerObj.AddComponent<Text>();
         speakerText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (speakerText.font == null) speakerText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
         speakerText.fontSize = 26;
         speakerText.fontStyle = FontStyle.Bold;
         speakerText.color = Color.white;
@@ -630,7 +628,6 @@ public class DialogueTreeRunner : MonoBehaviour
         GameObject bodyObj = CreateUIElement("BodyText", panelObj.transform);
         bodyText = bodyObj.AddComponent<Text>();
         bodyText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (bodyText.font == null) bodyText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
         bodyText.fontSize = 22;
         bodyText.color = Color.white;
         bodyText.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -647,7 +644,6 @@ public class DialogueTreeRunner : MonoBehaviour
         GameObject promptObj = CreateUIElement("ContinuePrompt", panelObj.transform);
         continuePrompt = promptObj.AddComponent<Text>();
         continuePrompt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (continuePrompt.font == null) continuePrompt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
         continuePrompt.fontSize = 16;
         continuePrompt.fontStyle = FontStyle.Italic;
         continuePrompt.color = new Color(0.8f, 0.8f, 0.8f, 0.7f);

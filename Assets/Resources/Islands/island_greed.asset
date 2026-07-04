@@ -16,58 +16,137 @@ MonoBehaviour:
   viceName: Greed
   vicePrimaryColor: {r: 0.95, g: 0.78, b: 0.2, a: 1}
   viceSecondaryColor: {r: 0.47, g: 0.34, b: 0.07, a: 1}
+  audioProfile: {fileID: 0}
+  visualProfile: {fileID: 0}
   encounters:
   - encounterId: greed_c1
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: b34efdb279636407396d8f6236b102f2, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: greed_p1
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: f2e36a667aec942d2935cbaaeb2a9878, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: e3333333333333333333333333333331, type: 2}
   - encounterId: greed_c2
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: d7677a37eafaa425280e0f76622f4fef, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1, type: 2}
+      - {fileID: 11400000, guid: a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: greed_p2
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 85e72d92a7fad4bd991f513200f76b77, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2, type: 2}
   - encounterId: greed_c3
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: dc48619ece7f9497e9b47b48c556014c, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3, type: 2}
+      - {fileID: 11400000, guid: a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: greed_p3
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: c75bfb20607c646f69fa0e9e09e9d3dd, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3, type: 2}
   - encounterId: greed_c4
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: c826aa4416fbc4653ac3145fb666b165, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3, type: 2}
+      - {fileID: 11400000, guid: a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4, type: 2}
+      - {fileID: 11400000, guid: a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: greed_p4
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 359af5236b5a04992be52c9011c44f83, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4, type: 2}
   - encounterId: greed_boss
     type: 0
+    isBossEncounter: 1
     restorationValue: 0.25
-    encounterConfig: {fileID: 11400000, guid: b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 21e4bd6f678804b559f03d0ce0588ead, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5, type: 2}
+      - {fileID: 11400000, guid: a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}

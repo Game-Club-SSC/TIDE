@@ -16,58 +16,137 @@ MonoBehaviour:
   viceName: Sloth
   vicePrimaryColor: {r: 0.72, g: 0.4, b: 0.94, a: 1}
   viceSecondaryColor: {r: 0.39, g: 0.18, b: 0.58, a: 1}
+  audioProfile: {fileID: 0}
+  visualProfile: {fileID: 0}
   encounters:
-  - encounterId: desire_c1
+  - encounterId: sloth_c1
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d4444444444444444444444444444441, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: d4d9e214fa6b34d6b9d7d2cf191f1b58, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: desire_p1
+  - encounterId: sloth_p1
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e4444444444444444444444444444441, type: 2}
-  - encounterId: desire_c2
+    encounterConfig: {fileID: 11400000, guid: 25973d46c7e4a48e993f8f77dd50b4d5, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
+    puzzleData: {fileID: 11400000, guid: 7e5e1abdb926b4d2881ef8cf1bc078bf, type: 2}
+  - encounterId: sloth_c2
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d4444444444444444444444444444442, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: b923b8e9e9ac14a07ac3c69d2695e887, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: desire_p2
+  - encounterId: sloth_p2
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e4444444444444444444444444444442, type: 2}
-  - encounterId: desire_c3
+    encounterConfig: {fileID: 11400000, guid: b56475fab7695498f8c3bb772af0d3e6, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
+    puzzleData: {fileID: 11400000, guid: 1671261e38b6f4466bb5c9ad1f3cc9fe, type: 2}
+  - encounterId: sloth_c3
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d4444444444444444444444444444443, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: c35445b9eafe3461bb5a430bb1750cd2, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: desire_p3
+  - encounterId: sloth_p3
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e4444444444444444444444444444443, type: 2}
-  - encounterId: desire_c4
+    encounterConfig: {fileID: 11400000, guid: 888ddee53eaf949cd94a61f2a45598b0, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
+    puzzleData: {fileID: 11400000, guid: 6fd4f0881edd243f4ae2a6afba98e80d, type: 2}
+  - encounterId: sloth_c4
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d4444444444444444444444444444444, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: e383d429461c94a1db7b5ab20520d52f, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: desire_p4
+  - encounterId: sloth_p4
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e4444444444444444444444444444444, type: 2}
-  - encounterId: desire_boss
+    encounterConfig: {fileID: 11400000, guid: 43fe28f32baf54ed0b180e73483d14bb, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
+    puzzleData: {fileID: 11400000, guid: c48117c42d30a4309af545e2b434d42d, type: 2}
+  - encounterId: sloth_boss
     type: 0
+    isBossEncounter: 1
     restorationValue: 0.25
-    encounterConfig: {fileID: 11400000, guid: d4444444444444444444444444444445, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 00a7f56423fbe41e89bab7bda59df674, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}

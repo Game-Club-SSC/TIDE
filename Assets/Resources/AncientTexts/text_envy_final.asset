@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
+  m_Name: text_envy_final
+  m_EditorClassIdentifier: Assembly-CSharp::AncientTextData
+  textId: envy_final
+  title: To the Next Five
+  body: "This is the last thing we will ever write. The Devourer is broken, the tide
+    is whole, and we can already feel the edges of ourselves beginning to soften
+    back into the light and dark we came from. There is not much time, so we will
+    be plain.\n\nYou will wake as strangers who somehow trust each other. You will
+    fight, and bond, and find these texts, and learn the truth, and hate it, and
+    \u2014 we hope \u2014 come through the far side of hating it into something better.
+    Do not waste as many days as we did being afraid. The fear is real but it is
+    not the point. The four faces beside you are the point.\n\nWe were angry, and
+    then we were tired, and then, near the end, we were happy \u2014 genuinely, quietly
+    happy \u2014 in a way we could not have been if we were going to last forever.
+    That happiness is our inheritance to you. Hold it sooner than we did. Say the
+    things. Sit close. When your tide rises and it is your turn to fade, leave a
+    page for the five who follow. That is how we stay. Not in the world \u2014 in
+    each other, handed forward, a hundred years at a time.\n\nGo gently. It was an
+    honor, even the parts that hurt."

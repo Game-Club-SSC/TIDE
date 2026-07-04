@@ -48,14 +48,14 @@ public class AncientTextRevealDirector : MonoBehaviour
     }
 
     [Serializable]
-    private class RevealDirectorSaveData
+    public class RevealDirectorSaveData
     {
         public List<string> discoveredFragmentIds = new List<string>();
         public List<HeroBondingSaveEntry> bondingEntries = new List<HeroBondingSaveEntry>();
     }
 
     [Serializable]
-    private class HeroBondingSaveEntry
+    public class HeroBondingSaveEntry
     {
         public string heroId;
         public int bondLevel;

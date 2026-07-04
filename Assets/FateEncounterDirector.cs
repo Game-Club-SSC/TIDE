@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using static CombatUnit;
 
 /// <summary>
 /// Manages the unique Fate boss encounter in Chapter Seven, Act 3 Finale.
@@ -128,7 +129,6 @@ public class FateEncounterDirector : MonoBehaviour
     private int totalDefianceScore;
     private int questionCount;
     private bool skipTypewriter;
-    private bool waitingForAnswer;
     private Coroutine activeRoutine;
     private GameObject spawnedFateBoss;
 
@@ -341,9 +341,7 @@ public class FateEncounterDirector : MonoBehaviour
 
             // Present answer buttons and wait for selection
             int selectedIndex = -1;
-            waitingForAnswer = true;
             yield return StartCoroutine(WaitForAnswer(question.answers, (index) => selectedIndex = index));
-            waitingForAnswer = false;
 
             if (selectedIndex < 0 || selectedIndex >= question.answers.Length)
             {
@@ -434,7 +432,7 @@ public class FateEncounterDirector : MonoBehaviour
 
         currentPhase = EncounterPhase.Combat;
 
-        BattleManager bm = FindObjectOfType<BattleManager>();
+        BattleManager bm = FindFirstObjectByType<BattleManager>();
         if (bm != null)
         {
             bm.ConfigureEnvyContext(true, true);
@@ -655,10 +653,6 @@ public class FateEncounterDirector : MonoBehaviour
 
             btnText = textObj.GetComponent<Text>();
             btnText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (btnText.font == null)
-            {
-                btnText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            }
             btnText.fontSize = 20;
             btnText.alignment = TextAnchor.MiddleCenter;
             btnText.color = new Color(0.9f, 0.9f, 0.85f);
@@ -810,7 +804,7 @@ public class FateEncounterDirector : MonoBehaviour
     private void ConfigureFateCombat()
     {
         // Configure the BattleManager for a fate encounter
-        BattleManager bm = FindObjectOfType<BattleManager>();
+        BattleManager bm = FindFirstObjectByType<BattleManager>();
         if (bm != null)
         {
             bm.ConfigureEnvyContext(true, true);
@@ -909,7 +903,7 @@ public class FateEncounterDirector : MonoBehaviour
         }
 
         // Try to find an existing one
-        fadeOverlay = FindObjectOfType<FateFadeOverlayTag>()?.GetComponent<Image>();
+        fadeOverlay = FindFirstObjectByType<FateFadeOverlayTag>()?.GetComponent<Image>();
 
         if (fadeOverlay != null)
         {
@@ -920,7 +914,7 @@ public class FateEncounterDirector : MonoBehaviour
         GameObject overlayGo = new GameObject("FateFadeOverlay", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         overlayGo.AddComponent<FateFadeOverlayTag>();
 
-        Canvas parentCanvas = dialogueCanvas != null ? dialogueCanvas : FindObjectOfType<Canvas>();
+        Canvas parentCanvas = dialogueCanvas != null ? dialogueCanvas : FindFirstObjectByType<Canvas>();
         if (parentCanvas == null)
         {
             GameObject canvasGo = new GameObject("FateOverlayCanvas", typeof(Canvas), typeof(CanvasScaler));
@@ -1028,10 +1022,6 @@ public class FateEncounterDirector : MonoBehaviour
 
         Text text = textGo.GetComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (text.font == null)
-        {
-            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
         text.fontSize = fontSize;
         text.alignment = alignment;
         text.color = color;

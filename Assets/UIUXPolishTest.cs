@@ -39,7 +39,7 @@ public class UIUXPolishTest : MonoBehaviour
         Debug.Log("Testing momentum system exists...");
 
         // Verify BattleManager has momentum system
-        BattleManager bm = BattleManager.Instance;
+        BattleManager bm = FindFirstObjectByType<BattleManager>();
         if (bm != null)
         {
             Assert.IsNotNull(bm.Momentum, "BattleManager should have Momentum system.");
@@ -56,7 +56,7 @@ public class UIUXPolishTest : MonoBehaviour
         Debug.Log("Testing turn order display...");
 
         // Verify BattleManager has turn order methods
-        BattleManager bm = BattleManager.Instance;
+        BattleManager bm = FindFirstObjectByType<BattleManager>();
         if (bm != null)
         {
             var getCurrentUnit = typeof(BattleManager).GetMethod("GetCurrentInputUnit");

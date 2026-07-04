@@ -12,6 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
   m_Name: text_lust_intro
   m_EditorClassIdentifier: 
-  textId: lust_intro_fragment
-  title: Fragment of Lust
-  body: "Lust promises warmth, then leaves only ash.\nHands reach for shape and shadow, never for truth.\n\nWhen hunger rules the tide, every bond becomes a chain."
+  textId: lust_intro
+  title: What the Water Shows
+  body: "By now you are closer than you expected to be. You finish one another's
+    sentences. You know who will move left and who will move right without a word
+    passing between you. Hold onto this feeling \u2014 write it somewhere it cannot
+    be taken from you \u2014 because Lust will try to convince you that you want
+    something else more.\n\nThe sirens do not lie, exactly. They show you a true
+    thing: the life you might have wanted, the crowd, the quiet house, the ordinary
+    years. The cruelty is that the thing they show you was never yours to have. You
+    were not made for the long, slow life. You were made for this shore and these
+    companions and this brief, bright purpose.\n\nThat is not a lesser thing. A candle
+    is not lesser than the sun for burning shorter. But you must choose the candle
+    knowingly, before the island chooses for you. Look at the four beside you. That
+    is the life you were given. It is enough. Make it enough."

@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
+  m_Name: text_sloth_deep
+  m_EditorClassIdentifier: Assembly-CSharp::AncientTextData
+  textId: sloth_deep
+  title: For the Ones After
+  body: "We began to write differently, around this island. Less to ourselves and
+    more to you \u2014 whoever you are, standing on your own shore a hundred years
+    from the day we set down this pen.\n\nIt is a strange comfort, thinking of you.
+    We will not meet. By the time your fingers touch this page, ours will have been
+    light and dark and nothing at all for a very long time. And yet here we are,
+    reaching forward, because reaching forward is the one thing the cycle cannot
+    take from us. We cannot leave you our years. We can leave you our words.\n\nSo
+    take them. Take the warning and the tenderness both. Know that someone who is
+    gone wanted you to be a little less afraid, a little less alone, a little quicker
+    to say the things we said too late. That is the whole of what we can give. It
+    turns out it is not nothing. It turns out it is almost everything."

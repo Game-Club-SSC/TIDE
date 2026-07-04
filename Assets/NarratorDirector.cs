@@ -521,10 +521,6 @@ public class NarratorDirector : MonoBehaviour
         textGo.transform.SetParent(panelGo.transform, false);
         dialogueText = textGo.AddComponent<Text>();
         dialogueText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (dialogueText.font == null)
-        {
-            dialogueText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
         dialogueText.fontSize = 26;
         dialogueText.alignment = TextAnchor.MiddleCenter;
         dialogueText.color = new Color(0.95f, 0.92f, 0.85f, 1f);
@@ -543,10 +539,6 @@ public class NarratorDirector : MonoBehaviour
         titleGo.transform.SetParent(canvasGo.transform, false);
         titleText = titleGo.AddComponent<Text>();
         titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (titleText.font == null)
-        {
-            titleText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
         titleText.fontSize = 56;
         titleText.alignment = TextAnchor.MiddleCenter;
         titleText.color = Color.white;

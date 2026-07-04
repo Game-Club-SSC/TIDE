@@ -16,58 +16,137 @@ MonoBehaviour:
   viceName: Lust
   vicePrimaryColor: {r: 0.97, g: 0.36, b: 0.61, a: 1}
   viceSecondaryColor: {r: 0.57, g: 0.09, b: 0.26, a: 1}
+  audioProfile: {fileID: 0}
+  visualProfile: {fileID: 0}
   encounters:
   - encounterId: lust_c1
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d1111111111111111111111111111111, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 588adde56ad734633a359778dcc0f2ac, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: lust_p1
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: d0cf92d6553d94c0a93e2bcd18bfd976, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: e1111111111111111111111111111111, type: 2}
   - encounterId: lust_c2
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d1111111111111111111111111111112, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: c4f609cf7fa434285b215f3a977df802, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: lust_p2
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 888c625ded56e466b950bd9a307b1aed, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: e1111111111111111111111111111112, type: 2}
   - encounterId: lust_c3
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d1111111111111111111111111111113, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 53ee25e7098ba410697f4b0d69130e14, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: lust_p3
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 95cc3f166bc3f404e95c1aa35e280bb2, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: e1111111111111111111111111111113, type: 2}
   - encounterId: lust_c4
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d1111111111111111111111111111114, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: ac184339b958748b191703d85e055c92, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: lust_p4
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 6cac8d379f4444eb2a4bd312ead132bb, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: e1111111111111111111111111111114, type: 2}
   - encounterId: lust_boss
     type: 0
+    isBossEncounter: 1
     restorationValue: 0.25
-    encounterConfig: {fileID: 11400000, guid: d1111111111111111111111111111115, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: d03cfb4ec2d1745768cebc79f0334d43, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}

@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f39ef0fbf3644f59020b942f0e98c7, type: 3}
+  m_Name: chapter_3_sloth
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  chapterId: chapter_3_sloth
+  chapterName: The Sleeping Shore
+  islandId: sloth
+  act: Act II
+  tone: Heavy, dreamlike, melancholic. The truth surfaces.
+  storyBeats:
+  - beatName: False Memories
+    description: "Sloth's haze makes the heroes relive fragments of 'memories' that
+      aren't theirs \u2014 past heroes' final days."
+    lines:
+    - speaker: Freida
+      text: "I dreamed I was standing here a hundred years ago. Same shore. Different
+        face. I said goodbye to four people I loved. \u2026I don't want to talk about
+        it."
+      emotion: haunted
+    - speaker: Briar
+      text: "Then we won't. We'll just \u2014 keep going. That's allowed, right?
+        To just keep going and not name it?"
+      emotion: quiet
+  - beatName: Merrick's Confession
+    description: Merrick, exhausted from constant reviving, confesses he's afraid
+      of what he'll be without someone to save.
+    lines:
+    - speaker: Merrick
+      text: What happens to me if there's no one left to catch? I don't know who
+        I am if I'm not the one who takes the pain.
+      emotion: breaking
+    - speaker: Killian
+      text: Then I'll be the one who takes yours, for once. Deal?
+      emotion: gentle
+  - beatName: The Truth Acknowledged
+    description: 'The player fully realizes the truth: they are manifestations of
+      Light and Dark, made to fade after the sixth island.'
+    lines:
+    - speaker: Narrator
+      text: "The haze lifts. The truth does not. They are what the ancient texts
+        always said \u2014 conjured, temporary, necessary. Five lights burning bright
+        and brief. The Somnolent falls. No one celebrates."
+      emotion: neutral
+  ancientTextId: text_sloth_intro
+  relationshipImpact: "Bonds are deepest and most fragile here. Killian\u2013Merrick
+    roles invert (Killian becomes protector). Everyone silently agrees not to speak
+    the truth aloud \u2014 closeness through shared denial."

@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f39ef0fbf3644f59020b942f0e98c7, type: 3}
+  m_Name: chapter_5_envy
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  chapterId: chapter_5_envy
+  chapterName: The Envious Deep
+  islandId: envy
+  act: Act II
+  tone: "Darkest point \u2014 melancholy tips toward despair before the turn."
+  storyBeats:
+  - beatName: Envy's Weapon
+    description: Envy weaponizes the heroes' resentment of each other's powers; Briar's
+      jealousy is turned against the party.
+    lines:
+    - speaker: Merrick
+      text: "I can revive a body. I can take a broken arm, a burn, a drowning. I
+        can't take this. I've never once been unable to help and I\u2014 I can't
+        do anything."
+      emotion: breaking
+    - speaker: Killian
+      text: You already did. You kept us together long enough to get here. Let me
+        carry the rest. You taught me how.
+      emotion: strong
+  - beatName: Reconciliation
+    description: 'The group finally says it out loud: they are going to die, and
+      soon, and they were never meant to be more than tools.'
+    lines:
+    - speaker: Briar
+      text: I hated you all. For a while. For having pieces of the world I didn't.
+        I'm sorry. If we only have a little left, I don't want to spend it jealous.
+      emotion: honest
+    - speaker: Freida
+      text: Then don't. Sit. Right here, with us. That's all any of the ones before
+        us wanted, I think. Just this.
+      emotion: peaceful
+  - beatName: The Usurper Falls
+    description: In the quiet after, the pride_intro text brings the first sliver
+      of clarity, not comfort.
+    lines:
+    - speaker: Narrator
+      text: The Usurper falls. The envy dissolves. And in the quiet, for the first
+        time, they sit together without pretense. Not fighting. Not strategizing.
+        Just being. The next island waits. They are ready.
+      emotion: neutral
+  ancientTextId: text_envy_final
+  relationshipImpact: "Rock bottom, then repair. Briar reconciles (avoiding her Bad
+    Ending). Merrick's crisis is caught by Killian. The party chooses each other
+    consciously \u2014 the emotional groundwork for acceptance."

@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f39ef0fbf3644f59020b942f0e98c7, type: 3}
+  m_Name: chapter_2_wrath
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  chapterId: chapter_2_wrath
+  chapterName: The Burning Coast
+  islandId: wrath
+  act: Act I
+  tone: "Adventurous but the first shadow falls \u2014 optimism cracks."
+  storyBeats:
+  - beatName: Wrath Amplifies
+    description: Wrath amplifies Killian's rage; his power spikes but he nearly hits
+      Merrick mid-battle.
+    lines:
+    - speaker: Killian
+      text: "Get back \u2014 GET BACK, all of you, I can't\u2014 I don't know where
+        the fire stops and I start!"
+      emotion: terrified
+    - speaker: Merrick
+      text: Hey. Hey. Look at me. Not the island. Me. Breathe. The rage is theirs,
+        not yours. Give it back to them.
+      emotion: steady
+  - beatName: The Truth Emerges
+    description: 'The lust_deep and wrath_intro texts together confirm: every past
+      cycle read these exact words and reached one conclusion.'
+    lines:
+    - speaker: Aether
+      text: Anger is honest, at least. It is the first door everyone walks through
+        when they begin to understand what we are.
+      emotion: solemn
+    - speaker: Freida
+      text: "'What we are.' You keep saying that. Aether \u2014 what are we?"
+      emotion: demanding
+    - speaker: Aether
+      text: "\u2026Ask the water again, once we reach the still islands. Not yet."
+      emotion: evasive
+  - beatName: Hollow Victory
+    description: "The Crimson Warlord falls, but the victory feels hollow \u2014
+      the ancient texts are no longer a game."
+    lines:
+    - speaker: Narrator
+      text: The Warlord's armor cracks and releases nothing but smoke. Just like
+        the Idol. Just like all of them. Behind every crown of vice, the same emptiness.
+        The same design.
+      emotion: neutral
+  ancientTextId: text_wrath_intro
+  relationshipImpact: "First real fracture \u2014 Killian frightens the group. Merrick's
+    steadying role becomes central. Aether's evasion starts to unsettle everyone."

@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f39ef0fbf3644f59020b942f0e98c7, type: 3}
+  m_Name: chapter_1_lust
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  chapterId: chapter_1_lust
+  chapterName: Salt and Song
+  islandId: lust
+  act: Act I
+  tone: "Warmer, playful, bonding \u2014 the group starts to feel like friends."
+  storyBeats:
+  - beatName: Siren's Illusion
+    description: Lust's sirens turn the heroes' desires against them; they must resist
+      illusions of the lives they think they want.
+    lines:
+    - speaker: Briar
+      text: "The siren showed me a stage. Thousands of people. All of them cheering
+        for me. \u2026Is it strange that I wanted to stay?"
+      emotion: vulnerable
+    - speaker: Freida
+      text: It's not strange. It means you know what you love. Just don't let it
+        choose for you.
+      emotion: gentle
+  - beatName: Merrick's Sacrifice
+    description: Merrick uses Pain Absorption for the first time to revive Briar,
+      revealing the cost it takes on him.
+    lines:
+    - speaker: Merrick
+      text: See? Told you. Nobody dies while I'm breathing. Give me a second, the
+        room's spinning a little.
+      emotion: weak
+    - speaker: Killian
+      text: You take their pain into yourself. That's not a power, Merrick. That's
+        a wound you keep reopening.
+      emotion: concerned
+  - beatName: Second Text
+    description: "A second text reveals past heroes fought 'the same six.' The group
+      laughs it off \u2014 coincidence."
+    lines:
+    - speaker: Narrator
+      text: The text speaks of five warriors who fought the same six beasts. The
+        group reads it together, then sets it aside. It must be coincidence. It has
+        to be.
+      emotion: neutral
+  - beatName: Campfire
+    description: Killian opens up to Freida about his temper for the first time.
+    lines:
+    - speaker: Killian
+      text: "I almost hit Merrick today. During the fight. The rage just \u2014 it
+        wasn't mine. It was the island's. How do I tell the difference?"
+      emotion: honest
+    - speaker: Freida
+      text: You just did. That's how.
+      emotion: warm
+  ancientTextId: text_lust_intro
+  relationshipImpact: "Strong bonding chapter. Briar\u2013Freida trust deepens; Killian\u2013Merrick
+    tension softens into genuine concern. Party morale peaks here."

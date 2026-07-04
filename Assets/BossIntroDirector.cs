@@ -589,10 +589,6 @@ public class BossIntroDirector : MonoBehaviour
 
         Text text = textGo.GetComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (text.font == null)
-        {
-            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
         text.fontSize = fontSize;
         text.alignment = alignment;
         text.color = color;

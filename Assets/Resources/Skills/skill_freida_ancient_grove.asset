@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 367a2554b9e4db647bdcec1a2d687e0c, type: 3}
+  m_Name: skill_freida_ancient_grove
+  m_EditorClassIdentifier: Assembly-CSharp::SkillData
+  skillName: Ancient Grove
+  description: Summons a colossal tree that stuns all enemies 1 turn and heals the
+    party for 20% over 2 turns.
+  mpCost: 55
+  damageMultiplier: 1.5
+  restoreCasterPercentOfDamage: 0.2
+  target: 1
+  element: 3
+  appliedEffectType: 8
+  effectDuration: 1
+  effectMagnitude: 0
+  currencyStealAmount: 0

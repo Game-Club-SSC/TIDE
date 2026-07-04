@@ -333,10 +333,6 @@ public class CeremonyIntroDirector : MonoBehaviour
         GameObject textObj = CreateUIElement("CeremonyText", canvasObj.transform);
         centreText = textObj.AddComponent<Text>();
         centreText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (centreText.font == null)
-        {
-            centreText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
 
         centreText.fontSize = 28;
         centreText.alignment = TextAnchor.MiddleCenter;

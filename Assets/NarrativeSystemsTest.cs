@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -10,7 +11,7 @@ public class NarrativeSystemsTest : MonoBehaviour
         Debug.Log("=== Starting Narrative Systems Tests ===");
 
         TestAcceptanceConversationRequiresFinalBossIsland();
-        TestAcceptanceConversationPlaysThreeLinesAndFiresFinished();
+        TestAcceptanceConversationPlaysAllLinesAndFiresFinished();
         TestAcceptanceConversationRequiresRestorationThreshold();
         TestSelfHarmBeatGatesOnBadEnding();
         TestSelfHarmBeatPlaysFourLinesAndFiresFinished();
@@ -118,7 +119,6 @@ public class NarrativeSystemsTest : MonoBehaviour
             GameObject host = CreateSingleton<AcceptanceConversation>();
             host.AddComponent<AcceptanceConversation>();
 
-            string pride = AcceptanceConversation.FinalBossIslandId;
             Assert.IsFalse(AcceptanceConversation.Instance.CanPlayAcceptanceConversation(), "Pre-test: gated without proper state.");
         }
         finally

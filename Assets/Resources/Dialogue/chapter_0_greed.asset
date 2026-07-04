@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f39ef0fbf3644f59020b942f0e98c7, type: 3}
+  m_Name: chapter_0_greed
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  chapterId: chapter_0_greed
+  chapterName: The Gathering Tide
+  islandId: greed
+  act: Act I
+  tone: "Tense, adventurous, cautiously optimistic \u2014 five strangers thrown together."
+  storyBeats:
+  - beatName: Arrival
+    description: The five heroes wake on the shore of Greed with no memory of how
+      they arrived, only a shared certainty they must 'cleanse' the island.
+    lines:
+    - speaker: Killian
+      text: I don't know any of you. I don't know why I trust you to have my back.
+        But I do. That bothers me more than the monsters.
+      emotion: guarded
+    - speaker: Merrick
+      text: "Then let it bother you later! Freida, wall \u2014 Killian, when the
+        Idol swings, I've got you. We're not losing anyone on day one."
+      emotion: determined
+  - beatName: First Combat
+    description: First combat teaches them their elements complement one another;
+      they win only by covering each other's weaknesses.
+    lines:
+    - speaker: Narrator
+      text: "The battle is clumsy, uncoordinated \u2014 but the elements respond
+        to each other like old friends. Fire warms Water. Earth roots Air. Space
+        bends around them all."
+      emotion: neutral
+  - beatName: Ancient Text Discovery
+    description: Freida discovers the first ancient text half-buried in golden silt.
+    lines:
+    - speaker: Freida
+      text: "There's writing under this. Old. It says\u2026 'You are not the first
+        to stand here.' Aether \u2014 do you know what that means?"
+      emotion: curious
+    - speaker: Aether
+      text: I know that the sea remembers every hand that ever touched it. Read on.
+        Or don't. The words will find you regardless.
+      emotion: knowing
+  - beatName: Idol Defeated
+    description: "They defeat the Golden Idol and feel a wave of the world's 'tide'
+      return to them \u2014 but Aether goes quiet, as if he already knew."
+    lines:
+    - speaker: Narrator
+      text: "The Golden Idol shatters. A warmth returns to the shore \u2014 the tide
+        recedes, and for a moment, the world feels whole. Aether says nothing. He
+        is already looking at the next island."
+      emotion: neutral
+  ancientTextId: text_greed_intro
+  relationshipImpact: "Baseline bonds form. Killian\u2013Merrick begin a reluctant
+    DPS/healer trust. Aether is set apart as the one who 'already knows.'"

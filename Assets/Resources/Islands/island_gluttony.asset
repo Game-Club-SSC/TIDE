@@ -16,67 +16,137 @@ MonoBehaviour:
   viceName: Gluttony
   vicePrimaryColor: {r: 0.8, g: 0.29, b: 0.14, a: 1}
   viceSecondaryColor: {r: 0.39, g: 0.12, b: 0.07, a: 1}
+  audioProfile: {fileID: 0}
+  visualProfile: {fileID: 0}
   encounters:
   - encounterId: gluttony_c1
     type: 0
     isBossEncounter: 0
-    restorationValue: 0.09375
-    encounterConfig: {fileID: 11400000, guid: 41b11111111111111111111111111111, type: 2}
-    enemyComposition: {fileID: 0}
+    restorationValue: 0.125
+    encounterConfig: {fileID: 11400000, guid: 4f6cbe59edf7146838b3f22c45028307, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: 31a33333333333333333333333333333, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: gluttony_p1
     type: 1
     isBossEncounter: 0
-    restorationValue: 0.09375
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    restorationValue: 0.0625
+    encounterConfig: {fileID: 11400000, guid: b344cb85832834d4d977cc01bc6a067e, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: 31a44444444444444444444444444444, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: 51c11111111111111111111111111111, type: 2}
   - encounterId: gluttony_c2
     type: 0
     isBossEncounter: 0
-    restorationValue: 0.09375
-    encounterConfig: {fileID: 11400000, guid: 41b22222222222222222222222222222, type: 2}
-    enemyComposition: {fileID: 0}
+    restorationValue: 0.125
+    encounterConfig: {fileID: 11400000, guid: 1fd5ca0530bb14b85b5bc290abd869fb, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: 31a33333333333333333333333333333, type: 2}
+      - {fileID: 11400000, guid: 31a11111111111111111111111111111, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: gluttony_p2
     type: 1
     isBossEncounter: 0
-    restorationValue: 0.09375
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    restorationValue: 0.0625
+    encounterConfig: {fileID: 11400000, guid: bc7c1091e16134234b739dc9a01e4bcb, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: 31a22222222222222222222222222222, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: 51c22222222222222222222222222222, type: 2}
   - encounterId: gluttony_c3
     type: 0
     isBossEncounter: 0
-    restorationValue: 0.09375
-    encounterConfig: {fileID: 11400000, guid: 41b33333333333333333333333333333, type: 2}
-    enemyComposition: {fileID: 0}
+    restorationValue: 0.125
+    encounterConfig: {fileID: 11400000, guid: bb1427a954e4b41039ff10aca6290d32, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: 31a44444444444444444444444444444, type: 2}
+      - {fileID: 11400000, guid: 31a11111111111111111111111111111, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: gluttony_p3
     type: 1
     isBossEncounter: 0
-    restorationValue: 0.09375
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    restorationValue: 0.0625
+    encounterConfig: {fileID: 11400000, guid: 2f45a540ca8664a62a5fa4fc3c4aa1d0, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: 31a11111111111111111111111111111, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: 51c33333333333333333333333333333, type: 2}
   - encounterId: gluttony_c4
     type: 0
     isBossEncounter: 0
-    restorationValue: 0.09375
-    encounterConfig: {fileID: 11400000, guid: 41b44444444444444444444444444444, type: 2}
-    enemyComposition: {fileID: 0}
+    restorationValue: 0.125
+    encounterConfig: {fileID: 11400000, guid: 30a1ce32d259b4cd9bd05de5e1166029, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: 31a44444444444444444444444444444, type: 2}
+      - {fileID: 11400000, guid: 31a11111111111111111111111111111, type: 2}
+      - {fileID: 11400000, guid: 31a22222222222222222222222222222, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: gluttony_p4
     type: 1
     isBossEncounter: 0
-    restorationValue: 0.09375
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    restorationValue: 0.0625
+    encounterConfig: {fileID: 11400000, guid: 8f9d7d57bfb0f45eb9dd1c10cea2b358, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: 31a22222222222222222222222222222, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: 51c44444444444444444444444444444, type: 2}
   - encounterId: gluttony_boss
     type: 0
     isBossEncounter: 1
     restorationValue: 0.25
-    encounterConfig: {fileID: 11400000, guid: 41b55555555555555555555555555555, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 3b1073562d5b3453ea6210ca1c754244, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 11400000, guid: 31a55555555555555555555555555555, type: 2}
+      - {fileID: 11400000, guid: 31a44444444444444444444444444444, type: 2}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}

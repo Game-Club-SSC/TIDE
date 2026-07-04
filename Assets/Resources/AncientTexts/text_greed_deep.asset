@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
+  m_Name: text_greed_deep
+  m_EditorClassIdentifier: Assembly-CSharp::AncientTextData
+  textId: greed_deep
+  title: The Same Six
+  body: 'We counted them, once, thinking the count would protect us. Greed. Lust.
+    Wrath. Sloth. Pride. Envy. Six sicknesses, six islands, and at the end of each,
+    a crown to break. We told ourselves the number was arbitrary, that other heroes
+    in other years must have faced other trials. We were wrong. It is always these
+    six. It has always been these six.
+
+
+    Understand what that means before you
+    decide how to feel about it. You are not the first to bleed on Greed''s golden
+    sand. Others stood here with your same certainty, your same borrowed trust, your
+    same weapons in unfamiliar hands. They won. They wrote this. And then they were
+    gone.
+
+
+    We do not say this to frighten you. We say it because the truth,
+    met early and met plainly, hurts less than the truth that ambushes you later.
+    Read on when you are ready. Some of you will want to. Some of you will slam the
+    book shut. Both are allowed.'

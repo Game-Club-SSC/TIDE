@@ -543,7 +543,7 @@ public class QuestJournalUI : MonoBehaviour
         string heroTag = ResolveHeroTagForText(textId);
         string heroPart = string.IsNullOrEmpty(heroTag) ? "" : $"  [{heroTag}]";
         string titleLine = $"{index}. {title}{heroPart}";
-        CreateReadOnlyLabel(card.transform, titleLine, 18, FontStyle.Bold, HeaderColor);
+        CreateReadOnlyLabel(card.GetComponent<RectTransform>(), titleLine, 18, FontStyle.Bold, HeaderColor);
 
         // Body preview (truncated)
         string preview = body;
@@ -553,7 +553,7 @@ public class QuestJournalUI : MonoBehaviour
         }
         if (!string.IsNullOrEmpty(preview))
         {
-            CreateReadOnlyLabel(card.transform, preview, 15, DimTextColor);
+            CreateReadOnlyLabel(card.GetComponent<RectTransform>(), preview, 15, DimTextColor);
         }
     }
 

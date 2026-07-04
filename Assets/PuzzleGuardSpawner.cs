@@ -168,7 +168,7 @@ public class PuzzleGuardSpawner : MonoBehaviour
         {
             Debug.LogWarning($"[PuzzleGuardSpawner] No encounter config found for id '{encounterId}' or fallback. Destroying guard.");
             Destroy(guardObject);
-            return null;
+            return;
         }
 
         OverworldEnemy enemy = guardObject.AddComponent<OverworldEnemy>();

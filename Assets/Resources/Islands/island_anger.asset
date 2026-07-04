@@ -16,58 +16,137 @@ MonoBehaviour:
   viceName: Wrath
   vicePrimaryColor: {r: 0.9, g: 0.2, b: 0.16, a: 1}
   viceSecondaryColor: {r: 0.52, g: 0.08, b: 0.08, a: 1}
+  audioProfile: {fileID: 0}
+  visualProfile: {fileID: 0}
   encounters:
-  - encounterId: anger_c1
+  - encounterId: wrath_c1
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d2222222222222222222222222222221, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 030b5f55c30f34402b3a0e97a32b9172, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: anger_p1
+  - encounterId: wrath_p1
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e2222222222222222222222222222221, type: 2}
-  - encounterId: anger_c2
+    encounterConfig: {fileID: 11400000, guid: 1859947cb2c6f45dcad401eb947d0e54, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
+    puzzleData: {fileID: 11400000, guid: 103a90d37c8074dcca523b55c7e2f2b8, type: 2}
+  - encounterId: wrath_c2
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d2222222222222222222222222222222, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 01f6c5927dbf545e88239608b6e2e861, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: anger_p2
+  - encounterId: wrath_p2
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e2222222222222222222222222222222, type: 2}
-  - encounterId: anger_c3
+    encounterConfig: {fileID: 11400000, guid: 6752b70a01d9e4713933cc5fd884ddc9, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
+    puzzleData: {fileID: 11400000, guid: 14f7117c7af8a4190ba692ea3c2f36df, type: 2}
+  - encounterId: wrath_c3
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d2222222222222222222222222222223, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 0abe9c14237244cc798d2b492bea3699, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: anger_p3
+  - encounterId: wrath_p3
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e2222222222222222222222222222223, type: 2}
-  - encounterId: anger_c4
+    encounterConfig: {fileID: 11400000, guid: 6c236d95ebde44696ad545b2779dbdfd, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
+    puzzleData: {fileID: 11400000, guid: ef6179e7da32741caa5aaaf2bad29062, type: 2}
+  - encounterId: wrath_c4
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d2222222222222222222222222222224, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: c3d874cd10af043e5a4d3e7759826072, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: anger_p4
+  - encounterId: wrath_p4
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
-    puzzleData: {fileID: 11400000, guid: e2222222222222222222222222222224, type: 2}
-  - encounterId: anger_boss
+    encounterConfig: {fileID: 11400000, guid: 6e1aeb02c53cc412b95f6b20bc998a5b, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
+    puzzleData: {fileID: 11400000, guid: 61b2ee400019345c6a42fc808f7c8fde, type: 2}
+  - encounterId: wrath_boss
     type: 0
+    isBossEncounter: 1
     restorationValue: 0.25
-    encounterConfig: {fileID: 11400000, guid: d2222222222222222222222222222225, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: ac6fa8980267c4ae18346be2c2c52c84, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}

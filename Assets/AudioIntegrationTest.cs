@@ -30,12 +30,6 @@ public class AudioIntegrationTest : MonoBehaviour
         AudioCue combat = AudioCue.CombatBgm;
         AudioCue puzzle = AudioCue.PuzzleBgm;
         AudioCue ending = AudioCue.EndingBgm;
-        AudioCue victory = AudioCue.CombatVictory;
-        AudioCue defeat = AudioCue.CombatDefeat;
-        AudioCue puzzleSolved = AudioCue.PuzzleSolved;
-        AudioCue bossIntro = AudioCue.BossIntro;
-        AudioCue travel = AudioCue.TravelFanfare;
-
         // Verify they're all different
         Assert.AreNotEqual(exploration, combat, "ExplorationBgm and CombatBgm should be different.");
         Assert.AreNotEqual(combat, puzzle, "CombatBgm and PuzzleBgm should be different.");

@@ -148,7 +148,7 @@ public class AudioManagerTest : MonoBehaviour
         {
             manager = CreateIsolatedAudioManager("TestAudioManager_Scene");
 
-            FieldInfo handlerField = typeof(AudioManager).GetMethod(
+            MethodInfo handlerField = typeof(AudioManager).GetMethod(
                 "HandleSceneLoaded",
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.IsNotNull(handlerField, "HandleSceneLoaded method not found.");
@@ -269,15 +269,12 @@ public class AudioManagerTest : MonoBehaviour
         {
             manager = CreateIsolatedAudioManager("TestAudioManager_IslandRoute");
 
-            FieldInfo handlerField = typeof(AudioManager).GetMethod(
+            MethodInfo handlerField = typeof(AudioManager).GetMethod(
                 "HandleSceneLoaded",
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.IsNotNull(handlerField, "HandleSceneLoaded method not found.");
 
             // Test island routing via reflection
-            FieldInfo resolveField = typeof(AudioManager).GetMethod(
-                "ResolveIslandCue",
-                BindingFlags.Instance | BindingFlags.NonPublic);
             // ResolveIslandCue is static, get it differently
             MethodInfo resolveMethod = typeof(AudioManager).GetMethod(
                 "ResolveIslandCue",

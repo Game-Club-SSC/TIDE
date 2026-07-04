@@ -12,6 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
   m_Name: text_sloth_intro
   m_EditorClassIdentifier: 
-  textId: sloth_intro_fragment
-  title: Fragment of Sloth
-  body: "Sloth whispers of tomorrow and empties today.\nEach answer births a newer question.\n\nWalk with longing, but do not kneel before it."
+  textId: sloth_intro
+  title: The Weight of Knowing
+  body: "There is a tiredness that has nothing to do with the body. You will meet
+    it on this island, in the haze that makes your own limbs feel borrowed. It whispers
+    that since the ending cannot be changed, nothing between here and the ending
+    matters either. Why fight. Why speak. Why bother loving people you are about
+    to lose.\n\nWe stopped, for a while. We let the haze have us. We told ourselves
+    it was peace. It was not peace; it was surrender wearing peace's face, and it
+    hollowed out the last good days we had.\n\nHere is what we learned, too late
+    to fully use it: the ending does not drain meaning from the middle. It concentrates
+    it. A thing that will not last is not thereby worthless \u2014 it is thereby
+    precious. Get up. Not because it will change the finish. Because the middle is
+    the only part that was ever yours, and you are spending it whether you notice
+    or not. Spend it awake."

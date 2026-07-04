@@ -70,7 +70,6 @@ public class StealthMechanicsTest : MonoBehaviour
         float stealthSpeedThreshold = 2f;
 
         float playerSpeedFast = 5f; // Above threshold
-        float playerSpeedSlow = 1f; // Below threshold
 
         float effectiveRangeFast = baseAggroRange;
         float effectiveRangeSlow = baseAggroRange * 0.7f; // Reduced for stealth

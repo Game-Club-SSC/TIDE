@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f39ef0fbf3644f59020b942f0e98c7, type: 3}
+  m_Name: chapter_6_gluttony
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  chapterId: chapter_6_gluttony
+  chapterName: The Last Tide
+  islandId: gluttony
+  act: Act III
+  tone: "Quiet, accepting, tender. No more denial \u2014 just presence."
+  storyBeats:
+  - beatName: Final Approach
+    description: The heroes reach the final island knowing exactly what victory costs.
+      No one turns back.
+    lines:
+    - speaker: Aether
+      text: "You wanted to know what we are. We are the pause between a wave rising
+        and a wave falling. We were never supposed to last. But we were supposed
+        to matter \u2014 and we did."
+      emotion: serene
+  - beatName: Last Conversations
+    description: "Brief, unhurried conversation before the Devourer \u2014 each says
+      the thing they'd been avoiding."
+    lines:
+    - speaker: Killian
+      text: "I spent so long afraid of what was inside me. Turns out it was just\u2026
+        this. All of you. I'm not angry anymore."
+      emotion: at peace
+    - speaker: Merrick
+      text: "Promise me something. Whoever comes next \u2014 they won't wake up as
+        strangers. Leave them something. So they're a little less alone than we were."
+      emotion: hopeful
+    - speaker: Freida
+      text: "Then let's write it down. One last text. For the next five. \u2026I'm
+        glad it was you four. Truly."
+      emotion: grateful
+    - speaker: Briar
+      text: Me too. Ready?
+      emotion: calm
+  - beatName: The Final Battle
+    description: They fight as one, movements flawless because they finally trust
+      completely.
+    lines:
+    - speaker: Narrator
+      text: "They move like water through stone. No hesitation. No wasted breath.
+        Every element in harmony \u2014 not because they were designed to fit, but
+        because they chose to. The Devourer falls. The tide returns. The world breathes."
+      emotion: neutral
+  - beatName: The Fade
+    description: The Devourer falls; balance is restored; the heroes begin to fade.
+      The final text appears as they dissolve into light and dark.
+    lines:
+    - speaker: Narrator
+      text: "They feel it first in their hands \u2014 a softness, like morning fog.
+        Freida's fingers become light. Merrick's warmth becomes shadow. Briar's breath
+        becomes wind. Killian's fire becomes stars. Aether smiles."
+      emotion: bittersweet
+    - speaker: Aether
+      text: See? Not so bad. Just a very long, beautiful dream. And someone else
+        will dream it soon.
+      emotion: peaceful
+    - speaker: Narrator
+      text: "They write their last words on the final stone. Not for themselves \u2014
+        for the next five. For the strangers who will wake on a golden shore and
+        wonder why they trust each other so quickly. The answer is simple: because
+        someone loved them first. The tide recedes. Silence. Then, somewhere, a new
+        shore. A new tide. A new beginning."
+      emotion: bittersweet
+  ancientTextId: text_envy_final
+  relationshipImpact: "Complete. Every arc resolves \u2014 Killian's peace, Merrick's
+    letting-go, Briar's reconciliation, Freida's gratitude. The bonds built across
+    six islands are what make the fade land. Acceptance, together."

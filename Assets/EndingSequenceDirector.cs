@@ -21,6 +21,9 @@ public class EndingSequenceDirector : MonoBehaviour
     [SerializeField] private Text dialogueText;
     [SerializeField] private Text titleText;
     [SerializeField] private Image backgroundImage;
+    [SerializeField] private CanvasGroup flashOverlay;
+    [SerializeField] private Canvas uiCanvas;
+    [SerializeField] private Button returnButton;
 
     [Header("Timing")]
     [SerializeField] private float fadeInDuration = 1.5f;
@@ -512,10 +515,6 @@ public class EndingSequenceDirector : MonoBehaviour
             textGo.transform.SetParent(panelGo.transform, false);
             dialogueText = textGo.AddComponent<Text>();
             dialogueText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (dialogueText.font == null)
-            {
-                dialogueText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            }
             dialogueText.fontSize = 22;
             dialogueText.alignment = TextAnchor.MiddleCenter;
             dialogueText.color = new Color(0.95f, 0.92f, 0.85f, 1f);
@@ -536,10 +535,6 @@ public class EndingSequenceDirector : MonoBehaviour
             titleGo.transform.SetParent(canvasGo.transform, false);
             titleText = titleGo.AddComponent<Text>();
             titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (titleText.font == null)
-            {
-                titleText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            }
             titleText.fontSize = 56;
             titleText.alignment = TextAnchor.MiddleCenter;
             titleText.color = Color.white;
@@ -631,10 +626,6 @@ public class EndingSequenceDirector : MonoBehaviour
 
         Text btnLabel = labelGo.AddComponent<Text>();
         btnLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (btnLabel.font == null)
-        {
-            btnLabel.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
         btnLabel.fontSize = 20;
         btnLabel.alignment = TextAnchor.MiddleCenter;
         btnLabel.color = new Color(0.9f, 0.88f, 0.82f, 1f);
@@ -764,7 +755,6 @@ public class EndingSequenceDirector : MonoBehaviour
         float x = total > 1 ? startX + spacing * index : 0.5f;
 
         float silhouetteWidth = 0.1f;
-        float silhouetteHeight = 0.4f;
 
         rect.anchorMin = new Vector2(x - silhouetteWidth * 0.5f, 0.25f);
         rect.anchorMax = new Vector2(x + silhouetteWidth * 0.5f, 0.75f);

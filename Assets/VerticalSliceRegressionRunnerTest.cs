@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -76,7 +77,7 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
 
     private void TestPerIslandContentRegistryCoverage()
     {
-        IReadOnlyList<IslandContentPack> packs = PerIslandContentRegistry.GetAllPacks();
+        IReadOnlyList<PerIslandContentRegistry.IslandContentPack> packs = PerIslandContentRegistry.GetAllPacks();
         Assert.GreaterOrEqual(packs.Count, 6, "Should have 6 island content packs.");
         Assert.IsNotNull(PerIslandContentRegistry.GetPackForIsland("island_pride"), "Should find pride pack.");
     }

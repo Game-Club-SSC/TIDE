@@ -21,6 +21,11 @@ MonoBehaviour:
   baseAttack: 11
   baseDefense: 7
   baseSpeed: 10
+  baseCritRate: 0.05
+  baseCritDamage: 1.5
   starterSkills:
-  - {fileID: 11400000, guid: 9743b436abcf41afa8731a667be0e01b, type: 2}
-  - {fileID: 11400000, guid: c3d4e5f67890a1bc23de345678901234, type: 2}
+  - {fileID: 11400000, guid: fe84605bd242e4d01b30a163c1d544db, type: 2}
+  - {fileID: 11400000, guid: e0cd250d64ade40b1b17e003f0472b51, type: 2}
+  - {fileID: 11400000, guid: 9f2b24fbf6b5e42ffa0a312de84a28a9, type: 2}
+  - {fileID: 11400000, guid: 6c423afe971184515a64490f671a0277, type: 2}
+  - {fileID: 11400000, guid: e6dfe9d0378554a3ba70883874f09a5d, type: 2}

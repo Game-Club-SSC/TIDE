@@ -525,9 +525,10 @@ public static class HeroDialogueContent
     /// </summary>
     public static DialogueTree PreBossAngerDialogue()
     {
+        string treeId = PreBossAngerTreeId;
         DialogueTree tree = new DialogueTree
         {
-            treeId = PreBossAngerTreeId,
+            treeId = treeId,
             title = "The Burning Words",
             allNodes = new List<DialogueTreeNode>()
         };
@@ -650,9 +651,10 @@ public static class HeroDialogueContent
     /// </summary>
     public static DialogueTree PreBossPrideDialogue()
     {
+        string treeId = PreBossPrideTreeId;
         DialogueTree tree = new DialogueTree
         {
-            treeId = PreBossPrideTreeId,
+            treeId = treeId,
             title = "The Last Peak",
             allNodes = new List<DialogueTreeNode>()
         };

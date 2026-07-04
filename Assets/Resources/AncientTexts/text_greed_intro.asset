@@ -12,6 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f3b10ad4d1f4b6aa84f8f6d5e9a19c0, type: 3}
   m_Name: text_greed_intro
   m_EditorClassIdentifier: 
-  textId: greed_intro_fragment
-  title: Fragment of Greed
-  body: "Greed counts every coin and still feels poor.\nThe more it stores, the more it fears loss.\n\nBalance is the only wealth the tide refuses to steal."
+  textId: greed_intro
+  title: The First Shore
+  body: "If you are reading this, then you have already begun, and it is too late
+    to begin any other way. Do not be afraid of that. Everyone who has stood where
+    you stand felt the same cold thread of doubt, and every one of them kept walking
+    anyway. That is what you are for.\n\nYou will feel that you have always known
+    one another, though you met only hours ago. You will trust hands you have no
+    reason to trust. This is not madness. It is design. The tide binds those it chooses,
+    so that they may do together what none could do alone. Lean into it. There is
+    not enough time to be strangers.\n\nSix islands lie ahead, each ruled by a sickness
+    of the heart. Cleanse them and the world will breathe again. That is all the
+    truth we will give you today. The rest, you must earn \u2014 the way we did,
+    and the way the ones before us did. Rest tonight. Tomorrow, the water rises."

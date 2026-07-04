@@ -15,7 +15,7 @@ public static class AncientTextAuthoring
     private static List<AncientTextData> baselineCache;
     private static List<AncientTextData> mergedCache;
 
-    public static int BaselineCount => BaselineAuthoredTexts.Count;
+    public static int BaselineCount => GetBaselineAuthoredTexts().Count;
 
     public static IReadOnlyList<AncientTextData> GetBaselineAuthoredTexts()
     {

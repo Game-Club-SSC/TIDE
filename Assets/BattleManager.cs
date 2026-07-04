@@ -905,7 +905,7 @@ public class BattleManager : MonoBehaviour
             {
                 advantageous.Add(candidate);
             }
-            else if (result == MatchupResult.Normal)
+            else if (result == MatchupResult.Neutral)
             {
                 neutral.Add(candidate);
             }

@@ -1171,8 +1171,8 @@ public class HeroProgressionManager : MonoBehaviour
         }
 
         PartyData partyData = partyManager.PartyData;
-        partyData.activeSlots = ResolveHeroDataSlots(snapshot.activeHeroIds, partyData.maxActiveSlots, partyData.activeSlots);
-        partyData.reserveSlots = ResolveHeroDataSlots(snapshot.reserveHeroIds, partyData.maxReserveSlots, partyData.reserveSlots);
+        partyData.activeSlots = ResolveHeroDataSlots(snapshot.activeHeroIds, partyData.activeSlots.Length, partyData.activeSlots);
+        partyData.reserveSlots = ResolveHeroDataSlots(snapshot.reserveHeroIds, partyData.reserveSlots.Length, partyData.reserveSlots);
     }
 
     private static void AppendHeroIds(HeroData[] heroes, List<string> target)

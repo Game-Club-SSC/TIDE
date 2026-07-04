@@ -68,4 +68,10 @@ public static class GearSetFactory
         gear.name = $"GearSet_{setId}";
         return gear;
     }
+
+    public static bool CoverageOk()
+    {
+        IReadOnlyList<GearSetData> gearSets = CreateStarterGearSets();
+        return gearSets != null && gearSets.Count > 0;
+    }
 }

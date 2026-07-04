@@ -284,10 +284,6 @@ public class DialogueUI : MonoBehaviour
         GameObject speakerObj = CreateUIElement("SpeakerName", panelObj.transform);
         speakerText = speakerObj.AddComponent<Text>();
         speakerText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (speakerText.font == null)
-        {
-            speakerText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
 
         speakerText.fontSize = 26;
         speakerText.fontStyle = FontStyle.Bold;
@@ -304,10 +300,6 @@ public class DialogueUI : MonoBehaviour
         GameObject bodyObj = CreateUIElement("BodyText", panelObj.transform);
         bodyText = bodyObj.AddComponent<Text>();
         bodyText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (bodyText.font == null)
-        {
-            bodyText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
 
         bodyText.fontSize = 22;
         bodyText.color = Color.white;
@@ -325,10 +317,6 @@ public class DialogueUI : MonoBehaviour
         GameObject promptObj = CreateUIElement("ContinuePrompt", panelObj.transform);
         continuePrompt = promptObj.AddComponent<Text>();
         continuePrompt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (continuePrompt.font == null)
-        {
-            continuePrompt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
 
         continuePrompt.fontSize = 16;
         continuePrompt.fontStyle = FontStyle.Italic;

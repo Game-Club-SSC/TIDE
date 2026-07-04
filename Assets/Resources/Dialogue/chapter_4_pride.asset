@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f39ef0fbf3644f59020b942f0e98c7, type: 3}
+  m_Name: chapter_4_pride
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  chapterId: chapter_4_pride
+  chapterName: The Mirror Peaks
+  islandId: pride
+  act: Act II
+  tone: Unsettling, cold, isolating. Denial curdles.
+  storyBeats:
+  - beatName: Mirror Illusions
+    description: "Pride's Mirror Knights show each hero an idealized, immortal version
+      of themselves \u2014 the person they'd be if they didn't have to fade."
+    lines:
+    - speaker: Briar
+      text: The mirror showed me a version of me that gets to grow old. That gets
+        to make things no one asked her to make. Why do they get that and we don't?
+      emotion: resentful
+    - speaker: Freida
+      text: Because they aren't real, Briar. And you froze. I felt the Knight's blade
+        an inch from me while you looked at a reflection.
+      emotion: hurt
+    - speaker: Briar
+      text: "\u2026I'm sorry. I am. I just\u2014"
+      emotion: ashamed
+  - beatName: Aether's Warning
+    description: "The sloth_deep text \u2014 a past hero's hope for 'the next of
+      us' \u2014 lands like grief."
+    lines:
+    - speaker: Aether
+      text: Pride is the mirror that tells you you are owed a longer story. It is
+        the cruelest island. Do not linger at your reflection, Briar. It does not
+        love you back.
+      emotion: firm
+  - beatName: Fractured Peace
+    description: A fragile group argument erupts and is smothered; no one wants to
+      be the one who broke the peace.
+    lines:
+    - speaker: Narrator
+      text: "The Grand Monarch falls. The mirrors shatter. But some of the reflections
+        linger \u2014 not on the walls, but behind the eyes. No one speaks on the
+        walk to the next shore."
+      emotion: neutral
+  ancientTextId: text_pride_intro
+  relationshipImpact: First genuine rift with lasting weight. Briar's resentment
+    (her Bad-Ending seed) shows. Freida's fear of losing the group surfaces. The
+    party's unity is now effortful, not natural.

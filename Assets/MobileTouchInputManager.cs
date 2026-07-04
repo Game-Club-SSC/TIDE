@@ -141,7 +141,7 @@ public class MobileTouchInputManager : MonoBehaviour
         IsMobilePlatform = true;
 #else
         // Allow editor testing with touch simulation
-        IsMobilePlatform = Application.isEditor && SystemInfo.touchCount > 0;
+        IsMobilePlatform = Application.isEditor && Input.touchCount > 0;
 #endif
     }
 
@@ -460,9 +460,6 @@ public class MobileTouchInputManager : MonoBehaviour
         panelRect.anchorMax = new Vector2(0.98f, 0.65f);
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
-
-        float buttonHeight = 60f;
-        float spacing = 10f;
 
         interactBtnRect = CreateActionButton(panelRect.transform, "InteractBtn", "ACT", 0);
         dashBtnRect = CreateActionButton(panelRect.transform, "DashBtn", "DASH", 1);

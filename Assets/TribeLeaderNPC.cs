@@ -21,7 +21,9 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
     [Header("Identity")]
     [SerializeField] private string npcName = "Elder";
     [SerializeField] private string islandId;
-    [SerializeField] private string tribeName;
+#pragma warning disable 0414
+    [SerializeField, HideInInspector] private string _tribeName;
+#pragma warning restore 0414
 
     [Header("Dialogue")]
     [Tooltip("Lines shown when the player asks about the ancient texts (pre-revelation).")]
@@ -82,7 +84,7 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
             case "island_lust":
                 npc.npcName = "Elder Mirael";
                 npc.islandId = "island_lust";
-                npc.tribeName = "Tidal Kin";
+                npc._tribeName = "Tidal Kin";
                 npc.requiredAct = GameStateManager.StoryAct.ActII;
                 npc.refuseToShareTruthLines = new[]
                 {
@@ -107,7 +109,7 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
             case "island_greed":
                 npc.npcName = "Merchant Kael";
                 npc.islandId = "island_greed";
-                npc.tribeName = "Coin Holders";
+                npc._tribeName = "Coin Holders";
                 npc.requiredAct = GameStateManager.StoryAct.ActII;
                 npc.refuseToShareTruthLines = new[]
                 {
@@ -132,7 +134,7 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
             case "island_wrath":
                 npc.npcName = "War Chief Torven";
                 npc.islandId = "island_wrath";
-                npc.tribeName = "Blood Oath";
+                npc._tribeName = "Blood Oath";
                 npc.requiredAct = GameStateManager.StoryAct.ActII;
                 npc.refuseToShareTruthLines = new[]
                 {
@@ -157,7 +159,7 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
             case "island_sloth":
                 npc.npcName = "Sage Lirael";
                 npc.islandId = "island_sloth";
-                npc.tribeName = "Dream Walkers";
+                npc._tribeName = "Dream Walkers";
                 npc.requiredAct = GameStateManager.StoryAct.ActII;
                 npc.refuseToShareTruthLines = new[]
                 {
@@ -182,7 +184,7 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
             case "island_envy":
                 npc.npcName = "Seer Nyx";
                 npc.islandId = "island_envy";
-                npc.tribeName = "Eyeless Watch";
+                npc._tribeName = "Eyeless Watch";
                 npc.requiredAct = GameStateManager.StoryAct.ActII;
                 npc.refuseToShareTruthLines = new[]
                 {
@@ -207,7 +209,7 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
             case "island_pride":
                 npc.npcName = "High Priestess Aurelia";
                 npc.islandId = "island_pride";
-                npc.tribeName = "Crown of Thorns";
+                npc._tribeName = "Crown of Thorns";
                 npc.requiredAct = GameStateManager.StoryAct.ActII;
                 npc.refuseToShareTruthLines = new[]
                 {

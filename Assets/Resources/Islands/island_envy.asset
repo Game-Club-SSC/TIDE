@@ -16,58 +16,137 @@ MonoBehaviour:
   viceName: Envy
   vicePrimaryColor: {r: 0.28, g: 0.73, b: 0.42, a: 1}
   viceSecondaryColor: {r: 0.12, g: 0.38, b: 0.22, a: 1}
+  audioProfile: {fileID: 0}
+  visualProfile: {fileID: 0}
   encounters:
   - encounterId: envy_c1
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d6666666666666666666666666666661, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: c3e0db059f26e4d75852656a18d9ecc7, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: envy_p1
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: a9f8d9950467e4e878c82ced2615c430, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: e6666666666666666666666666666661, type: 2}
   - encounterId: envy_c2
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d6666666666666666666666666666662, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 3c973fbd52f914f01ab40e18b0dcaae9, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: envy_p2
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: f495220f18a6f429aa3e098a03164b01, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: e6666666666666666666666666666662, type: 2}
   - encounterId: envy_c3
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d6666666666666666666666666666663, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 1149b3b873e4242b2ba0562642c7b226, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: envy_p3
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 93a3f1653da03429c83ec4af2dd2fa5e, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: e6666666666666666666666666666663, type: 2}
   - encounterId: envy_c4
     type: 0
+    isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: d6666666666666666666666666666664, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 3e1468b6de94549e198ddff185781763, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}
   - encounterId: envy_p4
     type: 1
+    isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 0}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 0d1ff345a3a294435bea33202b9474b5, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: e6666666666666666666666666666664, type: 2}
   - encounterId: envy_boss
     type: 0
+    isBossEncounter: 1
     restorationValue: 0.25
-    encounterConfig: {fileID: 11400000, guid: d6666666666666666666666666666665, type: 2}
-    enemyComposition: {fileID: 0}
+    encounterConfig: {fileID: 11400000, guid: 53c9cbed6b9d34cfdb8be15c04d9e2fd, type: 2}
+    enemyComposition:
+      enemyDataSlots:
+      - {fileID: 0}
+      - {fileID: 0}
+      names: []
+      elements: 
+      attackModifiers: 
+      defenseModifiers: 
+      maxHpModifiers: 
     puzzleData: {fileID: 0}

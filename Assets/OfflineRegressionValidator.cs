@@ -211,7 +211,7 @@ public static class OfflineRegressionValidator
 
                 // ContextMenu attribute on entry method
                 bool hasContextMenu = method != null &&
-                    Attribute.IsDefined(method, typeof(ContextMenuAttribute));
+                    Attribute.IsDefined(method, typeof(ContextMenu));
                 if (!hasContextMenu)
                 {
                     results.Add(new CheckResult
@@ -224,8 +224,8 @@ public static class OfflineRegressionValidator
                 }
                 else
                 {
-                    ContextMenuAttribute attr = (ContextMenuAttribute)Attribute.GetCustomAttribute(
-                        method, typeof(ContextMenuAttribute));
+                    ContextMenu attr = (ContextMenu)Attribute.GetCustomAttribute(
+                        method, typeof(ContextMenu));
                     results.Add(new CheckResult
                     {
                         label = $"{row.id}: ContextMenu on '{row.entryMethod}'",
@@ -259,7 +259,7 @@ public static class OfflineRegressionValidator
                 }
 
                 // DisallowMultipleComponent attribute
-                bool hasDisallow = Attribute.IsDefined(scriptType, typeof(DisallowMultipleComponentAttribute));
+                bool hasDisallow = Attribute.IsDefined(scriptType, typeof(DisallowMultipleComponent));
                 if (!hasDisallow)
                 {
                     results.Add(new CheckResult
