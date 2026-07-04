@@ -147,7 +147,11 @@ public class StatusEffect
 
     public void Tick()
     {
-        Duration = Mathf.Max(0, Duration - 1);
+        // Negative Duration represents infinite/permanent effects — don't decrement
+        if (Duration > 0)
+        {
+            Duration--;
+        }
     }
 
     public bool IsValid()

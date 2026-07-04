@@ -29,6 +29,7 @@ public class QTESession : MonoBehaviour
 
     private bool isActive;
     private bool lastResult;
+    private bool isComplete;
 
     public bool IsQTEActive => isActive;
     public bool LastResult => lastResult;
@@ -65,11 +66,12 @@ public class QTESession : MonoBehaviour
         }
 
         lastResult = false;
+        isComplete = false;
         isActive = true;
         EnsureUI();
         ShowUI();
         StartCoroutine(RunQTE(timeWindow));
-        return false;
+        return true;
     }
 
     /// <summary>
@@ -80,7 +82,7 @@ public class QTESession : MonoBehaviour
     public IEnumerator ShowQTECoroutine(float timeWindow, Action<bool> onResult)
     {
         ShowQTE(timeWindow);
-        yield return new WaitUntil(() => !isActive);
+        yield return new WaitUntil(() => isComplete);
         onResult?.Invoke(lastResult);
     }
 
@@ -157,6 +159,7 @@ public class QTESession : MonoBehaviour
         yield return new WaitForSecondsRealtime(0.4f);
 
         lastResult = success;
+        isComplete = true;
         isActive = false;
         HideUI();
         OnQTEResolved?.Invoke(success);

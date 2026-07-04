@@ -75,6 +75,12 @@ public static class TravelValidationService
                 continue;
             }
 
+            IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
+            if (tracker != null && !tracker.IsIslandRestored(islandId))
+            {
+                continue;
+            }
+
             TeleportAnchor dock = TeleportAnchor.FindBoatDockForIsland(islandId);
             if (dock != null)
             {

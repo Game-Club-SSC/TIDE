@@ -1286,7 +1286,7 @@ public class OverworldEnemy : MonoBehaviour
 
         if (IslandRestorationTracker.Instance == null)
         {
-            startupClearCheckComplete = true;
+            // Don't mark as complete — retry next frame when tracker may be ready
             return false;
         }
 

@@ -162,6 +162,11 @@ public class AncientTextSceneBootstrap : MonoBehaviour
     private static string GetViceSuffix(string islandId)
     {
         string resolved = IslandThemeRegistry.ResolveIslandId(islandId);
+        if (string.IsNullOrEmpty(resolved))
+        {
+            return "lust";
+        }
+
         const string prefix = "island_";
         if (resolved.StartsWith(prefix, System.StringComparison.Ordinal))
         {

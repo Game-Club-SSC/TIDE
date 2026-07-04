@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using UnityEngine;
 
@@ -35,9 +36,9 @@ public static class GameStateSerializer
         {
             Vector3 pos = player.transform.position;
             sb.Append("\"playerPos\":{");
-            AppendJsonFieldRaw(sb, "x", pos.x.ToString("F2"), true);
-            AppendJsonFieldRaw(sb, "y", pos.y.ToString("F2"), false);
-            AppendJsonFieldRaw(sb, "z", pos.z.ToString("F2"), false);
+            AppendJsonFieldRaw(sb, "x", pos.x.ToString("F2", CultureInfo.InvariantCulture), true);
+            AppendJsonFieldRaw(sb, "y", pos.y.ToString("F2", CultureInfo.InvariantCulture), false);
+            AppendJsonFieldRaw(sb, "z", pos.z.ToString("F2", CultureInfo.InvariantCulture), false);
             sb.Append("}");
 
             // Player movement state
@@ -60,7 +61,7 @@ public static class GameStateSerializer
                 if (!first) sb.Append(',');
                 first = false;
                 float pct = tracker.GetRestorationPercent(islandId);
-                sb.Append($"\"{EscapeJson(islandId)}\":{pct.ToString("F1")}");
+                sb.Append($"\"{EscapeJson(islandId)}\":{pct.ToString("F1", CultureInfo.InvariantCulture)}";
             }
             sb.Append('}');
         }

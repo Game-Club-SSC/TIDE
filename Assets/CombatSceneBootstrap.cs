@@ -877,7 +877,7 @@ public class CombatSceneBootstrap : MonoBehaviour
             if (string.Equals(progressionOrder[i], islandId, System.StringComparison.Ordinal))
             {
                 int tier = i + 1;
-                return Mathf.Lerp(1.0f, 1.65f, (tier - 1) / Mathf.Max(1, progressionOrder.Count - 1));
+                return Mathf.Lerp(1.0f, 1.65f, (float)(tier - 1) / Mathf.Max(1, progressionOrder.Count - 1));
             }
         }
 

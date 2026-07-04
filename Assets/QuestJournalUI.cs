@@ -315,10 +315,18 @@ public class QuestJournalUI : MonoBehaviour
         }
 
         // Deactivate old content after its slash-out finishes
+        // Stop any previously queued deactivation to prevent it from disabling a tab
+        // the user just switched back to during rapid tab switching
+        if (deactivateCoroutine != null)
+        {
+            StopCoroutine(deactivateCoroutine);
+            deactivateCoroutine = null;
+        }
+
         if (outgoing != null && outgoing.gameObject != incoming?.gameObject)
         {
             PersonaUIStyle.ApplySlashTransition(outgoing, false, 0.2f);
-            StartCoroutine(DeactivateAfterDelay(outgoing.gameObject, 0.22f));
+            deactivateCoroutine = StartCoroutine(DeactivateAfterDelay(outgoing.gameObject, 0.22f));
         }
 
         // Ensure the selected content is active (fallback if no outgoing)
@@ -382,7 +390,7 @@ public class QuestJournalUI : MonoBehaviour
         IReadOnlyList<string> progression = IslandThemeRegistry.ProgressionOrder;
         int totalIslands = progression != null ? progression.Count : 7;
         int clearedIslands = 0;
-        if (ipm != null)
+        if (ipm != null && progression != null)
         {
             for (int i = 0; i < totalIslands; i++)
             {
@@ -719,6 +727,8 @@ public class QuestJournalUI : MonoBehaviour
         return contentObj != null ? contentObj.GetComponent<CanvasGroup>() : null;
     }
 
+    private Coroutine deactivateCoroutine;
+
     private System.Collections.IEnumerator DeactivateAfterDelay(GameObject obj, float delay)
     {
         yield return new WaitForSecondsRealtime(delay);
@@ -726,6 +736,7 @@ public class QuestJournalUI : MonoBehaviour
         {
             obj.SetActive(false);
         }
+        deactivateCoroutine = null;
     }
 
     // ------------------------------------------------------------------
