@@ -10,7 +10,9 @@ public class GameStateManager : MonoBehaviour
 {
     private sealed class PuzzleRuntimeState
     {
-        public readonly int[] tileValues = new int[9];
+        public int[] tileValues = Array.Empty<int>();
+        public int gridRows;
+        public int gridCols;
         public bool hasGrid;
         public bool solved;
     }
@@ -23,16 +25,18 @@ public class GameStateManager : MonoBehaviour
     }
 
     [Serializable]
-    private sealed class PuzzleRuntimeSaveEntry
+    public sealed class PuzzleRuntimeSaveEntry
     {
         public string puzzleBoxId;
-        public int[] tileValues = new int[9];
+        public int[] tileValues = Array.Empty<int>();
+        public int gridRows;
+        public int gridCols;
         public bool hasGrid;
         public bool solved;
     }
 
     [Serializable]
-    private sealed class AncientTextRuntimeSaveEntry
+    public sealed class AncientTextRuntimeSaveEntry
     {
         public string textId;
         public string title;
@@ -41,7 +45,7 @@ public class GameStateManager : MonoBehaviour
     }
 
     [Serializable]
-    private sealed class WorldStateSaveData
+    public sealed class WorldStateSaveData
     {
         public List<PuzzleRuntimeSaveEntry> puzzleStates = new List<PuzzleRuntimeSaveEntry>();
         public List<AncientTextRuntimeSaveEntry> ancientTextStates = new List<AncientTextRuntimeSaveEntry>();
@@ -58,7 +62,7 @@ public class GameStateManager : MonoBehaviour
     }
 
     [Serializable]
-    private sealed class StoryProgressionSaveData
+    public sealed class StoryProgressionSaveData
     {
         public int currentAct;
         public int highestActReached;
@@ -207,14 +211,14 @@ public class GameStateManager : MonoBehaviour
     [SerializeField] private bool autoStartIslandFlowOnMainScene;
 
     [Serializable]
-    private sealed class FinalBossDefeatSaveEntry
+    public sealed class FinalBossDefeatSaveEntry
     {
         public string islandId;
         public int defeats;
     }
 
     [Serializable]
-    private sealed class FinalBossDefeatSaveCollection
+    public sealed class FinalBossDefeatSaveCollection
     {
         public List<FinalBossDefeatSaveEntry> entries = new List<FinalBossDefeatSaveEntry>();
     }
@@ -506,10 +510,13 @@ public class GameStateManager : MonoBehaviour
 
     public void SavePuzzleRuntimeState(string puzzleBoxId, int[,] grid, bool solved)
     {
-        if (string.IsNullOrEmpty(puzzleBoxId) || grid == null || grid.GetLength(0) != 3 || grid.GetLength(1) != 3)
+        if (string.IsNullOrEmpty(puzzleBoxId) || grid == null || grid.GetLength(0) < 1 || grid.GetLength(1) < 1)
         {
             return;
         }
+
+        int rows = grid.GetLength(0);
+        int cols = grid.GetLength(1);
 
         if (!puzzleRuntimeStates.TryGetValue(puzzleBoxId, out PuzzleRuntimeState state))
         {
@@ -517,11 +524,15 @@ public class GameStateManager : MonoBehaviour
             puzzleRuntimeStates[puzzleBoxId] = state;
         }
 
-        for (int row = 0; row < 3; row++)
+        state.gridRows = rows;
+        state.gridCols = cols;
+        state.tileValues = new int[rows * cols];
+
+        for (int row = 0; row < rows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < cols; col++)
             {
-                state.tileValues[row * 3 + col] = Mathf.Clamp(grid[row, col], 1, 10);
+                state.tileValues[row * cols + col] = Mathf.Clamp(grid[row, col], 1, 10);
             }
         }
 
@@ -551,12 +562,17 @@ public class GameStateManager : MonoBehaviour
             return false;
         }
 
-        grid = new int[3, 3];
-        for (int row = 0; row < 3; row++)
+        int rows = Mathf.Max(1, state.gridRows);
+        int cols = Mathf.Max(1, state.gridCols);
+        grid = new int[rows, cols];
+        for (int row = 0; row < rows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < cols; col++)
             {
-                grid[row, col] = state.tileValues[row * 3 + col];
+                int index = row * cols + col;
+                grid[row, col] = index < state.tileValues.Length
+                    ? Mathf.Clamp(state.tileValues[index], 1, 10)
+                    : 5;
             }
         }
 
@@ -1167,7 +1183,9 @@ public class GameStateManager : MonoBehaviour
                     puzzleBoxId = pair.Key,
                     hasGrid = pair.Value.hasGrid,
                     solved = pair.Value.solved,
-                    tileValues = new int[9]
+                    gridRows = pair.Value.gridRows,
+                    gridCols = pair.Value.gridCols,
+                    tileValues = new int[pair.Value.tileValues.Length]
                 };
 
                 for (int i = 0; i < entry.tileValues.Length; i++)
@@ -1293,10 +1311,15 @@ public class GameStateManager : MonoBehaviour
                         continue;
                     }
 
+                    int legacyRows = entry.gridRows > 0 ? entry.gridRows : 3;
+                    int legacyCols = entry.gridCols > 0 ? entry.gridCols : 3;
                     PuzzleRuntimeState state = new PuzzleRuntimeState
                     {
                         hasGrid = entry.hasGrid,
-                        solved = entry.solved
+                        solved = entry.solved,
+                        gridRows = legacyRows,
+                        gridCols = legacyCols,
+                        tileValues = new int[legacyRows * legacyCols]
                     };
 
                     if (entry.tileValues != null)

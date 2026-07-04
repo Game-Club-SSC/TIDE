@@ -25,8 +25,10 @@ public class PuzzleBoxInteractable : MonoBehaviour, IPlayerInteractionAssistTarg
     [Tooltip("Puzzle data asset. Preferred over raw values.")]
     [SerializeField] private PuzzleData puzzleData;
 
-    [Tooltip("Legacy: 3x3 grid of Tide values in row-major order. Used if Puzzle Data is not assigned.")]
+    [Tooltip("Legacy: grid of Tide values in row-major order. Used if Puzzle Data is not assigned. Defaults to 3x3 if fewer than 9 entries.")]
     [SerializeField] private int[] puzzleValues;
+    [SerializeField] private int legacyGridRows = 3;
+    [SerializeField] private int legacyGridCols = 3;
     [SerializeField] private int sealedRow = 1;
     [SerializeField] private int sealedCol = 1;
 
@@ -206,17 +208,20 @@ public class PuzzleBoxInteractable : MonoBehaviour, IPlayerInteractionAssistTarg
 
     public int[,] GetLegacyPuzzleLayout()
     {
-        if (puzzleValues == null || puzzleValues.Length != 9)
+        int rows = Mathf.Max(1, legacyGridRows);
+        int cols = Mathf.Max(1, legacyGridCols);
+
+        if (puzzleValues == null || puzzleValues.Length < rows * cols)
         {
             return null;
         }
 
-        int[,] grid = new int[3, 3];
-        for (int row = 0; row < 3; row++)
+        int[,] grid = new int[rows, cols];
+        for (int row = 0; row < rows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < cols; col++)
             {
-                grid[row, col] = Mathf.Clamp(puzzleValues[row * 3 + col], 1, 10);
+                grid[row, col] = Mathf.Clamp(puzzleValues[row * cols + col], 1, 10);
             }
         }
 
@@ -225,7 +230,9 @@ public class PuzzleBoxInteractable : MonoBehaviour, IPlayerInteractionAssistTarg
 
     public Vector2Int GetLegacySealedPosition()
     {
-        return new Vector2Int(Mathf.Clamp(sealedCol, -1, 2), Mathf.Clamp(sealedRow, -1, 2));
+        return new Vector2Int(
+            Mathf.Clamp(sealedCol, -1, Mathf.Max(0, legacyGridCols - 1)),
+            Mathf.Clamp(sealedRow, -1, Mathf.Max(0, legacyGridRows - 1)));
     }
 
     public string GetIslandId()

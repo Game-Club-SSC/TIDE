@@ -48,7 +48,9 @@ public class TideManager : MonoBehaviour
     [SerializeField] private string fallbackSealedTileEncounterId = "encounter_imp_trio";
     [SerializeField] private float sealedTileCombatRestorationValue = 0.001f;
 
-    private readonly TideTile[,] activeTiles = new TideTile[3, 3];
+    private TideTile[,] activeTiles = new TideTile[3, 3];
+    private int gridRows = 3;
+    private int gridCols = 3;
     private int[,] puzzleValues =
     {
         { 9, 1, 10 },
@@ -76,7 +78,7 @@ public class TideManager : MonoBehaviour
     private RectTransform boardGridRoot;
     private CanvasGroup boardCanvasGroup;
     private Text boardHeaderLabel;
-    private readonly UiTileView[,] uiTileViews = new UiTileView[3, 3];
+    private UiTileView[,] uiTileViews = new UiTileView[3, 3];
     private TideTile hoveredTile;
     private TideTile carryingSource;
     private int carriedAmount;
@@ -128,15 +130,12 @@ public class TideManager : MonoBehaviour
         float restorationValue,
         Vector3 worldBoardCenter)
     {
-        // Validate array dimensions - must be 3x3 grids
-        if (legacyLayout != null && (legacyLayout.GetLength(0) != 3 || legacyLayout.GetLength(1) != 3))
+        // Validate array dimensions if both are provided
+        if (legacyLayout != null && runtimeLayout != null
+            && (legacyLayout.GetLength(0) != runtimeLayout.GetLength(0)
+                || legacyLayout.GetLength(1) != runtimeLayout.GetLength(1)))
         {
-            Debug.LogError("[TideManager] ConfigureOverlaySession: legacyLayout must be 3x3 array.");
-            return;
-        }
-        if (runtimeLayout != null && (runtimeLayout.GetLength(0) != 3 || runtimeLayout.GetLength(1) != 3))
-        {
-            Debug.LogError("[TideManager] ConfigureOverlaySession: runtimeLayout must be 3x3 array.");
+            Debug.LogError("[TideManager] ConfigureOverlaySession: legacyLayout and runtimeLayout dimensions mismatch.");
             return;
         }
 
@@ -156,10 +155,10 @@ public class TideManager : MonoBehaviour
 
     public int[,] CaptureCurrentGrid()
     {
-        int[,] grid = new int[3, 3];
-        for (int row = 0; row < 3; row++)
+        int[,] grid = new int[gridRows, gridCols];
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 TideTile tile = activeTiles[row, col];
                 grid[row, col] = tile != null ? tile.CurrentTideValue : puzzleValues[row, col];
@@ -191,14 +190,18 @@ public class TideManager : MonoBehaviour
 
     public void InitializePuzzle(int[,] layout, Vector2Int sealedTile)
     {
-        if (layout == null || layout.GetLength(0) != 3 || layout.GetLength(1) != 3)
+        if (layout == null || layout.GetLength(0) < 1 || layout.GetLength(1) < 1)
         {
             Debug.LogWarning("[TideManager] Invalid layout provided. Using default.");
             return;
         }
 
-        puzzleValues = new int[3, 3];
-        sealedTiles = new bool[3, 3];
+        gridRows = layout.GetLength(0);
+        gridCols = layout.GetLength(1);
+        activeTiles = new TideTile[gridRows, gridCols];
+        uiTileViews = new UiTileView[gridRows, gridCols];
+        puzzleValues = new int[gridRows, gridCols];
+        sealedTiles = new bool[gridRows, gridCols];
         sealedPosition = new Vector2Int(-1, -1);
         lockedPosition = new Vector2Int(-1, -1);
         lockedEncounterId = string.Empty;
@@ -207,15 +210,15 @@ public class TideManager : MonoBehaviour
         enableConsumption = false;
         consumptionAmount = 1;
 
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 puzzleValues[row, col] = layout[row, col];
             }
         }
 
-        if (sealedTile.x < 0 || sealedTile.y < 0 || sealedTile.x >= 3 || sealedTile.y >= 3)
+        if (sealedTile.x < 0 || sealedTile.y < 0 || sealedTile.x >= gridCols || sealedTile.y >= gridRows)
         {
             return;
         }
@@ -237,6 +240,10 @@ public class TideManager : MonoBehaviour
             return;
         }
 
+        gridRows = data.gridRows;
+        gridCols = data.gridCols;
+        activeTiles = new TideTile[gridRows, gridCols];
+        uiTileViews = new UiTileView[gridRows, gridCols];
         puzzleValues = data.GetGrid();
         sealedPosition = data.sealedPosition;
         winCondition = data.winCondition ?? new PuzzleWinCondition();
@@ -252,19 +259,16 @@ public class TideManager : MonoBehaviour
             puzzleIslandId = lockedEncounterIslandId;
         }
 
-        sealedTiles = new bool[3, 3];
-        if (data.HasSealedTile)
-        {
-            TrySetSealedTile(data.sealedPosition, true);
-        }
-
+        sealedTiles = data.GetSealedMap();
         if (data.HasLockedTile)
         {
             bool lockedCleared = IsLockedEncounterCleared();
 
-            if (!lockedCleared)
+            if (!lockedCleared
+                && data.lockedPosition.x >= 0 && data.lockedPosition.x < gridCols
+                && data.lockedPosition.y >= 0 && data.lockedPosition.y < gridRows)
             {
-                TrySetSealedTile(data.lockedPosition, true);
+                sealedTiles[data.lockedPosition.y, data.lockedPosition.x] = true;
             }
         }
     }
@@ -482,9 +486,9 @@ public class TideManager : MonoBehaviour
         runtimeBoardRoot = new GameObject("RuntimeTideBoard").transform;
         runtimeBoardRoot.SetParent(transform, false);
 
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 GameObject tileObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 tileObject.name = $"TideTile_{row}_{col}";
@@ -537,9 +541,9 @@ public class TideManager : MonoBehaviour
             return;
         }
 
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 GameObject tileObject = new GameObject(
                     $"UiTideTile_{row}_{col}",
@@ -549,8 +553,8 @@ public class TideManager : MonoBehaviour
                 tileObject.transform.SetParent(boardGridRoot, false);
 
                 RectTransform tileRect = tileObject.GetComponent<RectTransform>();
-                tileRect.anchorMin = new Vector2(col / 3f, 1f - (row + 1) / 3f);
-                tileRect.anchorMax = new Vector2((col + 1) / 3f, 1f - row / 3f);
+                tileRect.anchorMin = new Vector2(col / (float)gridCols, 1f - (row + 1) / (float)gridRows);
+                tileRect.anchorMax = new Vector2((col + 1) / (float)gridCols, 1f - row / (float)gridRows);
                 tileRect.offsetMin = new Vector2(8f, 8f);
                 tileRect.offsetMax = new Vector2(-8f, -8f);
 
@@ -615,9 +619,9 @@ public class TideManager : MonoBehaviour
         runtimeBoardRoot = new GameObject("RuntimeTideBoard").transform;
         runtimeBoardRoot.SetParent(transform, false);
 
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 GameObject tileObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 tileObject.name = $"TideTile_{row}_{col}";
@@ -775,9 +779,9 @@ public class TideManager : MonoBehaviour
     {
         isClosingBoardUi = false;
 
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 uiTileViews[row, col] = null;
             }
@@ -822,10 +826,10 @@ public class TideManager : MonoBehaviour
 
     private void StoreInitialValues()
     {
-        initialPuzzleValues = new int[3, 3];
-        for (int row = 0; row < 3; row++)
+        initialPuzzleValues = new int[gridRows, gridCols];
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 initialPuzzleValues[row, col] = puzzleValues[row, col];
             }
@@ -848,9 +852,9 @@ public class TideManager : MonoBehaviour
         carriedAmount = 0;
         OnCarriedAmountChanged?.Invoke();
 
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 TideTile tile = activeTiles[row, col];
                 if (tile == null || tile.IsSealed)
@@ -869,8 +873,8 @@ public class TideManager : MonoBehaviour
 
     private Vector3 GetWorldPosition(int row, int col)
     {
-        float xOffset = (col - 1) * tileSpacing;
-        float zOffset = (1 - row) * tileSpacing;
+        float xOffset = (col - (gridCols - 1) * 0.5f) * tileSpacing;
+        float zOffset = ((gridRows - 1) * 0.5f - row) * tileSpacing;
         return boardCenter + new Vector3(xOffset, 0f, zOffset);
     }
 
@@ -989,7 +993,7 @@ public class TideManager : MonoBehaviour
 
     private void OnUiTileClicked(int row, int col)
     {
-        if (!renderBoardAsUi || row < 0 || row >= 3 || col < 0 || col >= 3)
+        if (!renderBoardAsUi || row < 0 || row >= gridRows || col < 0 || col >= gridCols)
         {
             return;
         }
@@ -1152,7 +1156,7 @@ public class TideManager : MonoBehaviour
             int nRow = pos.y + dRow[i];
             int nCol = pos.x + dCol[i];
 
-            if (nRow < 0 || nRow >= 3 || nCol < 0 || nCol >= 3)
+            if (nRow < 0 || nRow >= gridRows || nCol < 0 || nCol >= gridCols)
             {
                 continue;
             }
@@ -1182,9 +1186,9 @@ public class TideManager : MonoBehaviour
     private void ApplyInstabilityDecay()
     {
         int countAbove5 = 0;
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 TideTile tile = activeTiles[row, col];
                 if (tile == null)
@@ -1205,9 +1209,9 @@ public class TideManager : MonoBehaviour
         }
 
         int decay = countAbove5 - instabilityThreshold;
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 TideTile tile = activeTiles[row, col];
                 if (tile == null)
@@ -1222,10 +1226,10 @@ public class TideManager : MonoBehaviour
 
     private void EvaluatePuzzleCompletion()
     {
-        int[,] grid = new int[3, 3];
-        for (int row = 0; row < 3; row++)
+        int[,] grid = new int[gridRows, gridCols];
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 TideTile tile = activeTiles[row, col];
                 if (tile == null)
@@ -1271,9 +1275,9 @@ public class TideManager : MonoBehaviour
 
     private IEnumerator FlashAllTilesComplete()
     {
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 TideTile tile = activeTiles[row, col];
                 if (tile == null)
@@ -1400,7 +1404,7 @@ public class TideManager : MonoBehaviour
 
                     int nextRow = current.Position.y + rowOffset;
                     int nextCol = current.Position.x + colOffset;
-                    if (nextRow < 0 || nextRow >= 3 || nextCol < 0 || nextCol >= 3)
+                    if (nextRow < 0 || nextRow >= gridRows || nextCol < 0 || nextCol >= gridCols)
                     {
                         continue;
                     }
@@ -1437,9 +1441,9 @@ public class TideManager : MonoBehaviour
     {
         bool carrying = carriedAmount > 0;
 
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 TideTile tile = activeTiles[row, col];
                 if (tile == null)
@@ -1474,7 +1478,7 @@ public class TideManager : MonoBehaviour
 
     private void TrySetSealedTile(Vector2Int position, bool isSealed)
     {
-        if (position.x < 0 || position.x >= 3 || position.y < 0 || position.y >= 3)
+        if (position.x < 0 || position.x >= gridCols || position.y < 0 || position.y >= gridRows)
         {
             return;
         }
@@ -1545,15 +1549,17 @@ public class TideManager : MonoBehaviour
 
     private static int[,] CloneGrid(int[,] source)
     {
-        if (source == null || source.GetLength(0) != 3 || source.GetLength(1) != 3)
+        if (source == null || source.GetLength(0) < 1 || source.GetLength(1) < 1)
         {
             return null;
         }
 
-        int[,] clone = new int[3, 3];
-        for (int row = 0; row < 3; row++)
+        int rows = source.GetLength(0);
+        int cols = source.GetLength(1);
+        int[,] clone = new int[rows, cols];
+        for (int row = 0; row < rows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < cols; col++)
             {
                 clone[row, col] = source[row, col];
             }
@@ -1564,14 +1570,14 @@ public class TideManager : MonoBehaviour
 
     private void ApplyRuntimeLayout(int[,] runtimeGrid)
     {
-        if (runtimeGrid == null || runtimeGrid.GetLength(0) != 3 || runtimeGrid.GetLength(1) != 3)
+        if (runtimeGrid == null || runtimeGrid.GetLength(0) != gridRows || runtimeGrid.GetLength(1) != gridCols)
         {
             return;
         }
 
-        for (int row = 0; row < 3; row++)
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
                 puzzleValues[row, col] = Mathf.Clamp(runtimeGrid[row, col], 1, 10);
             }

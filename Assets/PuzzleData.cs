@@ -88,12 +88,24 @@ public class PuzzleWinCondition
 [CreateAssetMenu(fileName = "New Puzzle", menuName = "TIDE/Puzzle Data")]
 public class PuzzleData : ScriptableObject
 {
-    [Tooltip("Tide values for each tile in row-major order. Must contain exactly gridRows * gridCols values.")]
-    public int[] tileValues = { 5, 5, 5, 5, 5, 5, 5, 5, 5 };
+    [Header("Grid Dimensions")]
+    [Tooltip("Number of columns in the puzzle grid.")]
+    public int gridCols = 4;
 
-    [Tooltip("Position of the sealed (impassable) tile. Set to (-1,-1) if none.")]
+    [Tooltip("Number of rows in the puzzle grid.")]
+    public int gridRows = 4;
+
+    [Tooltip("Tide values for each tile in row-major order. Must contain exactly gridRows * gridCols. Use 0 for sealed/empty slots.")]
+    public int[] tileValues = { 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5 };
+
+    [Header("Sealed Tiles")]
+    [Tooltip("Positions of sealed (impassable) tiles. These tiles cannot be interacted with.")]
+    public Vector2Int[] sealedPositions = new Vector2Int[0];
+
+    [Tooltip("(Legacy) Single sealed position. Prefer sealedPositions array for multiple sealed tiles.")]
     public Vector2Int sealedPosition = new Vector2Int(-1, -1);
 
+    [Header("Locked Tile")]
     [Tooltip("Position of the locked tile (sealed until combat cleared). Set to (-1,-1) if none.")]
     public Vector2Int lockedPosition = new Vector2Int(-1, -1);
 
@@ -103,12 +115,15 @@ public class PuzzleData : ScriptableObject
     [Tooltip("Optional island ID scope for locked-tile encounter checks. Leave empty to use active island context.")]
     public string lockedTileIslandId = "";
 
+    [Header("Win Condition")]
     [Tooltip("Win condition for this puzzle.")]
     public PuzzleWinCondition winCondition = new PuzzleWinCondition();
 
+    [Header("Decay")]
     [Tooltip("Number of tiles above 5 allowed before instability decay kicks in.")]
     public int instabilityThreshold = 3;
 
+    [Header("Gluttony Consumption")]
     [Tooltip("When enabled, Gluttony consumption removes tide after a valid placement.")]
     public bool enableConsumption;
 
@@ -116,6 +131,7 @@ public class PuzzleData : ScriptableObject
     [Tooltip("How much tide is consumed from the placed tile after a valid move.")]
     public int consumptionAmount = 1;
 
+    [Header("Greed Economy")]
     [Tooltip("When enabled, Greed economy adds coin yield to an adjacent tile after a valid placement.")]
     public bool enableGreedEconomy;
 
@@ -123,32 +139,89 @@ public class PuzzleData : ScriptableObject
     [Tooltip("How much tide is added to one orthogonally-adjacent tile when Greed economy is active.")]
     public int coinTileYield = 2;
 
+    /// <summary>
+    /// Returns all sealed positions, combining the legacy single position with the array.
+    /// </summary>
+    public Vector2Int[] GetAllSealedPositions()
+    {
+        var result = new System.Collections.Generic.List<Vector2Int>();
+
+        if (sealedPositions != null)
+        {
+            result.AddRange(sealedPositions);
+        }
+
+        // Include legacy single position if valid and not already in array
+        if (sealedPosition.x >= 0 && sealedPosition.y >= 0)
+        {
+            bool found = false;
+            foreach (var pos in result)
+            {
+                if (pos == sealedPosition) { found = true; break; }
+            }
+            if (!found) result.Add(sealedPosition);
+        }
+
+        return result.ToArray();
+    }
+
+    /// <summary>
+    /// Returns a 2D bool array marking sealed tiles. Dimensions match gridRows x gridCols.
+    /// </summary>
+    public bool[,] GetSealedMap()
+    {
+        bool[,] map = new bool[gridRows, gridCols];
+        Vector2Int[] positions = GetAllSealedPositions();
+
+        foreach (var pos in positions)
+        {
+            if (pos.y >= 0 && pos.y < gridRows && pos.x >= 0 && pos.x < gridCols)
+            {
+                map[pos.y, pos.x] = true;
+            }
+        }
+
+        return map;
+    }
+
+    /// <summary>
+    /// Returns the grid as a 2D int array. Values are clamped 1-10; sealed slots become 0.
+    /// </summary>
     public int[,] GetGrid()
     {
-        int[,] grid =
-        {
-            { 5, 5, 5 },
-            { 5, 5, 5 },
-            { 5, 5, 5 }
-        };
+        int[,] grid = new int[gridRows, gridCols];
 
-        if (tileValues == null || tileValues.Length < 9)
+        if (tileValues == null || tileValues.Length < gridRows * gridCols)
         {
-            Debug.LogWarning("[PuzzleData] tileValues has fewer than 9 entries. Using default 5s.");
+            Debug.LogWarning($"[PuzzleData] tileValues has fewer than {gridRows * gridCols} entries. Filling with 5s.");
+            for (int r = 0; r < gridRows; r++)
+                for (int c = 0; c < gridCols; c++)
+                    grid[r, c] = 5;
             return grid;
         }
 
-        for (int row = 0; row < 3; row++)
+        bool[,] sealedMap = GetSealedMap();
+
+        for (int row = 0; row < gridRows; row++)
         {
-            for (int col = 0; col < 3; col++)
+            for (int col = 0; col < gridCols; col++)
             {
-                grid[row, col] = Mathf.Clamp(tileValues[row * 3 + col], 1, 10);
+                int val = tileValues[row * gridCols + col];
+                if (sealedMap[row, col] || val == 0)
+                {
+                    grid[row, col] = 0; // sealed/empty
+                }
+                else
+                {
+                    grid[row, col] = Mathf.Clamp(val, 1, 10);
+                }
             }
         }
 
         return grid;
     }
 
-    public bool HasSealedTile => sealedPosition.x >= 0 && sealedPosition.y >= 0;
+    public bool HasSealedTile => (sealedPositions != null && sealedPositions.Length > 0)
+        || (sealedPosition.x >= 0 && sealedPosition.y >= 0);
     public bool HasLockedTile => lockedPosition.x >= 0 && lockedPosition.y >= 0;
 }
