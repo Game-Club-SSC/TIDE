@@ -96,8 +96,7 @@ public class IslandFlowController : MonoBehaviour
         awaitingEncounterResolution = false;
         hasLoggedDeadlockWarning = false;
 
-        int restoredIndex = GetNextIncompleteEncounterIndex();
-        currentEncounterIndex = Mathf.Clamp(restoredIndex, 0, Mathf.Max(0, islandConfig.encounters.Length - 1));
+        currentEncounterIndex = GetNextIncompleteEncounterIndex();
 
         if (GameStateManager.Instance != null)
         {
@@ -299,6 +298,11 @@ public class IslandFlowController : MonoBehaviour
 
     private static string GetEncounterId(EncounterDefinition encounter, int index)
     {
+        if (encounter == null)
+        {
+            return $"missing_{index}";
+        }
+
         if (!string.IsNullOrEmpty(encounter.encounterId))
         {
             return encounter.encounterId;
@@ -322,6 +326,11 @@ public class IslandFlowController : MonoBehaviour
         for (int i = 0; i < islandConfig.encounters.Length; i++)
         {
             EncounterDefinition encounter = islandConfig.encounters[i];
+            if (encounter == null)
+            {
+                continue;
+            }
+
             string encounterId = GetEncounterId(encounter, i);
             if (!tracker.HasClearedEncounter(activeIslandId, encounterId))
             {
@@ -371,7 +380,7 @@ public class IslandFlowController : MonoBehaviour
         for (int i = 0; i < islandConfig.encounters.Length; i++)
         {
             EncounterDefinition encounter = islandConfig.encounters[i];
-            if (IsBossEncounter(encounter))
+            if (encounter == null || IsBossEncounter(encounter))
             {
                 continue;
             }
