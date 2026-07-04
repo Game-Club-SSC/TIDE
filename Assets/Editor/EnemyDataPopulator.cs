@@ -64,6 +64,13 @@ public static class EnemyDataPopulator
     [MenuItem("TIDE/Populate Enemy Data (All 7 Islands)")]
     public static void PopulateAll()
     {
+        if (!AssetDatabase.IsValidFolder(OutputFolder))
+        {
+            string parent = System.IO.Path.GetDirectoryName(OutputFolder);
+            string folderName = System.IO.Path.GetFileName(OutputFolder);
+            AssetDatabase.CreateFolder(parent, folderName);
+        }
+
         int created = 0;
         int skipped = 0;
 

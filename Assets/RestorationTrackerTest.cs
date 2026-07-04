@@ -52,17 +52,23 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Combat");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_test", "combat_1", EncounterType.Combat, 0.2f);
+        try
+        {
+            tracker.RecordEncounterCompletion("island_test", "combat_1", EncounterType.Combat, 0.2f);
 
-        float percent = tracker.GetRestorationPercent("island_test");
-        Assert.AreEqual(20f, percent, 0.01f, "Combat completion should add 20% restoration.");
+            float percent = tracker.GetRestorationPercent("island_test");
+            Assert.AreEqual(20f, percent, 0.01f, "Combat completion should add 20% restoration.");
 
-        IslandRestorationState state = tracker.GetRestorationState("island_test");
-        Assert.AreEqual(0.2f, state.CombatContribution, 0.001f, "Combat contribution should be 0.2.");
-        Assert.AreEqual(1, state.CombatEncountersCompleted, "Should have 1 combat encounter completed.");
-        Assert.AreEqual(0, state.PuzzleEncountersCompleted, "Should have 0 puzzle encounters completed.");
+            IslandRestorationState state = tracker.GetRestorationState("island_test");
+            Assert.AreEqual(0.2f, state.CombatContribution, 0.001f, "Combat contribution should be 0.2.");
+            Assert.AreEqual(1, state.CombatEncountersCompleted, "Should have 1 combat encounter completed.");
+            Assert.AreEqual(0, state.PuzzleEncountersCompleted, "Should have 0 puzzle encounters completed.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Combat contribution test passed");
     }
 
@@ -73,17 +79,23 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Puzzle");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
+        try
+        {
+            tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
 
-        float percent = tracker.GetRestorationPercent("island_test");
-        Assert.AreEqual(30f, percent, 0.01f, "Puzzle completion should add 30% restoration.");
+            float percent = tracker.GetRestorationPercent("island_test");
+            Assert.AreEqual(30f, percent, 0.01f, "Puzzle completion should add 30% restoration.");
 
-        IslandRestorationState state = tracker.GetRestorationState("island_test");
-        Assert.AreEqual(0.3f, state.PuzzleContribution, 0.001f, "Puzzle contribution should be 0.3.");
-        Assert.AreEqual(0, state.CombatEncountersCompleted, "Should have 0 combat encounters completed.");
-        Assert.AreEqual(1, state.PuzzleEncountersCompleted, "Should have 1 puzzle encounter completed.");
+            IslandRestorationState state = tracker.GetRestorationState("island_test");
+            Assert.AreEqual(0.3f, state.PuzzleContribution, 0.001f, "Puzzle contribution should be 0.3.");
+            Assert.AreEqual(0, state.CombatEncountersCompleted, "Should have 0 combat encounters completed.");
+            Assert.AreEqual(1, state.PuzzleEncountersCompleted, "Should have 1 puzzle encounter completed.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Puzzle contribution test passed");
     }
 
@@ -94,16 +106,22 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Dupe");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_test", "combat_1", EncounterType.Combat, 0.2f);
-        tracker.RecordEncounterCompletion("island_test", "combat_1", EncounterType.Combat, 0.2f);
+        try
+        {
+            tracker.RecordEncounterCompletion("island_test", "combat_1", EncounterType.Combat, 0.2f);
+            tracker.RecordEncounterCompletion("island_test", "combat_1", EncounterType.Combat, 0.2f);
 
-        float percent = tracker.GetRestorationPercent("island_test");
-        Assert.AreEqual(20f, percent, 0.01f, "Duplicate encounter should not add extra restoration.");
+            float percent = tracker.GetRestorationPercent("island_test");
+            Assert.AreEqual(20f, percent, 0.01f, "Duplicate encounter should not add extra restoration.");
 
-        IslandRestorationState state = tracker.GetRestorationState("island_test");
-        Assert.AreEqual(1, state.CombatEncountersCompleted, "Should still have exactly 1 combat encounter completed.");
+            IslandRestorationState state = tracker.GetRestorationState("island_test");
+            Assert.AreEqual(1, state.CombatEncountersCompleted, "Should still have exactly 1 combat encounter completed.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Duplicate encounter prevention test passed");
     }
 
@@ -114,16 +132,22 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_PuzzleDupe");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
-        tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
+        try
+        {
+            tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
+            tracker.RecordEncounterCompletion("island_test", "puzzle_1", EncounterType.Puzzle, 0.3f);
 
-        float percent = tracker.GetRestorationPercent("island_test");
-        Assert.AreEqual(30f, percent, 0.01f, "Duplicate puzzle encounter should not add extra restoration.");
+            float percent = tracker.GetRestorationPercent("island_test");
+            Assert.AreEqual(30f, percent, 0.01f, "Duplicate puzzle encounter should not add extra restoration.");
 
-        IslandRestorationState state = tracker.GetRestorationState("island_test");
-        Assert.AreEqual(1, state.PuzzleEncountersCompleted, "Should still have exactly 1 puzzle encounter completed.");
+            IslandRestorationState state = tracker.GetRestorationState("island_test");
+            Assert.AreEqual(1, state.PuzzleEncountersCompleted, "Should still have exactly 1 puzzle encounter completed.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Duplicate puzzle encounter prevention test passed");
     }
 
@@ -196,42 +220,53 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Legacy");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.CompleteEncounter(0.2f);
-        tracker.CompleteEncounter(0.4f);
+        try
+        {
+            tracker.CompleteEncounter(0.2f);
+            tracker.CompleteEncounter(0.4f);
 
-        float percent = tracker.GetRestorationPercent("island_lust");
-        Assert.AreEqual(20f, percent, 0.01f, "Legacy CompleteEncounter should only count once without a real encounter id.");
+            float percent = tracker.GetRestorationPercent("island_lust");
+            Assert.AreEqual(20f, percent, 0.01f, "Legacy CompleteEncounter should only count once without a real encounter id.");
 
-        IslandRestorationState state = tracker.GetRestorationState("island_lust");
-        Assert.AreEqual(1, state.CombatEncountersCompleted, "Legacy CompleteEncounter should not stack duplicate combat completions.");
-        Assert.AreEqual(1, state.CompletedEncounterIds.Count, "Legacy path should register a stable encounter id for duplicate protection.");
+            IslandRestorationState state = tracker.GetRestorationState("island_lust");
+            Assert.AreEqual(1, state.CombatEncountersCompleted, "Legacy CompleteEncounter should not stack duplicate combat completions.");
+            Assert.AreEqual(1, state.CompletedEncounterIds.Count, "Legacy path should register a stable encounter id for duplicate protection.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Legacy CompleteEncounter duplicate protection test passed");
     }
 
     private void TestTypedBuckets()
     {
         Debug.Log("Testing typed buckets (combat + puzzle)...");
-        // Simulates Island 1: Combat A (20%) + Puzzle A (30%) + Combat B (20%) + Puzzle B (30%) = 100%
 
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Buckets");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_lust", "combat_a", EncounterType.Combat, 0.2f);
-        tracker.RecordEncounterCompletion("island_lust", "puzzle_a", EncounterType.Puzzle, 0.3f);
-        tracker.RecordEncounterCompletion("island_lust", "combat_b", EncounterType.Combat, 0.2f);
-        tracker.RecordEncounterCompletion("island_lust", "puzzle_b", EncounterType.Puzzle, 0.3f);
+        try
+        {
+            tracker.RecordEncounterCompletion("island_lust", "combat_a", EncounterType.Combat, 0.2f);
+            tracker.RecordEncounterCompletion("island_lust", "puzzle_a", EncounterType.Puzzle, 0.3f);
+            tracker.RecordEncounterCompletion("island_lust", "combat_b", EncounterType.Combat, 0.2f);
+            tracker.RecordEncounterCompletion("island_lust", "puzzle_b", EncounterType.Puzzle, 0.3f);
 
-        IslandRestorationState state = tracker.GetRestorationState("island_lust");
-        Assert.AreEqual(0.4f, state.CombatContribution, 0.001f, "Combat bucket should be 0.4 (20% + 20%).");
-        Assert.AreEqual(0.6f, state.PuzzleContribution, 0.001f, "Puzzle bucket should be 0.6 (30% + 30%).");
-        Assert.AreEqual(100f, state.RestorationPercent, 0.01f, "Total should be 100%.");
-        Assert.IsTrue(state.IsIslandRestored, "Island should be fully restored.");
-        Assert.AreEqual(2, state.CombatEncountersCompleted, "Should have 2 combat encounters completed.");
-        Assert.AreEqual(2, state.PuzzleEncountersCompleted, "Should have 2 puzzle encounters completed.");
+            IslandRestorationState state = tracker.GetRestorationState("island_lust");
+            Assert.AreEqual(0.4f, state.CombatContribution, 0.001f, "Combat bucket should be 0.4 (20% + 20%).");
+            Assert.AreEqual(0.6f, state.PuzzleContribution, 0.001f, "Puzzle bucket should be 0.6 (30% + 30%).");
+            Assert.AreEqual(100f, state.RestorationPercent, 0.01f, "Total should be 100%.");
+            Assert.IsTrue(state.IsIslandRestored, "Island should be fully restored.");
+            Assert.AreEqual(2, state.CombatEncountersCompleted, "Should have 2 combat encounters completed.");
+            Assert.AreEqual(2, state.PuzzleEncountersCompleted, "Should have 2 puzzle encounters completed.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Typed buckets test passed");
     }
 
@@ -242,15 +277,21 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_ReturnValue");
         GameObject trackerObject = tracker.gameObject;
 
-        bool recordedFirst = tracker.RecordEncounterCompletion("island_return", "combat_1", EncounterType.Combat, 0.125f);
-        bool recordedDuplicate = tracker.RecordEncounterCompletion("island_return", "combat_1", EncounterType.Combat, 0.125f);
-        bool recordedInvalid = tracker.RecordEncounterCompletion("island_return", string.Empty, EncounterType.Combat, 0.125f);
+        try
+        {
+            bool recordedFirst = tracker.RecordEncounterCompletion("island_return", "combat_1", EncounterType.Combat, 0.125f);
+            bool recordedDuplicate = tracker.RecordEncounterCompletion("island_return", "combat_1", EncounterType.Combat, 0.125f);
+            bool recordedInvalid = tracker.RecordEncounterCompletion("island_return", string.Empty, EncounterType.Combat, 0.125f);
 
-        Assert.IsTrue(recordedFirst, "First encounter completion should report success.");
-        Assert.IsFalse(recordedDuplicate, "Duplicate encounter completion should report failure.");
-        Assert.IsFalse(recordedInvalid, "Invalid encounter completion should report failure.");
+            Assert.IsTrue(recordedFirst, "First encounter completion should report success.");
+            Assert.IsFalse(recordedDuplicate, "Duplicate encounter completion should report failure.");
+            Assert.IsFalse(recordedInvalid, "Invalid encounter completion should report failure.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Encounter completion return value test passed");
     }
 
@@ -261,20 +302,24 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Percent");
         GameObject trackerObject = tracker.gameObject;
 
-        // Empty island should be 0%
-        Assert.AreEqual(0f, tracker.GetRestorationPercent("empty_island"), "Empty island should be 0%.");
+        try
+        {
+            Assert.AreEqual(0f, tracker.GetRestorationPercent("empty_island"), "Empty island should be 0%.");
 
-        tracker.RecordEncounterCompletion("island_pct", "c1", EncounterType.Combat, 0.25f);
-        Assert.AreEqual(25f, tracker.GetRestorationPercent("island_pct"), 0.01f, "Should be 25%.");
+            tracker.RecordEncounterCompletion("island_pct", "c1", EncounterType.Combat, 0.25f);
+            Assert.AreEqual(25f, tracker.GetRestorationPercent("island_pct"), 0.01f, "Should be 25%.");
 
-        tracker.RecordEncounterCompletion("island_pct", "p1", EncounterType.Puzzle, 0.50f);
-        Assert.AreEqual(75f, tracker.GetRestorationPercent("island_pct"), 0.01f, "Should be 75%.");
+            tracker.RecordEncounterCompletion("island_pct", "p1", EncounterType.Puzzle, 0.50f);
+            Assert.AreEqual(75f, tracker.GetRestorationPercent("island_pct"), 0.01f, "Should be 75%.");
 
-        // Adding more should clamp to 100%
-        tracker.RecordEncounterCompletion("island_pct", "c2", EncounterType.Combat, 0.50f);
-        Assert.AreEqual(100f, tracker.GetRestorationPercent("island_pct"), 0.01f, "Should be clamped to 100%.");
+            tracker.RecordEncounterCompletion("island_pct", "c2", EncounterType.Combat, 0.50f);
+            Assert.AreEqual(100f, tracker.GetRestorationPercent("island_pct"), 0.01f, "Should be clamped to 100%.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Restoration percent calculation test passed");
     }
 
@@ -285,18 +330,24 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Threshold");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_thresh", "c1", EncounterType.Combat, 0.4f);
+        try
+        {
+            tracker.RecordEncounterCompletion("island_thresh", "c1", EncounterType.Combat, 0.4f);
 
-        Assert.IsTrue(tracker.IsRestorationAtOrAbove("island_thresh", 30f), "40% should be >= 30% threshold.");
-        Assert.IsTrue(tracker.IsRestorationAtOrAbove("island_thresh", 40f), "40% should be >= 40% threshold.");
-        Assert.IsFalse(tracker.IsRestorationAtOrAbove("island_thresh", 50f), "40% should NOT be >= 50% threshold.");
-        Assert.IsFalse(tracker.IsRestorationAtOrAbove("island_thresh", 80f), "40% should NOT be >= 80% threshold.");
+            Assert.IsTrue(tracker.IsRestorationAtOrAbove("island_thresh", 30f), "40% should be >= 30% threshold.");
+            Assert.IsTrue(tracker.IsRestorationAtOrAbove("island_thresh", 40f), "40% should be >= 40% threshold.");
+            Assert.IsFalse(tracker.IsRestorationAtOrAbove("island_thresh", 50f), "40% should NOT be >= 50% threshold.");
+            Assert.IsFalse(tracker.IsRestorationAtOrAbove("island_thresh", 80f), "40% should NOT be >= 80% threshold.");
 
-        tracker.RecordEncounterCompletion("island_thresh", "p1", EncounterType.Puzzle, 0.4f);
-        Assert.IsTrue(tracker.IsRestorationAtOrAbove("island_thresh", 80f), "80% should be >= 80% threshold after puzzle.");
-        Assert.IsFalse(tracker.IsRestorationAtOrAbove("island_thresh", 81f), "80% should NOT be >= 81% threshold.");
+            tracker.RecordEncounterCompletion("island_thresh", "p1", EncounterType.Puzzle, 0.4f);
+            Assert.IsTrue(tracker.IsRestorationAtOrAbove("island_thresh", 80f), "80% should be >= 80% threshold after puzzle.");
+            Assert.IsFalse(tracker.IsRestorationAtOrAbove("island_thresh", 81f), "80% should NOT be >= 81% threshold.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Threshold query test passed");
     }
 
@@ -314,15 +365,25 @@ public class RestorationTrackerTest : MonoBehaviour
         tracker.OnIslandRestored += (id) => { restoredIsland = id; };
         tracker.OnRestorationChanged += (id, progress) => { changedIslands.Add(id); changedProgress.Add(progress); };
 
-        tracker.RecordEncounterCompletion("island_evt", "c1", EncounterType.Combat, 0.5f);
-        Assert.IsNull(restoredIsland, "Should not fire OnIslandRestored at 50%.");
-        Assert.AreEqual(1, changedIslands.Count, "Should fire OnRestorationChanged once.");
+        try
+        {
+            tracker.RecordEncounterCompletion("island_evt", "c1", EncounterType.Combat, 0.5f);
+            Assert.IsNull(restoredIsland, "Should not fire OnIslandRestored at 50%.");
+            Assert.AreEqual(1, changedIslands.Count, "Should fire OnRestorationChanged once.");
+            Assert.AreEqual("island_evt", changedIslands[0], "Event should report the correct islandId.");
+            Assert.AreEqual(50f, changedProgress[0], 0.01f, "Event should report 50% progress.");
 
-        tracker.RecordEncounterCompletion("island_evt", "p1", EncounterType.Puzzle, 0.5f);
-        Assert.AreEqual("island_evt", restoredIsland, "Should fire OnIslandRestored with correct islandId at 100%.");
-        Assert.AreEqual(2, changedIslands.Count, "Should fire OnRestorationChanged twice total.");
+            tracker.RecordEncounterCompletion("island_evt", "p1", EncounterType.Puzzle, 0.5f);
+            Assert.AreEqual("island_evt", restoredIsland, "Should fire OnIslandRestored with correct islandId at 100%.");
+            Assert.AreEqual(2, changedIslands.Count, "Should fire OnRestorationChanged twice total.");
+            Assert.AreEqual("island_evt", changedIslands[1], "Second event should report the correct islandId.");
+            Assert.AreEqual(100f, changedProgress[1], 0.01f, "Second event should report 100% progress.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Full restoration event test passed");
     }
 
@@ -333,18 +394,24 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Reset");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_reset", "c1", EncounterType.Combat, 0.5f);
-        Assert.AreEqual(50f, tracker.GetRestorationPercent("island_reset"), 0.01f, "Should be 50% before reset.");
+        try
+        {
+            tracker.RecordEncounterCompletion("island_reset", "c1", EncounterType.Combat, 0.5f);
+            Assert.AreEqual(50f, tracker.GetRestorationPercent("island_reset"), 0.01f, "Should be 50% before reset.");
 
-        tracker.ResetIsland("island_reset");
-        Assert.AreEqual(0f, tracker.GetRestorationPercent("island_reset"), 0.01f, "Should be 0% after reset.");
-        Assert.IsFalse(tracker.IsIslandRestored("island_reset"), "Should not be restored after reset.");
+            tracker.ResetIsland("island_reset");
+            Assert.AreEqual(0f, tracker.GetRestorationPercent("island_reset"), 0.01f, "Should be 0% after reset.");
+            Assert.IsFalse(tracker.IsIslandRestored("island_reset"), "Should not be restored after reset.");
 
-        IslandRestorationState state = tracker.GetRestorationState("island_reset");
-        Assert.AreEqual(0, state.CombatEncountersCompleted, "Should have 0 encounters after reset.");
-        Assert.AreEqual(0, state.PuzzleEncountersCompleted, "Should have 0 encounters after reset.");
+            IslandRestorationState state = tracker.GetRestorationState("island_reset");
+            Assert.AreEqual(0, state.CombatEncountersCompleted, "Should have 0 encounters after reset.");
+            Assert.AreEqual(0, state.PuzzleEncountersCompleted, "Should have 0 encounters after reset.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Reset island test passed");
     }
 
@@ -355,17 +422,23 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Multi");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_a", "c1", EncounterType.Combat, 0.5f);
-        tracker.RecordEncounterCompletion("island_b", "c1", EncounterType.Combat, 0.3f);
+        try
+        {
+            tracker.RecordEncounterCompletion("island_a", "c1", EncounterType.Combat, 0.5f);
+            tracker.RecordEncounterCompletion("island_b", "c1", EncounterType.Combat, 0.3f);
 
-        Assert.AreEqual(50f, tracker.GetRestorationPercent("island_a"), 0.01f, "Island A should be 50%.");
-        Assert.AreEqual(30f, tracker.GetRestorationPercent("island_b"), 0.01f, "Island B should be 30%.");
+            Assert.AreEqual(50f, tracker.GetRestorationPercent("island_a"), 0.01f, "Island A should be 50%.");
+            Assert.AreEqual(30f, tracker.GetRestorationPercent("island_b"), 0.01f, "Island B should be 30%.");
 
-        tracker.ResetIsland("island_a");
-        Assert.AreEqual(0f, tracker.GetRestorationPercent("island_a"), 0.01f, "Island A should be 0% after reset.");
-        Assert.AreEqual(30f, tracker.GetRestorationPercent("island_b"), 0.01f, "Island B should still be 30%.");
+            tracker.ResetIsland("island_a");
+            Assert.AreEqual(0f, tracker.GetRestorationPercent("island_a"), 0.01f, "Island A should be 0% after reset.");
+            Assert.AreEqual(30f, tracker.GetRestorationPercent("island_b"), 0.01f, "Island B should still be 30%.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Multi-island isolation test passed");
     }
 
@@ -376,24 +449,30 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_Snapshot");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_snapshot", "combat_1", EncounterType.Combat, 0.5f);
-        tracker.RecordEncounterCompletion("island_snapshot", "puzzle_1", EncounterType.Puzzle, 0.25f);
+        try
+        {
+            tracker.RecordEncounterCompletion("island_snapshot", "combat_1", EncounterType.Combat, 0.5f);
+            tracker.RecordEncounterCompletion("island_snapshot", "puzzle_1", EncounterType.Puzzle, 0.25f);
 
-        IslandRestorationTracker.TrackerSnapshot snapshot = tracker.CaptureSnapshot();
-        tracker.ResetIsland("island_snapshot");
-        tracker.ApplySnapshot(snapshot);
+            IslandRestorationTracker.TrackerSnapshot snapshot = tracker.CaptureSnapshot();
+            tracker.ResetIsland("island_snapshot");
+            tracker.ApplySnapshot(snapshot);
 
-        Assert.IsTrue(tracker.HasClearedEncounter("island_snapshot", "combat_1"),
-            "Completed combat encounter should survive snapshot round-trip.");
-        Assert.IsTrue(tracker.HasClearedEncounter("island_snapshot", "puzzle_1"),
-            "Completed puzzle encounter should survive snapshot round-trip.");
-        Assert.AreEqual(75f, tracker.GetRestorationPercent("island_snapshot"), 0.01f,
-            "Restoration percent should survive snapshot round-trip.");
+            Assert.IsTrue(tracker.HasClearedEncounter("island_snapshot", "combat_1"),
+                "Completed combat encounter should survive snapshot round-trip.");
+            Assert.IsTrue(tracker.HasClearedEncounter("island_snapshot", "puzzle_1"),
+                "Completed puzzle encounter should survive snapshot round-trip.");
+            Assert.AreEqual(75f, tracker.GetRestorationPercent("island_snapshot"), 0.01f,
+                "Restoration percent should survive snapshot round-trip.");
 
-        bool duplicateAfterLoad = tracker.RecordEncounterCompletion("island_snapshot", "combat_1", EncounterType.Combat, 0.5f);
-        Assert.IsFalse(duplicateAfterLoad, "Reloaded encounter ids should still prevent duplicate completion.");
+            bool duplicateAfterLoad = tracker.RecordEncounterCompletion("island_snapshot", "combat_1", EncounterType.Combat, 0.5f);
+            Assert.IsFalse(duplicateAfterLoad, "Reloaded encounter ids should still prevent duplicate completion.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
 
-        DestroyImmediate(trackerObject);
         Debug.Log("✓ Tracker snapshot round-trip test passed");
     }
 

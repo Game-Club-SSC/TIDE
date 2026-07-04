@@ -428,7 +428,7 @@ public static class GameAssetValidator
         SerializedProperty prop = so.GetIterator();
         while (prop.NextVisible(true))
         {
-            if (prop.type == "AudioClip")
+            if (prop.type == "PPtr<AudioClip>")
             {
                 totalSlots++;
                 if (prop.objectReferenceValue != null)

@@ -27,6 +27,9 @@ public class SkillData : ScriptableObject
     [Range(0f, 1f)]
     [Tooltip("Percent of damage dealt restored to the caster after this skill resolves.")]
     public float restoreCasterPercentOfDamage = 0f;
+    [Min(0f)]
+    [Tooltip("Multiplier applied to base damage as healing to the target (for ally-targeting heal skills). 0 = no heal, 1.5 = 150% of base as heal.")]
+    public float healMultiplier = 0f;
     public SkillTarget target;
 
     [Header("Element")]
@@ -49,6 +52,7 @@ public class SkillData : ScriptableObject
             && mpCost >= 0
             && damageMultiplier >= 0f
             && restoreCasterPercentOfDamage >= 0f
-            && restoreCasterPercentOfDamage <= 1f;
+            && restoreCasterPercentOfDamage <= 1f
+            && healMultiplier >= 0f;
     }
 }

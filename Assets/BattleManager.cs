@@ -1620,6 +1620,44 @@ public class BattleManager : MonoBehaviour
 
         actor.SpendMp(skill.mpCost);
 
+        // Ally-targeting heal skills: apply healing instead of damage
+        if (skill.healMultiplier > 0f && (skill.target == SkillTarget.SingleAlly || skill.target == SkillTarget.AllAllies))
+        {
+            float healMod = actor.GetAttackModifier();
+            int baseHeal = Mathf.Max(1, Mathf.RoundToInt(actor.Attack * (1f + healMod)));
+            float healVariance = UnityEngine.Random.Range(0.9f, 1.1f);
+            float relationshipHealMod = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
+            int healAmount = Mathf.Max(1, Mathf.RoundToInt(baseHeal * skill.healMultiplier * healVariance * relationshipHealMod));
+
+            if (skill.target == SkillTarget.SingleAlly)
+            {
+                CombatUnit healTarget = requestedTarget != null && requestedTarget.IsAlive ? requestedTarget : actor;
+                int hpBefore = healTarget.HP;
+                healTarget.Heal(healAmount);
+                Debug.Log($"[BattleManager] {actor.UnitName} heals {healTarget.UnitName} for {healAmount} via {skill.skillName}. HP {hpBefore} -> {healTarget.HP}.");
+            }
+            else // AllAllies
+            {
+                IReadOnlyList<CombatUnit> allies = GetAliveUnits(CombatUnit.UnitType.Ally);
+                for (int i = 0; i < allies.Count; i++)
+                {
+                    CombatUnit ally = allies[i];
+                    int hpBefore = ally.HP;
+                    ally.Heal(healAmount);
+                    Debug.Log($"[BattleManager] {actor.UnitName} heals {ally.UnitName} for {healAmount} via {skill.skillName}. HP {hpBefore} -> {ally.HP}.");
+                }
+            }
+
+            AudioManager audioManager = AudioManager.Instance;
+            if (audioManager != null)
+            {
+                audioManager.HandleHeal();
+            }
+
+            TryApplySkillStatusEffect(actor, actor, skill);
+            return;
+        }
+
         float attackMod = actor.GetAttackModifier();
         int baseDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
         float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);

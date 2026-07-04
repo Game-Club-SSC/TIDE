@@ -88,6 +88,13 @@ Go gently. It was an honor, even the parts that hurt.")
     [MenuItem("TIDE/Populate Ancient Texts")]
     public static void PopulateTexts()
     {
+        if (!AssetDatabase.IsValidFolder(OutputFolder))
+        {
+            string parent = System.IO.Path.GetDirectoryName(OutputFolder);
+            string folderName = System.IO.Path.GetFileName(OutputFolder);
+            AssetDatabase.CreateFolder(parent, folderName);
+        }
+
         int created = 0;
         int updated = 0;
 

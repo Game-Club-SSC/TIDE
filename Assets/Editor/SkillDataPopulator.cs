@@ -148,7 +148,8 @@ public static class SkillDataPopulator
             data.description = s.desc;
             data.mpCost = s.mp;
             data.damageMultiplier = s.dmg;
-            data.restoreCasterPercentOfDamage = s.heal;
+            data.restoreCasterPercentOfDamage = 0f;
+            data.healMultiplier = s.heal;
             data.target = s.target;
             data.element = s.element;
             data.appliedEffectType = s.effect;
