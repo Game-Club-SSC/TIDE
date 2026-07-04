@@ -152,11 +152,11 @@ public class CombatUnit : MonoBehaviour
             mp = Mathf.Clamp(mp, 0, maxMp);
         }
     }
-    public int Attack { get => attack; set => attack = value; }
-    public int Defense { get => defense; set => defense = value; }
-    public int Speed { get => speed; set => speed = value; }
-    public float CritRate { get => critRate; set => critRate = value; }
-    public float CritDamage { get => critDamage; set => critDamage = value; }
+    public int Attack { get => attack; set => attack = Mathf.Max(0, value); }
+    public int Defense { get => defense; set => defense = Mathf.Max(0, value); }
+    public int Speed { get => speed; set => speed = Mathf.Max(0, value); }
+    public float CritRate { get => critRate; set => critRate = Mathf.Clamp01(value); }
+    public float CritDamage { get => critDamage; set => critDamage = Mathf.Max(1f, value); }
     public Element ElementType
     {
         get => element;

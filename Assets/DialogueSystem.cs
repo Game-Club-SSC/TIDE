@@ -56,6 +56,8 @@ public class DialogueSystem : MonoBehaviour
     // ------------------------------------------------------------------ //
 
     private DialogueUI activeUI;
+    private DialogueTreeRunner activeTreeRunner;
+    private GameObject activeTreeRunnerObj;
     private bool isDialogueActive;
 
     /// <summary>Fired when a dialogue sequence completes. Passes the list of entries shown.</summary>
@@ -147,6 +149,8 @@ public class DialogueSystem : MonoBehaviour
 
         GameObject runnerObj = new GameObject($"DialogueTreeRunner_{tree.treeId}");
         DialogueTreeRunner runner = runnerObj.AddComponent<DialogueTreeRunner>();
+        activeTreeRunner = runner;
+        activeTreeRunnerObj = runnerObj;
         runner.OnTreeCompleted += HandleTreeCompleted;
         runner.StartTree(tree);
     }
@@ -271,6 +275,18 @@ public class DialogueSystem : MonoBehaviour
 
     private void HandleTreeCompleted(string treeId)
     {
+        if (activeTreeRunner != null)
+        {
+            activeTreeRunner.OnTreeCompleted -= HandleTreeCompleted;
+            activeTreeRunner = null;
+        }
+
+        if (activeTreeRunnerObj != null)
+        {
+            Destroy(activeTreeRunnerObj);
+            activeTreeRunnerObj = null;
+        }
+
         isDialogueActive = false;
         LockPlayerMovement(false);
         OnDialogueTreeCompleted?.Invoke(treeId);

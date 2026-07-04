@@ -369,8 +369,9 @@ public class EndingSequenceDirector : MonoBehaviour
 
     private IEnumerator Fade(float from, float to, float duration)
     {
-        if (fadePanel == null)
+        if (fadePanel == null || duration <= 0f)
         {
+            if (fadePanel != null) fadePanel.alpha = to;
             yield break;
         }
 
@@ -393,7 +394,7 @@ public class EndingSequenceDirector : MonoBehaviour
 
     private IEnumerator ScreenFlash()
     {
-        if (flashOverlay == null)
+        if (flashOverlay == null || flashDuration <= 0f)
         {
             yield break;
         }
@@ -427,8 +428,9 @@ public class EndingSequenceDirector : MonoBehaviour
 
     private IEnumerator FadeImageColor(Image img, Color from, Color to, float duration)
     {
-        if (img == null)
+        if (img == null || duration <= 0f)
         {
+            if (img != null) img.color = to;
             yield break;
         }
 
@@ -445,8 +447,9 @@ public class EndingSequenceDirector : MonoBehaviour
 
     private IEnumerator LerpBackgroundColor(Color from, Color to, float duration)
     {
-        if (backgroundImage == null)
+        if (backgroundImage == null || duration <= 0f)
         {
+            if (backgroundImage != null) backgroundImage.color = to;
             yield break;
         }
 
