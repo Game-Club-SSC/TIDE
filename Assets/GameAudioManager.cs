@@ -213,6 +213,15 @@ public class GameAudioManager : MonoBehaviour
 
     private IEnumerator CrossfadeMusic(AudioClip newClip, float duration)
     {
+        if (duration <= 0f)
+        {
+            musicSource.clip = newClip;
+            musicSource.volume = musicVolume * masterVolume;
+            musicSource.Play();
+            crossfadeCoroutine = null;
+            yield break;
+        }
+
         float startVolume = musicSource.volume;
         float halfDuration = duration * 0.5f;
 
@@ -245,6 +254,14 @@ public class GameAudioManager : MonoBehaviour
 
     private IEnumerator FadeOutMusic(float duration)
     {
+        if (duration <= 0f)
+        {
+            musicSource.Stop();
+            musicSource.volume = 0f;
+            crossfadeCoroutine = null;
+            yield break;
+        }
+
         float startVolume = musicSource.volume;
         float elapsed = 0f;
 
@@ -262,6 +279,13 @@ public class GameAudioManager : MonoBehaviour
 
     private IEnumerator FadeToVolume(float targetVolume, float duration)
     {
+        if (duration <= 0f)
+        {
+            musicSource.volume = targetVolume * masterVolume;
+            crossfadeCoroutine = null;
+            yield break;
+        }
+
         float startVolume = musicSource.volume;
         float elapsed = 0f;
 
@@ -395,6 +419,13 @@ public class GameAudioManager : MonoBehaviour
 
     private IEnumerator FadeOutAmbient(float duration)
     {
+        if (duration <= 0f)
+        {
+            ambientSource.Stop();
+            ambientSource.volume = 0f;
+            yield break;
+        }
+
         float startVolume = ambientSource.volume;
         float elapsed = 0f;
 

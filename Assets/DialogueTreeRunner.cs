@@ -172,6 +172,14 @@ public class DialogueTreeRunner : MonoBehaviour
 
         currentNode = node;
 
+        // Null entry guard — skip node to avoid NullReferenceException
+        if (node.entry == null)
+        {
+            Debug.LogWarning($"[DialogueTreeRunner] Node '{node.nodeId}' has null entry. Skipping.");
+            AdvanceToNextNode();
+            return;
+        }
+
         // Evaluate conditions -- skip node if not met
         if (!EvaluateConditions(node))
         {
