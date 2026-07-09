@@ -123,8 +123,8 @@ public class PuzzleData : ScriptableObject
     [Tooltip("Number of tiles above 5 allowed before instability decay kicks in.")]
     public int instabilityThreshold = 3;
 
-    [Header("Gluttony Consumption")]
-    [Tooltip("When enabled, Gluttony consumption removes tide after a valid placement.")]
+    [Header("Greed Consumption")]
+    [Tooltip("When enabled, Greed consumption removes tide after a valid placement.")]
     public bool enableConsumption;
 
     [Min(1)]
@@ -224,4 +224,12 @@ public class PuzzleData : ScriptableObject
     public bool HasSealedTile => (sealedPositions != null && sealedPositions.Length > 0)
         || (sealedPosition.x >= 0 && sealedPosition.y >= 0);
     public bool HasLockedTile => lockedPosition.x >= 0 && lockedPosition.y >= 0;
+
+    public bool IsValid()
+    {
+        return gridCols > 0
+            && gridRows > 0
+            && tileValues != null
+            && tileValues.Length >= gridRows * gridCols;
+    }
 }

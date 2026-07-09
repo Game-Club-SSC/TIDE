@@ -25,6 +25,7 @@ public class NarrativeBeatDirector : MonoBehaviour
     [SerializeField] private string primaryIslandId = "island_lust";
     [SerializeField] private float preCombatTriggerDistance = 6f;
     [SerializeField] private float minimumPlayerTravelBeforePreCombatBeat = 1.5f;
+    [SerializeField] private float postRestorationTriggerPercent = 60f;
 
     private float introTimer;
     private float beatCooldownTimer;
@@ -205,11 +206,11 @@ public class NarrativeBeatDirector : MonoBehaviour
         new Dictionary<string, System.Func<DialogueTree>>
     {
         { "island_greed", HeroDialogueContent.PreBossGreedDialogue },
-        { "island_sloth", HeroDialogueContent.PreBossAttachmentDialogue },
+        { "island_desire", HeroDialogueContent.PreBossAttachmentDialogue },
         { "island_envy", HeroDialogueContent.PreBossJealousyDialogue },
         { "island_lust", HeroDialogueContent.PreBossLustDialogue },
-        { "island_wrath", HeroDialogueContent.PreBossAngerDialogue },
-        { "island_pride", HeroDialogueContent.PreBossPrideDialogue },
+        { "island_anger", HeroDialogueContent.PreBossAngerDialogue },
+        { "island_ego", HeroDialogueContent.PreBossEgoDialogue },
     };
 
     /// <summary>
@@ -334,8 +335,21 @@ public class NarrativeBeatDirector : MonoBehaviour
         }
 
         string islandId = IslandThemeRegistry.ResolveIslandId(primaryIslandId);
+        if (string.IsNullOrEmpty(islandId))
+        {
+            IslandProgressionManager progressionManager = IslandProgressionManager.Instance;
+            islandId = progressionManager != null
+                ? progressionManager.ActiveIslandId
+                : IslandThemeRegistry.GetActiveIslandId();
+        }
+
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return false;
+        }
+
         float restorationPercent = IslandRestorationTracker.Instance.GetRestorationPercent(islandId);
-        return restorationPercent >= 60f;
+        return restorationPercent >= postRestorationTriggerPercent;
     }
 
     private static string BuildIntroBeatTitle()

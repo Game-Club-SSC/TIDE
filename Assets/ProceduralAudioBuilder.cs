@@ -478,11 +478,11 @@ public static class ProceduralAudioBuilder
     }
 
     /// <summary>
-    /// Sloth: slow, drowsy drones with minimal movement (low minor).
+    /// Desire: slow, drowsy drones with minimal movement (low minor).
     /// </summary>
-    public static AudioClip BuildIslandSlothBgm()
+    public static AudioClip BuildIslandDesireBgm()
     {
-        return BuildLoopedClip("Auto_IslandSlothBgm", 10f, (t, n) =>
+        return BuildLoopedClip("Auto_IslandDesireBgm", 10f, (t, n) =>
         {
             float drone = Mathf.Sin(2f * Mathf.PI * 73.4f * t) * 0.5f
                         + Mathf.Sin(2f * Mathf.PI * 110f * t) * 0.3f;
@@ -523,11 +523,11 @@ public static class ProceduralAudioBuilder
     }
 
     /// <summary>
-    /// Wrath: aggressive, pounding (square bass, fast pulse).
+    /// Anger: aggressive, pounding (square bass, fast pulse).
     /// </summary>
-    public static AudioClip BuildIslandWrathBgm()
+    public static AudioClip BuildIslandAngerBgm()
     {
-        return BuildLoopedClip("Auto_IslandWrathBgm", 6f, (t, n) =>
+        return BuildLoopedClip("Auto_IslandAngerBgm", 6f, (t, n) =>
         {
             float bass = Mathf.Sign(Mathf.Sin(2f * Mathf.PI * 2.5f * t)) * 0.55f;
             float distortion = Mathf.Sin(2f * Mathf.PI * 185f * t) * 0.4f
@@ -538,11 +538,11 @@ public static class ProceduralAudioBuilder
     }
 
     /// <summary>
-    /// Pride: grand, majestic brass-like tone (rich harmonics, stately tempo).
+    /// Ego: grand, majestic brass-like tone (rich harmonics, stately tempo).
     /// </summary>
-    public static AudioClip BuildIslandPrideBgm()
+    public static AudioClip BuildIslandEgoBgm()
     {
-        return BuildLoopedClip("Auto_IslandPrideBgm", 8f, (t, n) =>
+        return BuildLoopedClip("Auto_IslandEgoBgm", 8f, (t, n) =>
         {
             float brass = 0f;
             for (int h = 1; h <= 6; h++)
@@ -552,21 +552,6 @@ public static class ProceduralAudioBuilder
             float stately = Mathf.Sin(2f * Mathf.PI * 0.3f * t) * 0.2f + 0.8f;
             float sub = Mathf.Sin(2f * Mathf.PI * 82.5f * t) * 0.3f;
             return (brass * 0.2f + sub) * stately;
-        });
-    }
-
-    /// <summary>
-    /// Gluttony: deep, consuming drone (sub-bass, thick texture).
-    /// </summary>
-    public static AudioClip BuildIslandGluttonyBgm()
-    {
-        return BuildLoopedClip("Auto_IslandGluttonyBgm", 8f, (t, n) =>
-        {
-            float sub = Mathf.Sin(2f * Mathf.PI * 41.2f * t) * 0.5f;
-            float body = Mathf.Sin(2f * Mathf.PI * 82.4f * t) * 0.3f
-                       + Mathf.Sin(2f * Mathf.PI * 123.5f * t) * 0.2f;
-            float swell = Mathf.Sin(2f * Mathf.PI * 0.15f * t) * 0.25f + 0.75f;
-            return (sub + body * 0.4f) * swell * 0.2f;
         });
     }
 

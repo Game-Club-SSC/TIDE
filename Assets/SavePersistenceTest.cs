@@ -183,13 +183,11 @@ public class SavePersistenceTest : MonoBehaviour
     {
         Debug.Log("Testing new save fields extend the schema without breaking existing fields...");
 
-        // WorldStateSaveData is internal to GameStateManager; skipped until exposed publicly.
-#if false
         try
         {
             string legacyJson = "{\"puzzleStates\":[],\"ancientTextStates\":[],\"completedNarrativeBeatIds\":[],\"restorationSnapshot\":null,\"gearProgression\":null,\"progressionSnapshot\":null,\"storyProgression\":null}";
 
-            WorldStateSaveData parsed = JsonUtility.FromJson<WorldStateSaveData>(legacyJson);
+            GameStateManager.WorldStateSaveData parsed = JsonUtility.FromJson<GameStateManager.WorldStateSaveData>(legacyJson);
             Assert.IsNotNull(parsed, "Legacy save JSON should still deserialize cleanly with new fields.");
             Assert.IsNull(parsed.heroProgression,
                 "New heroProgression field should default to null on legacy save data.");
@@ -200,7 +198,6 @@ public class SavePersistenceTest : MonoBehaviour
         {
             Cleanup();
         }
-#endif
     }
 
     private static GameStateManager CreateIsolatedManager(string managerName)

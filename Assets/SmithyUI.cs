@@ -22,6 +22,7 @@ public class SmithyUI : MonoBehaviour
     private static readonly Color RowColor = new Color(0.25f, 0.2f, 0.12f, 0.8f);
     private static readonly Color SelectedColor = new Color(0.45f, 0.35f, 0.15f, 0.9f);
     private static readonly Color ButtonColor = new Color(0.2f, 0.6f, 0.2f, 0.9f);
+    private static readonly Color ReforgeButtonColor = new Color(0.2f, 0.45f, 0.65f, 0.9f);
     private static readonly Color DisabledButtonColor = new Color(0.4f, 0.2f, 0.2f, 0.7f);
 
     public void Initialize(SmithyInteractable smithyInteractable)
@@ -122,7 +123,7 @@ public class SmithyUI : MonoBehaviour
 
         float currentY = Padding;
 
-        CreateLabel(panelRoot, "SMITHY - Gear Duplication", new Vector2(Padding, currentY), new Vector2(PanelWidth - Padding * 2, 30f), TitleColor, 20, FontStyle.Bold);
+        CreateLabel(panelRoot, "SMITHY - Gear Enhancement", new Vector2(Padding, currentY), new Vector2(PanelWidth - Padding * 2, 30f), TitleColor, 20, FontStyle.Bold);
         currentY += 36f;
 
         int gold = HeroProgressionManager.Instance.Currency;
@@ -183,41 +184,94 @@ public class SmithyUI : MonoBehaviour
             ? $"{setName}  Lv.{gear.level}  [{gear.UnlockedSlotCount}/{GearInstance.MaxBonusSlots} slots]"
             : "Unknown gear";
 
-        CreateLabel(rowObject, header, new Vector2(textX, 2f), new Vector2(textWidth, 18f), TextColor, 13, FontStyle.Bold);
+        CreateLabel(rowObject, header, new Vector2(textX, 2f), new Vector2(textWidth * 0.48f, 18f), TextColor, 13, FontStyle.Bold);
 
         string slots = gear != null ? gear.GetSlotDisplayString() : "No bonus slots";
-        CreateLabel(rowObject, slots, new Vector2(textX, 20f), new Vector2(textWidth * 0.62f, 14f), new Color(0.85f, 0.85f, 0.6f), 10, FontStyle.Normal);
+        CreateLabel(rowObject, slots, new Vector2(textX, 20f), new Vector2(textWidth * 0.48f, 14f), new Color(0.85f, 0.85f, 0.6f), 10, FontStyle.Normal);
 
-        int cost = HeroProgressionManager.Instance != null ? HeroProgressionManager.Instance.GetGearDuplicateCost(gear) : 0;
-        bool hasFunds = HeroProgressionManager.Instance != null && HeroProgressionManager.Instance.Currency >= cost;
-        bool isFinalized = gear != null && gear.UnlockedSlotCount >= GearInstance.MaxBonusSlots;
+        bool hasSlots = gear != null && gear.UnlockedSlotCount > 0;
+        int reforgeCost = hasSlots ? GetReforgeCost(gear) : 0;
+        bool canReforge = hasSlots && HeroProgressionManager.Instance != null && HeroProgressionManager.Instance.Currency >= reforgeCost;
 
-        string buttonText;
-        bool isEnabled;
-        if (!isFinalized)
+        string reforgeText;
+        if (!hasSlots)
         {
-            buttonText = "Finalize First";
-            isEnabled = false;
+            reforgeText = "No Slots";
         }
-        else if (!hasFunds)
+        else if (!canReforge)
         {
-            buttonText = $"Need {cost}g";
-            isEnabled = false;
+            reforgeText = $"Reforge {reforgeCost}g";
         }
         else
         {
-            buttonText = $"Duplicate {cost}g";
-            isEnabled = true;
+            reforgeText = $"Reforge {reforgeCost}g";
         }
 
-        CreateDuplicateButton(
+        CreateActionButtons(
             rowObject,
             gear,
-            cost,
-            isEnabled,
-            buttonText,
-            new Vector2(textWidth * 0.64f, 18f),
-            new Vector2(textWidth * 0.33f, 28f));
+            reforgeCost,
+            canReforge,
+            hasSlots,
+            reforgeText,
+            new Vector2(textWidth * 0.50f, 18f),
+            new Vector2(textWidth * 0.23f, 28f),
+            new Vector2(textWidth * 0.75f, 18f),
+            new Vector2(textWidth * 0.23f, 28f));
+    }
+
+    private void CreateActionButtons(GameObject parent, GearInstance gear, int reforgeCost, bool canReforge, bool hasSlots, string reforgeText, Vector2 reforgePos, Vector2 reforgeSize, Vector2 dupePos, Vector2 dupeSize)
+    {
+        int dupeCost = HeroProgressionManager.Instance != null ? HeroProgressionManager.Instance.GetGearDuplicateCost(gear) : 0;
+        bool hasFunds = HeroProgressionManager.Instance != null && HeroProgressionManager.Instance.Currency >= dupeCost;
+        bool isFinalized = gear != null && gear.UnlockedSlotCount >= GearInstance.MaxBonusSlots;
+
+        string dupeButtonText;
+        bool dupeEnabled;
+        if (!isFinalized)
+        {
+            dupeButtonText = "Finalize First";
+            dupeEnabled = false;
+        }
+        else if (!hasFunds)
+        {
+            dupeButtonText = $"Dup. {dupeCost}g";
+            dupeEnabled = false;
+        }
+        else
+        {
+            dupeButtonText = $"Dup. {dupeCost}g";
+            dupeEnabled = true;
+        }
+
+        CreateSmithyButton(parent, reforgeText, canReforge, hasSlots ? ReforgeButtonColor : DisabledButtonColor, reforgePos, reforgeSize, () => OnReforgeClicked(gear, reforgeCost));
+        CreateDuplicateButton(parent, gear, dupeCost, dupeEnabled, dupeButtonText, dupePos, dupeSize);
+    }
+
+    private void CreateSmithyButton(GameObject parent, string text, bool isEnabled, Color bgColor, Vector2 position, Vector2 size, UnityEngine.Events.UnityAction onClick)
+    {
+        GameObject buttonObject = new GameObject("SmithyBtn");
+        buttonObject.transform.SetParent(parent.transform, false);
+
+        RectTransform btnRect = buttonObject.AddComponent<RectTransform>();
+        btnRect.anchorMin = new Vector2(0f, 1f);
+        btnRect.anchorMax = new Vector2(0f, 1f);
+        btnRect.pivot = new Vector2(0f, 1f);
+        btnRect.anchoredPosition = position;
+        btnRect.sizeDelta = size;
+
+        Image btnBg = buttonObject.AddComponent<Image>();
+        btnBg.color = isEnabled ? bgColor : DisabledButtonColor;
+
+        Button button = buttonObject.AddComponent<Button>();
+        if (!isEnabled)
+        {
+            button.interactable = false;
+        }
+
+        button.onClick.AddListener(onClick);
+
+        CreateLabel(buttonObject, text, Vector2.zero, size, isEnabled ? Color.white : new Color(0.6f, 0.6f, 0.6f), 10, FontStyle.Bold);
     }
 
     private void CreateDuplicateButton(GameObject parent, GearInstance gear, int cost, bool isEnabled, string buttonText, Vector2 position, Vector2 size)
@@ -281,6 +335,47 @@ public class SmithyUI : MonoBehaviour
 
         Debug.Log($"[SmithyUI] Duplicated '{source.setId}' (Lv.{source.level}) -> new instance '{duplicate.instanceId}' for {cost}g.");
         RebuildPanel();
+    }
+
+    private void OnReforgeClicked(GearInstance gear, int cost)
+    {
+        if (HeroProgressionManager.Instance == null || gear == null)
+        {
+            return;
+        }
+
+        if (gear.UnlockedSlotCount <= 0)
+        {
+            Debug.Log("[SmithyUI] No unlocked slots to reforge.");
+            return;
+        }
+
+        if (!HeroProgressionManager.Instance.TrySpendCurrency(cost))
+        {
+            Debug.Log("[SmithyUI] Not enough currency to reforge.");
+            return;
+        }
+
+        int slotIndex = Random.Range(0, gear.UnlockedSlotCount);
+        GearSlotBonus before = gear.unlockedSlots[slotIndex];
+        gear.RerollSlot(slotIndex);
+        GearSlotBonus after = gear.unlockedSlots[slotIndex];
+
+        int beforePercent = Mathf.RoundToInt(before.percentValue * 100f);
+        int afterPercent = Mathf.RoundToInt(after.percentValue * 100f);
+        Debug.Log($"[SmithyUI] Reforged '{gear.setId}' slot {slotIndex} ({before.statType}): {beforePercent}% -> {afterPercent}% for {cost}g.");
+        RebuildPanel();
+    }
+
+    private static int GetReforgeCost(GearInstance gear)
+    {
+        if (HeroProgressionManager.Instance == null || gear == null)
+        {
+            return 0;
+        }
+
+        int dupeCost = HeroProgressionManager.Instance.GetGearDuplicateCost(gear);
+        return Mathf.Max(10, dupeCost / 2);
     }
 
     private static void CreateLabel(GameObject parent, string text, Vector2 position, Vector2 size, Color color, int fontSize, FontStyle fontStyle)

@@ -2,5 +2,9 @@ public enum GearBonusStatType
 {
     ATK,
     DEF,
-    HP
+    HP,
+    MP,
+    Speed,
+    CritRate,
+    CritDamage
 }

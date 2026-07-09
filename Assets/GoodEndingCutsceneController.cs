@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -18,6 +19,7 @@ public class GoodEndingCutsceneController : MonoBehaviour
     [SerializeField] private float creditsFadeInSeconds = 1.5f;
     [SerializeField] private float creditsHoldSeconds = 8.0f;
     [SerializeField] private float creditsScrollPixelsPerSecond = 32f;
+    [SerializeField] private float exitFadeSeconds = 2.0f;
 
     [Header("Credits Content")]
     [SerializeField] private string creditsHeading = "TIDE";
@@ -31,14 +33,24 @@ public class GoodEndingCutsceneController : MonoBehaviour
         "Thank you for playing."
     };
 
+    [Header("Exit")]
+    [SerializeField] private string exitSceneName = "";
+
     public bool IsCutsceneActive { get; private set; }
     public bool CreditsStarted { get; private set; }
 
     private RectTransform creditsRect;
     private float creditsScrollOffset;
+    private bool hasPlayed;
 
     private void OnEnable()
     {
+        if (hasPlayed)
+        {
+            return;
+        }
+
+        hasPlayed = true;
         EnsureFadeCanvasGroup();
         EnsurePartyCanvasGroup();
         EnsureCreditsCanvasGroup();
@@ -103,6 +115,15 @@ public class GoodEndingCutsceneController : MonoBehaviour
         yield return new WaitForSecondsRealtime(creditsHoldSeconds);
 
         IsCutsceneActive = false;
+
+        yield return FadeCanvasGroup(creditsCanvasGroup, 0f, exitFadeSeconds);
+        yield return FadeCanvasGroup(fadeCanvasGroup, 1f, exitFadeSeconds);
+
+        if (!string.IsNullOrEmpty(exitSceneName))
+        {
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(exitSceneName);
+        }
     }
 
     private IEnumerator FadeCanvasGroup(CanvasGroup group, float targetAlpha, float duration)
@@ -208,9 +229,13 @@ public class GoodEndingCutsceneController : MonoBehaviour
 
     private static CanvasGroup GetOrCreateOverlayCanvas(string canvasName)
     {
-        Canvas existingCanvas = FindFirstObjectByType<Canvas>();
-        GameObject canvasObject = existingCanvas != null ? existingCanvas.gameObject : null;
-        if (canvasObject == null)
+        GameObject existing = GameObject.Find(canvasName);
+        GameObject canvasObject;
+        if (existing != null && existing.GetComponent<Canvas>() != null)
+        {
+            canvasObject = existing;
+        }
+        else
         {
             canvasObject = new GameObject(canvasName);
             Canvas canvas = canvasObject.AddComponent<Canvas>();

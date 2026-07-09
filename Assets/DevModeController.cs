@@ -22,7 +22,9 @@ public class DevModeController : MonoBehaviour
     private int konamiIndex;
     private float konamiTimer;
     private bool isUnlocked;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     private DevMenuUI menuUi;
+#endif
 
     private void Awake()
     {
@@ -42,7 +44,9 @@ public class DevModeController : MonoBehaviour
 
         if (isUnlocked && Input.GetKeyDown(KeyCode.F10))
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             menuUi?.Toggle();
+#endif
         }
 
         if (DevCheatService.Instance != null)
@@ -58,10 +62,12 @@ public class DevModeController : MonoBehaviour
             return;
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (menuUi != null && menuUi.IsVisible)
         {
             return;
         }
+#endif
 
         GUI.Box(new Rect(16f, 16f, 620f, 38f), "DEV GOD MODE ACTIVE - Konami unlocked (F10 toggles menu)");
         string summary = DevCheatService.Instance.BuildDebugSummary();
@@ -113,10 +119,12 @@ public class DevModeController : MonoBehaviour
 
         konamiIndex = 0;
         isUnlocked = !isUnlocked;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (menuUi != null)
         {
             menuUi.SetVisible(isUnlocked);
         }
+#endif
     }
 
     private static bool TryReadKonamiKeyDown(out KeyCode pressedKey)
@@ -169,6 +177,7 @@ public class DevModeController : MonoBehaviour
             serviceObject.AddComponent<DevCheatService>();
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (menuUi == null)
         {
             menuUi = FindFirstObjectByType<DevMenuUI>();
@@ -179,6 +188,7 @@ public class DevModeController : MonoBehaviour
             GameObject menuObject = new GameObject("DevMenuUI");
             menuUi = menuObject.AddComponent<DevMenuUI>();
         }
+#endif
 
         EnsurePhoneWebController();
     }

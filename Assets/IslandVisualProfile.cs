@@ -109,6 +109,12 @@ public class IslandVisualProfile : ScriptableObject
     // Built-in defaults — mirrors the seven-vices palette from
     // IslandEnemyVisualProfile.GetDefault but for environment art.
     // -----------------------------------------------------------------------
+    public bool IsValid()
+    {
+        return !string.IsNullOrEmpty(islandId)
+            && groundGradient != null;
+    }
+
     public static IslandVisualProfile GetDefault(string islandId)
     {
         if (string.IsNullOrEmpty(islandId))
@@ -141,7 +147,7 @@ public class IslandVisualProfile : ScriptableObject
                     new Color(0.80f, 0.55f, 0.60f));
                 break;
 
-            case "island_gluttony":
+            case "island_greed":
                 profile.groundGradient = new CorruptionGradient
                 {
                     evilColor = new Color(0.10f, 0.12f, 0.05f),
@@ -181,7 +187,7 @@ public class IslandVisualProfile : ScriptableObject
                     new Color(0.80f, 0.70f, 0.35f));
                 break;
 
-            case "island_sloth":
+            case "island_desire":
                 profile.groundGradient = new CorruptionGradient
                 {
                     evilColor = new Color(0.08f, 0.05f, 0.12f),
@@ -201,7 +207,7 @@ public class IslandVisualProfile : ScriptableObject
                     new Color(0.55f, 0.48f, 0.62f));
                 break;
 
-            case "island_wrath":
+            case "island_anger":
                 profile.groundGradient = new CorruptionGradient
                 {
                     evilColor = new Color(0.20f, 0.02f, 0.02f),
@@ -241,7 +247,7 @@ public class IslandVisualProfile : ScriptableObject
                     new Color(0.42f, 0.72f, 0.38f));
                 break;
 
-            case "island_pride":
+            case "island_ego":
                 profile.groundGradient = new CorruptionGradient
                 {
                     evilColor = new Color(0.15f, 0.12f, 0.05f),
@@ -443,7 +449,6 @@ public class GroundVisualizer : MonoBehaviour
         groundColor = Color.Lerp(groundColor, overlay, overlay.a);
 
         cachedMaterial.color = groundColor;
-        Debug.Log($"[GroundVisualizer] Ground color updated to {groundColor} (restoration {percent:P0})");
     }
 
     // -- Public API ---------------------------------------------------------

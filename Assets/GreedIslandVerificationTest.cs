@@ -6,7 +6,7 @@ public class GreedIslandVerificationTest : MonoBehaviour
 {
     private const string IslandId = "island_greed";
     private const string ExpectedViceName = "Greed";
-    private const string ExpectedNextIslandId = "island_sloth";
+    private const string ExpectedNextIslandId = "island_desire";
     private const string SceneRelativePath = "Scenes/level_greed.unity";
 
     [ContextMenu("Run Greed Island Verification")]
@@ -37,7 +37,7 @@ public class GreedIslandVerificationTest : MonoBehaviour
     private void TestProgressionUnlocksNext()
     {
         Assert.AreEqual(ExpectedNextIslandId, IslandThemeRegistry.GetNextIslandId(IslandId),
-            "Clearing Greed should unlock Sloth next in progression order.");
+            "Clearing Greed should unlock Desire next in progression order.");
     }
 
     private void TestEncounterLayout(IslandConfig config)

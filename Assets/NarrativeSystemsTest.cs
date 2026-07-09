@@ -208,7 +208,7 @@ public class NarrativeSystemsTest : MonoBehaviour
 
     private void TestAncientTextAuthoringCoversAllSixSinsWithTwoLinesEach()
     {
-        string[] sins = { "gluttony", "greed", "sloth", "wrath", "envy", "pride" };
+        string[] sins = { "lust", "greed", "desire", "anger", "envy", "ego" };
         for (int i = 0; i < sins.Length; i++)
         {
             int count = AncientTextAuthoring.CountEntriesForSin(sins[i]);
@@ -335,9 +335,9 @@ public class NarrativeSystemsTest : MonoBehaviour
         {
             GameObject host = CreateSingleton<PowerBudgetTracker>();
             PowerBudgetTracker tracker = host.AddComponent<PowerBudgetTracker>();
-            tracker.SetBudget("island_gluttony", 2f);
-            Assert.IsTrue(tracker.TryConsumeBudget("island_gluttony", 1.5f), "Should succeed within budget.");
-            Assert.AreEqual(0.5f, tracker.GetRemainingBudget("island_gluttony"), 0.001f, "Should leave 0.5 after consuming 1.5.");
+            tracker.SetBudget("island_greed", 2f);
+            Assert.IsTrue(tracker.TryConsumeBudget("island_greed", 1.5f), "Should succeed within budget.");
+            Assert.AreEqual(0.5f, tracker.GetRemainingBudget("island_greed"), 0.001f, "Should leave 0.5 after consuming 1.5.");
         }
         finally
         {
@@ -352,10 +352,10 @@ public class NarrativeSystemsTest : MonoBehaviour
         {
             GameObject host = CreateSingleton<PowerBudgetTracker>();
             PowerBudgetTracker tracker = host.AddComponent<PowerBudgetTracker>();
-            tracker.SetBudget("island_wrath", 1f);
-            Assert.IsFalse(tracker.TryConsumeBudget("island_wrath", 2f), "Should reject when cost exceeds budget.");
-            Assert.AreEqual(1f, tracker.GetRemainingBudget("island_wrath"), 0.001f, "Budget should be unchanged on rejected consume.");
-            Assert.IsFalse(tracker.TryConsumeBudget("island_wrath", -1f), "Negative cost should be rejected.");
+            tracker.SetBudget("island_anger", 1f);
+            Assert.IsFalse(tracker.TryConsumeBudget("island_anger", 2f), "Should reject when cost exceeds budget.");
+            Assert.AreEqual(1f, tracker.GetRemainingBudget("island_anger"), 0.001f, "Budget should be unchanged on rejected consume.");
+            Assert.IsFalse(tracker.TryConsumeBudget("island_anger", -1f), "Negative cost should be rejected.");
         }
         finally
         {

@@ -465,11 +465,11 @@ public static class GameAssetValidator
             "Assets/Scenes/PuzzleScene.unity",
             "Assets/Scenes/level_greed.unity",
             "Assets/Scenes/level_lust.unity",
-            "Assets/Scenes/level_wrath.unity",
-            "Assets/Scenes/level_sloth.unity",
-            "Assets/Scenes/level_pride.unity",
+            "Assets/Scenes/level_anger.unity",
+            "Assets/Scenes/level_desire.unity",
+            "Assets/Scenes/level_ego.unity",
             "Assets/Scenes/level_envy.unity",
-            "Assets/Scenes/level_gluttony.unity"
+            "Assets/Scenes/level_greed.unity"
         };
 
         int missing = 0;

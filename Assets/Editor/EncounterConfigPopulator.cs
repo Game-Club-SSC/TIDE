@@ -3,7 +3,7 @@ using UnityEditor;
 using System.IO;
 
 /// <summary>
-/// Generates EncounterConfig ScriptableObjects for all 7 islands (49 encounters total).
+/// Generates EncounterConfig ScriptableObjects for all 6 islands (36 encounters total).
 /// Uses Gemini's encounter composition data.
 /// Access via: TIDE > Populate Encounter Configs
 /// </summary>
@@ -19,7 +19,7 @@ public static class EncounterConfigPopulator
     }
 
     // ============================================================
-    // All 49 encounters across 7 islands
+    // All 36 encounters across 6 islands
     // ============================================================
     private static readonly EncounterDef[] AllEncounters = new[]
     {
@@ -64,64 +64,64 @@ public static class EncounterConfigPopulator
             enemyIds = new[] { "enemy_lust_boss", "enemy_lust_siren" } },
 
         // ===== WRATH (Fire) =====
-        new EncounterDef { id = "wrath_c1", displayName = "Wrath - First Fury",
-            enemyIds = new[] { "enemy_wrath_brute" } },
-        new EncounterDef { id = "wrath_p1", displayName = "Wrath - Ember Path",
-            enemyIds = new[] { "enemy_wrath_fiend" } },
-        new EncounterDef { id = "wrath_c2", displayName = "Wrath - Burning Rage",
-            enemyIds = new[] { "enemy_wrath_brute", "enemy_wrath_fiend" } },
-        new EncounterDef { id = "wrath_p2", displayName = "Wrath - Berzerker's Trial",
-            enemyIds = new[] { "enemy_wrath_berzerker" } },
-        new EncounterDef { id = "wrath_c3", displayName = "Wrath - Pyre March",
-            enemyIds = new[] { "enemy_wrath_fiend", "enemy_wrath_pyre" } },
-        new EncounterDef { id = "wrath_p3", displayName = "Wrath - Spirit Flame",
-            enemyIds = new[] { "enemy_wrath_pyre" } },
-        new EncounterDef { id = "wrath_c4", displayName = "Wrath - Warlord's Vanguard",
-            enemyIds = new[] { "enemy_wrath_brute", "enemy_wrath_berzerker", "enemy_wrath_pyre" } },
-        new EncounterDef { id = "wrath_p4", displayName = "Wrath - Fiend's Domain",
-            enemyIds = new[] { "enemy_wrath_fiend" } },
-        new EncounterDef { id = "wrath_boss", displayName = "Wrath - The Crimson Warlord",
-            enemyIds = new[] { "enemy_wrath_boss", "enemy_wrath_brute" } },
+        new EncounterDef { id = "anger_c1", displayName = "Anger - First Fury",
+            enemyIds = new[] { "enemy_anger_brute" } },
+        new EncounterDef { id = "anger_p1", displayName = "Anger - Ember Path",
+            enemyIds = new[] { "enemy_anger_fiend" } },
+        new EncounterDef { id = "anger_c2", displayName = "Anger - Burning Rage",
+            enemyIds = new[] { "enemy_anger_brute", "enemy_anger_fiend" } },
+        new EncounterDef { id = "anger_p2", displayName = "Anger - Berzerker's Trial",
+            enemyIds = new[] { "enemy_anger_berzerker" } },
+        new EncounterDef { id = "anger_c3", displayName = "Anger - Pyre March",
+            enemyIds = new[] { "enemy_anger_fiend", "enemy_anger_pyre" } },
+        new EncounterDef { id = "anger_p3", displayName = "Anger - Spirit Flame",
+            enemyIds = new[] { "enemy_anger_pyre" } },
+        new EncounterDef { id = "anger_c4", displayName = "Anger - Warlord's Vanguard",
+            enemyIds = new[] { "enemy_anger_brute", "enemy_anger_berzerker", "enemy_anger_pyre" } },
+        new EncounterDef { id = "anger_p4", displayName = "Anger - Fiend's Domain",
+            enemyIds = new[] { "enemy_anger_fiend" } },
+        new EncounterDef { id = "anger_boss", displayName = "Anger - The Crimson Warlord",
+            enemyIds = new[] { "enemy_anger_boss", "enemy_anger_brute" } },
 
         // ===== SLOTH (Air) =====
-        new EncounterDef { id = "sloth_c1", displayName = "Sloth - Dreamer's Path",
-            enemyIds = new[] { "enemy_sloth_dreamer" } },
-        new EncounterDef { id = "sloth_p1", displayName = "Sloth - Slumbering Guard",
-            enemyIds = new[] { "enemy_sloth_slumberer" } },
-        new EncounterDef { id = "sloth_c2", displayName = "Sloth - Lethargic Duo",
-            enemyIds = new[] { "enemy_sloth_dreamer", "enemy_sloth_void" } },
-        new EncounterDef { id = "sloth_p2", displayName = "Sloth - Haze Trail",
-            enemyIds = new[] { "enemy_sloth_haze" } },
-        new EncounterDef { id = "sloth_c3", displayName = "Sloth - Void Depths",
-            enemyIds = new[] { "enemy_sloth_slumberer", "enemy_sloth_void" } },
-        new EncounterDef { id = "sloth_p3", displayName = "Sloth - Dreamer's Rest",
-            enemyIds = new[] { "enemy_sloth_dreamer" } },
-        new EncounterDef { id = "sloth_c4", displayName = "Sloth - Final Slumber",
-            enemyIds = new[] { "enemy_sloth_slumberer", "enemy_sloth_void", "enemy_sloth_haze" } },
-        new EncounterDef { id = "sloth_p4", displayName = "Sloth - Haze Barrier",
-            enemyIds = new[] { "enemy_sloth_haze" } },
-        new EncounterDef { id = "sloth_boss", displayName = "Sloth - The Somnolent",
-            enemyIds = new[] { "enemy_sloth_boss", "enemy_sloth_dreamer" } },
+        new EncounterDef { id = "desire_c1", displayName = "Desire - Dreamer's Path",
+            enemyIds = new[] { "enemy_desire_dreamer" } },
+        new EncounterDef { id = "desire_p1", displayName = "Desire - Slumbering Guard",
+            enemyIds = new[] { "enemy_desire_slumberer" } },
+        new EncounterDef { id = "desire_c2", displayName = "Desire - Lethargic Duo",
+            enemyIds = new[] { "enemy_desire_dreamer", "enemy_desire_void" } },
+        new EncounterDef { id = "desire_p2", displayName = "Desire - Haze Trail",
+            enemyIds = new[] { "enemy_desire_haze" } },
+        new EncounterDef { id = "desire_c3", displayName = "Desire - Void Depths",
+            enemyIds = new[] { "enemy_desire_slumberer", "enemy_desire_void" } },
+        new EncounterDef { id = "desire_p3", displayName = "Desire - Dreamer's Rest",
+            enemyIds = new[] { "enemy_desire_dreamer" } },
+        new EncounterDef { id = "desire_c4", displayName = "Desire - Final Slumber",
+            enemyIds = new[] { "enemy_desire_slumberer", "enemy_desire_void", "enemy_desire_haze" } },
+        new EncounterDef { id = "desire_p4", displayName = "Desire - Haze Barrier",
+            enemyIds = new[] { "enemy_desire_haze" } },
+        new EncounterDef { id = "desire_boss", displayName = "Desire - The Somnolent",
+            enemyIds = new[] { "enemy_desire_boss", "enemy_desire_dreamer" } },
 
         // ===== PRIDE (Space) =====
-        new EncounterDef { id = "pride_c1", displayName = "Pride - Sentinel's Watch",
-            enemyIds = new[] { "enemy_pride_sentinel" } },
-        new EncounterDef { id = "pride_p1", displayName = "Pride - Mirror Hall",
-            enemyIds = new[] { "enemy_pride_mirror" } },
-        new EncounterDef { id = "pride_c2", displayName = "Pride - Arrogant Pair",
-            enemyIds = new[] { "enemy_pride_sentinel", "enemy_pride_arrogant" } },
-        new EncounterDef { id = "pride_p2", displayName = "Pride - Veiled Path",
-            enemyIds = new[] { "enemy_pride_veil" } },
-        new EncounterDef { id = "pride_c3", displayName = "Pride - Mirror Duel",
-            enemyIds = new[] { "enemy_pride_mirror", "enemy_pride_arrogant" } },
-        new EncounterDef { id = "pride_p3", displayName = "Pride - Veil's Domain",
-            enemyIds = new[] { "enemy_pride_veil" } },
-        new EncounterDef { id = "pride_c4", displayName = "Pride - Grand Assault",
-            enemyIds = new[] { "enemy_pride_sentinel", "enemy_pride_arrogant", "enemy_pride_veil" } },
-        new EncounterDef { id = "pride_p4", displayName = "Pride - Knight's Test",
-            enemyIds = new[] { "enemy_pride_mirror" } },
-        new EncounterDef { id = "pride_boss", displayName = "Pride - The Grand Monarch",
-            enemyIds = new[] { "enemy_pride_boss", "enemy_pride_sentinel" } },
+        new EncounterDef { id = "ego_c1", displayName = "Ego - Sentinel's Watch",
+            enemyIds = new[] { "enemy_ego_sentinel" } },
+        new EncounterDef { id = "ego_p1", displayName = "Ego - Mirror Hall",
+            enemyIds = new[] { "enemy_ego_mirror" } },
+        new EncounterDef { id = "ego_c2", displayName = "Ego - Arrogant Pair",
+            enemyIds = new[] { "enemy_ego_sentinel", "enemy_ego_arrogant" } },
+        new EncounterDef { id = "ego_p2", displayName = "Ego - Veiled Path",
+            enemyIds = new[] { "enemy_ego_veil" } },
+        new EncounterDef { id = "ego_c3", displayName = "Ego - Mirror Duel",
+            enemyIds = new[] { "enemy_ego_mirror", "enemy_ego_arrogant" } },
+        new EncounterDef { id = "ego_p3", displayName = "Ego - Veil's Domain",
+            enemyIds = new[] { "enemy_ego_veil" } },
+        new EncounterDef { id = "ego_c4", displayName = "Ego - Grand Assault",
+            enemyIds = new[] { "enemy_ego_sentinel", "enemy_ego_arrogant", "enemy_ego_veil" } },
+        new EncounterDef { id = "ego_p4", displayName = "Ego - Knight's Test",
+            enemyIds = new[] { "enemy_ego_mirror" } },
+        new EncounterDef { id = "ego_boss", displayName = "Ego - The Grand Monarch",
+            enemyIds = new[] { "enemy_ego_boss", "enemy_ego_sentinel" } },
 
         // ===== ENVY (Air) =====
         new EncounterDef { id = "envy_c1", displayName = "Envy - Stalker's Trail",
@@ -142,26 +142,6 @@ public static class EncounterConfigPopulator
             enemyIds = new[] { "enemy_envy_shade" } },
         new EncounterDef { id = "envy_boss", displayName = "Envy - The Usurper",
             enemyIds = new[] { "enemy_envy_boss", "enemy_envy_shade" } },
-
-        // ===== GLUTTONY (Earth) =====
-        new EncounterDef { id = "gluttony_c1", displayName = "Gluttony - First Feast",
-            enemyIds = new[] { "enemy_gluttony_feast" } },
-        new EncounterDef { id = "gluttony_p1", displayName = "Gluttony - Gourmand's Trail",
-            enemyIds = new[] { "enemy_gluttony_gourmand" } },
-        new EncounterDef { id = "gluttony_c2", displayName = "Gluttony - Ravenous Duo",
-            enemyIds = new[] { "enemy_gluttony_feast", "enemy_gluttony_maw" } },
-        new EncounterDef { id = "gluttony_p2", displayName = "Gluttony - Syrup's Path",
-            enemyIds = new[] { "enemy_gluttony_syrup" } },
-        new EncounterDef { id = "gluttony_c3", displayName = "Gluttony - Gourmand's Court",
-            enemyIds = new[] { "enemy_gluttony_gourmand", "enemy_gluttony_maw" } },
-        new EncounterDef { id = "gluttony_p3", displayName = "Gluttony - Maw's Domain",
-            enemyIds = new[] { "enemy_gluttony_maw" } },
-        new EncounterDef { id = "gluttony_c4", displayName = "Gluttony - Final Course",
-            enemyIds = new[] { "enemy_gluttony_gourmand", "enemy_gluttony_maw", "enemy_gluttony_syrup" } },
-        new EncounterDef { id = "gluttony_p4", displayName = "Gluttony - Syrup's Last Stand",
-            enemyIds = new[] { "enemy_gluttony_syrup" } },
-        new EncounterDef { id = "gluttony_boss", displayName = "Gluttony - The Devourer",
-            enemyIds = new[] { "enemy_gluttony_boss", "enemy_gluttony_gourmand" } },
     };
 
     [MenuItem("TIDE/Populate Encounter Configs")]
@@ -219,14 +199,13 @@ public static class EncounterConfigPopulator
         Debug.Log($"[EncounterConfigPopulator] Created {created} encounters, skipped {skipped} existing, {warnings} warnings");
         EditorUtility.DisplayDialog("Encounters Created",
             $"Created {created} EncounterConfig assets.\n\n" +
-            "Greed: 9 encounters\n" +
-            "Lust: 9 encounters\n" +
-            "Wrath: 9 encounters\n" +
-            "Sloth: 9 encounters\n" +
-            "Pride: 9 encounters\n" +
-            "Envy: 9 encounters\n" +
-            "Gluttony: 9 encounters\n\n" +
-            "Total: 49 encounters" +
+            "Greed: 6 encounters\n" +
+            "Lust: 6 encounters\n" +
+            "Anger: 6 encounters\n" +
+            "Desire: 6 encounters\n" +
+            "Envy: 6 encounters\n" +
+            "Ego: 6 encounters\n\n" +
+            "Total: 36 encounters" +
             (warnings > 0 ? $"\n\n⚠ {warnings} enemy references missing\n(Run Populate Enemy Data first)" : ""),
             "OK");
     }

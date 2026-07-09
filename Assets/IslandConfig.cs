@@ -23,6 +23,13 @@ public class IslandConfig : ScriptableObject
 
     [Tooltip("Ordered list of encounters for the current slice. Typical layout is 4 combat/puzzle pairs followed by a boss combat.")]
     public EncounterDefinition[] encounters;
+
+    public bool IsValid()
+    {
+        return !string.IsNullOrEmpty(islandId)
+            && encounters != null
+            && encounters.Length > 0;
+    }
 }
 
 [Serializable]

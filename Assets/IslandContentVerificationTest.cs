@@ -14,17 +14,17 @@ public class IslandContentVerificationTest : MonoBehaviour
     private static readonly string[] ExpectedIslandIds =
     {
         "island_lust",
-        "island_gluttony",
         "island_greed",
-        "island_sloth",
-        "island_wrath",
+        "island_greed",
+        "island_desire",
+        "island_anger",
         "island_envy",
-        "island_pride"
+        "island_ego"
     };
 
     private static readonly Dictionary<string, Vector2> ExpectedPreBossBuckets = new Dictionary<string, Vector2>
     {
-        { "island_gluttony", new Vector2(0.375f, 0.375f) }
+        { "island_greed", new Vector2(0.375f, 0.375f) }
     };
 
     [ContextMenu("Run Island Content Verification")]

@@ -1,10 +1,12 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public static class EnvyMirrorService
 {
     private static bool mirrorEnabled;
     private static CombatUnit.Element mirroredElement = CombatUnit.Element.None;
     private static float skillDamageMultiplier = 0.7f;
+    private static bool subscribedToSceneUnload;
 
     public static bool IsMirrorEnabled => mirrorEnabled;
     public static CombatUnit.Element MirroredElement => mirroredElement;
@@ -12,16 +14,19 @@ public static class EnvyMirrorService
 
     public static void SetMirrorEnabled(bool enabled)
     {
+        EnsureSceneUnloadSubscription();
         mirrorEnabled = enabled;
     }
 
     public static void SetMirroredElement(CombatUnit.Element element)
     {
+        EnsureSceneUnloadSubscription();
         mirroredElement = element;
     }
 
     public static void SetSkillDamageMultiplier(float multiplier)
     {
+        EnsureSceneUnloadSubscription();
         skillDamageMultiplier = Mathf.Max(0f, multiplier);
     }
 
@@ -56,7 +61,33 @@ public static class EnvyMirrorService
         return mirror;
     }
 
+    public static void ReleaseMirrorSkill(SkillData mirrorSkill)
+    {
+        if (mirrorSkill != null)
+        {
+            Object.Destroy(mirrorSkill);
+        }
+    }
+
     public static void ResetForDebug()
+    {
+        mirrorEnabled = false;
+        mirroredElement = CombatUnit.Element.None;
+        skillDamageMultiplier = 0.7f;
+    }
+
+    private static void EnsureSceneUnloadSubscription()
+    {
+        if (subscribedToSceneUnload)
+        {
+            return;
+        }
+
+        SceneManager.sceneUnloaded += OnSceneUnloaded;
+        subscribedToSceneUnload = true;
+    }
+
+    private static void OnSceneUnloaded(Scene scene)
     {
         mirrorEnabled = false;
         mirroredElement = CombatUnit.Element.None;

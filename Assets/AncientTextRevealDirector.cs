@@ -35,16 +35,13 @@ public class AncientTextRevealDirector : MonoBehaviour
         public string relatedHeroId;
     }
 
-    /// <summary>
-    /// Simple record of hero bonding levels, raised when fragments are discovered.
-    /// No dedicated bonding system exists yet; this is a placeholder that other
-    /// systems can query or subscribe to.
-    /// </summary>
     [Serializable]
     public class HeroBondingState
     {
         public string heroId;
         public int bondLevel;
+        public int fragmentsDiscovered;
+        public bool IsBonded => bondLevel > 0;
     }
 
     [Serializable]
@@ -59,6 +56,7 @@ public class AncientTextRevealDirector : MonoBehaviour
     {
         public string heroId;
         public int bondLevel;
+        public int fragmentsDiscovered;
     }
 
     public event Action<AncientTextFragment> OnFragmentDiscovered;
@@ -73,6 +71,7 @@ public class AncientTextRevealDirector : MonoBehaviour
 
     private readonly HashSet<string> discoveredFragmentIds = new HashSet<string>();
     private readonly Dictionary<string, int> heroBondLevels = new Dictionary<string, int>();
+    private readonly Dictionary<string, int> heroFragmentCounts = new Dictionary<string, int>();
 
     public IReadOnlyCollection<string> DiscoveredFragmentIds => discoveredFragmentIds;
 
@@ -85,6 +84,7 @@ public class AncientTextRevealDirector : MonoBehaviour
         }
 
         Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
 
     private void OnDestroy()
@@ -161,6 +161,16 @@ public class AncientTextRevealDirector : MonoBehaviour
         return true;
     }
 
+    public bool IsFragmentDiscovered(string fragmentId)
+    {
+        if (string.IsNullOrEmpty(fragmentId))
+        {
+            return false;
+        }
+
+        return discoveredFragmentIds.Contains(fragmentId);
+    }
+
     /// <summary>
     /// Returns all fragments the player has discovered so far, in order.
     /// </summary>
@@ -229,10 +239,13 @@ public class AncientTextRevealDirector : MonoBehaviour
             return null;
         }
 
+        int fragments = heroFragmentCounts.TryGetValue(heroId, out int count) ? count : 0;
+
         return new HeroBondingState
         {
             heroId = heroId,
-            bondLevel = heroBondLevels[heroId]
+            bondLevel = heroBondLevels[heroId],
+            fragmentsDiscovered = fragments
         };
     }
 
@@ -244,10 +257,12 @@ public class AncientTextRevealDirector : MonoBehaviour
         List<HeroBondingState> result = new List<HeroBondingState>();
         foreach (KeyValuePair<string, int> pair in heroBondLevels)
         {
+            int fragments = heroFragmentCounts.TryGetValue(pair.Key, out int count) ? count : 0;
             result.Add(new HeroBondingState
             {
                 heroId = pair.Key,
-                bondLevel = pair.Value
+                bondLevel = pair.Value,
+                fragmentsDiscovered = fragments
             });
         }
 
@@ -261,10 +276,12 @@ public class AncientTextRevealDirector : MonoBehaviour
 
         foreach (KeyValuePair<string, int> pair in heroBondLevels)
         {
+            int fragments = heroFragmentCounts.TryGetValue(pair.Key, out int count) ? count : 0;
             saveData.bondingEntries.Add(new HeroBondingSaveEntry
             {
                 heroId = pair.Key,
-                bondLevel = pair.Value
+                bondLevel = pair.Value,
+                fragmentsDiscovered = fragments
             });
         }
 
@@ -275,6 +292,7 @@ public class AncientTextRevealDirector : MonoBehaviour
     {
         discoveredFragmentIds.Clear();
         heroBondLevels.Clear();
+        heroFragmentCounts.Clear();
 
         if (saveData == null)
         {
@@ -301,6 +319,7 @@ public class AncientTextRevealDirector : MonoBehaviour
                 if (entry != null && !string.IsNullOrEmpty(entry.heroId))
                 {
                     heroBondLevels[entry.heroId] = entry.bondLevel;
+                    heroFragmentCounts[entry.heroId] = entry.fragmentsDiscovered;
                 }
             }
         }
@@ -312,6 +331,7 @@ public class AncientTextRevealDirector : MonoBehaviour
     {
         discoveredFragmentIds.Clear();
         heroBondLevels.Clear();
+        heroFragmentCounts.Clear();
     }
 
     private void DiscoverFragment(AncientTextFragment fragment)
@@ -373,24 +393,69 @@ public class AncientTextRevealDirector : MonoBehaviour
         int newLevel = currentLevel + Mathf.Max(1, bondLevelPerFragment);
         heroBondLevels[heroId] = newLevel;
 
+        if (heroFragmentCounts.TryGetValue(heroId, out int count))
+        {
+            heroFragmentCounts[heroId] = count + 1;
+        }
+        else
+        {
+            heroFragmentCounts[heroId] = 1;
+        }
+
         Debug.Log($"[AncientTextRevealDirector] {heroId} bond level: {currentLevel} -> {newLevel}");
         OnHeroBondLevelChanged?.Invoke(heroId, newLevel);
     }
 
     private void TriggerNarrativeBeatForFragment(AncientTextFragment fragment)
     {
-        NarrativeBeatDirector director = FindFirstObjectByType<NarrativeBeatDirector>();
-        if (director == null)
+        if (fragment == null)
         {
             return;
         }
 
-        // The NarrativeBeatDirector shows beats via ShowBeat, but it is private.
-        // Instead we rely on the fragment already being registered and discovered
-        // in GameStateManager, and the AncientTextLogUI display above handles
-        // the player-facing presentation. The beat director will pick up the
-        // state change on its next Update tick.
-        Debug.Log($"[AncientTextRevealDirector] Fragment '{fragment.fragmentId}' registered for narrative progression.");
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm != null)
+        {
+            string beatId = $"beat_ancient_{fragment.fragmentId}";
+            gsm.MarkNarrativeBeatCompleted(beatId);
+        }
+
+        if (DialogueSystem.Instance == null || DialogueSystem.Instance.IsDialogueActive)
+        {
+            return;
+        }
+
+        DialogueTree tree = BuildFragmentDialogue(fragment);
+        if (tree != null)
+        {
+            DialogueSystem.Instance.StartDialogueTree(tree);
+        }
+    }
+
+    private static DialogueTree BuildFragmentDialogue(AncientTextFragment fragment)
+    {
+        if (fragment == null)
+        {
+            return null;
+        }
+
+        DialogueTree tree = new DialogueTree();
+        tree.treeId = $"dialogue_ancient_{fragment.fragmentId}";
+
+        DialogueTreeNode rootNode = new DialogueTreeNode();
+        rootNode.nodeId = $"{tree.treeId}_root";
+        rootNode.entry = new DialogueSystem.DialogueEntry
+        {
+            speakerName = fragment.title,
+            dialogueText = fragment.body,
+            emotion = DialogueSystem.Emotion.Neutral,
+            relatedHeroId = fragment.relatedHeroId
+        };
+
+        tree.rootNode = rootNode;
+        tree.allNodes.Add(rootNode);
+
+        return tree;
     }
 
     private int ResolveIslandIndex(string islandId)

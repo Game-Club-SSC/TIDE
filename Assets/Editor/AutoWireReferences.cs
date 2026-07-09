@@ -122,16 +122,16 @@ public static class AutoWireReferences
     // ======================================================================
 
     // Maps island asset names to their encounter ID prefixes
-    // Note: island_anger = Wrath, island_desire = Sloth, island_ego = Pride
+    // Note: island_anger = Anger, island_desire = Desire, island_ego = Ego
     private static readonly Dictionary<string, string[]> IslandEncounterMap = new Dictionary<string, string[]>
     {
         { "island_greed", new[] { "greed_c1", "greed_p1", "greed_c2", "greed_p2", "greed_c3", "greed_p3", "greed_c4", "greed_p4", "greed_boss" } },
         { "island_lust",  new[] { "lust_c1", "lust_p1", "lust_c2", "lust_p2", "lust_c3", "lust_p3", "lust_c4", "lust_p4", "lust_boss" } },
-        { "island_anger", new[] { "wrath_c1", "wrath_p1", "wrath_c2", "wrath_p2", "wrath_c3", "wrath_p3", "wrath_c4", "wrath_p4", "wrath_boss" } },
-        { "island_desire",new[] { "sloth_c1", "sloth_p1", "sloth_c2", "sloth_p2", "sloth_c3", "sloth_p3", "sloth_c4", "sloth_p4", "sloth_boss" } },
-        { "island_ego",   new[] { "pride_c1", "pride_p1", "pride_c2", "pride_p2", "pride_c3", "pride_p3", "pride_c4", "pride_p4", "pride_boss" } },
+        { "island_anger", new[] { "anger_c1", "anger_p1", "anger_c2", "anger_p2", "anger_c3", "anger_p3", "anger_c4", "anger_p4", "anger_boss" } },
+        { "island_desire",new[] { "desire_c1", "desire_p1", "desire_c2", "desire_p2", "desire_c3", "desire_p3", "desire_c4", "desire_p4", "desire_boss" } },
+        { "island_ego",   new[] { "ego_c1", "ego_p1", "ego_c2", "ego_p2", "ego_c3", "ego_p3", "ego_c4", "ego_p4", "ego_boss" } },
         { "island_envy",  new[] { "envy_c1", "envy_p1", "envy_c2", "envy_p2", "envy_c3", "envy_p3", "envy_c4", "envy_p4", "envy_boss" } },
-        { "island_gluttony", new[] { "gluttony_c1", "gluttony_p1", "gluttony_c2", "gluttony_p2", "gluttony_c3", "gluttony_p3", "gluttony_c4", "gluttony_p4", "gluttony_boss" } },
+        { "island_greed", new[] { "greed_c1", "greed_p1", "greed_c2", "greed_p2", "greed_c3", "greed_p3", "greed_c4", "greed_p4", "greed_boss" } },
     };
 
     // Maps encounter IDs to their puzzle data asset names
@@ -141,16 +141,16 @@ public static class AutoWireReferences
         { "greed_p3", "puzzle_greed_p3" }, { "greed_p4", "puzzle_greed_p4" },
         { "lust_p1", "puzzle_lust_p1" }, { "lust_p2", "puzzle_lust_p2" },
         { "lust_p3", "puzzle_lust_p3" }, { "lust_p4", "puzzle_lust_p4" },
-        { "wrath_p1", "puzzle_wrath_p1" }, { "wrath_p2", "puzzle_wrath_p2" },
-        { "wrath_p3", "puzzle_wrath_p3" }, { "wrath_p4", "puzzle_wrath_p4" },
-        { "sloth_p1", "puzzle_sloth_p1" }, { "sloth_p2", "puzzle_sloth_p2" },
-        { "sloth_p3", "puzzle_sloth_p3" }, { "sloth_p4", "puzzle_sloth_p4" },
-        { "pride_p1", "puzzle_pride_p1" }, { "pride_p2", "puzzle_pride_p2" },
-        { "pride_p3", "puzzle_pride_p3" }, { "pride_p4", "puzzle_pride_p4" },
+        { "anger_p1", "puzzle_anger_p1" }, { "anger_p2", "puzzle_anger_p2" },
+        { "anger_p3", "puzzle_anger_p3" }, { "anger_p4", "puzzle_anger_p4" },
+        { "desire_p1", "puzzle_desire_p1" }, { "desire_p2", "puzzle_desire_p2" },
+        { "desire_p3", "puzzle_desire_p3" }, { "desire_p4", "puzzle_desire_p4" },
+        { "ego_p1", "puzzle_ego_p1" }, { "ego_p2", "puzzle_ego_p2" },
+        { "ego_p3", "puzzle_ego_p3" }, { "ego_p4", "puzzle_ego_p4" },
         { "envy_p1", "puzzle_envy_p1" }, { "envy_p2", "puzzle_envy_p2" },
         { "envy_p3", "puzzle_envy_p3" }, { "envy_p4", "puzzle_envy_p4" },
-        { "gluttony_p1", "puzzle_gluttony_p1" }, { "gluttony_p2", "puzzle_gluttony_p2" },
-        { "gluttony_p3", "puzzle_gluttony_p3" }, { "gluttony_p4", "puzzle_gluttony_p4" },
+        { "greed_p1", "puzzle_greed_p1" }, { "greed_p2", "puzzle_greed_p2" },
+        { "greed_p3", "puzzle_greed_p3" }, { "greed_p4", "puzzle_greed_p4" },
     };
 
     // Restoration values per encounter type

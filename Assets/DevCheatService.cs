@@ -11,7 +11,7 @@ public class DevCheatService : MonoBehaviour
     public bool GodModeInvincible { get; set; }
     public bool GodModeOneHitKill { get; set; }
     public bool GodModeInfiniteResources { get; set; }
-    public bool ShowDebugOverlay { get; set; } = true;
+    public bool ShowDebugOverlay { get; set; }
     public bool SuppressStoryProgressionSideEffects { get; private set; }
 
     private void OnEnable()

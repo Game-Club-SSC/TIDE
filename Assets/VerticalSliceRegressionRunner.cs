@@ -131,10 +131,10 @@ public class VerticalSliceRegressionRunner : MonoBehaviour
             MobileTouchControllerLogic.Ok()));
         RegisterCheck(new IssueCheck(25, "Per-island content packs", () =>
             PerIslandContentRegistry.GetAllPacks().Count >= 6));
-        RegisterCheck(new IssueCheck(26, "Greed/Gluttony puzzle variants", () =>
+        RegisterCheck(new IssueCheck(26, "Greed puzzle variants", () =>
             PuzzleVariantServiceLogic.Ok()));
-        RegisterCheck(new IssueCheck(27, "Sloth status effect system", () =>
-            SlothStatusEffects.Ok()));
+        RegisterCheck(new IssueCheck(27, "Desire status effect system", () =>
+            DesireStatusEffects.Ok()));
         RegisterCheck(new IssueCheck(28, "Envy mirror/covet mechanic", () =>
             EnvyMirrorServiceLogic.Ok()));
         RegisterCheck(new IssueCheck(29, "Difficulty pass for end-game", () =>

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -344,3 +345,4 @@ public class DevMenuUI : MonoBehaviour
         });
     }
 }
+#endif

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -16,6 +17,40 @@ public static class ExpandedAncientTexts
         public string islandId;
         public float restorationRequired;
         public string relatedHeroId;
+    }
+
+    private static readonly HashSet<string> ValidHeroIds = new HashSet<string>(System.StringComparer.Ordinal)
+    {
+        "hero_fire",
+        "hero_water",
+        "hero_earth",
+        "hero_air",
+        "hero_space"
+    };
+
+    public static bool IsDefinitionValid(ExtraTextDefinition def)
+    {
+        if (string.IsNullOrEmpty(def.textId) || string.IsNullOrEmpty(def.islandId) || string.IsNullOrEmpty(def.relatedHeroId))
+        {
+            return false;
+        }
+
+        if (!IslandThemeRegistry.IsKnownIslandId(def.islandId))
+        {
+            return false;
+        }
+
+        if (!ValidHeroIds.Contains(def.relatedHeroId))
+        {
+            return false;
+        }
+
+        if (def.restorationRequired < 0f || def.restorationRequired > 100f)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     public static readonly ExtraTextDefinition[] AllTexts =
@@ -55,7 +90,7 @@ public static class ExpandedAncientTexts
         },
 
         // ---------------------------------------------------------------
-        // Island 2 -- Gluttony
+        // Island 2 -- Greed
         // ---------------------------------------------------------------
         new ExtraTextDefinition
         {
@@ -68,7 +103,7 @@ public static class ExpandedAncientTexts
                 "took without pause. In their greed they mistook abundance for permission. " +
                 "Now the islands swell with that same endless wanting, and only the tide can " +
                 "sate what was never meant to be filled.",
-            islandId = "island_gluttony",
+            islandId = "island_greed",
             restorationRequired = 30f,
             relatedHeroId = "hero_earth"
         },
@@ -83,7 +118,7 @@ public static class ExpandedAncientTexts
                 "emerged but that of someone long dead. I recorded her words verbatim: \"The " +
                 "cycle cannot be broken, only endured. We are not the first. We will not be " +
                 "the last. Pray that when you fade, the tide remembers your name.\"",
-            islandId = "island_gluttony",
+            islandId = "island_greed",
             restorationRequired = 60f,
             relatedHeroId = "hero_space"
         },
@@ -109,7 +144,7 @@ public static class ExpandedAncientTexts
         },
 
         // ---------------------------------------------------------------
-        // Island 4 -- Sloth
+        // Island 4 -- Desire
         // ---------------------------------------------------------------
         new ExtraTextDefinition
         {
@@ -122,7 +157,7 @@ public static class ExpandedAncientTexts
                 "feeds upon inaction as surely as fire feeds upon wind. The fourth island " +
                 "learned this truth too late -- its people lay down to sleep and never woke, " +
                 "and the tide rose over them while they dreamed.",
-            islandId = "island_sloth",
+            islandId = "island_desire",
             restorationRequired = 20f,
             relatedHeroId = "hero_air"
         },
@@ -137,13 +172,13 @@ public static class ExpandedAncientTexts
                 "standing in a circle, holding hands. I do not know their names but I know " +
                 "their colours: red, blue, green, white, and violet. Please keep this letter " +
                 "safe. When the tide comes, I want them to know that someone was waiting.",
-            islandId = "island_sloth",
+            islandId = "island_desire",
             restorationRequired = 55f,
             relatedHeroId = "hero_fire"
         },
 
         // ---------------------------------------------------------------
-        // Island 5 -- Wrath
+        // Island 5 -- Anger
         // ---------------------------------------------------------------
         new ExtraTextDefinition
         {
@@ -156,7 +191,7 @@ public static class ExpandedAncientTexts
                 "its core. Let the hero of flame not fear the blaze they carry -- it is " +
                 "not destruction but renewal. Every forest that burns returns greener. " +
                 "Every island that burns returns restored. The cycle demands it.",
-            islandId = "island_wrath",
+            islandId = "island_anger",
             restorationRequired = 35f,
             relatedHeroId = "hero_fire"
         },
@@ -182,7 +217,7 @@ public static class ExpandedAncientTexts
         },
 
         // ---------------------------------------------------------------
-        // Island 7 -- Pride
+        // Island 7 -- Ego
         // ---------------------------------------------------------------
         new ExtraTextDefinition
         {
@@ -195,7 +230,7 @@ public static class ExpandedAncientTexts
                 "the alternative was silence. If our names are erased, let the record show " +
                 "that we stood where none would stand, and we gave what none could give. " +
                 "To the heroes who follow: the cycle is cruel, but you are not. Rise.",
-            islandId = "island_pride",
+            islandId = "island_ego",
             restorationRequired = 70f,
             relatedHeroId = "hero_air"
         }

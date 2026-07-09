@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -7,8 +6,6 @@ public class BossEncounterGate : MonoBehaviour
     public const int DefaultDefeatsForBadEnding = 4;
 
     private const string DefeatsKeyPrefix = "TIDE_FINAL_BOSS_DEFEATS_";
-    private static readonly bool EnablePersistentSaveData = true;
-    private static readonly Dictionary<string, int> runtimeDefeatCounts = new Dictionary<string, int>();
 
     [Header("Threshold")]
     [SerializeField] private string islandId = "island_lust";
@@ -62,17 +59,6 @@ public class BossEncounterGate : MonoBehaviour
             return gsm.GetFinalBossDefeatCount(TrackedIslandId);
         }
 
-        if (!EnablePersistentSaveData)
-        {
-            string defeatsKey = GetDefeatsKey();
-            if (runtimeDefeatCounts.TryGetValue(defeatsKey, out int runtimeDefeats))
-            {
-                return Mathf.Max(0, runtimeDefeats);
-            }
-
-            return 0;
-        }
-
         return PlayerPrefs.GetInt(GetDefeatsKey(), 0);
     }
 
@@ -97,15 +83,8 @@ public class BossEncounterGate : MonoBehaviour
         }
 
         int defeats = Mathf.Max(0, GetDefeatCount()) + 1;
-        if (EnablePersistentSaveData)
-        {
-            PlayerPrefs.SetInt(GetDefeatsKey(), defeats);
-            PlayerPrefs.Save();
-        }
-        else
-        {
-            runtimeDefeatCounts[GetDefeatsKey()] = defeats;
-        }
+        PlayerPrefs.SetInt(GetDefeatsKey(), defeats);
+        PlayerPrefs.Save();
 
         bool reachedBadEnding = defeats >= DefeatsForBadEndingThreshold;
         if (reachedBadEnding)
@@ -131,15 +110,8 @@ public class BossEncounterGate : MonoBehaviour
             return;
         }
 
-        if (EnablePersistentSaveData)
-        {
-            PlayerPrefs.DeleteKey(GetDefeatsKey());
-            PlayerPrefs.Save();
-        }
-        else
-        {
-            runtimeDefeatCounts.Remove(GetDefeatsKey());
-        }
+        PlayerPrefs.DeleteKey(GetDefeatsKey());
+        PlayerPrefs.Save();
     }
 
     public void SetDefeatCount(int defeats)
@@ -157,15 +129,8 @@ public class BossEncounterGate : MonoBehaviour
             return;
         }
 
-        if (EnablePersistentSaveData)
-        {
-            PlayerPrefs.SetInt(GetDefeatsKey(), sanitized);
-            PlayerPrefs.Save();
-        }
-        else
-        {
-            runtimeDefeatCounts[GetDefeatsKey()] = sanitized;
-        }
+        PlayerPrefs.SetInt(GetDefeatsKey(), sanitized);
+        PlayerPrefs.Save();
     }
 
     private void OnEnable()

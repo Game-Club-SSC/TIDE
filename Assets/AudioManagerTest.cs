@@ -210,12 +210,12 @@ public class AudioManagerTest : MonoBehaviour
 
             // Per-island BGM
             Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandGreedBgm), "PlayCue(IslandGreedBgm) should not throw.");
-            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandSlothBgm), "PlayCue(IslandSlothBgm) should not throw.");
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandDesireBgm), "PlayCue(IslandDesireBgm) should not throw.");
             Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandEnvyBgm), "PlayCue(IslandEnvyBgm) should not throw.");
             Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandLustBgm), "PlayCue(IslandLustBgm) should not throw.");
-            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandWrathBgm), "PlayCue(IslandWrathBgm) should not throw.");
-            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandPrideBgm), "PlayCue(IslandPrideBgm) should not throw.");
-            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandGluttonyBgm), "PlayCue(IslandGluttonyBgm) should not throw.");
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandAngerBgm), "PlayCue(IslandAngerBgm) should not throw.");
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandEgoBgm), "PlayCue(IslandEgoBgm) should not throw.");
+            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandGreedBgm), "PlayCue(IslandGreedBgm) should not throw.");
         }
         finally
         {
@@ -283,10 +283,10 @@ public class AudioManagerTest : MonoBehaviour
 
             Assert.AreEqual(AudioCue.IslandGreedBgm, resolveMethod.Invoke(null, new object[] { "level_greed" }),
                 "level_greed should map to IslandGreedBgm.");
-            Assert.AreEqual(AudioCue.IslandSlothBgm, resolveMethod.Invoke(null, new object[] { "level_sloth" }),
-                "level_sloth should map to IslandSlothBgm.");
-            Assert.AreEqual(AudioCue.IslandWrathBgm, resolveMethod.Invoke(null, new object[] { "level_wrath" }),
-                "level_wrath should map to IslandWrathBgm.");
+            Assert.AreEqual(AudioCue.IslandDesireBgm, resolveMethod.Invoke(null, new object[] { "level_desire" }),
+                "level_desire should map to IslandDesireBgm.");
+            Assert.AreEqual(AudioCue.IslandAngerBgm, resolveMethod.Invoke(null, new object[] { "level_anger" }),
+                "level_anger should map to IslandAngerBgm.");
             Assert.IsNull(resolveMethod.Invoke(null, new object[] { "unknown_scene" }),
                 "Unknown scene should return null.");
         }

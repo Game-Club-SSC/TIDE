@@ -14,10 +14,10 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
         TestRunnerExecutesAllChecks();
         TestRunnerTracksPassedAndFailedCounts();
         TestPerIslandContentRegistryCoverage();
-        TestPuzzleVariantServiceGluttony();
         TestPuzzleVariantServiceGreed();
-        TestSlothStatusEffectSlow();
-        TestSlothStatusEffectDrowsy();
+        TestPuzzleVariantServiceGreed();
+        TestDesireStatusEffectSlow();
+        TestDesireStatusEffectDrowsy();
         TestEnvyMirrorToggle();
         TestEnvyMirrorSkillBuilder();
         TestBattleHudCritFlashColor();
@@ -79,19 +79,19 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
     {
         IReadOnlyList<PerIslandContentRegistry.IslandContentPack> packs = PerIslandContentRegistry.GetAllPacks();
         Assert.GreaterOrEqual(packs.Count, 6, "Should have 6 island content packs.");
-        Assert.IsNotNull(PerIslandContentRegistry.GetPackForIsland("island_pride"), "Should find pride pack.");
+        Assert.IsNotNull(PerIslandContentRegistry.GetPackForIsland("island_ego"), "Should find ego pack.");
     }
 
-    private void TestPuzzleVariantServiceGluttony()
+    private void TestPuzzleVariantServiceGreed()
     {
         PuzzleData data = ScriptableObject.CreateInstance<PuzzleData>();
         try
         {
             data.enableConsumption = true;
             data.consumptionAmount = 3;
-            Assert.IsTrue(PuzzleVariantService.IsGluttonyConsumptionEnabled(data), "Gluttony should be on.");
+            Assert.IsTrue(PuzzleVariantService.IsGreedConsumptionEnabled(data), "Greed should be on.");
             Assert.AreEqual(3, PuzzleVariantService.GetConsumptionAmount(data), "Consumption amount should be 3.");
-            Assert.AreEqual("gluttony", PuzzleVariantService.GetVariantLabel(data), "Label should be gluttony.");
+            Assert.AreEqual("greed", PuzzleVariantService.GetVariantLabel(data), "Label should be greed.");
         }
         finally
         {
@@ -115,18 +115,18 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
         }
     }
 
-    private void TestSlothStatusEffectSlow()
+    private void TestDesireStatusEffectSlow()
     {
-        StatusEffect slow = SlothStatusEffectSet.CreateSlowEffect("test", 3, 0.5f);
+        StatusEffect slow = DesireStatusEffectSet.CreateSlowEffect("test", 3, 0.5f);
         Assert.IsNotNull(slow, "Slow should be created.");
         Assert.AreEqual(StatusEffectType.Slow, slow.Type, "Type should be Slow.");
         Assert.AreEqual(3, slow.Duration, "Duration should be 3.");
         Assert.AreEqual(0.5f, slow.Magnitude, 0.001f, "Magnitude should be 0.5.");
     }
 
-    private void TestSlothStatusEffectDrowsy()
+    private void TestDesireStatusEffectDrowsy()
     {
-        StatusEffect drowsy = SlothStatusEffectSet.CreateDrowsyEffect("test", 2);
+        StatusEffect drowsy = DesireStatusEffectSet.CreateDrowsyEffect("test", 2);
         Assert.IsNotNull(drowsy, "Drowsy should be created.");
         Assert.AreEqual(StatusEffectType.Drowsy, drowsy.Type, "Type should be Drowsy.");
         Assert.AreEqual(2, drowsy.Duration, "Duration should be 2.");

@@ -88,14 +88,14 @@ public class TravelValidationTest : MonoBehaviour
         try
         {
             tracker = CreateTracker();
-            CreateAnchor("dock", "island_gluttony", Vector3.zero, true);
+            CreateAnchor("dock", "island_greed", Vector3.zero, true);
             IslandProgressionManager progression = IslandProgressionManager.Instance;
             if (progression != null)
             {
                 progression.UnlockAllIslandsForDebug();
             }
 
-            TravelValidationService.ValidationResult result = TravelValidationService.ValidateTravel("island_lust", "island_gluttony");
+            TravelValidationService.ValidationResult result = TravelValidationService.ValidateTravel("island_lust", "island_greed");
             Assert.IsNotNull(result, "Result should not be null.");
             Assert.IsFalse(result.CanTravel, "Unrestored island should fail validation.");
         }
@@ -113,15 +113,15 @@ public class TravelValidationTest : MonoBehaviour
         try
         {
             tracker = CreateTracker();
-            CreateAnchor("dock", "island_gluttony", Vector3.zero, true);
+            CreateAnchor("dock", "island_greed", Vector3.zero, true);
             IslandProgressionManager progression = IslandProgressionManager.Instance;
             if (progression != null)
             {
                 progression.UnlockAllIslandsForDebug();
-                tracker.SetIslandRestorationPercentForDebug("island_gluttony", 1f);
+                tracker.SetIslandRestorationPercentForDebug("island_greed", 1f);
             }
 
-            TravelValidationService.ValidationResult result = TravelValidationService.ValidateTravel("island_lust", "island_gluttony");
+            TravelValidationService.ValidationResult result = TravelValidationService.ValidateTravel("island_lust", "island_greed");
             Assert.IsNotNull(result, "Result should not be null.");
         }
         finally
@@ -152,7 +152,7 @@ public class TravelValidationTest : MonoBehaviour
         try
         {
             CreateAnchor("d1", "island_lust", Vector3.zero, true);
-            CreateAnchor("d2", "island_gluttony", Vector3.zero, true);
+            CreateAnchor("d2", "island_greed", Vector3.zero, true);
             IReadOnlyList<TeleportAnchor> destinations = TravelValidationService.GetAvailableTravelDestinations("island_lust");
             Assert.IsNotNull(destinations, "Destinations list should not be null.");
         }

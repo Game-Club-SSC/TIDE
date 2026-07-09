@@ -20,7 +20,7 @@ You will feel that you have always known one another, though you met only hours 
 Six islands lie ahead, each ruled by a sickness of the heart. Cleanse them and the world will breathe again. That is all the truth we will give you today. The rest, you must earn — the way we did, and the way the ones before us did. Rest tonight. Tomorrow, the water rises."),
 
         ("greed_deep", "The Same Six",
-@"We counted them, once, thinking the count would protect us. Greed. Lust. Wrath. Sloth. Pride. Envy. Six sicknesses, six islands, and at the end of each, a crown to break. We told ourselves the number was arbitrary, that other heroes in other years must have faced other trials. We were wrong. It is always these six. It has always been these six.
+@"We counted them, once, thinking the count would protect us. Greed. Lust. Anger. Desire. Ego. Envy. Six sicknesses, six islands, and at the end of each, a crown to break. We told ourselves the number was arbitrary, that other heroes in other years must have faced other trials. We were wrong. It is always these six. It has always been these six.
 
 Understand what that means before you decide how to feel about it. You are not the first to bleed on Greed's golden sand. Others stood here with your same certainty, your same borrowed trust, your same weapons in unfamiliar hands. They won. They wrote this. And then they were gone.
 
@@ -40,36 +40,36 @@ You may feel the shape of it now, even if you cannot yet say it. A pressure behi
 
 If your group has begun to sense it too, do not force the conversation. But do not flee it forever, either. There is a middle place — knowing, and still choosing joy. We reached it late. Reach it sooner than we did."),
 
-        ("wrath_intro", "The Honest Fire",
+        ("anger_intro", "The Honest Fire",
 @"Anger will come for you here, and not only from the enemy. It will rise from inside your own ranks — at the unfairness of it, at the ones who made you, at the friend whose hand shook when you needed it steady. Let it come. Anger is the most honest of the sicknesses, because it is the sound a heart makes when it finally understands it has been wronged.
 
 But understand this too: the wrong done to you was not done by the one beside you. They are as bound as you are. As brief as you are. To turn your fire on them is to burn the only warmth you were given. We watched one of ours do exactly that, once. We do not speak of what it cost. We only ask you not to repeat it.
 
-Rage, if you must. Break the crown of Wrath with it. Then set it down. The fire was never meant to be carried the whole way."),
+Rage, if you must. Break the crown of Anger with it. Then set it down. The fire was never meant to be carried the whole way."),
 
-        ("wrath_deep", "When We Came Apart",
-@"We should tell you the part we are ashamed of, because pride in the archive would be its own kind of lie.
+        ("anger_deep", "When We Came Apart",
+@"We should tell you the part we are ashamed of, because ego in the archive would be its own kind of lie.
 
 There was a stretch — after we understood, before we accepted — when we could not stand the sight of one another. Every glance was a reminder. The healer stopped meeting our eyes. The strong one picked fights she did not want, just to feel something other than the ending. We fought the islands and we fought each other, and for a while it was uncertain which would finish us first.
 
 We are not writing to warn you away from this. You may not be able to avoid it; we could not. We are writing so that when it happens, you will know it is a season and not a verdict. Groups come apart at the exact place they are most afraid. The coming-apart is not the failure. Staying apart is. We found our way back. It is the only thing we did that we are truly proud of. Find your way back too."),
 
-        ("sloth_intro", "The Weight of Knowing",
+        ("desire_intro", "The Weight of Knowing",
 @"There is a tiredness that has nothing to do with the body. You will meet it on this island, in the haze that makes your own limbs feel borrowed. It whispers that since the ending cannot be changed, nothing between here and the ending matters either. Why fight. Why speak. Why bother loving people you are about to lose.
 
 We stopped, for a while. We let the haze have us. We told ourselves it was peace. It was not peace; it was surrender wearing peace's face, and it hollowed out the last good days we had.
 
 Here is what we learned, too late to fully use it: the ending does not drain meaning from the middle. It concentrates it. A thing that will not last is not thereby worthless — it is thereby precious. Get up. Not because it will change the finish. Because the middle is the only part that was ever yours, and you are spending it whether you notice or not. Spend it awake."),
 
-        ("sloth_deep", "For the Ones After",
+        ("desire_deep", "For the Ones After",
 @"We began to write differently, around this island. Less to ourselves and more to you — whoever you are, standing on your own shore a hundred years from the day we set down this pen.
 
 It is a strange comfort, thinking of you. We will not meet. By the time your fingers touch this page, ours will have been light and dark and nothing at all for a very long time. And yet here we are, reaching forward, because reaching forward is the one thing the cycle cannot take from us. We cannot leave you our years. We can leave you our words.
 
 So take them. Take the warning and the tenderness both. Know that someone who is gone wanted you to be a little less afraid, a little less alone, a little quicker to say the things we said too late. That is the whole of what we can give. It turns out it is not nothing. It turns out it is almost everything."),
 
-        ("pride_intro", "The Mirror's Last Lie",
-@"Pride will offer you the most seductive story of all: that you are the exception. That you, uniquely among all who came before, deserve more time — that the balance could bend, just once, for someone as remarkable as you. The mirror-knights will show you a self who grows old, who is owed a longer tale. It is the last lie, and the hardest to refuse, because it is dressed as self-respect.
+        ("ego_intro", "The Mirror's Last Lie",
+@"Ego will offer you the most seductive story of all: that you are the exception. That you, uniquely among all who came before, deserve more time — that the balance could bend, just once, for someone as remarkable as you. The mirror-knights will show you a self who grows old, who is owed a longer tale. It is the last lie, and the hardest to refuse, because it is dressed as self-respect.
 
 Refuse it anyway. Not by thinking less of yourself — think as highly as you like — but by seeing clearly. You are not owed more because you are worthy. Worth was never the currency. You were a gift the world gave itself, and gifts are not diminished by being given back.
 

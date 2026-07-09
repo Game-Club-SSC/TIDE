@@ -64,12 +64,12 @@ public class EnvironmentArtTest : MonoBehaviour
         // Verify expected islands exist in order
         string[] expectedIslands = {
             "island_lust",
-            "island_gluttony",
             "island_greed",
-            "island_sloth",
-            "island_wrath",
+            "island_greed",
+            "island_desire",
+            "island_anger",
             "island_envy",
-            "island_pride"
+            "island_ego"
         };
 
         for (int i = 0; i < expectedIslands.Length && i < progressionOrder.Count; i++)

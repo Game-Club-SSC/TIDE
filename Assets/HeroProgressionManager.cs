@@ -7,13 +7,14 @@ public class HeroProgressionManager : MonoBehaviour
 {
     private const bool DefaultCosmeticProgressionEconomyEnabled = false;
     private const string CosmeticCurrencyHeroId = "__cosmetic_currency__";
-    private const int GearXpPerBattleWin = 20;
+    [SerializeField] [Min(0)] private int gearXpPerBattleWin = 20;
     private static bool runtimeCosmeticProgressionEconomyEnabled = DefaultCosmeticProgressionEconomyEnabled;
 
     public static HeroProgressionManager Instance { get; private set; }
 
     [Header("Configuration")]
     [SerializeField] private LevelingConfig levelingConfig;
+    [SerializeField] private BalanceConfig balanceConfig;
 
     [Header("Feature Gates")]
     [SerializeField] private bool enableCosmeticProgressionEconomy = DefaultCosmeticProgressionEconomyEnabled;
@@ -537,19 +538,41 @@ public class HeroProgressionManager : MonoBehaviour
 
     public void ApplyStatGrowth(CombatUnit unit, HeroData hero)
     {
-        if (unit == null || hero == null || levelingConfig == null)
+        if (unit == null || hero == null)
         {
             return;
         }
 
         int level = GetLevel(hero.heroId);
-        int bonus = level - 1;
 
-        int levelHp = hero.baseMaxHP + bonus * levelingConfig.hpPerLevel;
-        int levelMp = hero.baseMaxMP + bonus * levelingConfig.mpPerLevel;
-        int levelAttack = hero.baseAttack + bonus * levelingConfig.attackPerLevel;
-        int levelDefense = hero.baseDefense + bonus * levelingConfig.defensePerLevel;
-        int levelSpeed = hero.baseSpeed + bonus * levelingConfig.speedPerLevel;
+        int levelHp;
+        int levelMp;
+        int levelAttack;
+        int levelDefense;
+        int levelSpeed;
+
+        if (balanceConfig != null)
+        {
+            BalanceConfig.StatGrowth growth = balanceConfig.GetCumulativeStatGrowth(level);
+            levelHp = hero.baseMaxHP + growth.hp;
+            levelMp = hero.baseMaxMP + growth.mp;
+            levelAttack = hero.baseAttack + growth.attack;
+            levelDefense = hero.baseDefense + growth.defense;
+            levelSpeed = hero.baseSpeed + growth.speed;
+        }
+        else if (levelingConfig != null)
+        {
+            int bonus = level - 1;
+            levelHp = hero.baseMaxHP + bonus * levelingConfig.hpPerLevel;
+            levelMp = hero.baseMaxMP + bonus * levelingConfig.mpPerLevel;
+            levelAttack = hero.baseAttack + bonus * levelingConfig.attackPerLevel;
+            levelDefense = hero.baseDefense + bonus * levelingConfig.defensePerLevel;
+            levelSpeed = hero.baseSpeed + bonus * levelingConfig.speedPerLevel;
+        }
+        else
+        {
+            return;
+        }
 
         float atkPercent = GetAttackBonusPercent(hero.heroId);
         float defPercent = GetDefenseBonusPercent(hero.heroId);
@@ -728,7 +751,7 @@ public class HeroProgressionManager : MonoBehaviour
         AddCurrency(Mathf.Max(1, totalXp / 2));
 
         int reserveXp = Mathf.RoundToInt(totalXp * levelingConfig.reserveXpMultiplier);
-        int reserveGearXp = Mathf.RoundToInt(GearXpPerBattleWin * levelingConfig.reserveXpMultiplier);
+        int reserveGearXp = Mathf.RoundToInt(gearXpPerBattleWin * levelingConfig.reserveXpMultiplier);
 
         if (activeHeroes != null)
         {
@@ -737,7 +760,7 @@ public class HeroProgressionManager : MonoBehaviour
                 if (activeHeroes[i] != null)
                 {
                     GrantXp(activeHeroes[i].heroId, totalXp);
-                    GrantGearXp(activeHeroes[i].heroId, GearXpPerBattleWin);
+                    GrantGearXp(activeHeroes[i].heroId, gearXpPerBattleWin);
                 }
             }
         }

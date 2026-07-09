@@ -55,4 +55,10 @@ public class TideBreakData : ScriptableObject
     {
         allCached = null;
     }
+
+    public bool IsValid()
+    {
+        return !string.IsNullOrEmpty(abilityName)
+            && damageMultiplier >= 0f;
+    }
 }

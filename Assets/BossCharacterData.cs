@@ -87,7 +87,7 @@ public class BossCharacterData
                 CreateJealousyBoss(),
                 CreateLustBoss(),
                 CreateAngerBoss(),
-                CreatePrideBoss()
+                CreateEgoBoss()
             };
         }
 
@@ -163,7 +163,7 @@ public class BossCharacterData
     }
 
     /// <summary>
-    /// Attachment — Earth boss on island_sloth. Garden with vine corruption.
+    /// Attachment — Earth boss on island_desire. Garden with vine corruption.
     /// </summary>
     public static BossCharacterData CreateAttachmentBoss()
     {
@@ -171,7 +171,7 @@ public class BossCharacterData
         {
             bossId = "boss_attachment",
             displayName = "Attachment",
-            islandId = "island_sloth",
+            islandId = "island_desire",
             element = CombatUnit.Element.Earth,
 
             primaryColor = new Color(0.4f, 0.7f, 0.4f, 1f),
@@ -271,7 +271,7 @@ public class BossCharacterData
     }
 
     /// <summary>
-    /// Anger — Fire boss on island_wrath. Scorched clearing with flame corruption.
+    /// Anger — Fire boss on island_anger. Scorched clearing with flame corruption.
     /// </summary>
     public static BossCharacterData CreateAngerBoss()
     {
@@ -279,7 +279,7 @@ public class BossCharacterData
         {
             bossId = "boss_anger",
             displayName = "Anger",
-            islandId = "island_wrath",
+            islandId = "island_anger",
             element = CombatUnit.Element.Fire,
 
             primaryColor = new Color(0.9f, 0.2f, 0.1f, 1f),
@@ -307,15 +307,15 @@ public class BossCharacterData
     }
 
     /// <summary>
-    /// Pride — Air boss on island_pride. Mountain peak with fracture corruption.
+    /// Ego — Air boss on island_ego. Mountain peak with fracture corruption.
     /// </summary>
-    public static BossCharacterData CreatePrideBoss()
+    public static BossCharacterData CreateEgoBoss()
     {
         return new BossCharacterData
         {
-            bossId = "boss_pride",
-            displayName = "Pride",
-            islandId = "island_pride",
+            bossId = "boss_ego",
+            displayName = "Ego",
+            islandId = "island_ego",
             element = CombatUnit.Element.Air,
 
             primaryColor = new Color(0.95f, 0.9f, 0.8f, 1f),

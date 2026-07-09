@@ -2,18 +2,18 @@ using UnityEngine;
 using NUnit.Framework;
 
 [DisallowMultipleComponent]
-public class SlothStatusEffectTestSuite : MonoBehaviour
+public class DesireStatusEffectTestSuite : MonoBehaviour
 {
-    [ContextMenu("Run Sloth Status Effect Tests")]
+    [ContextMenu("Run Desire Status Effect Tests")]
     public void RunTests()
     {
-        Debug.Log("[SlothStatusEffectTestSuite] Starting Sloth status effect tests...");
+        Debug.Log("[DesireStatusEffectTestSuite] Starting Desire status effect tests...");
 
         TestSlowReducesEffectiveSpeed();
         TestDrowsyWithFullMagnitudeSkipsTurn();
         TestNoEffectMeansBaseSpeed();
 
-        Debug.Log("[SlothStatusEffectTestSuite] All Sloth status effect tests passed.");
+        Debug.Log("[DesireStatusEffectTestSuite] All Desire status effect tests passed.");
     }
 
     private void TestSlowReducesEffectiveSpeed()
@@ -33,7 +33,7 @@ public class SlothStatusEffectTestSuite : MonoBehaviour
         Assert.GreaterOrEqual(slowedSpeed, 1, "Effective speed must be at least 1.");
 
         DestroyImmediate(go);
-        Debug.Log("[SlothStatusEffectTestSuite] TestSlowReducesEffectiveSpeed PASSED.");
+        Debug.Log("[DesireStatusEffectTestSuite] TestSlowReducesEffectiveSpeed PASSED.");
     }
 
     private void TestDrowsyWithFullMagnitudeSkipsTurn()
@@ -48,7 +48,7 @@ public class SlothStatusEffectTestSuite : MonoBehaviour
         Assert.IsTrue(skipped, "Drowsy with magnitude 1.0 should always skip turn.");
 
         DestroyImmediate(go);
-        Debug.Log("[SlothStatusEffectTestSuite] TestDrowsyWithFullMagnitudeSkipsTurn PASSED.");
+        Debug.Log("[DesireStatusEffectTestSuite] TestDrowsyWithFullMagnitudeSkipsTurn PASSED.");
     }
 
     private void TestNoEffectMeansBaseSpeed()
@@ -63,6 +63,6 @@ public class SlothStatusEffectTestSuite : MonoBehaviour
         Assert.IsFalse(unit.ShouldSkipTurn(), "With no Drowsy effect, ShouldSkipTurn should return false.");
 
         DestroyImmediate(go);
-        Debug.Log("[SlothStatusEffectTestSuite] TestNoEffectMeansBaseSpeed PASSED.");
+        Debug.Log("[DesireStatusEffectTestSuite] TestNoEffectMeansBaseSpeed PASSED.");
     }
 }

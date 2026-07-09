@@ -47,20 +47,20 @@ public class PostDeferralVerticalSliceRegressionRunner : MonoBehaviour
             RunContextMenuSuite<GearProgressionTest>(nameof(GearProgressionTest.RunAllTests)));
         RunStep("VSR-009", "level_1.unity", "Deferral guardrail debug controls", "DevGodModeStateTest.RunTests", () =>
             RunContextMenuSuite<DevGodModeStateTest>(nameof(DevGodModeStateTest.RunTests)));
-        RunStep("VSR-010", "level_1.unity", "Gluttony island content + mechanics", "GluttonyIslandVerificationTest.RunTests", () =>
-            RunContextMenuSuite<GluttonyIslandVerificationTest>(nameof(GluttonyIslandVerificationTest.RunTests)));
+        RunStep("VSR-010", "level_1.unity", "Greed island content + mechanics", "GreedIslandVerificationTest.RunTests", () =>
+            RunContextMenuSuite<GreedIslandVerificationTest>(nameof(GreedIslandVerificationTest.RunTests)));
         RunStep("VSR-011", "level_1.unity", "Greed island content + mechanics", "GreedIslandVerificationTest.RunTests", () =>
             RunContextMenuSuite<GreedIslandVerificationTest>(nameof(GreedIslandVerificationTest.RunTests)));
-        RunStep("VSR-012", "level_1.unity", "Sloth island content + mechanics", "SlothIslandVerificationTest.RunTests", () =>
-            RunContextMenuSuite<SlothIslandVerificationTest>(nameof(SlothIslandVerificationTest.RunTests)));
-        RunStep("VSR-013", "level_1.unity", "Wrath island content + mechanics", "WrathIslandVerificationTest.RunTests", () =>
-            RunContextMenuSuite<WrathIslandVerificationTest>(nameof(WrathIslandVerificationTest.RunTests)));
+        RunStep("VSR-012", "level_1.unity", "Desire island content + mechanics", "DesireIslandVerificationTest.RunTests", () =>
+            RunContextMenuSuite<DesireIslandVerificationTest>(nameof(DesireIslandVerificationTest.RunTests)));
+        RunStep("VSR-013", "level_1.unity", "Anger island content + mechanics", "AngerIslandVerificationTest.RunTests", () =>
+            RunContextMenuSuite<AngerIslandVerificationTest>(nameof(AngerIslandVerificationTest.RunTests)));
         RunStep("VSR-014", "level_1.unity", "Envy island content + mechanics", "EnvyIslandVerificationTest.RunTests", () =>
             RunContextMenuSuite<EnvyIslandVerificationTest>(nameof(EnvyIslandVerificationTest.RunTests)));
-        RunStep("VSR-015", "level_1.unity", "Pride island content + mechanics", "PrideIslandVerificationTest.RunTests", () =>
-            RunContextMenuSuite<PrideIslandVerificationTest>(nameof(PrideIslandVerificationTest.RunTests)));
-        RunStep("VSR-016", "CombatScene.unity", "Sloth tempo status effects", "SlothStatusEffectTestSuite.RunTests", () =>
-            RunContextMenuSuite<SlothStatusEffectTestSuite>(nameof(SlothStatusEffectTestSuite.RunTests)));
+        RunStep("VSR-015", "level_1.unity", "Ego island content + mechanics", "EgoIslandVerificationTest.RunTests", () =>
+            RunContextMenuSuite<EgoIslandVerificationTest>(nameof(EgoIslandVerificationTest.RunTests)));
+        RunStep("VSR-016", "CombatScene.unity", "Desire tempo status effects", "DesireStatusEffectTestSuite.RunTests", () =>
+            RunContextMenuSuite<DesireStatusEffectTestSuite>(nameof(DesireStatusEffectTestSuite.RunTests)));
         RunStep("VSR-017", "CombatScene.unity", "Envy mirror element copy + covet", "EnvyMirrorTestSuite.RunTests", () =>
             RunContextMenuSuite<EnvyMirrorTestSuite>(nameof(EnvyMirrorTestSuite.RunTests)));
         RunStep("VSR-018", "CombatScene.unity", "Greed economy coin yield + currency steal", "GreedEconomyTestSuite.RunTests", () =>

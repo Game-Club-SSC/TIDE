@@ -262,7 +262,9 @@ public class OverworldEnemy : MonoBehaviour
                 break;
         }
 
+#if UNITY_EDITOR
         Debug.Log($"[OverworldEnemy] {name}: {previousState} -> {newState}");
+#endif
     }
 
     // ========== ROAMING ==========
@@ -758,12 +760,12 @@ public class OverworldEnemy : MonoBehaviour
         switch (islandId)
         {
             case "island_lust":     return CombatUnit.Element.Water;
-            case "island_gluttony": return CombatUnit.Element.Earth;
+            case "island_greed": return CombatUnit.Element.Earth;
             case "island_greed":    return CombatUnit.Element.Earth;
-            case "island_sloth":    return CombatUnit.Element.Air;
-            case "island_wrath":    return CombatUnit.Element.Fire;
+            case "island_desire":    return CombatUnit.Element.Air;
+            case "island_anger":    return CombatUnit.Element.Fire;
             case "island_envy":     return CombatUnit.Element.Space;
-            case "island_pride":    return CombatUnit.Element.Space;
+            case "island_ego":    return CombatUnit.Element.Space;
             default:                return CombatUnit.Element.Fire;
         }
     }

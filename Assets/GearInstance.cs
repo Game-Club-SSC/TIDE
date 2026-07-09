@@ -169,6 +169,20 @@ public class GearInstance
         return result;
     }
 
+    public bool RerollSlot(int slotIndex)
+    {
+        if (unlockedSlots == null || slotIndex < 0 || slotIndex >= unlockedSlots.Count)
+        {
+            return false;
+        }
+
+        GearSlotBonus slot = unlockedSlots[slotIndex];
+        float rolled = UnityEngine.Random.Range(MinBonusPercent, MaxBonusPercent);
+        slot.percentValue = ClampAndRoundPercent(rolled);
+        unlockedSlots[slotIndex] = slot;
+        return true;
+    }
+
     public GearInstanceSaveData ToSaveData()
     {
         GearInstanceSaveData data = new GearInstanceSaveData

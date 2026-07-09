@@ -19,7 +19,7 @@ public static class NarrativeBeatsData
     public const string PreBossJealousyDialogueId = "dialogue_pre_boss_jealousy";
     public const string PreBossLustDialogueId = "dialogue_pre_boss_lust";
     public const string PreBossAngerDialogueId = "dialogue_pre_boss_anger";
-    public const string PreBossPrideDialogueId = "dialogue_pre_boss_pride";
+    public const string PreBossEgoDialogueId = "dialogue_pre_boss_ego";
     public const string AcceptanceDialogueId = "dialogue_acceptance_act3";
 
     public sealed class BeatDefinition
@@ -53,7 +53,7 @@ public static class NarrativeBeatsData
         new BeatDefinition(PreBossJealousyDialogueId, "The Mirror Beach", "The party confronts the lies of comparison."),
         new BeatDefinition(PreBossLustDialogueId, "The Enchanted Shore", "The party resists the pull of enchantment."),
         new BeatDefinition(PreBossAngerDialogueId, "The Burning Words", "The party speaks the words they've been holding back."),
-        new BeatDefinition(PreBossPrideDialogueId, "The Last Peak", "The party faces the enemy that wears their own face."),
+        new BeatDefinition(PreBossEgoDialogueId, "The Last Peak", "The party faces the enemy that wears their own face."),
         new BeatDefinition(AcceptanceDialogueId, "Acceptance", "Before the final confrontation, the party accepts what comes.")
     };
 

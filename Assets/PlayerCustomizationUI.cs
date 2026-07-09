@@ -89,6 +89,23 @@ public class PlayerCustomizationUI : MonoBehaviour
             && !GameStateManager.Instance.IsTransitioning;
     }
 
+    public void ToggleFromExternal()
+    {
+        if (!CanToggle())
+        {
+            return;
+        }
+
+        if (isOpen)
+        {
+            CloseMenu();
+        }
+        else
+        {
+            OpenMenu();
+        }
+    }
+
     private void OpenMenu()
     {
         if (isOpen)

@@ -14,6 +14,7 @@ public class DifficultyModeService : MonoBehaviour
     public static DifficultyModeService Instance { get; private set; }
 
     [SerializeField] private Difficulty currentDifficulty = Difficulty.Standard;
+    [SerializeField] private BalanceConfig balanceConfig;
 
     public event Action<Difficulty> OnDifficultyChanged;
 
@@ -55,6 +56,10 @@ public class DifficultyModeService : MonoBehaviour
 
     public float GetDamageMultiplierForPlayer()
     {
+        if (balanceConfig != null)
+        {
+            return balanceConfig.GetPlayerDamageMultiplierForDifficulty(currentDifficulty);
+        }
         switch (currentDifficulty)
         {
             case Difficulty.Story: return 1.2f;
@@ -66,6 +71,10 @@ public class DifficultyModeService : MonoBehaviour
 
     public float GetDamageMultiplierForEnemy()
     {
+        if (balanceConfig != null)
+        {
+            return balanceConfig.GetEnemyDamageMultiplierForDifficulty(currentDifficulty);
+        }
         switch (currentDifficulty)
         {
             case Difficulty.Story: return 0.7f;
@@ -77,6 +86,10 @@ public class DifficultyModeService : MonoBehaviour
 
     public float GetXpMultiplier()
     {
+        if (balanceConfig != null)
+        {
+            return balanceConfig.GetXpMultiplierForDifficulty(currentDifficulty);
+        }
         switch (currentDifficulty)
         {
             case Difficulty.Story: return 0.8f;

@@ -22,12 +22,12 @@ public static class PerIslandContentRegistry
 
     private static readonly List<IslandContentPack> Packs = new List<IslandContentPack>
     {
-        new IslandContentPack("island_gluttony", "Gluttony Island", "gluttony_enc", 1, "gluttony_boss"),
-        new IslandContentPack("island_greed", "Greed Island", "greed_enc", 3, "greed_boss"),
-        new IslandContentPack("island_sloth", "Sloth Island", "sloth_enc", 5, "sloth_boss"),
-        new IslandContentPack("island_wrath", "Wrath Island", "wrath_enc", 7, "wrath_boss"),
-        new IslandContentPack("island_envy", "Envy Island", "envy_enc", 9, "envy_boss"),
-        new IslandContentPack("island_pride", "Pride Island", "pride_enc", 11, "pride_final_boss")
+        new IslandContentPack("island_lust", "Lust Island", "lust_enc", 1, "lust_boss"),
+        new IslandContentPack("island_greed", "Greed Island", "greed_enc", 4, "greed_boss"),
+        new IslandContentPack("island_desire", "Desire Island", "desire_enc", 6, "desire_boss"),
+        new IslandContentPack("island_anger", "Anger Island", "anger_enc", 8, "anger_boss"),
+        new IslandContentPack("island_envy", "Envy Island", "envy_enc", 10, "envy_boss"),
+        new IslandContentPack("island_ego", "Ego Island", "ego_enc", 12, "ego_boss")
     };
 
     public static IReadOnlyList<IslandContentPack> GetAllPacks()

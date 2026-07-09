@@ -370,6 +370,13 @@ public class CombatUnit : MonoBehaviour
             activeEffects.Add(effect);
             Debug.Log($"[CombatUnit] {unitName} gained {effect.Type} effect from {effect.SourceName}. Duration: {effect.Duration}, Magnitude: {effect.Magnitude}");
         }
+
+        if (effect.Type == StatusEffectType.Shield)
+        {
+            // Shield refreshes replace the existing shield value rather than stacking
+            shieldHp = effect.Magnitude * maxHp;
+            Debug.Log($"[CombatUnit] {unitName}'s shield HP set to {shieldHp:F0} ({effect.Magnitude:P0} of MaxHP).");
+        }
     }
 
     public void ProcessTurnStartEffects()
@@ -436,18 +443,23 @@ public class CombatUnit : MonoBehaviour
             }
         }
 
-        // Update taunt state: find an active Taunt effect and set tauntedBy accordingly
-        tauntedBy = null;
+        // Update taunt state: only clear tauntedBy if no active Taunt effect remains.
+        // tauntedBy is set externally via SetTaunter; we preserve it as long as a
+        // Taunt effect is active so the taunt persists across turns.
+        bool hasActiveTaunt = false;
         for (int i = 0; i < activeEffects.Count; i++)
         {
             StatusEffect effect = activeEffects[i];
             if (effect != null && effect.Type == StatusEffectType.Taunt)
             {
-                // Taunt source is the unit taunting us; look up by name is not possible here,
-                // so tauntedBy is set externally via ApplyTaunt or by the battle manager.
-                // If already set, keep the existing reference.
+                hasActiveTaunt = true;
                 break;
             }
+        }
+
+        if (!hasActiveTaunt)
+        {
+            tauntedBy = null;
         }
     }
 

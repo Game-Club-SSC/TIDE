@@ -168,7 +168,7 @@ public class BattleManager : MonoBehaviour
 
     public void SwapUnits(CombatUnit activeUnit, CombatUnit reserveUnit)
     {
-        if (!AllowInBattlePartySwap)
+        if (!allowInBattlePartySwap)
         {
             Debug.LogWarning("[BattleManager] In-battle party swapping is disabled by design.");
             return;
@@ -187,6 +187,11 @@ public class BattleManager : MonoBehaviour
         if (!allyReserveUnits.Contains(reserveUnit))
         {
             Debug.LogWarning($"[BattleManager] {reserveUnit.UnitName} is not in reserve ally list.");
+            return;
+        }
+        if (!activeUnit.IsAlive)
+        {
+            Debug.LogWarning($"[BattleManager] Cannot swap out dead unit {activeUnit.UnitName}.");
             return;
         }
         if (!reserveUnit.IsAlive)
@@ -262,7 +267,10 @@ public class BattleManager : MonoBehaviour
     private bool actionExecutionActive;
     private BattleHud cachedBattleHud;
     private string debugText = "";
-    private static readonly bool AllowInBattlePartySwap = false;
+    [Header("Party Swap")]
+    [SerializeField] private bool allowInBattlePartySwap;
+    [SerializeField] private int swapsPerTurn = 1;
+    private int swapsRemainingPerTurn;
     private bool canSwapDuringPlayerInput = true;
     private int failedFleeAttemptsThisBattle;
 
@@ -274,6 +282,10 @@ public class BattleManager : MonoBehaviour
     private float relationshipClashBonus = 0f;
     private float relationshipTeamUpChance = 0f;
     private float averageBondLevel = 50f;
+
+    [Header("Balance")]
+    [SerializeField] private BalanceConfig balanceConfig;
+    [SerializeField] private DifficultyModeService difficultyService;
 
     [Header("Envy Mirror")]
     [SerializeField] private bool isBossEncounter;
@@ -669,6 +681,7 @@ public class BattleManager : MonoBehaviour
         pendingInputActionType = CombatActionType.Attack;
         pendingSkillData = null;
         pendingTideBreak = null;
+        swapsRemainingPerTurn = swapsPerTurn;
 
         // Clear skip turn flags for all ally units
         foreach (CombatUnit ally in allyUnits)
@@ -698,6 +711,12 @@ public class BattleManager : MonoBehaviour
 
         if (!hasActivePhase || currentPhase != BattlePhase.PlayerInput || IsTerminalPhase(currentPhase))
         {
+            return false;
+        }
+
+        if (difficultyService != null && !difficultyService.AllowsFleeInCombat())
+        {
+            Debug.LogWarning("[BattleManager] Fleeing is not allowed on this difficulty.");
             return false;
         }
 
@@ -1397,6 +1416,16 @@ public class BattleManager : MonoBehaviour
     private void BeginEndTurnPhase()
     {
         selectedPlayerActions.Clear();
+
+        // Clear skip-turn flags for all living units so stun/drowsy only lasts one round
+        foreach (CombatUnit unit in turnQueue)
+        {
+            if (unit != null && unit.IsAlive)
+            {
+                unit.SkipTurnThisRound = false;
+            }
+        }
+
         BuildTurnQueueFromLivingUnits();
         CheckBattleOutcome();
     }
@@ -1521,7 +1550,10 @@ public class BattleManager : MonoBehaviour
 
         float attackMod = actor.GetAttackModifier();
         int baseDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
-        float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+        MatchupResult matchupForMult = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+        float multiplier = balanceConfig != null
+            ? balanceConfig.GetElementMultiplier(matchupForMult)
+            : ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
 
         // Apply relationship damage multiplier (only for ally attacks)
         if (actor.Type == CombatUnit.UnitType.Ally)
@@ -1539,6 +1571,14 @@ public class BattleManager : MonoBehaviour
         }
         
         int modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageFloat));
+
+        if (difficultyService != null)
+        {
+            float diffMult = actor.Type == CombatUnit.UnitType.Ally
+                ? difficultyService.GetDamageMultiplierForPlayer()
+                : difficultyService.GetDamageMultiplierForEnemy();
+            modifiedDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamage * diffMult));
+        }
 
         MatchupResult matchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
         int hpBefore = target.HP;
@@ -1571,6 +1611,37 @@ public class BattleManager : MonoBehaviour
         Debug.Log(
             $"[BattleManager] {actor.UnitName} attacks {target.UnitName} for {modifiedDamage} (base {baseDamage} x{multiplier:F2}). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
             this);
+
+        if (actor.Type == CombatUnit.UnitType.Ally && target.IsAlive)
+        {
+            float teamUpRoll = UnityEngine.Random.value;
+            if (teamUpRoll <= relationshipTeamUpChance)
+            {
+                CombatUnit partner = FindTeamUpPartner(actor);
+                if (partner != null && partner.IsAlive)
+                {
+                    float partnerMod = partner.GetAttackModifier();
+                    int partnerBase = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(partner.Attack * (1f + partnerMod)));
+                    MatchupResult partnerMatchup = ElementMatchup.GetResult(partner.ElementType, target.ElementType);
+                    float partnerMult = balanceConfig != null
+                        ? balanceConfig.GetElementMultiplier(partnerMatchup)
+                        : ElementMatchup.GetDamageMultiplier(partner.ElementType, target.ElementType);
+                    partnerMult *= relationshipDamageMultiplier;
+                    float partnerVariance = UnityEngine.Random.Range(0.8f, 1.2f);
+                    int partnerDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(partnerBase * partnerMult * 0.7f * partnerVariance));
+
+                    if (difficultyService != null)
+                    {
+                        partnerDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(partnerDmg * difficultyService.GetDamageMultiplierForPlayer()));
+                    }
+
+                    int partnerHpBefore = target.HP;
+                    target.TakeDamage(partnerDmg);
+                    TriggerBattleHitFeedback(partner, target, false, false);
+                    Debug.Log($"[BattleManager] TEAM-UP! {partner.UnitName} joins {actor.UnitName}'s attack on {target.UnitName} for {partnerDmg}! HP {partnerHpBefore} -> {target.HP}", this);
+                }
+            }
+        }
     }
 
     private void ResolveSkill(CombatUnit actor, CombatUnit requestedTarget, SkillData skill)
@@ -1620,7 +1691,28 @@ public class BattleManager : MonoBehaviour
 
         actor.SpendMp(skill.mpCost);
 
-        // Ally-targeting heal skills: apply healing instead of damage
+        if (skill.target == SkillTarget.Self)
+        {
+            float selfHealMod = actor.GetAttackModifier();
+            int baseSelfHeal = Mathf.Max(1, Mathf.RoundToInt(actor.Attack * (1f + selfHealMod)));
+            float selfVariance = UnityEngine.Random.Range(0.9f, 1.1f);
+            float selfRelMod = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
+            int selfHealAmount = Mathf.Max(1, Mathf.RoundToInt(baseSelfHeal * skill.healMultiplier * selfVariance * selfRelMod));
+            if (selfHealAmount > 0)
+            {
+                int hpBefore = actor.HP;
+                actor.Heal(selfHealAmount);
+                Debug.Log($"[BattleManager] {actor.UnitName} heals self for {selfHealAmount} via {skill.skillName}. HP {hpBefore} -> {actor.HP}.");
+            }
+            TryApplySkillStatusEffect(actor, actor, skill);
+            AudioManager selfAudio = AudioManager.Instance;
+            if (selfAudio != null)
+            {
+                selfAudio.HandleHeal();
+            }
+            return;
+        }
+
         if (skill.healMultiplier > 0f && (skill.target == SkillTarget.SingleAlly || skill.target == SkillTarget.AllAllies))
         {
             float healMod = actor.GetAttackModifier();
@@ -1636,7 +1728,7 @@ public class BattleManager : MonoBehaviour
                 healTarget.Heal(healAmount);
                 Debug.Log($"[BattleManager] {actor.UnitName} heals {healTarget.UnitName} for {healAmount} via {skill.skillName}. HP {hpBefore} -> {healTarget.HP}.");
             }
-            else // AllAllies
+            else
             {
                 IReadOnlyList<CombatUnit> allies = GetAliveUnits(CombatUnit.UnitType.Ally);
                 for (int i = 0; i < allies.Count; i++)
@@ -1658,12 +1750,98 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        if (skill.target == SkillTarget.AllEnemies)
+        {
+            CombatUnit.UnitType enemyType = actor.Type == CombatUnit.UnitType.Ally
+                ? CombatUnit.UnitType.Enemy
+                : CombatUnit.UnitType.Ally;
+            IReadOnlyList<CombatUnit> aoeTargets = GetAliveUnits(enemyType);
+
+            if (actor.Type == CombatUnit.UnitType.Ally)
+            {
+                lastAttacker = actor;
+                lastPlayerSkill = skill;
+            }
+
+            float attackMod = actor.GetAttackModifier();
+            int baseDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
+            float relDmgMult = actor.Type == CombatUnit.UnitType.Ally ? relationshipDamageMultiplier : 1f;
+            int totalDmg = 0;
+
+            for (int i = 0; i < aoeTargets.Count; i++)
+            {
+                CombatUnit aoeTarget = aoeTargets[i];
+                float elemMult = ElementMatchup.GetDamageMultiplier(actor.ElementType, aoeTarget.ElementType);
+                if (balanceConfig != null)
+                {
+                    elemMult = balanceConfig.GetElementMultiplier(ElementMatchup.GetResult(actor.ElementType, aoeTarget.ElementType));
+                }
+                float skillMult = elemMult * skill.damageMultiplier * relDmgMult;
+                float variance = UnityEngine.Random.Range(0.8f, 1.2f);
+                float dmgFloat = baseDmg * skillMult * variance;
+                int dmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(dmgFloat));
+
+                if (difficultyService != null)
+                {
+                    float diffMult = actor.Type == CombatUnit.UnitType.Ally
+                        ? difficultyService.GetDamageMultiplierForPlayer()
+                        : difficultyService.GetDamageMultiplierForEnemy();
+                    dmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(dmg * diffMult));
+                }
+
+                if (aoeTarget.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
+                {
+                    dmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(dmg * relationshipDefenseMultiplier));
+                }
+
+                int hpBefore = aoeTarget.HP;
+                aoeTarget.TakeDamage(dmg);
+                totalDmg += (hpBefore - aoeTarget.HP);
+                TriggerBattleHitFeedback(actor, aoeTarget, false, true);
+            }
+
+            MatchupResult aoeMatchup = ElementMatchup.GetResult(actor.ElementType, aoeTargets.Count > 0 ? aoeTargets[0].ElementType : CombatUnit.Element.None);
+            momentumState.ShiftForAction(actor, aoeMatchup);
+            OnDamageDealt?.Invoke(actor, false);
+
+            if (skill.appliedEffectType != StatusEffectType.None)
+            {
+                for (int j = 0; j < aoeTargets.Count; j++)
+                {
+                    TryApplySkillStatusEffect(actor, aoeTargets[j], skill);
+                }
+            }
+
+            Debug.Log($"[BattleManager] {actor.UnitName} uses AoE {skill.skillName} on {aoeTargets.Count} targets for {totalDmg} total (-{skill.mpCost} MP).", this);
+            return;
+        }
+
+        CombatUnit target = requestedTarget;
+        if (!IsValidTarget(actor, target))
+        {
+            target = GetRandomLivingOpponent(actor);
+        }
+
+        if (!IsValidTarget(actor, target))
+        {
+            Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} but has no valid target.", this);
+            return;
+        }
+
+        if (actor.Type == CombatUnit.UnitType.Ally)
+        {
+            lastAttacker = actor;
+            lastPlayerSkill = skill;
+        }
+
         float attackMod = actor.GetAttackModifier();
         int baseDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
-        float multiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+        MatchupResult matchupForSkillMult = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+        float multiplier = balanceConfig != null
+            ? balanceConfig.GetElementMultiplier(matchupForSkillMult)
+            : ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
         float skillMultiplierSingle = multiplier * skill.damageMultiplier;
 
-        // Apply relationship damage multiplier (only for ally skills)
         if (actor.Type == CombatUnit.UnitType.Ally)
         {
             skillMultiplierSingle *= relationshipDamageMultiplier;
@@ -1686,10 +1864,17 @@ public class BattleManager : MonoBehaviour
         
         int modifiedDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageFloatSingle));
 
+        if (difficultyService != null)
+        {
+            float diffMult = actor.Type == CombatUnit.UnitType.Ally
+                ? difficultyService.GetDamageMultiplierForPlayer()
+                : difficultyService.GetDamageMultiplierForEnemy();
+            modifiedDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageSingle * diffMult));
+        }
+
         MatchupResult matchupSingle = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
         int hpBeforeSingle = target.HP;
 
-        // Apply relationship defense multiplier (reduces damage when enemies hit allies)
         int finalDamageSingle = modifiedDamageSingle;
         if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
         {
@@ -1702,7 +1887,6 @@ public class BattleManager : MonoBehaviour
 
         if (skill.restoreCasterPercentOfDamage > 0f && actualDamageSingle > 0)
         {
-            // Apply relationship healing multiplier (boosts lifesteal for allies)
             float healMultiplier = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
             int restoredAmount = Mathf.Max(1, Mathf.RoundToInt(actualDamageSingle * skill.restoreCasterPercentOfDamage * healMultiplier));
             actor.Heal(restoredAmount);
@@ -1780,7 +1964,9 @@ public class BattleManager : MonoBehaviour
                 ? TideBreakAbility.PlayerDefault
                 : TideBreakAbility.EnemyDefault;
             abilityName = tb.AbilityName;
-            damageMultiplier = tb.DamageMultiplier;
+            damageMultiplier = balanceConfig != null
+                ? balanceConfig.GetTideBreakMultiplier(actor.Type == CombatUnit.UnitType.Ally)
+                : tb.DamageMultiplier;
             targetType = tb.IsPlayerAbility ? SkillTarget.AllEnemies : SkillTarget.SingleEnemy;
         }
 
@@ -1792,6 +1978,13 @@ public class BattleManager : MonoBehaviour
             damageMultiplier *= relationshipTideBreakMultiplier;
         }
 
+        if (difficultyService != null)
+        {
+            damageMultiplier *= actor.Type == CombatUnit.UnitType.Ally
+                ? difficultyService.GetDamageMultiplierForPlayer()
+                : difficultyService.GetDamageMultiplierForEnemy();
+        }
+
         if (targetType == SkillTarget.AllEnemies)
         {
             CombatUnit.UnitType targetTypeUnit = actor.Type == CombatUnit.UnitType.Ally ? CombatUnit.UnitType.Enemy : CombatUnit.UnitType.Ally;
@@ -1800,11 +1993,13 @@ public class BattleManager : MonoBehaviour
             foreach (CombatUnit target in targets)
             {
                 int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
-                float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+                MatchupResult tbMatchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+                float elementMultiplier = balanceConfig != null
+                    ? balanceConfig.GetElementMultiplier(tbMatchup)
+                    : ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
                 float variance = UnityEngine.Random.Range(0.8f, 1.2f);
                 int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * damageMultiplier * elementMultiplier * variance));
 
-                // Apply relationship defense multiplier (reduces damage when enemies hit allies)
                 int finalDmg = modifiedDmg;
                 if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
                 {
@@ -1819,7 +2014,48 @@ public class BattleManager : MonoBehaviour
             }
             Debug.Log($"[BattleManager] {abilityName} hits {targets.Count} targets for {totalDamage} total.", this);
         }
-        else // SingleEnemy (or other, but treat as single)
+        else if (targetType == SkillTarget.SingleAlly)
+        {
+            CombatUnit allyTarget = requestedTarget != null && requestedTarget.IsAlive && requestedTarget.Type == actor.Type
+                ? requestedTarget
+                : GetLowestHpAlly(actor);
+            if (allyTarget != null)
+            {
+                float reduction = Mathf.Clamp01(damageMultiplier * 0.3f);
+                StatusEffect shield = new StatusEffect(StatusEffectType.Shield, 3, reduction, actor.UnitName);
+                allyTarget.ApplyStatusEffect(shield);
+                Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} grants {allyTarget.UnitName} a shield (-{reduction:P0} damage, 3 turns).", this);
+            }
+        }
+        else if (targetType == SkillTarget.AllAllies)
+        {
+            IReadOnlyList<CombatUnit> allies = GetAliveUnits(actor.Type);
+            float relationshipHealMod = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
+            int healBase = Mathf.Max(1, Mathf.RoundToInt(actor.Attack * damageMultiplier * 0.5f * relationshipHealMod));
+            for (int i = 0; i < allies.Count; i++)
+            {
+                CombatUnit ally = allies[i];
+                int hpBefore = ally.HP;
+                ally.Heal(healBase);
+                Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} heals {ally.UnitName} for {healBase}. HP {hpBefore} -> {ally.HP}.", this);
+            }
+            AudioManager healAudio = AudioManager.Instance;
+            if (healAudio != null)
+            {
+                healAudio.HandleHeal();
+            }
+        }
+        else if (targetType == SkillTarget.Self)
+        {
+            float buffMag = Mathf.Clamp01(damageMultiplier * 0.25f);
+            StatusEffect selfBuff = new StatusEffect(StatusEffectType.BuffAttack, 3, buffMag, actor.UnitName);
+            actor.ApplyStatusEffect(selfBuff);
+            int selfHeal = Mathf.Max(1, Mathf.RoundToInt(actor.Attack * damageMultiplier * 0.3f));
+            int hpBefore = actor.HP;
+            actor.Heal(selfHeal);
+            Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} buffs self (+{buffMag:P0} ATK, healed {selfHeal}). HP {hpBefore} -> {actor.HP}.", this);
+        }
+        else
         {
             CombatUnit target = requestedTarget;
             if (!IsValidTarget(actor, target))
@@ -1835,11 +2071,13 @@ public class BattleManager : MonoBehaviour
             }
 
             int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
-            float elementMultiplier = ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+            MatchupResult tbSingleMatchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+            float elementMultiplier = balanceConfig != null
+                ? balanceConfig.GetElementMultiplier(tbSingleMatchup)
+                : ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
             float variance = UnityEngine.Random.Range(0.8f, 1.2f);
             int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * damageMultiplier * elementMultiplier * variance));
 
-            // Apply relationship defense multiplier (reduces damage when enemies hit allies)
             int finalDmg = modifiedDmg;
             if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
             {
@@ -1921,6 +2159,46 @@ public class BattleManager : MonoBehaviour
         return weakest;
     }
 
+    private CombatUnit GetLowestHpAlly(CombatUnit actor)
+    {
+        IReadOnlyList<CombatUnit> allies = GetAliveUnits(actor.Type);
+        if (allies.Count == 0)
+        {
+            return null;
+        }
+
+        CombatUnit lowest = allies[0];
+        for (int i = 1; i < allies.Count; i++)
+        {
+            if (allies[i].HP < lowest.HP)
+            {
+                lowest = allies[i];
+            }
+        }
+
+        return lowest;
+    }
+
+    private CombatUnit FindTeamUpPartner(CombatUnit actor)
+    {
+        IReadOnlyList<CombatUnit> allies = GetAliveUnits(CombatUnit.UnitType.Ally);
+        List<CombatUnit> candidates = new List<CombatUnit>();
+        for (int i = 0; i < allies.Count; i++)
+        {
+            if (allies[i] != actor && allies[i].IsAlive)
+            {
+                candidates.Add(allies[i]);
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        return candidates[UnityEngine.Random.Range(0, candidates.Count)];
+    }
+
     private bool IsValidTarget(CombatUnit actor, CombatUnit target)
     {
         if (actor == null || target == null)
@@ -1931,6 +2209,26 @@ public class BattleManager : MonoBehaviour
         if (!actor.IsAlive || !target.IsAlive)
         {
             return false;
+        }
+
+        return actor.Type != target.Type;
+    }
+
+    private bool IsValidTargetForSkill(CombatUnit actor, CombatUnit target, SkillTarget targetType)
+    {
+        if (actor == null || target == null)
+        {
+            return false;
+        }
+
+        if (!actor.IsAlive || !target.IsAlive)
+        {
+            return false;
+        }
+
+        if (targetType == SkillTarget.SingleAlly || targetType == SkillTarget.AllAllies)
+        {
+            return actor.Type == target.Type;
         }
 
         return actor.Type != target.Type;
@@ -2478,7 +2776,7 @@ public class BattleManager : MonoBehaviour
                     return false;
                 }
 
-                if (!IsValidTarget(actor, target))
+                if (!IsValidTargetForSkill(actor, target, skill.target))
                 {
                     return false;
                 }
@@ -2508,7 +2806,7 @@ public class BattleManager : MonoBehaviour
                 // Determine if target is required based on targetType
                 bool targetRequired = TideBreakRequiresExplicitTarget(tbData, actor);
 
-                if (targetRequired && !IsValidTarget(actor, target))
+                if (targetRequired && !IsValidTargetForSkill(actor, target, tbData.targetType))
                 {
                     return false;
                 }
@@ -2519,7 +2817,11 @@ public class BattleManager : MonoBehaviour
                 return true;
 
             case CombatActionType.Swap:
-                Debug.LogWarning("[BattleManager] Swap action rejected. In-battle party swapping is disabled by design.");
+                if (!allowInBattlePartySwap || swapsRemainingPerTurn <= 0)
+                {
+                    Debug.LogWarning("[BattleManager] Swap action rejected. In-battle party swapping is disabled or no swaps remaining.");
+                    return false;
+                }
                 return false;
         }
 
@@ -2528,9 +2830,15 @@ public class BattleManager : MonoBehaviour
 
     public bool TrySwapWithReserve(CombatUnit activeUnit, CombatUnit reserveUnit)
     {
-        if (!AllowInBattlePartySwap)
+        if (!allowInBattlePartySwap)
         {
             Debug.LogWarning("[BattleManager] TrySwapWithReserve rejected. In-battle party swapping is disabled by design.");
+            return false;
+        }
+
+        if (swapsRemainingPerTurn <= 0)
+        {
+            Debug.LogWarning("[BattleManager] No swaps remaining this turn.");
             return false;
         }
 
@@ -2583,14 +2891,14 @@ public class BattleManager : MonoBehaviour
         SwapUnits(activeUnit, reserveUnit);
         // Mark incoming unit to skip turn this round
         reserveUnit.SkipTurnThisRound = true;
-        // Refresh player input units to reflect new composition
+        swapsRemainingPerTurn--;
         RefreshPlayerInputUnits();
         return true;
     }
 
     public bool IsPartySwapAllowedThisRound()
     {
-        return AllowInBattlePartySwap && canSwapDuringPlayerInput && hasActivePhase && currentPhase == BattlePhase.PlayerInput;
+        return allowInBattlePartySwap && swapsRemainingPerTurn > 0 && canSwapDuringPlayerInput && hasActivePhase && currentPhase == BattlePhase.PlayerInput;
     }
 
     public void SetPendingTideBreak(TideBreakData tb)
@@ -2605,7 +2913,11 @@ public class BattleManager : MonoBehaviour
 
     public bool IsSkillSupportedForCurrentSlice(SkillData skill)
     {
-        return skill != null && skill.target == SkillTarget.SingleEnemy;
+        return skill != null && (skill.target == SkillTarget.SingleEnemy
+            || skill.target == SkillTarget.AllEnemies
+            || skill.target == SkillTarget.SingleAlly
+            || skill.target == SkillTarget.AllAllies
+            || skill.target == SkillTarget.Self);
     }
 
     public SkillData GetFirstUsableSupportedSkillForCurrentSlice(CombatUnit actor)
@@ -2641,7 +2953,10 @@ public class BattleManager : MonoBehaviour
         }
 
         return tideBreak.targetType == SkillTarget.SingleEnemy
-            || tideBreak.targetType == SkillTarget.AllEnemies;
+            || tideBreak.targetType == SkillTarget.AllEnemies
+            || tideBreak.targetType == SkillTarget.SingleAlly
+            || tideBreak.targetType == SkillTarget.AllAllies
+            || tideBreak.targetType == SkillTarget.Self;
     }
 
     public TideBreakData GetFirstSupportedTideBreakForCurrentSlice(CombatUnit actor)
@@ -2697,7 +3012,8 @@ public class BattleManager : MonoBehaviour
                 return false;
             }
 
-            return tideBreak.targetType == SkillTarget.SingleEnemy;
+            return tideBreak.targetType == SkillTarget.SingleEnemy
+                || tideBreak.targetType == SkillTarget.SingleAlly;
         }
 
         return actor != null && actor.Type == CombatUnit.UnitType.Enemy;
@@ -2733,6 +3049,13 @@ public class BattleManager : MonoBehaviour
             actor.UnitName);
 
         target.ApplyStatusEffect(effect);
+
+        // Taunt requires linking the taunter reference so IsTaunted/TauntedBy work
+        if (skill.appliedEffectType == StatusEffectType.Taunt)
+        {
+            target.SetTaunter(actor);
+        }
+
         Debug.Log($"[BattleManager] {actor.UnitName} applied {skill.appliedEffectType} to {target.UnitName} via {skill.skillName} ({skill.effectDuration} turns).", this);
     }
 

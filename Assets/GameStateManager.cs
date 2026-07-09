@@ -139,11 +139,13 @@ public class GameStateManager : MonoBehaviour
     private const float ExplorationPositionSyncInterval = 0.2f;
     private const float RestorationThresholdEpsilon = 0.01f;
     private const string WorldStateSaveKey = "TIDE_WORLD_STATE_V1";
-    private static readonly Vector3 DefaultSmithyPosition = new Vector3(15f, 31.54f, 2.69f);
-    private static readonly Vector3 DefaultSmithyScale = new Vector3(1.4f, 1.1f, 1.4f);
-    private static readonly Vector3 DefaultBoatPosition = new Vector3(8.5f, 31.54f, 2.69f);
-    private static readonly Vector3 DefaultBoatScale = new Vector3(2.2f, 0.75f, 1.25f);
-    private static readonly Vector3 DefaultExplorationSpawnPosition = new Vector3(12f, 31.54f, 2.69f);
+
+    [Header("Default Spawn Positions")]
+    [SerializeField] private Vector3 defaultSmithyPosition = new Vector3(15f, 31.54f, 2.69f);
+    [SerializeField] private Vector3 defaultSmithyScale = new Vector3(1.4f, 1.1f, 1.4f);
+    [SerializeField] private Vector3 defaultBoatPosition = new Vector3(8.5f, 31.54f, 2.69f);
+    [SerializeField] private Vector3 defaultBoatScale = new Vector3(2.2f, 0.75f, 1.25f);
+    [SerializeField] private Vector3 defaultExplorationSpawnPosition = new Vector3(12f, 31.54f, 2.69f);
 
     private CanvasGroup fadeCanvasGroup;
     private IsometricPlayer player;
@@ -1574,6 +1576,28 @@ public class GameStateManager : MonoBehaviour
         int reserveXp = Mathf.RoundToInt(totalXp * reserveMultiplier);
 
         Debug.Log($"[GameStateManager] Granted {totalXp} XP to active party, {reserveXp} XP to reserve.");
+
+        TryRollGearDrop();
+    }
+
+    private void TryRollGearDrop()
+    {
+        GearDropService dropService = GearDropService.ActiveInstance;
+        if (dropService == null)
+        {
+            return;
+        }
+
+        string islandId = !string.IsNullOrEmpty(PendingCombatIslandId)
+            ? IslandThemeRegistry.ResolveIslandId(PendingCombatIslandId)
+            : IslandThemeRegistry.GetActiveIslandId();
+
+        string enemyType = !string.IsNullOrEmpty(PendingCombatEncounterId) ? PendingCombatEncounterId : "generic";
+
+        if (dropService.TryRollDrop(enemyType, islandId, out string gearSetId, out GearDropService.GearRarity rarity))
+        {
+            Debug.Log($"[GameStateManager] Gear drop: {gearSetId} ({rarity}) from {enemyType} on {islandId}.");
+        }
     }
 
     private IEnumerator ReturnFromCombatAfterDelay(float delay)
@@ -2433,7 +2457,7 @@ public class GameStateManager : MonoBehaviour
         hasBootstrappedFlowForCurrentScene = true;
     }
 
-    private static void EnsureSmithyInteractable()
+    private void EnsureSmithyInteractable()
     {
         if (FindFirstObjectByType<SmithyInteractable>() != null)
         {
@@ -2442,13 +2466,13 @@ public class GameStateManager : MonoBehaviour
 
         GameObject smithyObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
         smithyObject.name = "SmithyStation";
-        smithyObject.transform.position = DefaultSmithyPosition;
-        smithyObject.transform.localScale = DefaultSmithyScale;
+        smithyObject.transform.position = defaultSmithyPosition;
+        smithyObject.transform.localScale = defaultSmithyScale;
 
         smithyObject.AddComponent<SmithyInteractable>();
     }
 
-    private static void EnsureIslandBoatInteractable()
+    private void EnsureIslandBoatInteractable()
     {
         if (FindFirstObjectByType<IslandBoatInteractable>() != null)
         {
@@ -2457,8 +2481,8 @@ public class GameStateManager : MonoBehaviour
 
         GameObject boatObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         boatObject.name = "IslandBoat";
-        boatObject.transform.position = DefaultBoatPosition;
-        boatObject.transform.localScale = DefaultBoatScale;
+        boatObject.transform.position = defaultBoatPosition;
+        boatObject.transform.localScale = defaultBoatScale;
 
         Renderer renderer = boatObject.GetComponent<Renderer>();
         if (renderer != null)
@@ -2818,7 +2842,7 @@ public class GameStateManager : MonoBehaviour
             return true;
         }
 
-        spawnPosition = ResolveSafeReturnPosition(DefaultExplorationSpawnPosition);
+        spawnPosition = ResolveSafeReturnPosition(defaultExplorationSpawnPosition);
         return true;
     }
 
@@ -2870,13 +2894,13 @@ public class GameStateManager : MonoBehaviour
     {
         if (!IsFiniteVector(candidatePosition))
         {
-            return DefaultExplorationSpawnPosition;
+            return defaultExplorationSpawnPosition;
         }
 
         float y = candidatePosition.y;
         if (Mathf.Abs(y) < 0.001f)
         {
-            y = DefaultExplorationSpawnPosition.y;
+            y = defaultExplorationSpawnPosition.y;
         }
 
         if (Mathf.Abs(y) < 0.001f)
@@ -2915,7 +2939,7 @@ public class GameStateManager : MonoBehaviour
             }
         }
 
-        return DefaultExplorationSpawnPosition;
+        return defaultExplorationSpawnPosition;
     }
 
     private bool IsSafeExplorationReturnPosition(Vector3 candidatePosition)

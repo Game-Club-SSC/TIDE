@@ -15,12 +15,11 @@ public enum AudioCue
 
     // Per-island BGM
     IslandGreedBgm,
-    IslandSlothBgm,
+    IslandDesireBgm,
     IslandEnvyBgm,
     IslandLustBgm,
-    IslandWrathBgm,
-    IslandPrideBgm,
-    IslandGluttonyBgm,
+    IslandAngerBgm,
+    IslandEgoBgm,
 
     // Stingers
     CombatVictory,
@@ -82,12 +81,11 @@ public class AudioManager : MonoBehaviour
 
     [Header("Per-Island Music")]
     [SerializeField] private AudioClip islandGreedBgm;
-    [SerializeField] private AudioClip islandSlothBgm;
+    [SerializeField] private AudioClip islandDesireBgm;
     [SerializeField] private AudioClip islandEnvyBgm;
     [SerializeField] private AudioClip islandLustBgm;
-    [SerializeField] private AudioClip islandWrathBgm;
-    [SerializeField] private AudioClip islandPrideBgm;
-    [SerializeField] private AudioClip islandGluttonyBgm;
+    [SerializeField] private AudioClip islandAngerBgm;
+    [SerializeField] private AudioClip islandEgoBgm;
 
     [Header("Stingers")]
     [SerializeField] private AudioClip combatVictorySting;
@@ -144,6 +142,7 @@ public class AudioManager : MonoBehaviour
     private IslandAudioProfile activeIslandProfile;
     private float lastStingTime = -10f;
     private Coroutine bgmFadeRoutine;
+    private bool gsmSubscribed;
 
     public bool IsMuted => mute;
     public float BgmVolume => mute ? 0f : bgmVolume;
@@ -167,12 +166,28 @@ public class AudioManager : MonoBehaviour
         ApplyVolumes();
         SceneManager.sceneLoaded += HandleSceneLoaded;
 
-        GameStateManager gsm = GameStateManager.Instance;
-        if (gsm != null)
+        TrySubscribeGsm();
+    }
+
+    private void Update()
+    {
+        if (!gsmSubscribed)
         {
-            gsm.OnStoryActChanged -= HandleStoryActChanged;
-            gsm.OnStoryActChanged += HandleStoryActChanged;
+            TrySubscribeGsm();
         }
+    }
+
+    private void TrySubscribeGsm()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm == null)
+        {
+            return;
+        }
+
+        gsm.OnStoryActChanged -= HandleStoryActChanged;
+        gsm.OnStoryActChanged += HandleStoryActChanged;
+        gsmSubscribed = true;
     }
 
     private void OnDisable()
@@ -187,6 +202,7 @@ public class AudioManager : MonoBehaviour
                 gsm.OnStoryActChanged -= HandleStoryActChanged;
             }
 
+            gsmSubscribed = false;
             Instance = null;
         }
     }
@@ -216,7 +232,7 @@ public class AudioManager : MonoBehaviour
             ambientSource = gameObject.AddComponent<AudioSource>();
             ambientSource.loop = true;
             ambientSource.playOnAwake = false;
-            ambientSource.volume = 0f;
+            ambientSource.volume = mute ? 0f : bgmVolume * 0.5f;
             ambientSource.spatialBlend = 0f;
         }
 
@@ -299,12 +315,11 @@ public class AudioManager : MonoBehaviour
         switch (sceneName)
         {
             case "level_greed": return AudioCue.IslandGreedBgm;
-            case "level_sloth": return AudioCue.IslandSlothBgm;
+            case "level_desire": return AudioCue.IslandDesireBgm;
             case "level_envy": return AudioCue.IslandEnvyBgm;
             case "level_lust": return AudioCue.IslandLustBgm;
-            case "level_wrath": return AudioCue.IslandWrathBgm;
-            case "level_pride": return AudioCue.IslandPrideBgm;
-            case "level_gluttony": return AudioCue.IslandGluttonyBgm;
+            case "level_anger": return AudioCue.IslandAngerBgm;
+            case "level_ego": return AudioCue.IslandEgoBgm;
             default: return null;
         }
     }
@@ -320,6 +335,7 @@ public class AudioManager : MonoBehaviour
         AudioClip clip = ResolveClip(cue);
         if (clip == null)
         {
+            Debug.LogWarning($"[AudioManager] PlayCue failed: no clip resolved for {cue}.");
             activeCue = cue;
             return;
         }
@@ -438,6 +454,11 @@ public class AudioManager : MonoBehaviour
         if (bgmSource != null && !mute)
         {
             bgmSource.volume = bgmVolume;
+        }
+
+        if (ambientSource != null && !mute)
+        {
+            ambientSource.volume = bgmVolume * 0.5f;
         }
 
         PlayerPrefs.SetFloat(BgmVolumeKey, bgmVolume);
@@ -601,6 +622,18 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
             case "tidebreak": clip = activeIslandProfile.tideBreakSfx; break;
             case "heal": clip = activeIslandProfile.healSfx; break;
             case "attack_hit": clip = activeIslandProfile.attackHitSfx; break;
+            case "attack_miss": clip = activeIslandProfile.attackMissSfx; break;
+            case "attack_crit": clip = activeIslandProfile.attackCritSfx; break;
+            case "tile_take": clip = activeIslandProfile.tileTakeSfx; break;
+            case "tile_place": clip = activeIslandProfile.tilePlaceSfx; break;
+            case "boat_depart": clip = activeIslandProfile.boatDepartSfx; break;
+            case "boat_arrive": clip = activeIslandProfile.boatArriveSfx; break;
+            case "menu_click": clip = activeIslandProfile.menuClickSfx; break;
+            case "level_up": clip = activeIslandProfile.levelUpSfx; break;
+            case "dialogue_advance": clip = activeIslandProfile.dialogueAdvanceSfx; break;
+            case "status_effect_apply": clip = activeIslandProfile.statusEffectApplySfx; break;
+            case "status_effect_expire": clip = activeIslandProfile.statusEffectExpireSfx; break;
+            case "ancient_text_found": clip = activeIslandProfile.ancientTextFoundSfx; break;
         }
 
         if (clip == null)
@@ -773,12 +806,11 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
 
             // Per-island BGM
             case AudioCue.IslandGreedBgm: return GetOrGenerateClip(cue, ref islandGreedBgm, ProceduralAudioBuilder.BuildIslandGreedBgm);
-            case AudioCue.IslandSlothBgm: return GetOrGenerateClip(cue, ref islandSlothBgm, ProceduralAudioBuilder.BuildIslandSlothBgm);
+            case AudioCue.IslandDesireBgm: return GetOrGenerateClip(cue, ref islandDesireBgm, ProceduralAudioBuilder.BuildIslandDesireBgm);
             case AudioCue.IslandEnvyBgm: return GetOrGenerateClip(cue, ref islandEnvyBgm, ProceduralAudioBuilder.BuildIslandEnvyBgm);
             case AudioCue.IslandLustBgm: return GetOrGenerateClip(cue, ref islandLustBgm, ProceduralAudioBuilder.BuildIslandLustBgm);
-            case AudioCue.IslandWrathBgm: return GetOrGenerateClip(cue, ref islandWrathBgm, ProceduralAudioBuilder.BuildIslandWrathBgm);
-            case AudioCue.IslandPrideBgm: return GetOrGenerateClip(cue, ref islandPrideBgm, ProceduralAudioBuilder.BuildIslandPrideBgm);
-            case AudioCue.IslandGluttonyBgm: return GetOrGenerateClip(cue, ref islandGluttonyBgm, ProceduralAudioBuilder.BuildIslandGluttonyBgm);
+            case AudioCue.IslandAngerBgm: return GetOrGenerateClip(cue, ref islandAngerBgm, ProceduralAudioBuilder.BuildIslandAngerBgm);
+            case AudioCue.IslandEgoBgm: return GetOrGenerateClip(cue, ref islandEgoBgm, ProceduralAudioBuilder.BuildIslandEgoBgm);
 
             // Stingers
             case AudioCue.CombatVictory: return GetOrGenerateClip(cue, ref combatVictorySting, ProceduralAudioBuilder.BuildCombatVictorySting);
@@ -850,12 +882,11 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
             case AudioCue.ActIIExplorationBgm:
             case AudioCue.ActIIIExplorationBgm:
             case AudioCue.IslandGreedBgm:
-            case AudioCue.IslandSlothBgm:
+            case AudioCue.IslandDesireBgm:
             case AudioCue.IslandEnvyBgm:
             case AudioCue.IslandLustBgm:
-            case AudioCue.IslandWrathBgm:
-            case AudioCue.IslandPrideBgm:
-            case AudioCue.IslandGluttonyBgm:
+            case AudioCue.IslandAngerBgm:
+            case AudioCue.IslandEgoBgm:
                 return true;
             default:
                 return false;
@@ -905,6 +936,7 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
 
         if (ambientSource != null)
         {
+            ambientSource.volume = mute ? 0f : bgmVolume * 0.5f;
             ambientSource.mute = mute;
         }
 

@@ -34,10 +34,10 @@ public static class GearSetFactory
     {
         switch (element)
         {
-            case CombatUnit.Element.Fire: return Build("default_fire", "Flame Initiate", element, 0, 0.04f, 0.04f, 0.04f, 0.04f, 0.04f, 0.04f, "Starter flame set.");
-            case CombatUnit.Element.Water: return Build("default_water", "Tide Initiate", element, 0, 0.04f, 0.04f, 0.04f, 0.04f, 0.04f, 0.04f, "Starter tide set.");
-            case CombatUnit.Element.Earth: return Build("default_earth", "Stone Initiate", element, 0, 0.04f, 0.04f, 0.04f, 0.04f, 0.04f, 0.04f, "Starter earth set.");
-            case CombatUnit.Element.Air: return Build("default_air", "Gust Initiate", element, 0, 0.04f, 0.04f, 0.04f, 0.04f, 0.04f, 0.04f, "Starter air set.");
+            case CombatUnit.Element.Fire: return Build("default_fire", "Flame Initiate", element, 0, 0.06f, 0.02f, 0.03f, 0.06f, 0.02f, 0.03f, "Starter flame set.");
+            case CombatUnit.Element.Water: return Build("default_water", "Tide Initiate", element, 0, 0.03f, 0.06f, 0.04f, 0.03f, 0.06f, 0.04f, "Starter tide set.");
+            case CombatUnit.Element.Earth: return Build("default_earth", "Stone Initiate", element, 0, 0.03f, 0.04f, 0.07f, 0.03f, 0.04f, 0.07f, "Starter earth set.");
+            case CombatUnit.Element.Air: return Build("default_air", "Gust Initiate", element, 0, 0.05f, 0.03f, 0.03f, 0.05f, 0.03f, 0.03f, "Starter air set.");
             case CombatUnit.Element.Space: return Build("default_space", "Void Initiate", element, 0, 0.04f, 0.04f, 0.04f, 0.04f, 0.04f, 0.04f, "Starter void set.");
             default: return Build("default_universal", "Wanderer", CombatUnit.Element.None, 0, 0.02f, 0.02f, 0.02f, 0.02f, 0.02f, 0.02f, "Universal starter set.");
         }
@@ -72,6 +72,51 @@ public static class GearSetFactory
     public static bool CoverageOk()
     {
         IReadOnlyList<GearSetData> gearSets = CreateStarterGearSets();
-        return gearSets != null && gearSets.Count > 0;
+        if (gearSets == null || gearSets.Count < 5)
+        {
+            return false;
+        }
+
+        HashSet<CombatUnit.Element> seenElements = new HashSet<CombatUnit.Element>();
+        HashSet<string> seenIds = new HashSet<string>(System.StringComparer.Ordinal);
+
+        for (int i = 0; i < gearSets.Count; i++)
+        {
+            GearSetData gear = gearSets[i];
+            if (gear == null || !gear.IsValid())
+            {
+                return false;
+            }
+
+            if (!seenIds.Add(gear.setId))
+            {
+                return false;
+            }
+
+            if (gear.element != CombatUnit.Element.None)
+            {
+                if (!seenElements.Add(gear.element))
+                {
+                    return false;
+                }
+            }
+
+            if (gear.attackBonusPercent < 0f || gear.attackBonusPercent > 1f)
+            {
+                return false;
+            }
+
+            if (gear.defenseBonusPercent < 0f || gear.defenseBonusPercent > 1f)
+            {
+                return false;
+            }
+
+            if (gear.hpBonusPercent < 0f || gear.hpBonusPercent > 1f)
+            {
+                return false;
+            }
+        }
+
+        return seenElements.Count >= 5;
     }
 }

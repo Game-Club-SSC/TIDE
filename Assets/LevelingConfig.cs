@@ -63,4 +63,15 @@ public class LevelingConfig : ScriptableObject
         int levelSpan = Mathf.Max(0, targetLevel - currentLevel);
         return levelSpan * (hpPerLevel + attackPerLevel + defensePerLevel + speedPerLevel + mpPerLevel);
     }
+
+    public bool IsValid()
+    {
+        return baseXpToLevel > 0
+            && maxLevel >= 2
+            && hpPerLevel >= 0
+            && mpPerLevel >= 0
+            && attackPerLevel >= 0
+            && defensePerLevel >= 0
+            && speedPerLevel >= 0;
+    }
 }

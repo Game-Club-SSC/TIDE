@@ -59,10 +59,10 @@ public class BossNarrativeMechanic : ScriptableObject
         defaults[0].locationDescription = "A temple full of gold and coins";
         defaults[0].atmosphereColor = new Color(0.85f, 0.75f, 0.2f, 1f);
 
-        // Attachment - island_sloth (garden of memories)
+        // Attachment - island_desire (garden of memories)
         defaults[1] = CreateInstance<BossNarrativeMechanic>();
         defaults[1].bossName = "Attachment";
-        defaults[1].islandId = "island_sloth";
+        defaults[1].islandId = "island_desire";
         defaults[1].teamDamageMultiplier = 0.85f;
         defaults[1].teamDefenseMultiplier = 0.9f;
         defaults[1].weakenTeamUps = true;
@@ -96,10 +96,10 @@ public class BossNarrativeMechanic : ScriptableObject
         defaults[3].locationDescription = "A coastal shrine guarded by enchanted moura";
         defaults[3].atmosphereColor = new Color(0.9f, 0.4f, 0.5f, 1f);
 
-        // Anger - island_wrath (burning air)
+        // Anger - island_anger (burning air)
         defaults[4] = CreateInstance<BossNarrativeMechanic>();
         defaults[4].bossName = "Anger";
-        defaults[4].islandId = "island_wrath";
+        defaults[4].islandId = "island_anger";
         defaults[4].causesFriendlyFire = true;
         defaults[4].friendlyFireChance = 0.15f;
         defaults[4].amplifiesNegativeEmotions = true;
@@ -109,10 +109,10 @@ public class BossNarrativeMechanic : ScriptableObject
         defaults[4].locationDescription = "A scorched clearing where rage takes physical form";
         defaults[4].atmosphereColor = new Color(0.9f, 0.2f, 0.1f, 1f);
 
-        // Pride - island_pride (mountain peak)
+        // Ego - island_ego (mountain peak)
         defaults[5] = CreateInstance<BossNarrativeMechanic>();
-        defaults[5].bossName = "Pride";
-        defaults[5].islandId = "island_pride";
+        defaults[5].bossName = "Ego";
+        defaults[5].islandId = "island_ego";
         defaults[5].amplifiesNegativeEmotions = true;
         defaults[5].introDescription = "The mountain peak offers clarity. And clarity, sometimes, is cruelty. The boss convinces each of you that you are better than the others.";
         defaults[5].midFightDialogue = "You’ve defeated five bosses. Each one tried to drive you apart. This one is no different — except it knows it.";
@@ -144,5 +144,11 @@ public class BossNarrativeMechanic : ScriptableObject
         }
 
         return null;
+    }
+
+    public bool IsValid()
+    {
+        return !string.IsNullOrEmpty(bossName)
+            && !string.IsNullOrEmpty(islandId);
     }
 }

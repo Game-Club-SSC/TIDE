@@ -465,16 +465,16 @@ public static class DialogueContentLibrary
         {
             case "island_greed":
                 return GetPreBossGreedDialogue();
-            case "island_sloth":
+            case "island_desire":
                 return GetPreBossAttachmentDialogue();
             case "island_envy":
                 return GetPreBossJealousyDialogue();
             case "island_lust":
                 return GetPreBossLustDialogue();
-            case "island_wrath":
+            case "island_anger":
                 return GetPreBossAngerDialogue();
-            case "island_pride":
-                return GetPreBossPrideDialogue();
+            case "island_ego":
+                return GetPreBossEgoDialogue();
             default:
                 return new List<DialogueSystem.DialogueEntry>();
         }
@@ -676,7 +676,7 @@ public static class DialogueContentLibrary
         };
     }
 
-    private static List<DialogueSystem.DialogueEntry> GetPreBossPrideDialogue()
+    private static List<DialogueSystem.DialogueEntry> GetPreBossEgoDialogue()
     {
         return new List<DialogueSystem.DialogueEntry>
         {
@@ -711,7 +711,7 @@ public static class DialogueContentLibrary
             new DialogueSystem.DialogueEntry
             {
                 speakerName = "Merrick",
-                dialogueText = "Pride is the last vice for a reason. It whispers that you don't need anyone. Remember that it is lying.",
+                dialogueText = "Ego is the last vice for a reason. It whispers that you don't need anyone. Remember that it is lying.",
                 emotion = DialogueSystem.Emotion.Worried,
                 relatedHeroId = HeroWater
             },

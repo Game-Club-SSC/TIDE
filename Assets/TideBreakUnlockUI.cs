@@ -94,6 +94,12 @@ public class TideBreakUnlockUI : MonoBehaviour
     {
         if (popupCanvasGroup == null)
         {
+            CreateFallbackPopupCanvasGroup();
+        }
+
+        if (popupCanvasGroup == null)
+        {
+            Debug.LogWarning("[TideBreakUnlockUI] Cannot display popup: no CanvasGroup available.");
             yield break;
         }
 
@@ -155,12 +161,65 @@ public class TideBreakUnlockUI : MonoBehaviour
     {
         switch (elementId)
         {
-            case 1: return fireColor;   // Fire
-            case 2: return waterColor;  // Water
-            case 3: return earthColor;  // Earth
-            case 4: return airColor;    // Air
-            case 5: return spaceColor;  // Space
+            case 1: return fireColor;
+            case 2: return waterColor;
+            case 3: return earthColor;
+            case 4: return airColor;
+            case 5: return spaceColor;
             default: return defaultColor;
         }
+    }
+
+    private void CreateFallbackPopupCanvasGroup()
+    {
+        GameObject canvasObject = new GameObject("TideBreakUnlockFallbackCanvas");
+        Canvas canvas = canvasObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 1100;
+        CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        canvasObject.AddComponent<GraphicRaycaster>();
+
+        popupCanvasGroup = canvasObject.AddComponent<CanvasGroup>();
+        popupCanvasGroup.alpha = 0f;
+
+        GameObject panelObject = new GameObject("FallbackUnlockPanel", typeof(RectTransform));
+        panelObject.transform.SetParent(canvasObject.transform, false);
+        RectTransform panelRect = panelObject.GetComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(0.25f, 0.35f);
+        panelRect.anchorMax = new Vector2(0.75f, 0.65f);
+        panelRect.offsetMin = Vector2.zero;
+        panelRect.offsetMax = Vector2.zero;
+
+        Image panelBg = panelObject.AddComponent<Image>();
+        panelBg.color = new Color(0.08f, 0.06f, 0.15f, 0.95f);
+
+        abilityNameText = CreateFallbackLabel(panelRect, 0.7f, 1f, 28, FontStyle.Bold);
+        descriptionText = CreateFallbackLabel(panelRect, 0.35f, 0.65f, 18, FontStyle.Normal);
+        unlockLevelText = CreateFallbackLabel(panelRect, 0.1f, 0.3f, 16, FontStyle.Italic);
+
+        Debug.Log("[TideBreakUnlockUI] Created fallback popup canvas.");
+    }
+
+    private static Text CreateFallbackLabel(RectTransform parent, float anchorMinY, float anchorMaxY, int fontSize, FontStyle style)
+    {
+        GameObject labelObject = new GameObject("Label", typeof(RectTransform));
+        labelObject.transform.SetParent(parent, false);
+        RectTransform rect = labelObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.05f, anchorMinY);
+        rect.anchorMax = new Vector2(0.95f, anchorMaxY);
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        Text label = labelObject.AddComponent<Text>();
+        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.fontSize = fontSize;
+        label.fontStyle = style;
+        label.alignment = TextAnchor.MiddleCenter;
+        label.color = Color.white;
+        label.horizontalOverflow = HorizontalWrapMode.Wrap;
+        label.raycastTarget = false;
+        return label;
     }
 }

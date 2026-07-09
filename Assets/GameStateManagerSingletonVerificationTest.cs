@@ -130,6 +130,7 @@ public class GameStateManagerSingletonVerificationTest : MonoBehaviour
             }
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         DevMenuUI[] devMenus = FindObjectsByType<DevMenuUI>(FindObjectsSortMode.None);
         for (int i = 0; i < devMenus.Length; i++)
         {
@@ -138,6 +139,7 @@ public class GameStateManagerSingletonVerificationTest : MonoBehaviour
                 DestroyImmediate(devMenus[i].gameObject);
             }
         }
+#endif
     }
 
     private static void DestroyImmediateIfPresent(MonoBehaviour behaviour)

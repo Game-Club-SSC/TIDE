@@ -1,6 +1,6 @@
 public static class PuzzleVariantService
 {
-    public static bool IsGluttonyConsumptionEnabled(PuzzleData data)
+    public static bool IsGreedConsumptionEnabled(PuzzleData data)
     {
         return data != null && data.enableConsumption;
     }
@@ -37,7 +37,7 @@ public static class PuzzleVariantService
 
         if (data.enableConsumption)
         {
-            return "gluttony";
+            return "greed";
         }
 
         if (data.enableGreedEconomy)

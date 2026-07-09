@@ -13,6 +13,7 @@ public class AudioSettingsUI : MonoBehaviour
     private Slider bgmSlider;
     private Slider sfxSlider;
     private Toggle muteToggle;
+    private Text languageValueText;
     private bool isVisible;
 
     public bool IsVisible => isVisible;
@@ -111,6 +112,9 @@ public class AudioSettingsUI : MonoBehaviour
 
         // Mute toggle
         muteToggle = CreateMuteToggle(content.transform, "Mute All", OnMuteToggled);
+
+        // Language selector
+        CreateLanguageRow(content.transform);
 
         // Close button
         GameObject closeBtnObj = new GameObject("CloseButton", typeof(RectTransform), typeof(Image), typeof(Button));
@@ -316,6 +320,54 @@ public class AudioSettingsUI : MonoBehaviour
         if (am != null)
         {
             am.SetMute(isMuted);
+        }
+    }
+
+    private void CreateLanguageRow(Transform parent)
+    {
+        GameObject row = new GameObject("LanguageRow", typeof(RectTransform));
+        row.transform.SetParent(parent, false);
+        LayoutElement rowLe = row.AddComponent<LayoutElement>();
+        rowLe.preferredHeight = 50f;
+        rowLe.flexibleWidth = 1f;
+
+        HorizontalLayoutGroup hlg = row.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 12f;
+        hlg.padding = new RectOffset(8, 8, 4, 4);
+        hlg.childForceExpandWidth = false;
+        hlg.childForceExpandHeight = true;
+        hlg.childAlignment = TextAnchor.MiddleLeft;
+
+        Text labelText = PersonaUIStyle.CreatePersonaLabel(row.transform, "Language", 18, PersonaUIStyle.OffWhite, TextAnchor.MiddleLeft);
+        LayoutElement labelLe = labelText.gameObject.AddComponent<LayoutElement>();
+        labelLe.preferredWidth = 140f;
+        labelLe.flexibleHeight = 1f;
+
+        GameObject btnObj = new GameObject("CycleLangBtn", typeof(RectTransform), typeof(Image), typeof(Button));
+        btnObj.transform.SetParent(row.transform, false);
+        Image btnImg = btnObj.GetComponent<Image>();
+        btnImg.color = PersonaUIStyle.DeepNavy;
+        Button btn = btnObj.GetComponent<Button>();
+        btn.targetGraphic = btnImg;
+        btn.onClick.AddListener(OnLanguageCycled);
+        LayoutElement btnLe = btnObj.AddComponent<LayoutElement>();
+        btnLe.flexibleWidth = 1f;
+        btnLe.preferredHeight = 30f;
+
+        languageValueText = PersonaUIStyle.CreatePersonaLabel(btnObj.transform, LocalizationService.CurrentLanguage.ToString(), 16, PersonaUIStyle.Gold, TextAnchor.MiddleCenter);
+        RectTransform valueRect = languageValueText.GetComponent<RectTransform>();
+        PersonaUIStyle.StretchFull(valueRect);
+    }
+
+    private void OnLanguageCycled()
+    {
+        int count = System.Enum.GetValues(typeof(LocalizationService.Language)).Length;
+        int next = ((int)LocalizationService.CurrentLanguage + 1) % count;
+        LocalizationService.SetLanguage((LocalizationService.Language)next);
+
+        if (languageValueText != null)
+        {
+            languageValueText.text = LocalizationService.CurrentLanguage.ToString();
         }
     }
 }

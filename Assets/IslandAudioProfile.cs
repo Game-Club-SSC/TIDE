@@ -31,6 +31,30 @@ public class IslandAudioProfile : ScriptableObject
     public AudioClip healSfx;
     [Tooltip("Played on attack hit for this island.")]
     public AudioClip attackHitSfx;
+    [Tooltip("Played on attack miss for this island.")]
+    public AudioClip attackMissSfx;
+    [Tooltip("Played on attack crit for this island.")]
+    public AudioClip attackCritSfx;
+    [Tooltip("Played on tile take for this island.")]
+    public AudioClip tileTakeSfx;
+    [Tooltip("Played on tile place for this island.")]
+    public AudioClip tilePlaceSfx;
+    [Tooltip("Played on boat depart for this island.")]
+    public AudioClip boatDepartSfx;
+    [Tooltip("Played on boat arrive for this island.")]
+    public AudioClip boatArriveSfx;
+    [Tooltip("Played on menu click for this island.")]
+    public AudioClip menuClickSfx;
+    [Tooltip("Played on level up for this island.")]
+    public AudioClip levelUpSfx;
+    [Tooltip("Played on dialogue advance for this island.")]
+    public AudioClip dialogueAdvanceSfx;
+    [Tooltip("Played on status effect apply for this island.")]
+    public AudioClip statusEffectApplySfx;
+    [Tooltip("Played on status effect expire for this island.")]
+    public AudioClip statusEffectExpireSfx;
+    [Tooltip("Played on ancient text found for this island.")]
+    public AudioClip ancientTextFoundSfx;
 
     [Header("Act-Based Tone Shift")]
     [Tooltip("Pitch multiplier per act: index 0 = Act I, 1 = Act II, 2 = Act III. " +
@@ -63,5 +87,10 @@ public class IslandAudioProfile : ScriptableObject
         if (actVolumeMultipliers == null || index < 0 || index >= actVolumeMultipliers.Length)
             return 1f;
         return actVolumeMultipliers[index];
+    }
+
+    public bool IsValid()
+    {
+        return !string.IsNullOrEmpty(islandId);
     }
 }

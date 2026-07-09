@@ -41,6 +41,13 @@ public class HeroData : ScriptableObject
     [Tooltip("Base crit damage multiplier. 1.5 = 150% damage on crit.")]
     public float baseCritDamage = 1.5f;
 
+    [Header("Visuals")]
+    [Tooltip("Portrait sprite shown in HUD, menus, and dialogue.")]
+    public Sprite portrait;
+
+    [Tooltip("Optional animator controller for character-specific animations.")]
+    public RuntimeAnimatorController animatorController;
+
     [Header("Starter Skills")]
     public SkillData[] starterSkills = System.Array.Empty<SkillData>();
 

@@ -40,7 +40,7 @@ public class TideManager : MonoBehaviour
     [Header("Instability Decay")]
     [SerializeField] private int instabilityThreshold = 3;
 
-    [Header("Gluttony Consumption")]
+    [Header("Greed Consumption")]
     [SerializeField] private bool enableConsumption;
     [SerializeField] private int consumptionAmount = 1;
 
@@ -180,6 +180,8 @@ public class TideManager : MonoBehaviour
         if (carryingSource != null)
         {
             carryingSource.ApplyPlace(carriedAmount);
+            ApplyInstabilityDecay();
+            EvaluatePuzzleCompletion();
             carryingSource = null;
             carriedAmount = 0;
             OnCarriedAmountChanged?.Invoke();
@@ -846,6 +848,8 @@ public class TideManager : MonoBehaviour
         if (carryingSource != null)
         {
             carryingSource.ApplyPlace(carriedAmount);
+            ApplyInstabilityDecay();
+            EvaluatePuzzleCompletion();
         }
 
         carryingSource = null;

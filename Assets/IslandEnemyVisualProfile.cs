@@ -78,7 +78,7 @@ public class IslandEnemyVisualProfile : ScriptableObject
                 profile.floatHeight = 0.25f;
                 break;
 
-            case "island_gluttony":
+            case "island_greed":
                 profile.primaryColor = new Color(0.42f, 0.48f, 0.22f);        // Bloated green-brown
                 profile.secondaryColor = new Color(0.78f, 0.72f, 0.30f);      // Sickly yellow
                 profile.eyeColor = new Color(0.90f, 0.85f, 0.20f);            // Parasitic yellow
@@ -110,7 +110,7 @@ public class IslandEnemyVisualProfile : ScriptableObject
                 profile.floatHeight = 0f;
                 break;
 
-            case "island_sloth":
+            case "island_desire":
                 profile.primaryColor = new Color(0.45f, 0.35f, 0.52f);        // Muted purple
                 profile.secondaryColor = new Color(0.55f, 0.52f, 0.58f);      // Grey-lavender
                 profile.eyeColor = new Color(0.70f, 0.65f, 0.78f);            // Dull lilac
@@ -126,7 +126,7 @@ public class IslandEnemyVisualProfile : ScriptableObject
                 profile.floatHeight = 0.15f;
                 break;
 
-            case "island_wrath":
+            case "island_anger":
                 profile.primaryColor = new Color(0.90f, 0.25f, 0.10f);        // Fiery red-orange
                 profile.secondaryColor = new Color(0.12f, 0.10f, 0.10f);      // Black accents
                 profile.eyeColor = new Color(1.0f, 0.60f, 0.10f);             // Molten orange
@@ -158,7 +158,7 @@ public class IslandEnemyVisualProfile : ScriptableObject
                 profile.floatHeight = 0.35f;
                 break;
 
-            case "island_pride":
+            case "island_ego":
                 profile.primaryColor = new Color(0.95f, 0.92f, 0.80f);        // Brilliant white-gold
                 profile.secondaryColor = new Color(0.82f, 0.68f, 0.15f);      // Regal gold
                 profile.eyeColor = new Color(0.95f, 0.85f, 0.30f);            // Royal amber
@@ -181,5 +181,10 @@ public class IslandEnemyVisualProfile : ScriptableObject
         }
 
         return profile;
+    }
+
+    public bool IsValid()
+    {
+        return !string.IsNullOrEmpty(islandId);
     }
 }

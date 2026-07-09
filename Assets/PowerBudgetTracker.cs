@@ -123,14 +123,7 @@ public class PowerBudgetTracker : MonoBehaviour
                 continue;
             }
 
-            if (!remainingBudgetByIslandId.ContainsKey(islandId))
-            {
-                remainingBudgetByIslandId[islandId] = defaultBudgetPerIsland;
-            }
-            else
-            {
-                remainingBudgetByIslandId[islandId] = defaultBudgetPerIsland;
-            }
+            remainingBudgetByIslandId[islandId] = defaultBudgetPerIsland;
         }
     }
 

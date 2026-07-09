@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 
 /// <summary>
-/// Generates PuzzleData ScriptableObjects for all 7 islands (28 puzzles total).
+/// Generates PuzzleData ScriptableObjects for all 6 islands (24 puzzles total).
 /// Uses Opus 4.7's mathematically verified puzzle layouts.
 /// Access via: TIDE > Populate All Puzzles
 /// </summary>
@@ -38,11 +38,10 @@ public static class PuzzleDataPopulator
 
         var all = new List<PuzzleDef>();
         all.AddRange(GetLustPuzzles());
-        all.AddRange(GetWrathPuzzles());
-        all.AddRange(GetSlothPuzzles());
-        all.AddRange(GetPridePuzzles());
+        all.AddRange(GetAngerPuzzles());
+        all.AddRange(GetDesirePuzzles());
+        all.AddRange(GetEgoPuzzles());
         all.AddRange(GetEnvyPuzzles());
-        all.AddRange(GetGluttonyPuzzles());
 
         int created = 0;
         int skipped = 0;
@@ -86,13 +85,12 @@ public static class PuzzleDataPopulator
         EditorUtility.DisplayDialog("All Puzzles Created",
             $"Created {created} PuzzleData assets.\n\n" +
             "Lust: 4 puzzles (Easiest)\n" +
-            "Wrath: 4 puzzles (Easy-Medium)\n" +
-            "Sloth: 4 puzzles (Medium)\n" +
-            "Pride: 4 puzzles (Medium-Hard)\n" +
+            "Anger: 4 puzzles (Easy-Medium)\n" +
+            "Desire: 4 puzzles (Medium)\n" +
+            "Ego: 4 puzzles (Medium-Hard)\n" +
             "Envy: 4 puzzles (Hard)\n" +
-            "Gluttony: 4 puzzles (Hardest)\n" +
             "Greed: 4 puzzles (reformatted)\n\n" +
-            "Total: 28 puzzles",
+            "Total: 24 puzzles",
             "OK");
     }
 
@@ -313,13 +311,13 @@ public static class PuzzleDataPopulator
     // ============================================================
     // WRATH (Fire) — Easy-Medium
     // ============================================================
-    private static PuzzleDef[] GetWrathPuzzles()
+    private static PuzzleDef[] GetAngerPuzzles()
     {
         return new PuzzleDef[]
         {
             // p1: Ember Grid — 60%, 3 sealed, 1 move
             new PuzzleDef {
-                id = "puzzle_wrath_p1", name = "Wrath P1 - Ember Grid",
+                id = "puzzle_anger_p1", name = "Anger P1 - Ember Grid",
                 cols = 4, rows = 4,
                 values = new int[] {
                     8, 5, 0, 4,
@@ -336,7 +334,7 @@ public static class PuzzleDataPopulator
             },
             // p2: Coal Bed — 60%, 4 sealed, 1 move
             new PuzzleDef {
-                id = "puzzle_wrath_p2", name = "Wrath P2 - Coal Bed",
+                id = "puzzle_anger_p2", name = "Anger P2 - Coal Bed",
                 cols = 4, rows = 4,
                 values = new int[] {
                     7, 4, 0, 5,
@@ -353,7 +351,7 @@ public static class PuzzleDataPopulator
             },
             // p3: The Forge — 100%, 4 sealed, 3 moves
             new PuzzleDef {
-                id = "puzzle_wrath_p3", name = "Wrath P3 - The Forge",
+                id = "puzzle_anger_p3", name = "Anger P3 - The Forge",
                 cols = 4, rows = 4,
                 values = new int[] {
                     7, 5, 3, 0,
@@ -370,7 +368,7 @@ public static class PuzzleDataPopulator
             },
             // p4: Molten Core — 100%, 3 sealed, 3 moves
             new PuzzleDef {
-                id = "puzzle_wrath_p4", name = "Wrath P4 - Molten Core",
+                id = "puzzle_anger_p4", name = "Anger P4 - Molten Core",
                 cols = 4, rows = 4,
                 values = new int[] {
                     6, 4, 5, 0,
@@ -391,13 +389,13 @@ public static class PuzzleDataPopulator
     // ============================================================
     // SLOTH (Air) — Medium
     // ============================================================
-    private static PuzzleDef[] GetSlothPuzzles()
+    private static PuzzleDef[] GetDesirePuzzles()
     {
         return new PuzzleDef[]
         {
             // p1: Drifting Sands — 60%, 3 sealed, 1 move
             new PuzzleDef {
-                id = "puzzle_sloth_p1", name = "Sloth P1 - Drifting Sands",
+                id = "puzzle_desire_p1", name = "Desire P1 - Drifting Sands",
                 cols = 4, rows = 4,
                 values = new int[] {
                     8, 5, 4, 6,
@@ -414,7 +412,7 @@ public static class PuzzleDataPopulator
             },
             // p2: Slumber Field — 60%, 4 sealed, 2 moves
             new PuzzleDef {
-                id = "puzzle_sloth_p2", name = "Sloth P2 - Slumber Field",
+                id = "puzzle_desire_p2", name = "Desire P2 - Slumber Field",
                 cols = 4, rows = 4,
                 values = new int[] {
                     7, 4, 0, 5,
@@ -431,7 +429,7 @@ public static class PuzzleDataPopulator
             },
             // p3: The Long Rest — 100%, 3 sealed, 4 moves
             new PuzzleDef {
-                id = "puzzle_sloth_p3", name = "Sloth P3 - The Long Rest",
+                id = "puzzle_desire_p3", name = "Desire P3 - The Long Rest",
                 cols = 4, rows = 4,
                 values = new int[] {
                     7, 4, 5, 0,
@@ -448,7 +446,7 @@ public static class PuzzleDataPopulator
             },
             // p4: Eternal Dream — 100%, 2 sealed, 4 moves
             new PuzzleDef {
-                id = "puzzle_sloth_p4", name = "Sloth P4 - Eternal Dream",
+                id = "puzzle_desire_p4", name = "Desire P4 - Eternal Dream",
                 cols = 4, rows = 4,
                 values = new int[] {
                     6, 4, 5, 6,
@@ -468,13 +466,13 @@ public static class PuzzleDataPopulator
     // ============================================================
     // PRIDE (Space) — Medium-Hard
     // ============================================================
-    private static PuzzleDef[] GetPridePuzzles()
+    private static PuzzleDef[] GetEgoPuzzles()
     {
         return new PuzzleDef[]
         {
             // p1: Hall of Mirrors — 60%, 3 sealed, 2 moves
             new PuzzleDef {
-                id = "puzzle_pride_p1", name = "Pride P1 - Hall of Mirrors",
+                id = "puzzle_ego_p1", name = "Ego P1 - Hall of Mirrors",
                 cols = 4, rows = 4,
                 values = new int[] {
                     9, 5, 4, 6,
@@ -491,7 +489,7 @@ public static class PuzzleDataPopulator
             },
             // p2: Gilded Throne — 60%, 4 sealed, 2 moves
             new PuzzleDef {
-                id = "puzzle_pride_p2", name = "Pride P2 - Gilded Throne",
+                id = "puzzle_ego_p2", name = "Ego P2 - Gilded Throne",
                 cols = 4, rows = 4,
                 values = new int[] {
                     8, 4, 0, 5,
@@ -508,7 +506,7 @@ public static class PuzzleDataPopulator
             },
             // p3: The Reflection — 100%, 3 sealed, 4 moves
             new PuzzleDef {
-                id = "puzzle_pride_p3", name = "Pride P3 - The Reflection",
+                id = "puzzle_ego_p3", name = "Ego P3 - The Reflection",
                 cols = 4, rows = 4,
                 values = new int[] {
                     7, 5, 3, 0,
@@ -525,7 +523,7 @@ public static class PuzzleDataPopulator
             },
             // p4: Apex — 100%, 2 sealed, 5 moves
             new PuzzleDef {
-                id = "puzzle_pride_p4", name = "Pride P4 - Apex",
+                id = "puzzle_ego_p4", name = "Ego P4 - Apex",
                 cols = 4, rows = 4,
                 values = new int[] {
                     6, 4, 7, 4,
@@ -617,75 +615,4 @@ public static class PuzzleDataPopulator
         };
     }
 
-    // ============================================================
-    // GLUTTONY (Earth) — Hardest (decay-driven + consumption)
-    // ============================================================
-    private static PuzzleDef[] GetGluttonyPuzzles()
-    {
-        return new PuzzleDef[]
-        {
-            // p1: The Endless Table — 60%, 2 sealed, 2 moves (massive decay)
-            new PuzzleDef {
-                id = "puzzle_gluttony_p1", name = "Gluttony P1 - The Endless Table",
-                cols = 4, rows = 4,
-                values = new int[] {
-                    9, 4, 7, 4,
-                    5, 8, 4, 6,
-                    6, 5, 9, 4,
-                    5, 0, 0, 8
-                },
-                sealedTiles = new Vector2Int[] {
-                    new Vector2Int(1, 3), new Vector2Int(2, 3)
-                },
-                winType = WinConditionType.PercentageAtTarget, winPercent = 0.6f,
-                consumption = true, greedEconomy = false
-            },
-            // p2: Gorge — 60%, 1 sealed, 2 moves (decay-driven)
-            new PuzzleDef {
-                id = "puzzle_gluttony_p2", name = "Gluttony P2 - Gorge",
-                cols = 4, rows = 4,
-                values = new int[] {
-                    8, 4, 8, 4,
-                    4, 7, 4, 7,
-                    8, 4, 8, 4,
-                    5, 5, 0, 6
-                },
-                sealedTiles = new Vector2Int[] {
-                    new Vector2Int(2, 3)
-                },
-                winType = WinConditionType.PercentageAtTarget, winPercent = 0.6f,
-                consumption = true, greedEconomy = false
-            },
-            // p3: The Devourer's Feast — 100%, 1 sealed, 6 moves
-            new PuzzleDef {
-                id = "puzzle_gluttony_p3", name = "Gluttony P3 - The Devourer's Feast",
-                cols = 4, rows = 4,
-                values = new int[] {
-                    7, 4, 5, 4,
-                    5, 7, 4, 5,
-                    4, 5, 6, 5,
-                    6, 4, 0, 4
-                },
-                sealedTiles = new Vector2Int[] {
-                    new Vector2Int(2, 3)
-                },
-                winType = WinConditionType.AllEqualToTarget, winPercent = 1f,
-                consumption = false, greedEconomy = false
-            },
-            // p4: The Last Supper — 100%, 0 sealed, 3 moves (clean capstone)
-            new PuzzleDef {
-                id = "puzzle_gluttony_p4", name = "Gluttony P4 - The Last Supper",
-                cols = 4, rows = 4,
-                values = new int[] {
-                    7, 3, 5, 5,
-                    5, 7, 5, 5,
-                    5, 5, 7, 3,
-                    3, 5, 5, 5
-                },
-                sealedTiles = new Vector2Int[0],
-                winType = WinConditionType.AllEqualToTarget, winPercent = 1f,
-                consumption = false, greedEconomy = false
-            },
-        };
-    }
 }

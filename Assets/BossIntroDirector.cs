@@ -43,6 +43,8 @@ public class BossIntroDirector : MonoBehaviour
     [Header("Skip")]
     [SerializeField] private KeyCode skipKey = KeyCode.Space;
     [SerializeField] private string skipButtonLabel = "Press SPACE to skip";
+    [SerializeField] private bool allowMouseSkipOnMobile = true;
+    [SerializeField] private float introTimeout = 8f;
 
     // ──────────────────────────────────────────────────────────────────
     //  Internal State
@@ -83,7 +85,17 @@ public class BossIntroDirector : MonoBehaviour
             return;
         }
 
-        if (Input.GetKeyDown(skipKey) || Input.GetMouseButtonDown(0))
+        if (Input.GetKeyDown(skipKey))
+        {
+            skipRequested = true;
+        }
+
+        if (!allowMouseSkipOnMobile && (Application.isMobilePlatform))
+        {
+            return;
+        }
+
+        if (Input.GetMouseButtonDown(0))
         {
             skipRequested = true;
         }
@@ -199,7 +211,7 @@ public class BossIntroDirector : MonoBehaviour
             case "island_greed":
                 yield return StartCoroutine(GreedSequence(atmosphereColor));
                 break;
-            case "island_sloth":
+            case "island_desire":
                 yield return StartCoroutine(AttachmentSequence(atmosphereColor));
                 break;
             case "island_envy":
@@ -208,11 +220,14 @@ public class BossIntroDirector : MonoBehaviour
             case "island_lust":
                 yield return StartCoroutine(LustSequence(atmosphereColor));
                 break;
-            case "island_wrath":
+            case "island_anger":
                 yield return StartCoroutine(AngerSequence(atmosphereColor));
                 break;
-            case "island_pride":
-                yield return StartCoroutine(PrideSequence(atmosphereColor));
+            case "island_ego":
+                yield return StartCoroutine(EgoSequence(atmosphereColor));
+                break;
+            case "island_greed":
+                yield return StartCoroutine(GreedSequence(atmosphereColor));
                 break;
         }
     }
@@ -307,7 +322,7 @@ public class BossIntroDirector : MonoBehaviour
         }
     }
 
-    private IEnumerator PrideSequence(Color color)
+    private IEnumerator EgoSequence(Color color)
     {
         // Mountain peak — clarity becomes cruelty, ego manipulation
         yield return StartCoroutine(PulseAtmosphere(new Color(0.95f, 0.9f, 0.8f), 0.6f));
@@ -318,7 +333,7 @@ public class BossIntroDirector : MonoBehaviour
             yield return new WaitForSeconds(0.8f);
             yield return StartCoroutine(TypewriteText(dialogueText, "The boss speaks softly. It tells each of you why you are better than the others."));
             yield return new WaitForSeconds(0.6f);
-            yield return StartCoroutine(TypewriteText(dialogueText, "Pride is not loud. It is reasonable. It sounds like the truth."));
+            yield return StartCoroutine(TypewriteText(dialogueText, "Ego is not loud. It is reasonable. It sounds like the truth."));
             yield return new WaitForSeconds(0.4f);
             yield return StartCoroutine(TypewriteText(dialogueText, "You have come so far. Surely you deserve more than the rest."));
             yield return new WaitForSeconds(lineDelay);
@@ -383,11 +398,9 @@ public class BossIntroDirector : MonoBehaviour
 
     private IEnumerator WaitForSkipOrTimeout()
     {
-        // Wait until the player presses skip or 8 seconds pass
-        float timeout = 8f;
         float elapsed = 0f;
 
-        while (elapsed < timeout)
+        while (elapsed < introTimeout)
         {
             if (skipRequested)
             {

@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// Provides character-specific dialogue and emotional reactions for the bad ending.
 /// Each hero reacts according to their flaw: Freida's greed, Briar's envy,
-/// Killian's wrath, and Merrador's inability to cope. The MC delivers the
+/// Killian's anger, and Merrador's inability to cope. The MC delivers the
 /// final reflection.
 /// </summary>
 public static class BadEndingReactions
@@ -369,6 +369,7 @@ public static class BadEndingReactions
             case CombatUnit.Element.Air:    return "hero_air";
             case CombatUnit.Element.Fire:   return "hero_fire";
             case CombatUnit.Element.Water:  return "hero_water";
+            case CombatUnit.Element.Space:  return "hero_space";
             default:                        return "hero_mc";
         }
     }

@@ -23,7 +23,7 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         public string islandId = IslandThemeRegistry.DefaultIslandId;
         public string displayName = string.Empty;
         public bool useCustomSpawnPosition;
-        public Vector3 customSpawnPosition = DefaultFallbackSpawnPosition;
+        public Vector3 customSpawnPosition;
         public Vector3 boatOffset = new Vector3(6f, 0f, 0f);
     }
 
@@ -161,6 +161,24 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             return true;
         }
 
+        PhoneInputBridge phoneBridge = PhoneInputBridge.Instance;
+        if (phoneBridge != null && phoneBridge.IsPaired && phoneBridge.PhoneInteractPressed)
+        {
+            return true;
+        }
+
+        GamepadInputManager gamepad = GamepadInputManager.Instance;
+        if (gamepad != null && gamepad.IsGamepadConnected && gamepad.InteractPressed)
+        {
+            return true;
+        }
+
+        MobileTouchInputManager mobileInput = MobileTouchInputManager.Instance;
+        if (mobileInput != null && mobileInput.IsMobilePlatform && mobileInput.InteractPressed)
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -211,11 +229,35 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
+        bool navUp = Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W);
+        bool navDown = Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S);
+
+        PhoneInputBridge phoneBridge = PhoneInputBridge.Instance;
+        if (phoneBridge != null && phoneBridge.IsPaired)
+        {
+            if (phoneBridge.PhoneNavUpPressed) navUp = true;
+            if (phoneBridge.PhoneNavDownPressed) navDown = true;
+        }
+
+        GamepadInputManager gamepad = GamepadInputManager.Instance;
+        if (gamepad != null && gamepad.IsGamepadConnected)
+        {
+            if (gamepad.NavUpPressed) navUp = true;
+            if (gamepad.NavDownPressed) navDown = true;
+        }
+
+        MobileTouchInputManager mobileInput = MobileTouchInputManager.Instance;
+        if (mobileInput != null && mobileInput.IsMobilePlatform)
+        {
+            if (mobileInput.NavUpPressed) navUp = true;
+            if (mobileInput.NavDownPressed) navDown = true;
+        }
+
+        if (navUp)
         {
             selectedIndex = (selectedIndex - 1 + orderedDestinationIds.Count) % orderedDestinationIds.Count;
         }
-        else if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+        else if (navDown)
         {
             selectedIndex = (selectedIndex + 1) % orderedDestinationIds.Count;
         }
@@ -499,7 +541,7 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             islandId = islandId,
             displayName = BuildIslandDisplayName(islandId),
             useCustomSpawnPosition = false,
-            customSpawnPosition = ResolveSafeSpawnPosition(fallbackSpawnPosition),
+            customSpawnPosition = fallbackSpawnPosition,
             boatOffset = offset
         };
     }

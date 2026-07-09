@@ -36,7 +36,7 @@ public static class HeroDialogueContent
     public const string PreBossJealousyTreeId = "tree_pre_boss_jealousy";
     public const string PreBossLustTreeId = "tree_pre_boss_lust";
     public const string PreBossAngerTreeId = "tree_pre_boss_anger";
-    public const string PreBossPrideTreeId = "tree_pre_boss_pride";
+    public const string PreBossEgoTreeId = "tree_pre_boss_ego";
     public const string AcceptanceTreeId = "tree_acceptance_act3";
 
     // ================================================================== //
@@ -470,7 +470,7 @@ public static class HeroDialogueContent
     }
 
     /// <summary>
-    /// Pre-boss conversation for Attachment (island_sloth). The garden of memories.
+    /// Pre-boss conversation for Attachment (island_desire). The garden of memories.
     /// </summary>
     public static DialogueTree PreBossAttachmentDialogue()
     {
@@ -521,7 +521,7 @@ public static class HeroDialogueContent
     }
 
     /// <summary>
-    /// Pre-boss conversation for Anger (island_wrath). The burning clearing.
+    /// Pre-boss conversation for Anger (island_anger). The burning clearing.
     /// </summary>
     public static DialogueTree PreBossAngerDialogue()
     {
@@ -647,11 +647,11 @@ public static class HeroDialogueContent
     }
 
     /// <summary>
-    /// Pre-boss conversation for Pride (island_pride). The mountain peak.
+    /// Pre-boss conversation for Ego (island_ego). The mountain peak.
     /// </summary>
-    public static DialogueTree PreBossPrideDialogue()
+    public static DialogueTree PreBossEgoDialogue()
     {
-        string treeId = PreBossPrideTreeId;
+        string treeId = PreBossEgoTreeId;
         DialogueTree tree = new DialogueTree
         {
             treeId = treeId,
@@ -662,10 +662,10 @@ public static class HeroDialogueContent
         string[][] lines = new string[][]
         {
             new[] { "ember_0", "Ember", "We've beaten five bosses. We're strong. We can do this.", "Determined", HeroEmber },
-            new[] { "tidecaller_0", "Tidecaller", "That's exactly what Pride wants you to think.", "Worried", HeroTidecaller },
+            new[] { "tidecaller_0", "Tidecaller", "That's exactly what Ego wants you to think.", "Worried", HeroTidecaller },
             new[] { "stoneheart_0", "Stoneheart", "Strength isn't the issue. Knowing its limits is.", "Neutral", HeroStoneheart },
-            new[] { "zephyr_0", "Zephyr", "Pride whispers that you're better than everyone. The trick is remembering you're not.", "Determined", HeroZephyr },
-            new[] { "voidwalker_0", "Voidwalker", "Pride is the last enemy because it wears your own face.", "Sad", HeroVoidwalker },
+            new[] { "zephyr_0", "Zephyr", "Ego whispers that you're better than everyone. The trick is remembering you're not.", "Determined", HeroZephyr },
+            new[] { "voidwalker_0", "Voidwalker", "Ego is the last enemy because it wears your own face.", "Sad", HeroVoidwalker },
         };
 
         DialogueTreeNode prev = null;
@@ -698,7 +698,7 @@ public static class HeroDialogueContent
             entry = new DialogueSystem.DialogueEntry
             {
                 speakerName = "Ember",
-                dialogueText = "We've come too far to let pride be the thing that breaks us. Together. As five. As we started.",
+                dialogueText = "We've come too far to let ego be the thing that breaks us. Together. As five. As we started.",
                 emotion = DialogueSystem.Emotion.Determined,
                 relatedHeroId = HeroEmber
             }

@@ -5,7 +5,7 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class AcceptanceConversation : MonoBehaviour
 {
-    public const string FinalBossIslandId = "island_pride";
+    public const string FinalBossIslandId = "island_ego";
     public const float RestorationThreshold = 0.75f;
     public const int LineCount = 10;
 

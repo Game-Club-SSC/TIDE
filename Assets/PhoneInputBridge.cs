@@ -216,7 +216,6 @@ public class PhoneInputBridge : MonoBehaviour
 
     private void HandleAction(PhoneInputCommand command)
     {
-        // For future expansion - custom actions
         switch (command.action)
         {
             case "toggle_auto_run":
@@ -230,6 +229,41 @@ public class PhoneInputBridge : MonoBehaviour
                 if (cachedPlayer != null)
                 {
                     cachedPlayer.ToggleAllowHop();
+                }
+                break;
+
+            case "toggle_sprint":
+                if (cachedPlayer != null)
+                {
+                    cachedPlayer.ToggleSprintLock();
+                }
+                break;
+
+            case "open_map":
+                ExplorationMapUI mapUI = cachedPlayer != null
+                    ? cachedPlayer.GetComponent<ExplorationMapUI>()
+                    : FindFirstObjectByType<ExplorationMapUI>();
+                if (mapUI != null)
+                {
+                    mapUI.ToggleMapVisibilityPublic();
+                }
+                break;
+
+            case "open_customization":
+                PlayerCustomizationUI customUI = cachedPlayer != null
+                    ? cachedPlayer.GetComponent<PlayerCustomizationUI>()
+                    : FindFirstObjectByType<PlayerCustomizationUI>();
+                if (customUI != null)
+                {
+                    customUI.ToggleFromExternal();
+                }
+                break;
+
+            case "open_smithy":
+                SmithyInteractable smithy = FindFirstObjectByType<SmithyInteractable>();
+                if (smithy != null)
+                {
+                    smithy.TryOpenFromExternal();
                 }
                 break;
         }

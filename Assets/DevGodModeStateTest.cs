@@ -32,7 +32,7 @@ public class DevGodModeStateTest : MonoBehaviour
             tracker.ResetAllIslandsForDebug();
             Assert.AreEqual(0f, tracker.GetRestorationPercent("island_lust"), 0.001f,
                 "Debug reset should clear lust island restoration.");
-            Assert.AreEqual(0f, tracker.GetRestorationPercent("island_wrath"), 0.001f,
+            Assert.AreEqual(0f, tracker.GetRestorationPercent("island_anger"), 0.001f,
                 "Debug reset should clear other tracked islands too.");
         }
         finally

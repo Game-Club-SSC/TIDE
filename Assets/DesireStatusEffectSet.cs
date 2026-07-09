@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public static class SlothStatusEffectSet
+public static class DesireStatusEffectSet
 {
     public static StatusEffect CreateSlowEffect(string sourceName, int duration, float magnitude)
     {
@@ -14,14 +14,8 @@ public static class SlothStatusEffectSet
         return effect;
     }
 
-    public static bool IsSlothEffectType(string typeName)
+    public static bool IsDesireEffectType(StatusEffectType type)
     {
-        if (string.IsNullOrEmpty(typeName))
-        {
-            return false;
-        }
-
-        return string.Equals(typeName, "Slow", System.StringComparison.OrdinalIgnoreCase)
-            || string.Equals(typeName, "Drowsy", System.StringComparison.OrdinalIgnoreCase);
+        return type == StatusEffectType.Slow || type == StatusEffectType.Drowsy;
     }
 }

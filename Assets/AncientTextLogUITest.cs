@@ -153,7 +153,7 @@ public class AncientTextLogUITest : MonoBehaviour
             Assert.IsTrue(discoverable.IsIslandMatched(),
                 "Island-gated discoverable should match when its target island is active.");
 
-            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_sloth");
+            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_desire");
             Assert.IsFalse(discoverable.IsIslandMatched(),
                 "Island-gated discoverable should not match when a different island is active.");
         }

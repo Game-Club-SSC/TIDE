@@ -139,15 +139,14 @@ public class ProceduralAudioBuilderTest : MonoBehaviour
     {
         System.Func<AudioClip>[] islandBuilders = {
             ProceduralAudioBuilder.BuildIslandGreedBgm,
-            ProceduralAudioBuilder.BuildIslandSlothBgm,
+            ProceduralAudioBuilder.BuildIslandDesireBgm,
             ProceduralAudioBuilder.BuildIslandEnvyBgm,
             ProceduralAudioBuilder.BuildIslandLustBgm,
-            ProceduralAudioBuilder.BuildIslandWrathBgm,
-            ProceduralAudioBuilder.BuildIslandPrideBgm,
-            ProceduralAudioBuilder.BuildIslandGluttonyBgm
+            ProceduralAudioBuilder.BuildIslandAngerBgm,
+            ProceduralAudioBuilder.BuildIslandEgoBgm
         };
 
-        string[] names = { "Greed", "Sloth", "Envy", "Lust", "Wrath", "Pride", "Gluttony" };
+        string[] names = { "Greed", "Desire", "Envy", "Lust", "Anger", "Ego" };
 
         for (int i = 0; i < islandBuilders.Length; i++)
         {

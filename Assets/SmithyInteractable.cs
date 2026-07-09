@@ -18,6 +18,8 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
     [Header("Interaction")]
     [SerializeField] private Vector3 triggerSize = new Vector3(3.25f, 2.25f, 3.25f);
     [SerializeField] private Color smithyColor = new Color(0.6f, 0.45f, 0.2f);
+    [SerializeField] private KeyCode primaryKey = KeyCode.Return;
+    [SerializeField] private KeyCode secondaryKey = KeyCode.JoystickButton0;
 
     private BoxCollider interactionTrigger;
     private Renderer cachedRenderer;
@@ -25,6 +27,7 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
     private bool playerInRange;
     private Sprite runtimePromptSprite;
     private SmithyUI smithyUI;
+    private PartySetupUI cachedPartySetupUI;
 
     private void Awake()
     {
@@ -56,12 +59,17 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
             return;
         }
 
-        if (!Input.GetKeyDown(KeyCode.Return) && !Input.GetKeyDown(KeyCode.KeypadEnter))
+        if (!Input.GetKeyDown(primaryKey) && !Input.GetKeyDown(secondaryKey)
+            && !Input.GetMouseButtonDown(0) && !HasTouchDown())
         {
             return;
         }
 
-        PartySetupUI partySetupUi = FindFirstObjectByType<PartySetupUI>();
+        PartySetupUI partySetupUi = cachedPartySetupUI != null ? cachedPartySetupUI : FindFirstObjectByType<PartySetupUI>();
+        if (partySetupUi != null)
+        {
+            cachedPartySetupUI = partySetupUi;
+        }
         if (partySetupUi != null && partySetupUi.IsOpen)
         {
             return;
@@ -85,6 +93,16 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
     public void OnSmithyClosed()
     {
         smithyUI = null;
+    }
+
+    public void TryOpenFromExternal()
+    {
+        if (smithyUI != null)
+        {
+            return;
+        }
+
+        OpenSmithy();
     }
 
     private void OnTriggerEnter(Collider other)
@@ -258,5 +276,16 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
         }
 
         return collider.GetComponentInParent<IsometricPlayer>() != null;
+    }
+
+    private static bool HasTouchDown()
+    {
+        if (!Input.touchSupported || Input.touchCount == 0)
+        {
+            return false;
+        }
+
+        Touch touch = Input.GetTouch(0);
+        return touch.phase == TouchPhase.Began;
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 [DisallowMultipleComponent]
 public class TeleportAnchor : MonoBehaviour
@@ -21,6 +22,25 @@ public class TeleportAnchor : MonoBehaviour
 
     private static readonly Dictionary<string, TeleportAnchor> anchorsById = new Dictionary<string, TeleportAnchor>();
     private static readonly Dictionary<string, List<TeleportAnchor>> anchorsByIsland = new Dictionary<string, List<TeleportAnchor>>();
+    private static bool sceneUnloadHooked;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void InitStatics()
+    {
+        anchorsById.Clear();
+        anchorsByIsland.Clear();
+        if (!sceneUnloadHooked)
+        {
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
+            sceneUnloadHooked = true;
+        }
+    }
+
+    private static void OnSceneUnloaded(Scene scene)
+    {
+        anchorsById.Clear();
+        anchorsByIsland.Clear();
+    }
 
     private void OnEnable()
     {

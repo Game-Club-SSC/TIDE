@@ -24,6 +24,7 @@ public class IsometricPlayer : MonoBehaviour
     [SerializeField] private float dashDuration = 0.18f;
     [SerializeField] private float dashCooldown = 0.7f;
     [SerializeField] private float coyoteDashWindow = 0.15f;
+    [SerializeField] private float groundNormalThreshold = 0.55f;
     [SerializeField] private float turnSmoothing = 12f;
     public bool canMove = true;
 
@@ -45,6 +46,7 @@ public class IsometricPlayer : MonoBehaviour
     [SerializeField] private AudioClip dashClip;
     [SerializeField] private AudioClip hopClip;
     [SerializeField] private float stepDistance = 1.8f;
+    [SerializeField] private float footstepSilenceThreshold = 0.2f;
 
     [Header("UI")]
     [SerializeField] private bool addExplorationMapOnStart = true;
@@ -381,7 +383,9 @@ public class IsometricPlayer : MonoBehaviour
         if (Input.GetKeyDown(sprintLockToggleKey))
         {
             isSprintLockEnabled = !isSprintLockEnabled;
+#if UNITY_EDITOR
             Debug.Log($"[IsometricPlayer] Sprint lock {(isSprintLockEnabled ? "enabled" : "disabled")}." );
+#endif
         }
 
         // Read keyboard/gamepad input
@@ -485,6 +489,11 @@ public class IsometricPlayer : MonoBehaviour
         if (cachedMainCamera == null)
         {
             cachedMainCamera = Camera.main;
+        }
+
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
         }
 
         UpdateCameraPolish();
@@ -633,7 +642,9 @@ public class IsometricPlayer : MonoBehaviour
         nextDashAllowedAt = Time.time + Mathf.Max(dashDuration, dashCooldown);
         cachedAssistTarget = null;
         PlayOneShot(dashClip);
+#if UNITY_EDITOR
         Debug.Log($"[IsometricPlayer] Dash started toward {dashDirection}.");
+#endif
     }
 
     private void StopDash()
@@ -746,7 +757,7 @@ public class IsometricPlayer : MonoBehaviour
         }
 
         float planarSpeed = new Vector3(planarVelocity.x, 0f, planarVelocity.z).magnitude;
-        if (planarSpeed <= 0.2f)
+        if (planarSpeed <= footstepSilenceThreshold)
         {
             stepDistanceAccumulator = 0f;
             return;
@@ -775,7 +786,7 @@ public class IsometricPlayer : MonoBehaviour
             return;
         }
 
-        if (collision.contacts[0].normal.y > 0.55f)
+        if (collision.contacts[0].normal.y > groundNormalThreshold)
         {
             lastGroundedTime = Time.time;
         }
@@ -849,6 +860,7 @@ public class IsometricPlayer : MonoBehaviour
     public void ToggleAutoRunEnabled() => autoRunEnabled = !autoRunEnabled;
     public void SetAllowHop(bool enabled) => allowHop = enabled;
     public void ToggleAllowHop() => allowHop = !allowHop;
+    public void ToggleSprintLock() => isSprintLockEnabled = !isSprintLockEnabled;
     public void SetUse2DSpriteVisual(bool enabled)
     {
         if (use2DSpriteVisual == enabled)

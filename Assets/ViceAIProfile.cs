@@ -124,4 +124,16 @@ public class ViceAIProfile : ScriptableObject
 
         return profile;
     }
+
+    public bool IsValid()
+    {
+        return aggressionWeight >= 0f
+            && aggressionWeight <= 1f
+            && skillUsageWeight >= 0f
+            && skillUsageWeight <= 1f
+            && targetWeakestWeight >= 0f
+            && targetWeakestWeight <= 1f
+            && defendLowHpWeight >= 0f
+            && defendLowHpWeight <= 1f;
+    }
 }

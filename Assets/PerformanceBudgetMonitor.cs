@@ -13,6 +13,12 @@ public class PerformanceBudgetMonitor : MonoBehaviour
     [SerializeField, Min(0.001f)] private float maxFrameMs = 16.67f;
     [SerializeField, Min(0.1f)] private float sampleWindowSeconds = 5f;
 
+    [Header("Auto Quality")]
+    [SerializeField] private bool enableAutoQualityDownscale = true;
+    [SerializeField, Min(1)] private int minQualityLevel;
+    [SerializeField, Min(0.1f)] private float qualityCheckInterval = 2f;
+    [SerializeField, Min(1)] private int qualityDropThresholdFrames = 3;
+
     public int TargetFrameRate => targetFrameRate;
     public int MaxHeroes => maxHeroes;
     public int MaxEnemies => maxEnemies;
@@ -20,6 +26,9 @@ public class PerformanceBudgetMonitor : MonoBehaviour
 
     private readonly Queue<float> recentFrameMs = new Queue<float>();
     private float lastFrameTime;
+    private int maxSampleCount;
+    private float qualityCheckTimer;
+    private int overBudgetStreak;
 
     public float CurrentAverageFrameMs { get; private set; }
     public float MinObservedFrameMs { get; private set; } = float.MaxValue;
@@ -42,6 +51,7 @@ public class PerformanceBudgetMonitor : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        RecalculateMaxSampleCount();
     }
 
     private void OnDestroy()
@@ -58,13 +68,18 @@ public class PerformanceBudgetMonitor : MonoBehaviour
         {
             float frameMs = Time.unscaledDeltaTime * 1000f;
             recentFrameMs.Enqueue(frameMs);
-            if (recentFrameMs.Count > 600)
+            while (recentFrameMs.Count > maxSampleCount)
             {
                 recentFrameMs.Dequeue();
             }
             RecomputeStats();
         }
         lastFrameTime = Time.unscaledTime;
+
+        if (enableAutoQualityDownscale)
+        {
+            UpdateAutoQuality();
+        }
     }
 
     public void RecordFrame(float frameMs)
@@ -75,7 +90,7 @@ public class PerformanceBudgetMonitor : MonoBehaviour
         }
 
         recentFrameMs.Enqueue(frameMs);
-        if (recentFrameMs.Count > 600)
+        while (recentFrameMs.Count > maxSampleCount)
         {
             recentFrameMs.Dequeue();
         }
@@ -93,6 +108,13 @@ public class PerformanceBudgetMonitor : MonoBehaviour
         CurrentAverageFrameMs = 0f;
         MinObservedFrameMs = float.MaxValue;
         MaxObservedFrameMs = 0f;
+        overBudgetStreak = 0;
+    }
+
+    private void RecalculateMaxSampleCount()
+    {
+        float fps = targetFrameRate > 0 ? targetFrameRate : 60f;
+        maxSampleCount = Mathf.Max(1, Mathf.CeilToInt(sampleWindowSeconds * fps));
     }
 
     private void RecomputeStats()
@@ -114,5 +136,35 @@ public class PerformanceBudgetMonitor : MonoBehaviour
         CurrentAverageFrameMs = sum / recentFrameMs.Count;
         MinObservedFrameMs = min;
         MaxObservedFrameMs = max;
+    }
+
+    private void UpdateAutoQuality()
+    {
+        qualityCheckTimer -= Time.unscaledDeltaTime;
+        if (qualityCheckTimer > 0f)
+        {
+            return;
+        }
+
+        qualityCheckTimer = qualityCheckInterval;
+
+        if (!IsMeetingBudget)
+        {
+            overBudgetStreak++;
+            if (overBudgetStreak >= qualityDropThresholdFrames)
+            {
+                int current = QualitySettings.GetQualityLevel();
+                if (current > minQualityLevel)
+                {
+                    QualitySettings.SetQualityLevel(current - 1, true);
+                    Debug.Log($"[PerformanceBudgetMonitor] Quality downgraded to {QualitySettings.names[QualitySettings.GetQualityLevel()]} (avg {CurrentAverageFrameMs:F1}ms > {maxFrameMs:F1}ms).");
+                }
+                overBudgetStreak = 0;
+            }
+        }
+        else
+        {
+            overBudgetStreak = 0;
+        }
     }
 }

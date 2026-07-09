@@ -6,7 +6,7 @@ public class EnvyIslandVerificationTest : MonoBehaviour
 {
     private const string IslandId = "island_envy";
     private const string ExpectedViceName = "Envy";
-    private const string ExpectedNextIslandId = "island_pride";
+    private const string ExpectedNextIslandId = "island_ego";
     private const string SceneRelativePath = "Scenes/level_envy.unity";
 
     [ContextMenu("Run Envy Island Verification")]
@@ -37,7 +37,7 @@ public class EnvyIslandVerificationTest : MonoBehaviour
     private void TestProgressionUnlocksNext()
     {
         Assert.AreEqual(ExpectedNextIslandId, IslandThemeRegistry.GetNextIslandId(IslandId),
-            "Clearing Envy should unlock Pride next in progression order.");
+            "Clearing Envy should unlock Ego next in progression order.");
     }
 
     private void TestEncounterLayout(IslandConfig config)

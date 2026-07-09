@@ -52,7 +52,7 @@ public class StoryProgressionTest : MonoBehaviour
             GameStateManager manager = CreateIsolatedManager("TestGameStateManager_StoryAct");
 
             IslandProgressionManager.Instance.UnlockAllIslandsForDebug();
-            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_sloth");
+            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_desire");
             manager.RefreshStoryProgressionForDebug();
 
             Assert.AreEqual(GameStateManager.StoryAct.ActII, manager.CurrentStoryAct,
@@ -338,12 +338,12 @@ public class StoryProgressionTest : MonoBehaviour
             GameStateManager manager = CreateIsolatedManager("TestGameStateManager_ProceedRule");
             IslandProgressionManager.Instance.UnlockAllIslandsForDebug();
 
-            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_sloth");
-            TrackBossVictoryAtThreshold(manager, "island_sloth", IslandRestorationTracker.DefaultBossUnlockThresholdPercent);
+            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_desire");
+            TrackBossVictoryAtThreshold(manager, "island_desire", IslandRestorationTracker.DefaultBossUnlockThresholdPercent);
 
-            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_wrath");
+            IslandProgressionManager.Instance.ForceSetActiveIslandForDebug("island_anger");
 
-            CollectionAssert.DoesNotContain(manager.GetThresholdOnlyProceedIslandIds(), "island_sloth",
+            CollectionAssert.DoesNotContain(manager.GetThresholdOnlyProceedIslandIds(), "island_desire",
                 "Backtracking should not count as proceeding for the threshold-only rule.");
         }
         finally
@@ -438,6 +438,7 @@ public class StoryProgressionTest : MonoBehaviour
             }
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         DevMenuUI[] devMenus = FindObjectsByType<DevMenuUI>(FindObjectsSortMode.None);
         for (int i = 0; i < devMenus.Length; i++)
         {
@@ -446,6 +447,7 @@ public class StoryProgressionTest : MonoBehaviour
                 DestroyImmediate(devMenus[i].gameObject);
             }
         }
+#endif
 
         BossEncounterGate[] bossGates = FindObjectsByType<BossEncounterGate>(FindObjectsSortMode.None);
         for (int i = 0; i < bossGates.Length; i++)

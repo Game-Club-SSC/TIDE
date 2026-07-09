@@ -14,7 +14,7 @@ public class EnchantedMouraNPC : MonoBehaviour, IPlayerInteractionAssistTarget
 {
     private const string PromptResourceName = "PuzzlePrompt";
     private const float PromptPixelsPerUnit = 360f;
-    private const int InteractionsBeforeReveal = 3;
+    [SerializeField] private int interactionsBeforeReveal = 3;
 
     // ------------------------------------------------------------------ //
     //  Inspector fields
@@ -202,7 +202,7 @@ public class EnchantedMouraNPC : MonoBehaviour, IPlayerInteractionAssistTarget
         interactionCount++;
 
         // Check if this interaction triggers the reveal
-        if (!isRevealed && interactionCount >= InteractionsBeforeReveal)
+        if (!isRevealed && interactionCount >= interactionsBeforeReveal)
         {
             isRevealed = true;
         }
@@ -218,7 +218,7 @@ public class EnchantedMouraNPC : MonoBehaviour, IPlayerInteractionAssistTarget
             AddRandomLine(entries, revealedEvilLines, DialogueSystem.Emotion.Angry);
 
             // On the first revealed interaction, also show a gift line (the trap)
-            if (interactionCount == InteractionsBeforeReveal && giftLines != null && giftLines.Length > 0)
+            if (interactionCount == interactionsBeforeReveal && giftLines != null && giftLines.Length > 0)
             {
                 AddRandomLine(entries, giftLines, DialogueSystem.Emotion.Happy);
             }
@@ -280,7 +280,7 @@ public class EnchantedMouraNPC : MonoBehaviour, IPlayerInteractionAssistTarget
             transform.position,
             true);
 
-        Destroy(gameObject, 0.1f);
+        gameObject.SetActive(false);
     }
 
     // ------------------------------------------------------------------ //

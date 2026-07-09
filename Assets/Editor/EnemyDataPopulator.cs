@@ -3,7 +3,7 @@ using UnityEditor;
 
 /// <summary>
 /// Editor tool to batch-generate enemy ScriptableObjects.
-/// Access via: TIDE > Populate Enemy Data (All 7 Islands)
+/// Access via: TIDE > Populate Enemy Data (All 6 Islands)
 /// </summary>
 public static class EnemyDataPopulator
 {
@@ -25,26 +25,26 @@ public static class EnemyDataPopulator
         ("enemy_lust_whisperer",     "Whisperer",         CombatUnit.Element.Water, 105, 8,  25, 14, 12, 35),
         ("enemy_lust_boss",          "Coral Queen",       CombatUnit.Element.Water, 450, 24, 45, 28, 19, 175),
 
-        // === Island 3: Wrath (Fire) ===
-        ("enemy_wrath_brute",        "Brute",             CombatUnit.Element.Fire,   110, 9,  26, 15, 13, 36),
-        ("enemy_wrath_fiend",        "Fiend",             CombatUnit.Element.Fire,   115, 10, 28, 16, 14, 37),
-        ("enemy_wrath_berzerker",    "Berzerker",         CombatUnit.Element.Fire,   120, 10, 29, 16, 14, 39),
-        ("enemy_wrath_pyre",         "Pyre Spirit",       CombatUnit.Element.Fire,   125, 11, 30, 17, 15, 40),
-        ("enemy_wrath_boss",         "Crimson Warlord",   CombatUnit.Element.Fire,   500, 28, 49, 31, 21, 200),
+        // === Island 3: Anger (Fire) ===
+        ("enemy_anger_brute",        "Brute",             CombatUnit.Element.Fire,   110, 9,  26, 15, 13, 36),
+        ("enemy_anger_fiend",        "Fiend",             CombatUnit.Element.Fire,   115, 10, 28, 16, 14, 37),
+        ("enemy_anger_berzerker",    "Berzerker",         CombatUnit.Element.Fire,   120, 10, 29, 16, 14, 39),
+        ("enemy_anger_pyre",         "Pyre Spirit",       CombatUnit.Element.Fire,   125, 11, 30, 17, 15, 40),
+        ("enemy_anger_boss",         "Crimson Warlord",   CombatUnit.Element.Fire,   500, 28, 49, 31, 21, 200),
 
-        // === Island 4: Sloth (Air) ===
-        ("enemy_sloth_dreamer",      "Dreamer",           CombatUnit.Element.Air,    130, 12, 31, 18, 16, 41),
-        ("enemy_sloth_slumberer",    "Slumberer",         CombatUnit.Element.Air,    135, 13, 32, 19, 16, 43),
-        ("enemy_sloth_void",         "Void Walker",       CombatUnit.Element.Air,    140, 13, 34, 20, 17, 44),
-        ("enemy_sloth_haze",         "Haze",              CombatUnit.Element.Air,    145, 14, 35, 21, 18, 45),
-        ("enemy_sloth_boss",         "The Somnolent",     CombatUnit.Element.Air,    550, 31, 53, 34, 23, 225),
+        // === Island 4: Desire (Air) ===
+        ("enemy_desire_dreamer",      "Dreamer",           CombatUnit.Element.Air,    130, 12, 31, 18, 16, 41),
+        ("enemy_desire_slumberer",    "Slumberer",         CombatUnit.Element.Air,    135, 13, 32, 19, 16, 43),
+        ("enemy_desire_void",         "Void Walker",       CombatUnit.Element.Air,    140, 13, 34, 20, 17, 44),
+        ("enemy_desire_haze",         "Haze",              CombatUnit.Element.Air,    145, 14, 35, 21, 18, 45),
+        ("enemy_desire_boss",         "The Somnolent",     CombatUnit.Element.Air,    550, 31, 53, 34, 23, 225),
 
-        // === Island 5: Pride (Space) ===
-        ("enemy_pride_sentinel",     "Sentinel",          CombatUnit.Element.Space,  150, 15, 36, 22, 19, 46),
-        ("enemy_pride_mirror",       "Mirror Knight",     CombatUnit.Element.Space,  155, 16, 37, 22, 19, 47),
-        ("enemy_pride_arrogant",     "Arrogant One",      CombatUnit.Element.Space,  160, 16, 39, 23, 20, 49),
-        ("enemy_pride_veil",         "Veil",              CombatUnit.Element.Space,  165, 17, 40, 24, 20, 50),
-        ("enemy_pride_boss",         "Grand Monarch",     CombatUnit.Element.Space,  600, 34, 57, 38, 25, 250),
+        // === Island 5: Ego (Space) ===
+        ("enemy_ego_sentinel",     "Sentinel",          CombatUnit.Element.Space,  150, 15, 36, 22, 19, 46),
+        ("enemy_ego_mirror",       "Mirror Knight",     CombatUnit.Element.Space,  155, 16, 37, 22, 19, 47),
+        ("enemy_ego_arrogant",     "Arrogant One",      CombatUnit.Element.Space,  160, 16, 39, 23, 20, 49),
+        ("enemy_ego_veil",         "Veil",              CombatUnit.Element.Space,  165, 17, 40, 24, 20, 50),
+        ("enemy_ego_boss",         "Grand Monarch",     CombatUnit.Element.Space,  600, 34, 57, 38, 25, 250),
 
         // === Island 6: Envy (Air) ===
         ("enemy_envy_stalker",       "Stalker",           CombatUnit.Element.Air,    170, 18, 41, 25, 21, 51),
@@ -53,15 +53,9 @@ public static class EnemyDataPopulator
         ("enemy_envy_shade",         "Shade",             CombatUnit.Element.Air,    185, 19, 45, 27, 22, 55),
         ("enemy_envy_boss",          "The Usurper",       CombatUnit.Element.Air,    650, 37, 61, 41, 27, 275),
 
-        // === Island 7: Gluttony (Earth) ===
-        ("enemy_gluttony_feast",     "Feast",             CombatUnit.Element.Earth, 190, 20, 46, 28, 23, 56),
-        ("enemy_gluttony_gourmand",  "Gourmand",          CombatUnit.Element.Earth, 195, 20, 48, 29, 24, 58),
-        ("enemy_gluttony_maw",       "Maw",               CombatUnit.Element.Earth, 198, 20, 49, 29, 25, 59),
-        ("enemy_gluttony_syrup",     "Syrup",             CombatUnit.Element.Earth, 200, 20, 50, 30, 25, 60),
-        ("enemy_gluttony_boss",      "The Devourer",      CombatUnit.Element.Earth, 700, 40, 65, 45, 28, 300),
     };
 
-    [MenuItem("TIDE/Populate Enemy Data (All 7 Islands)")]
+    [MenuItem("TIDE/Populate Enemy Data (All 6 Islands)")]
     public static void PopulateAll()
     {
         if (!AssetDatabase.IsValidFolder(OutputFolder))
@@ -107,11 +101,11 @@ public static class EnemyDataPopulator
 
         Debug.Log($"[EnemyDataPopulator] Created {created} new, skipped {skipped} existing");
         EditorUtility.DisplayDialog("Enemy Data Populated",
-            $"Created {created} new enemy assets.\nSkipped {skipped} already existing.\n\nTotal: {AllEnemies.Length} enemies across 7 islands.",
+            $"Created {created} new enemy assets.\nSkipped {skipped} already existing.\n\nTotal: {AllEnemies.Length} enemies across 6 islands.",
             "OK");
     }
 
-    [MenuItem("TIDE/Populate Enemy Data (All 7 Islands)", true)]
+    [MenuItem("TIDE/Populate Enemy Data (All 6 Islands)", true)]
     public static bool PopulateAllValidate()
     {
         return !EditorApplication.isPlaying;

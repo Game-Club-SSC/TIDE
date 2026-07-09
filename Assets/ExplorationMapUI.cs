@@ -25,6 +25,7 @@ public class ExplorationMapUI : MonoBehaviour
 
     [Header("World Bounds")]
     [SerializeField] private string worldBoundsObjectName = "Ground";
+    [SerializeField] private bool useFallbackBoundsWhenMissing = true;
     [SerializeField] private Vector2 fallbackWorldCenter = new Vector2(12.5f, 0f);
     [SerializeField] private Vector2 fallbackWorldSize = new Vector2(200f, 200f);
     
@@ -174,12 +175,19 @@ public class ExplorationMapUI : MonoBehaviour
         ApplyLayout();
     }
 
+    public void ToggleMapVisibilityPublic()
+    {
+        ToggleMapVisibility();
+    }
+
     private void ResolveWorldBounds()
     {
-        worldCenter = fallbackWorldCenter;
-        worldSize = new Vector2(Mathf.Max(1f, fallbackWorldSize.x), Mathf.Max(1f, fallbackWorldSize.y));
+        if (useFallbackBoundsWhenMissing)
+        {
+            worldCenter = fallbackWorldCenter;
+            worldSize = new Vector2(Mathf.Max(1f, fallbackWorldSize.x), Mathf.Max(1f, fallbackWorldSize.y));
+        }
 
-        // Use cached bounds object if available and valid
         if (cachedBoundsObject == null && !string.IsNullOrEmpty(worldBoundsObjectName))
         {
             cachedBoundsObject = GameObject.Find(worldBoundsObjectName);

@@ -3,7 +3,7 @@ using UnityEditor;
 using System.IO;
 
 /// <summary>
-/// Generates DialogueData ScriptableObjects for all 7 narrative chapters.
+/// Generates DialogueData ScriptableObjects for all 6 narrative chapters.
 /// Uses Opus 4.7's dialogue content with full character voices.
 /// Access via: TIDE > Populate Dialogue Data
 /// </summary>
@@ -28,7 +28,6 @@ public static class DialogueDataPopulator
         created += CreateChapter3();
         created += CreateChapter4();
         created += CreateChapter5();
-        created += CreateChapter6();
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -38,11 +37,10 @@ public static class DialogueDataPopulator
             $"Created {created} DialogueData assets.\n\n" +
             "Chapter 0: The Gathering Tide (Greed)\n" +
             "Chapter 1: Salt and Song (Lust)\n" +
-            "Chapter 2: The Burning Coast (Wrath)\n" +
-            "Chapter 3: The Sleeping Shore (Sloth)\n" +
-            "Chapter 4: The Mirror Peaks (Pride)\n" +
-            "Chapter 5: The Envious Deep (Envy)\n" +
-            "Chapter 6: The Last Tide (Gluttony)",
+            "Chapter 2: The Burning Coast (Anger)\n" +
+            "Chapter 3: The Sleeping Shore (Desire)\n" +
+            "Chapter 4: The Mirror Peaks (Ego)\n" +
+            "Chapter 5: The Envious Deep (Envy)",
             "OK");
     }
 
@@ -178,25 +176,25 @@ public static class DialogueDataPopulator
     }
 
     // ============================================================
-    // Chapter 2: The Burning Coast (Wrath) — Act I → Act II hinge
+    // Chapter 2: The Burning Coast (Anger) — Act I → Act II hinge
     // Tone: Adventurous but the first shadow falls
     // ============================================================
     private static int CreateChapter2()
     {
         var data = ScriptableObject.CreateInstance<DialogueData>();
-        data.chapterId = "chapter_2_wrath";
+        data.chapterId = "chapter_2_anger";
         data.chapterName = "The Burning Coast";
-        data.islandId = "wrath";
+        data.islandId = "anger";
         data.act = "Act I";
         data.tone = "Adventurous but the first shadow falls — optimism cracks.";
-        data.ancientTextId = "text_wrath_intro";
+        data.ancientTextId = "text_anger_intro";
         data.relationshipImpact = "First real fracture — Killian frightens the group. Merrick's steadying role becomes central. Aether's evasion starts to unsettle everyone.";
 
         data.storyBeats = new StoryBeat[]
         {
             new StoryBeat {
-                beatName = "Wrath Amplifies",
-                description = "Wrath amplifies Killian's rage; his power spikes but he nearly hits Merrick mid-battle.",
+                beatName = "Anger Amplifies",
+                description = "Anger amplifies Killian's rage; his power spikes but he nearly hits Merrick mid-battle.",
                 lines = new DialogueLine[]
                 {
                     new DialogueLine { speaker = "Killian", text = "Get back — GET BACK, all of you, I can't— I don't know where the fire stops and I start!", emotion = "terrified" },
@@ -205,7 +203,7 @@ public static class DialogueDataPopulator
             },
             new StoryBeat {
                 beatName = "The Truth Emerges",
-                description = "The lust_deep and wrath_intro texts together confirm: every past cycle read these exact words and reached one conclusion.",
+                description = "The lust_deep and anger_intro texts together confirm: every past cycle read these exact words and reached one conclusion.",
                 lines = new DialogueLine[]
                 {
                     new DialogueLine { speaker = "Aether", text = "Anger is honest, at least. It is the first door everyone walks through when they begin to understand what we are.", emotion = "solemn" },
@@ -223,29 +221,29 @@ public static class DialogueDataPopulator
             },
         };
 
-        return CreateAsset("chapter_2_wrath", data);
+        return CreateAsset("chapter_2_anger", data);
     }
 
     // ============================================================
-    // Chapter 3: The Sleeping Shore (Sloth) — Act II
+    // Chapter 3: The Sleeping Shore (Desire) — Act II
     // Tone: Heavy, dreamlike, melancholic. The truth surfaces.
     // ============================================================
     private static int CreateChapter3()
     {
         var data = ScriptableObject.CreateInstance<DialogueData>();
-        data.chapterId = "chapter_3_sloth";
+        data.chapterId = "chapter_3_desire";
         data.chapterName = "The Sleeping Shore";
-        data.islandId = "sloth";
+        data.islandId = "desire";
         data.act = "Act II";
         data.tone = "Heavy, dreamlike, melancholic. The truth surfaces.";
-        data.ancientTextId = "text_sloth_intro";
+        data.ancientTextId = "text_desire_intro";
         data.relationshipImpact = "Bonds are deepest and most fragile here. Killian–Merrick roles invert (Killian becomes protector). Everyone silently agrees not to speak the truth aloud — closeness through shared denial.";
 
         data.storyBeats = new StoryBeat[]
         {
             new StoryBeat {
                 beatName = "False Memories",
-                description = "Sloth's haze makes the heroes relive fragments of 'memories' that aren't theirs — past heroes' final days.",
+                description = "Desire's haze makes the heroes relive fragments of 'memories' that aren't theirs — past heroes' final days.",
                 lines = new DialogueLine[]
                 {
                     new DialogueLine { speaker = "Freida", text = "I dreamed I was standing here a hundred years ago. Same shore. Different face. I said goodbye to four people I loved. …I don't want to talk about it.", emotion = "haunted" },
@@ -271,29 +269,29 @@ public static class DialogueDataPopulator
             },
         };
 
-        return CreateAsset("chapter_3_sloth", data);
+        return CreateAsset("chapter_3_desire", data);
     }
 
     // ============================================================
-    // Chapter 4: The Mirror Peaks (Pride) — Act II
+    // Chapter 4: The Mirror Peaks (Ego) — Act II
     // Tone: Unsettling, cold, isolating. Denial curdles.
     // ============================================================
     private static int CreateChapter4()
     {
         var data = ScriptableObject.CreateInstance<DialogueData>();
-        data.chapterId = "chapter_4_pride";
+        data.chapterId = "chapter_4_ego";
         data.chapterName = "The Mirror Peaks";
-        data.islandId = "pride";
+        data.islandId = "ego";
         data.act = "Act II";
         data.tone = "Unsettling, cold, isolating. Denial curdles.";
-        data.ancientTextId = "text_pride_intro";
+        data.ancientTextId = "text_ego_intro";
         data.relationshipImpact = "First genuine rift with lasting weight. Briar's resentment (her Bad-Ending seed) shows. Freida's fear of losing the group surfaces. The party's unity is now effortful, not natural.";
 
         data.storyBeats = new StoryBeat[]
         {
             new StoryBeat {
                 beatName = "Mirror Illusions",
-                description = "Pride's Mirror Knights show each hero an idealized, immortal version of themselves — the person they'd be if they didn't have to fade.",
+                description = "Ego's Mirror Knights show each hero an idealized, immortal version of themselves — the person they'd be if they didn't have to fade.",
                 lines = new DialogueLine[]
                 {
                     new DialogueLine { speaker = "Briar", text = "The mirror showed me a version of me that gets to grow old. That gets to make things no one asked her to make. Why do they get that and we don't?", emotion = "resentful" },
@@ -303,10 +301,10 @@ public static class DialogueDataPopulator
             },
             new StoryBeat {
                 beatName = "Aether's Warning",
-                description = "The sloth_deep text — a past hero's hope for 'the next of us' — lands like grief.",
+                description = "The desire_deep text — a past hero's hope for 'the next of us' — lands like grief.",
                 lines = new DialogueLine[]
                 {
-                    new DialogueLine { speaker = "Aether", text = "Pride is the mirror that tells you you are owed a longer story. It is the cruelest island. Do not linger at your reflection, Briar. It does not love you back.", emotion = "firm" },
+                    new DialogueLine { speaker = "Aether", text = "Ego is the mirror that tells you you are owed a longer story. It is the cruelest island. Do not linger at your reflection, Briar. It does not love you back.", emotion = "firm" },
                 }
             },
             new StoryBeat {
@@ -319,7 +317,7 @@ public static class DialogueDataPopulator
             },
         };
 
-        return CreateAsset("chapter_4_pride", data);
+        return CreateAsset("chapter_4_ego", data);
     }
 
     // ============================================================
@@ -359,7 +357,7 @@ public static class DialogueDataPopulator
             },
             new StoryBeat {
                 beatName = "The Usurper Falls",
-                description = "In the quiet after, the pride_intro text brings the first sliver of clarity, not comfort.",
+                description = "In the quiet after, the ego_intro text brings the first sliver of clarity, not comfort.",
                 lines = new DialogueLine[]
                 {
                     new DialogueLine { speaker = "Narrator", text = "The Usurper falls. The envy dissolves. And in the quiet, for the first time, they sit together without pretense. Not fighting. Not strategizing. Just being. The next island waits. They are ready.", emotion = "neutral" },
@@ -370,62 +368,4 @@ public static class DialogueDataPopulator
         return CreateAsset("chapter_5_envy", data);
     }
 
-    // ============================================================
-    // Chapter 6: The Last Tide (Gluttony) — Act III
-    // Tone: Quiet, accepting, tender. No more denial — just presence.
-    // ============================================================
-    private static int CreateChapter6()
-    {
-        var data = ScriptableObject.CreateInstance<DialogueData>();
-        data.chapterId = "chapter_6_gluttony";
-        data.chapterName = "The Last Tide";
-        data.islandId = "gluttony";
-        data.act = "Act III";
-        data.tone = "Quiet, accepting, tender. No more denial — just presence.";
-        data.ancientTextId = "text_envy_final";
-        data.relationshipImpact = "Complete. Every arc resolves — Killian's peace, Merrick's letting-go, Briar's reconciliation, Freida's gratitude. The bonds built across six islands are what make the fade land. Acceptance, together.";
-
-        data.storyBeats = new StoryBeat[]
-        {
-            new StoryBeat {
-                beatName = "Final Approach",
-                description = "The heroes reach the final island knowing exactly what victory costs. No one turns back.",
-                lines = new DialogueLine[]
-                {
-                    new DialogueLine { speaker = "Aether", text = "You wanted to know what we are. We are the pause between a wave rising and a wave falling. We were never supposed to last. But we were supposed to matter — and we did.", emotion = "serene" },
-                }
-            },
-            new StoryBeat {
-                beatName = "Last Conversations",
-                description = "Brief, unhurried conversation before the Devourer — each says the thing they'd been avoiding.",
-                lines = new DialogueLine[]
-                {
-                    new DialogueLine { speaker = "Killian", text = "I spent so long afraid of what was inside me. Turns out it was just… this. All of you. I'm not angry anymore.", emotion = "at peace" },
-                    new DialogueLine { speaker = "Merrick", text = "Promise me something. Whoever comes next — they won't wake up as strangers. Leave them something. So they're a little less alone than we were.", emotion = "hopeful" },
-                    new DialogueLine { speaker = "Freida", text = "Then let's write it down. One last text. For the next five. …I'm glad it was you four. Truly.", emotion = "grateful" },
-                    new DialogueLine { speaker = "Briar", text = "Me too. Ready?", emotion = "calm" },
-                }
-            },
-            new StoryBeat {
-                beatName = "The Final Battle",
-                description = "They fight as one, movements flawless because they finally trust completely.",
-                lines = new DialogueLine[]
-                {
-                    new DialogueLine { speaker = "Narrator", text = "They move like water through stone. No hesitation. No wasted breath. Every element in harmony — not because they were designed to fit, but because they chose to. The Devourer falls. The tide returns. The world breathes.", emotion = "neutral" },
-                }
-            },
-            new StoryBeat {
-                beatName = "The Fade",
-                description = "The Devourer falls; balance is restored; the heroes begin to fade. The final text appears as they dissolve into light and dark.",
-                lines = new DialogueLine[]
-                {
-                    new DialogueLine { speaker = "Narrator", text = "They feel it first in their hands — a softness, like morning fog. Freida's fingers become light. Merrick's warmth becomes shadow. Briar's breath becomes wind. Killian's fire becomes stars. Aether smiles.", emotion = "bittersweet" },
-                    new DialogueLine { speaker = "Aether", text = "See? Not so bad. Just a very long, beautiful dream. And someone else will dream it soon.", emotion = "peaceful" },
-                    new DialogueLine { speaker = "Narrator", text = "They write their last words on the final stone. Not for themselves — for the next five. For the strangers who will wake on a golden shore and wonder why they trust each other so quickly. The answer is simple: because someone loved them first. The tide recedes. Silence. Then, somewhere, a new shore. A new tide. A new beginning.", emotion = "bittersweet" },
-                }
-            },
-        };
-
-        return CreateAsset("chapter_6_gluttony", data);
-    }
 }

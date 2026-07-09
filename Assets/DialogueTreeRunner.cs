@@ -330,7 +330,11 @@ public class DialogueTreeRunner : MonoBehaviour
             // Story act requirement
             if (choice.requiredStoryAct > 0)
             {
-                // TODO: integrate with story act system when available
+                if (StoryProgressionService.Instance == null
+                    || (int)StoryProgressionService.Instance.HighestActReached < choice.requiredStoryAct)
+                {
+                    continue;
+                }
             }
 
             available.Add(choice);
@@ -467,19 +471,50 @@ public class DialogueTreeRunner : MonoBehaviour
                     break;
 
                 case DialogueConditionType.StoryAct:
-                    // TODO: integrate with story act system
+                    if (StoryProgressionService.Instance == null)
+                    {
+                        Debug.LogWarning("[DialogueTreeRunner] StoryProgressionService not available for StoryAct condition.");
+                        return false;
+                    }
+                    if ((int)StoryProgressionService.Instance.CurrentAct < cond.intValue)
+                    {
+                        return false;
+                    }
                     break;
 
                 case DialogueConditionType.IslandRestored:
-                    // TODO: integrate with island restoration system
+                    if (IslandRestorationTracker.Instance == null)
+                    {
+                        Debug.LogWarning("[DialogueTreeRunner] IslandRestorationTracker not available for IslandRestored condition.");
+                        return false;
+                    }
+                    if (!IslandRestorationTracker.Instance.IsIslandRestored(cond.targetId))
+                    {
+                        return false;
+                    }
                     break;
 
                 case DialogueConditionType.HasAncientText:
-                    // TODO: integrate with inventory system
+                    if (!ExpandedAncientTexts.TryGetText(cond.targetId, out _))
+                    {
+                        return false;
+                    }
+                    if (AncientTextRevealDirector.Instance == null || !AncientTextRevealDirector.Instance.IsFragmentDiscovered(cond.targetId))
+                    {
+                        return false;
+                    }
                     break;
 
                 case DialogueConditionType.QuestCompleted:
-                    // TODO: integrate with quest system
+                    if (StoryProgressionService.Instance == null)
+                    {
+                        Debug.LogWarning("[DialogueTreeRunner] StoryProgressionService not available for QuestCompleted condition.");
+                        return false;
+                    }
+                    if (!StoryProgressionService.Instance.IsQuestCompleted(cond.targetId))
+                    {
+                        return false;
+                    }
                     break;
             }
         }
@@ -511,19 +546,67 @@ public class DialogueTreeRunner : MonoBehaviour
                     break;
 
                 case DialogueEffectType.GrantXP:
-                    // TODO: integrate with progression system
+                    if (!string.IsNullOrEmpty(effect.targetId) && effect.intValue > 0)
+                    {
+                        if (HeroProgressionManager.Instance != null)
+                        {
+                            HeroProgressionManager.Instance.GrantXp(effect.targetId, effect.intValue);
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[DialogueTreeRunner] HeroProgressionManager not available for GrantXP effect.");
+                        }
+                    }
                     break;
 
                 case DialogueEffectType.UnlockTideBreak:
-                    // TODO: integrate with tide break system
+                    if (!string.IsNullOrEmpty(effect.targetId))
+                    {
+                        if (TideBreakProgressionManager.Instance != null)
+                        {
+                            string heroId = currentNode.entry != null ? currentNode.entry.relatedHeroId : null;
+                            if (!string.IsNullOrEmpty(heroId))
+                            {
+                                TideBreakProgressionManager.Instance.RevealHiddenTideBreak(heroId, effect.targetId);
+                            }
+                            else
+                            {
+                                Debug.LogWarning("[DialogueTreeRunner] No relatedHeroId for UnlockTideBreak effect.");
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[DialogueTreeRunner] TideBreakProgressionManager not available for UnlockTideBreak effect.");
+                        }
+                    }
                     break;
 
                 case DialogueEffectType.SetFlag:
-                    // TODO: integrate with flag/variable system
+                    if (!string.IsNullOrEmpty(effect.targetId))
+                    {
+                        if (StoryProgressionService.Instance != null)
+                        {
+                            StoryProgressionService.Instance.SetFlag(effect.targetId, effect.intValue != 0);
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[DialogueTreeRunner] StoryProgressionService not available for SetFlag effect.");
+                        }
+                    }
                     break;
 
                 case DialogueEffectType.GiveItem:
-                    // TODO: integrate with inventory system
+                    if (effect.intValue > 0)
+                    {
+                        if (HeroProgressionManager.Instance != null)
+                        {
+                            HeroProgressionManager.Instance.AddCurrency(effect.intValue);
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[DialogueTreeRunner] HeroProgressionManager not available for GiveItem effect.");
+                        }
+                    }
                     break;
             }
         }

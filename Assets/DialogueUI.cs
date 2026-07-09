@@ -82,10 +82,7 @@ public class DialogueUI : MonoBehaviour
         ShowEntry(currentEntries[0]);
 
         // Fire stale callback last so re-entry is safe (state is fully set).
-        if (staleCallback != null)
-        {
-            staleCallback.Invoke();
-        }
+        staleCallback?.Invoke();
     }
 
     // ------------------------------------------------------------------ //

@@ -204,7 +204,7 @@ public static class PuzzleVariantServiceLogic
         {
             data.enableConsumption = true;
             data.consumptionAmount = 2;
-            return PuzzleVariantService.IsGluttonyConsumptionEnabled(data)
+            return PuzzleVariantService.IsGreedConsumptionEnabled(data)
                 && PuzzleVariantService.GetConsumptionAmount(data) == 2;
         }
         finally
@@ -214,12 +214,12 @@ public static class PuzzleVariantServiceLogic
     }
 }
 
-public static class SlothStatusEffects
+public static class DesireStatusEffects
 {
     public static bool Ok()
     {
-        StatusEffect slow = SlothStatusEffectSet.CreateSlowEffect("test", 2, 0.5f);
-        StatusEffect drowsy = SlothStatusEffectSet.CreateDrowsyEffect("test", 1);
+        StatusEffect slow = DesireStatusEffectSet.CreateSlowEffect("test", 2, 0.5f);
+        StatusEffect drowsy = DesireStatusEffectSet.CreateDrowsyEffect("test", 1);
         return slow != null && drowsy != null
             && slow.Type == StatusEffectType.Slow
             && drowsy.Type == StatusEffectType.Drowsy;

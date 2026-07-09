@@ -435,7 +435,6 @@ public class FateEncounterDirector : MonoBehaviour
         BattleManager bm = FindFirstObjectByType<BattleManager>();
         if (bm != null)
         {
-            bm.ConfigureEnvyContext(true, true);
             bm.StartBattle();
         }
         else

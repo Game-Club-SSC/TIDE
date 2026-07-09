@@ -248,6 +248,15 @@ public class IslandFlowController : MonoBehaviour
 
     private void LoadCombatEncounter(EncounterDefinition encounter)
     {
+        PowerBudgetTracker budgetTracker = PowerBudgetTracker.Instance;
+        if (budgetTracker != null && !budgetTracker.TryConsumeBudget(activeIslandId, 1f))
+        {
+            Debug.Log($"[IslandFlowController] Power budget exhausted for '{activeIslandId}'. Skipping combat encounter.");
+            currentEncounterIndex++;
+            LoadCurrentEncounter();
+            return;
+        }
+
         awaitingEncounterResolution = true;
         if (GameStateManager.Instance != null)
         {

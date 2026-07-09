@@ -14,7 +14,7 @@ public class MobileTouchInputManager : MonoBehaviour
 {
     private const string CanvasName = "MobileTouchCanvas";
     private const float CanvasSortOrder = 950;
-    private const float AutoHideDelay = 3f;
+    [SerializeField] private float autoHideDelay = 3f;
     private const float FadeDuration = 0.4f;
     private const float AutoHideMinAlpha = 0.15f;
     private const float FullAlpha = 0.4f;
@@ -23,9 +23,11 @@ public class MobileTouchInputManager : MonoBehaviour
 
     [Header("Settings")]
     [SerializeField] private bool enableMobileControls = true;
+    [SerializeField] private bool forceMobileInEditor;
     [SerializeField] private float joystickRadius = 100f;
     [SerializeField] private float joystickDeadZone = 0.15f;
     [SerializeField] private float sprintHoldTime = 0.3f;
+    [SerializeField] private float joystickSmoothSpeed = 12f;
 
     // Movement input state
     private float moveH;
@@ -114,7 +116,7 @@ public class MobileTouchInputManager : MonoBehaviour
         isActive = true;
         currentAlpha = FullAlpha;
         alphaTarget = FullAlpha;
-        autoHideTimer = AutoHideDelay;
+        autoHideTimer = autoHideDelay;
     }
 
     private void Update()
@@ -140,8 +142,7 @@ public class MobileTouchInputManager : MonoBehaviour
 #if UNITY_IOS || UNITY_ANDROID
         IsMobilePlatform = true;
 #else
-        // Allow editor testing with touch simulation
-        IsMobilePlatform = Application.isEditor && Input.touchCount > 0;
+        IsMobilePlatform = forceMobileInEditor;
 #endif
     }
 
@@ -270,11 +271,11 @@ public class MobileTouchInputManager : MonoBehaviour
     {
         if (!isDraggingJoystick || joystickTouchId < 0)
         {
+            float decay = joystickSmoothSpeed * Time.deltaTime;
+            moveH = Mathf.MoveTowards(moveH, 0f, decay);
+            moveV = Mathf.MoveTowards(moveV, 0f, decay);
             return;
         }
-
-        // Already handled in OnTouchHeld; this is a no-op placeholder
-        // for any frame-based joystick smoothing if added later.
     }
 
     private void UpdateJoystickKnob(Vector2 screenPos)
@@ -313,9 +314,35 @@ public class MobileTouchInputManager : MonoBehaviour
 
     private void HandleBattleTouch(Touch touch)
     {
-        // The battle panel buttons are handled via their own Button components
-        // which fire through the EventSystem. No extra touch logic needed here.
-        // This method exists for future tap-on-enemy targeting.
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+
+        if (mainCamera == null)
+        {
+            return;
+        }
+
+        Ray ray = mainCamera.ScreenPointToRay(touch.position);
+        if (!Physics.Raycast(ray, out RaycastHit hit, 200f))
+        {
+            return;
+        }
+
+        CombatUnit targetUnit = hit.collider.GetComponentInParent<CombatUnit>();
+        if (targetUnit == null || !targetUnit.IsAlive || targetUnit.Type == CombatUnit.UnitType.Ally)
+        {
+            return;
+        }
+
+        BattleManager bm = FindFirstObjectByType<BattleManager>();
+        if (bm == null)
+        {
+            return;
+        }
+
+        bm.TryAssignActionFromHud(CombatActionType.Attack, targetUnit);
     }
 
     private void UpdateBattlePanelVisibility()
@@ -343,7 +370,7 @@ public class MobileTouchInputManager : MonoBehaviour
 
     private void ResetAutoHide()
     {
-        autoHideTimer = AutoHideDelay;
+        autoHideTimer = autoHideDelay;
         alphaTarget = FullAlpha;
     }
 

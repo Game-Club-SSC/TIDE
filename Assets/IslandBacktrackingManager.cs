@@ -46,12 +46,14 @@ public class IslandBacktrackingManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
+        OnBacktrackingNarrativeAvailable += HandleNarrativeAvailable;
         TryBindTracker();
         ReconcileBacktrackingState();
     }
 
     private void OnDisable()
     {
+        OnBacktrackingNarrativeAvailable -= HandleNarrativeAvailable;
         UnbindTracker();
     }
 
@@ -347,28 +349,45 @@ public class IslandBacktrackingManager : MonoBehaviour
         return -1;
     }
 
+    private void HandleNarrativeAvailable(string narrativeReason)
+    {
+        Debug.Log($"[IslandBacktrackingManager] Narrative available: {narrativeReason}");
+    }
+
     private static BacktrackingUnlock[] GetDefaultUnlocks()
     {
-        // Progression order: lust(0), gluttony(1), greed(2), sloth(3), wrath(4), envy(5), pride(6)
+        // Progression order: lust(0), greed(1), greed(2), desire(3), anger(4), envy(5), ego(6)
         //
-        // After completing sloth (index 3): unlock greed(2), gluttony(1), lust(0)
+        // After completing desire (index 3): unlock greed(2), greed(1), lust(0)
         //   "The texts mention something we missed on the earlier islands..."
-        // After completing envy (index 5): unlock wrath(4), sloth(3), greed(2), gluttony(1), lust(0)
+        // After completing envy (index 5): unlock anger(4), desire(3), greed(2), greed(1), lust(0)
         //   "The ancient texts grow clearer. We must return and speak with the tribe leaders again."
 
         return new[]
         {
             new BacktrackingUnlock
             {
-                unlockIslandId = "island_sloth",
-                unlockedIslands = new[] { "island_greed", "island_gluttony", "island_lust" },
+                unlockIslandId = "island_desire",
+                unlockedIslands = new[] { "island_greed", "island_greed", "island_lust" },
                 narrativeReason = "The texts mention something we missed on the earlier islands. The tribe leaders might know more than they let on."
             },
             new BacktrackingUnlock
             {
+                unlockIslandId = "island_anger",
+                unlockedIslands = new[] { "island_desire", "island_greed", "island_greed", "island_lust" },
+                narrativeReason = "Anger's fury has subsided. The path back to the earlier islands is clear once more."
+            },
+            new BacktrackingUnlock
+            {
                 unlockIslandId = "island_envy",
-                unlockedIslands = new[] { "island_wrath", "island_sloth", "island_greed", "island_gluttony", "island_lust" },
+                unlockedIslands = new[] { "island_anger", "island_desire", "island_greed", "island_greed", "island_lust" },
                 narrativeReason = "The ancient texts grow clearer with each island restored. We must return and speak with the tribe leaders again — they have been withholding the truth."
+            },
+            new BacktrackingUnlock
+            {
+                unlockIslandId = "island_ego",
+                unlockedIslands = new[] { "island_envy", "island_anger", "island_desire", "island_greed", "island_greed", "island_lust" },
+                narrativeReason = "With ego overcome, every island is within reach. The final truths await where we first began."
             }
         };
     }

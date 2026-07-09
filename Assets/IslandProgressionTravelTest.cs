@@ -77,7 +77,7 @@ public class IslandProgressionTravelTest : MonoBehaviour
             progressionObject = progression.gameObject;
 
             const string currentIsland = "island_lust";
-            const string nextIsland = "island_gluttony";
+            const string nextIsland = "island_greed";
 
             int unlockEvents = 0;
             progression.OnIslandUnlocked += islandId =>
@@ -130,7 +130,7 @@ public class IslandProgressionTravelTest : MonoBehaviour
             progressionObject = progression.gameObject;
 
             const string restoredIsland = "island_lust";
-            const string unlockedIsland = "island_gluttony";
+            const string unlockedIsland = "island_greed";
             Vector3 expectedReturnPosition = new Vector3(18.25f, 31.54f, -4.5f);
 
             tracker.RecordEncounterCompletion(restoredIsland, "snapshot_c1", EncounterType.Combat, 0.5f);
@@ -180,8 +180,8 @@ public class IslandProgressionTravelTest : MonoBehaviour
 
         Assert.AreEqual("island_lust", IslandThemeRegistry.ResolveIslandId("island_1"),
             "Legacy alias 'island_1' should resolve to 'island_lust'.");
-        Assert.AreEqual("island_wrath", IslandThemeRegistry.ResolveIslandId("island_2"),
-            "Legacy alias 'island_2' should resolve to 'island_wrath'.");
+        Assert.AreEqual("island_anger", IslandThemeRegistry.ResolveIslandId("island_2"),
+            "Legacy alias 'island_2' should resolve to 'island_anger'.");
         Assert.IsTrue(IslandThemeRegistry.IsKnownIslandId("island_1"),
             "Legacy alias should be recognized as a known island id.");
         Assert.IsTrue(IslandThemeRegistry.IsKnownIslandId("island_6"),
@@ -216,7 +216,7 @@ public class IslandProgressionTravelTest : MonoBehaviour
             InvokePrivate(boat, "EnsureDestinationList");
             InvokePrivate(boat, "RefreshDestinationOrder");
 
-            string unrestoredIsland = "island_gluttony";
+            string unrestoredIsland = "island_greed";
             bool canTravel = (bool)InvokePrivate(boat, "IsIslandTravelEligible", progression, unrestoredIsland);
             Assert.IsFalse(canTravel,
                 "Boat should refuse to travel to an unrestored destination even when unlocked.");
@@ -265,11 +265,11 @@ public class IslandProgressionTravelTest : MonoBehaviour
             progressionObject = progression.gameObject;
             progression.UnlockAllIslandsForDebug();
 
-            string restoredIsland = "island_gluttony";
+            string restoredIsland = "island_greed";
             tracker.RecordEncounterCompletion(restoredIsland, "boat_c1", EncounterType.Combat, 0.5f);
             tracker.RecordEncounterCompletion(restoredIsland, "boat_p1", EncounterType.Puzzle, 0.5f);
             Assert.IsTrue(tracker.IsIslandRestored(restoredIsland),
-                "Setup precondition: gluttony should be marked restored.");
+                "Setup precondition: greed should be marked restored.");
 
             manager = CreateIsolatedManager("TestGameStateManager_BoatRestored");
 
@@ -324,7 +324,7 @@ public class IslandProgressionTravelTest : MonoBehaviour
             progressionObject = progression.gameObject;
             progression.UnlockAllIslandsForDebug();
 
-            string destinationIsland = "island_gluttony";
+            string destinationIsland = "island_greed";
             tracker.RecordEncounterCompletion(destinationIsland, "pipeline_c1", EncounterType.Combat, 0.5f);
             tracker.RecordEncounterCompletion(destinationIsland, "pipeline_p1", EncounterType.Puzzle, 0.5f);
 

@@ -33,7 +33,7 @@ public class IslandRestorationState
     public int PuzzleEncountersCompleted => puzzleEncountersCompleted;
     public IReadOnlyList<string> CompletedEncounterIds => completedEncounterIds;
     public float RestorationPercent => Mathf.Clamp01(totalContribution) * 100f;
-    public bool IsIslandRestored => totalContribution >= 1f;
+    public bool IsIslandRestored => totalContribution >= 0.999f;
 
     public IslandRestorationState(string islandId)
     {
@@ -66,12 +66,12 @@ public class IslandRestorationState
 
         if (type == EncounterType.Combat)
         {
-            combatContribution += value;
+            combatContribution = Mathf.Min(0.5f, combatContribution + value);
             combatEncountersCompleted++;
         }
         else
         {
-            puzzleContribution += value;
+            puzzleContribution = Mathf.Min(1f, puzzleContribution + value);
             puzzleEncountersCompleted++;
         }
 

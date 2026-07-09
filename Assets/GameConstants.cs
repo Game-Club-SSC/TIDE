@@ -16,4 +16,17 @@ public static class GameConstants
     public const int DefaultXpPerLevelIncrement = 50;
     public const float DefaultReserveXpMultiplier = 0.5f;
     public const float DefendMultiplier = 0.5f;
+
+    public const string IslandLust = "island_lust";
+    public const string IslandGreed = "island_greed";
+    public const string IslandDesire = "island_desire";
+    public const string IslandAnger = "island_anger";
+    public const string IslandEnvy = "island_envy";
+    public const string IslandEgo = "island_ego";
+
+    public const string HeroEmber = "hero_ember";
+    public const string HeroTidecaller = "hero_tidecaller";
+    public const string HeroStoneheart = "hero_stoneheart";
+    public const string HeroZephyr = "hero_zephyr";
+    public const string HeroVoidwalker = "hero_voidwalker";
 }

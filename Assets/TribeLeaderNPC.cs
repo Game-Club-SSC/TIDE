@@ -131,9 +131,9 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
                 };
                 break;
 
-            case "island_wrath":
+            case "island_anger":
                 npc.npcName = "War Chief Torven";
-                npc.islandId = "island_wrath";
+                npc.islandId = "island_anger";
                 npc._tribeName = "Blood Oath";
                 npc.requiredAct = GameStateManager.StoryAct.ActII;
                 npc.refuseToShareTruthLines = new[]
@@ -156,9 +156,9 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
                 };
                 break;
 
-            case "island_sloth":
+            case "island_desire":
                 npc.npcName = "Sage Lirael";
-                npc.islandId = "island_sloth";
+                npc.islandId = "island_desire";
                 npc._tribeName = "Dream Walkers";
                 npc.requiredAct = GameStateManager.StoryAct.ActII;
                 npc.refuseToShareTruthLines = new[]
@@ -206,16 +206,16 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
                 };
                 break;
 
-            case "island_pride":
+            case "island_ego":
                 npc.npcName = "High Priestess Aurelia";
-                npc.islandId = "island_pride";
+                npc.islandId = "island_ego";
                 npc._tribeName = "Crown of Thorns";
                 npc.requiredAct = GameStateManager.StoryAct.ActII;
                 npc.refuseToShareTruthLines = new[]
                 {
                     "We are the keepers of truth. And the truth is... you are not ready.",
                     "The sacred texts are not for outsiders. They are for those who have earned them.",
-                    "You think you deserve to know? Pride comes before understanding, little one.",
+                    "You think you deserve to know? Ego comes before understanding, little one.",
                     "The Temple guards its knowledge as it guards its people. With absolute certainty."
                 };
                 npc.hintLines = new[]
@@ -226,7 +226,7 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
                 npc.postRevelationLines = new[]
                 {
                     "You have humbled us. The keepers of truth... were blind to it themselves.",
-                    "The pride of our order nearly cost us everything. You have given us a second chance.",
+                    "The ego of our order nearly cost us everything. You have given us a second chance.",
                     "We were not ready. But neither were you. And yet here we are."
                 };
                 break;
