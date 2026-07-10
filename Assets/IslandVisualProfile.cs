@@ -122,158 +122,207 @@ public class IslandVisualProfile : ScriptableObject
             return null;
         }
 
+        string sinRoot = IslandArtResolver.ToSinRoot(islandId);
+        if (string.IsNullOrEmpty(sinRoot))
+        {
+            Debug.LogWarning($"[IslandVisualProfile] Unknown island id '{islandId}'. Returning null.");
+            return null;
+        }
+
         IslandVisualProfile profile = CreateInstance<IslandVisualProfile>();
         profile.islandId = islandId;
 
-        switch (islandId)
+        switch (sinRoot)
         {
-            case "island_lust":
-                profile.groundGradient = new CorruptionGradient
-                {
-                    evilColor = new Color(0.18f, 0.02f, 0.06f),
-                    neutralColor = new Color(0.72f, 0.30f, 0.35f),
-                    goodColor = new Color(0.95f, 0.70f, 0.65f)
-                };
-                profile.groundTint = new Color(0.9f, 0.75f, 0.75f);
-                profile.wallColor = new Color(0.55f, 0.15f, 0.20f);
-                profile.wallHighlightColor = new Color(0.85f, 0.40f, 0.45f);
-                profile.waterShallowColor = new Color(0.80f, 0.35f, 0.45f);
-                profile.waterDeepColor = new Color(0.45f, 0.05f, 0.18f);
-                profile.corruptionOverlayColor = new Color(0.80f, 0.10f, 0.35f);
-                profile.corruptionOverlayMaxOpacity = 0.40f;
-                profile.tideColors = BuildTideColors(
-                    new Color(0.55f, 0.15f, 0.25f), new Color(0.75f, 0.45f, 0.50f),
-                    new Color(0.85f, 0.25f, 0.35f), new Color(0.95f, 0.60f, 0.50f),
-                    new Color(0.80f, 0.55f, 0.60f));
+            case IslandArtResolver.SinRoot.Lust:
+                ApplyLust(profile);
                 break;
-
-            case "island_greed":
-                profile.groundGradient = new CorruptionGradient
-                {
-                    evilColor = new Color(0.10f, 0.12f, 0.05f),
-                    neutralColor = new Color(0.42f, 0.48f, 0.22f),
-                    goodColor = new Color(0.70f, 0.75f, 0.45f)
-                };
-                profile.groundTint = new Color(0.75f, 0.80f, 0.55f);
-                profile.wallColor = new Color(0.35f, 0.30f, 0.15f);
-                profile.wallHighlightColor = new Color(0.65f, 0.60f, 0.35f);
-                profile.waterShallowColor = new Color(0.50f, 0.55f, 0.30f);
-                profile.waterDeepColor = new Color(0.20f, 0.22f, 0.10f);
-                profile.corruptionOverlayColor = new Color(0.35f, 0.50f, 0.15f);
-                profile.corruptionOverlayMaxOpacity = 0.35f;
-                profile.tideColors = BuildTideColors(
-                    new Color(0.30f, 0.28f, 0.15f), new Color(0.50f, 0.52f, 0.28f),
-                    new Color(0.42f, 0.48f, 0.22f), new Color(0.65f, 0.70f, 0.40f),
-                    new Color(0.55f, 0.60f, 0.35f));
+            case IslandArtResolver.SinRoot.Greed:
+                ApplyGreed(profile);
                 break;
-
-            case "island_greed":
-                profile.groundGradient = new CorruptionGradient
-                {
-                    evilColor = new Color(0.15f, 0.10f, 0.05f),
-                    neutralColor = new Color(0.62f, 0.50f, 0.20f),
-                    goodColor = new Color(0.95f, 0.88f, 0.55f)
-                };
-                profile.groundTint = new Color(0.90f, 0.82f, 0.50f);
-                profile.wallColor = new Color(0.50f, 0.40f, 0.15f);
-                profile.wallHighlightColor = new Color(0.80f, 0.70f, 0.35f);
-                profile.waterShallowColor = new Color(0.60f, 0.55f, 0.30f);
-                profile.waterDeepColor = new Color(0.25f, 0.18f, 0.08f);
-                profile.corruptionOverlayColor = new Color(0.60f, 0.45f, 0.10f);
-                profile.corruptionOverlayMaxOpacity = 0.35f;
-                profile.tideColors = BuildTideColors(
-                    new Color(0.45f, 0.35f, 0.12f), new Color(0.65f, 0.55f, 0.25f),
-                    new Color(0.78f, 0.62f, 0.18f), new Color(0.90f, 0.85f, 0.50f),
-                    new Color(0.80f, 0.70f, 0.35f));
+            case IslandArtResolver.SinRoot.Gluttony:
+                ApplyGluttony(profile);
                 break;
-
-            case "island_desire":
-                profile.groundGradient = new CorruptionGradient
-                {
-                    evilColor = new Color(0.08f, 0.05f, 0.12f),
-                    neutralColor = new Color(0.45f, 0.35f, 0.52f),
-                    goodColor = new Color(0.78f, 0.70f, 0.82f)
-                };
-                profile.groundTint = new Color(0.70f, 0.65f, 0.78f);
-                profile.wallColor = new Color(0.35f, 0.25f, 0.40f);
-                profile.wallHighlightColor = new Color(0.60f, 0.52f, 0.65f);
-                profile.waterShallowColor = new Color(0.50f, 0.42f, 0.55f);
-                profile.waterDeepColor = new Color(0.18f, 0.12f, 0.22f);
-                profile.corruptionOverlayColor = new Color(0.30f, 0.22f, 0.40f);
-                profile.corruptionOverlayMaxOpacity = 0.40f;
-                profile.tideColors = BuildTideColors(
-                    new Color(0.25f, 0.18f, 0.32f), new Color(0.40f, 0.35f, 0.48f),
-                    new Color(0.45f, 0.35f, 0.52f), new Color(0.65f, 0.58f, 0.72f),
-                    new Color(0.55f, 0.48f, 0.62f));
+            case IslandArtResolver.SinRoot.Wrath:
+                ApplyWrath(profile);
                 break;
-
-            case "island_anger":
-                profile.groundGradient = new CorruptionGradient
-                {
-                    evilColor = new Color(0.20f, 0.02f, 0.02f),
-                    neutralColor = new Color(0.80f, 0.25f, 0.10f),
-                    goodColor = new Color(1.0f, 0.75f, 0.45f)
-                };
-                profile.groundTint = new Color(0.95f, 0.60f, 0.40f);
-                profile.wallColor = new Color(0.60f, 0.15f, 0.08f);
-                profile.wallHighlightColor = new Color(0.90f, 0.40f, 0.20f);
-                profile.waterShallowColor = new Color(0.85f, 0.35f, 0.15f);
-                profile.waterDeepColor = new Color(0.40f, 0.05f, 0.05f);
-                profile.corruptionOverlayColor = new Color(0.85f, 0.15f, 0.05f);
-                profile.corruptionOverlayMaxOpacity = 0.50f;
-                profile.tideColors = BuildTideColors(
-                    new Color(0.50f, 0.10f, 0.08f), new Color(0.70f, 0.20f, 0.12f),
-                    new Color(0.90f, 0.25f, 0.10f), new Color(1.0f, 0.55f, 0.25f),
-                    new Color(0.95f, 0.40f, 0.18f));
+            case IslandArtResolver.SinRoot.Sloth:
+                ApplySloth(profile);
                 break;
-
-            case "island_envy":
-                profile.groundGradient = new CorruptionGradient
-                {
-                    evilColor = new Color(0.05f, 0.12f, 0.04f),
-                    neutralColor = new Color(0.30f, 0.62f, 0.28f),
-                    goodColor = new Color(0.65f, 0.90f, 0.60f)
-                };
-                profile.groundTint = new Color(0.60f, 0.85f, 0.55f);
-                profile.wallColor = new Color(0.20f, 0.42f, 0.18f);
-                profile.wallHighlightColor = new Color(0.45f, 0.70f, 0.42f);
-                profile.waterShallowColor = new Color(0.35f, 0.65f, 0.32f);
-                profile.waterDeepColor = new Color(0.10f, 0.25f, 0.08f);
-                profile.corruptionOverlayColor = new Color(0.20f, 0.45f, 0.18f);
-                profile.corruptionOverlayMaxOpacity = 0.40f;
-                profile.tideColors = BuildTideColors(
-                    new Color(0.15f, 0.35f, 0.12f), new Color(0.28f, 0.52f, 0.25f),
-                    new Color(0.30f, 0.62f, 0.28f), new Color(0.55f, 0.82f, 0.50f),
-                    new Color(0.42f, 0.72f, 0.38f));
+            case IslandArtResolver.SinRoot.Envy:
+                ApplyEnvy(profile);
                 break;
-
-            case "island_ego":
-                profile.groundGradient = new CorruptionGradient
-                {
-                    evilColor = new Color(0.15f, 0.12f, 0.05f),
-                    neutralColor = new Color(0.75f, 0.70f, 0.50f),
-                    goodColor = new Color(1.0f, 0.98f, 0.90f)
-                };
-                profile.groundTint = new Color(0.95f, 0.92f, 0.82f);
-                profile.wallColor = new Color(0.70f, 0.60f, 0.30f);
-                profile.wallHighlightColor = new Color(0.92f, 0.85f, 0.55f);
-                profile.waterShallowColor = new Color(0.75f, 0.72f, 0.55f);
-                profile.waterDeepColor = new Color(0.35f, 0.30f, 0.15f);
-                profile.corruptionOverlayColor = new Color(0.70f, 0.60f, 0.10f);
-                profile.corruptionOverlayMaxOpacity = 0.30f;
-                profile.tideColors = BuildTideColors(
-                    new Color(0.45f, 0.40f, 0.18f), new Color(0.65f, 0.60f, 0.35f),
-                    new Color(0.80f, 0.75f, 0.45f), new Color(0.95f, 0.92f, 0.72f),
-                    new Color(0.88f, 0.82f, 0.58f));
+            case IslandArtResolver.SinRoot.Pride:
+                ApplyPride(profile);
                 break;
-
             default:
-                Debug.LogWarning($"[IslandVisualProfile] Unknown island id '{islandId}'. Returning null.");
+                Debug.LogWarning($"[IslandVisualProfile] Unknown sin root '{sinRoot}' derived from '{islandId}'. Returning null.");
                 DestroyImmediate(profile);
                 return null;
         }
 
+        LoadTextures(profile);
+
         return profile;
+    }
+
+    private static void LoadTextures(IslandVisualProfile profile)
+    {
+        if (profile == null)
+        {
+            return;
+        }
+
+        profile.groundTexture = IslandArtResolver.LoadGroundTexture(profile.islandId);
+        profile.wallTexture = IslandArtResolver.LoadWallTexture(profile.islandId);
+        profile.waterTexture = IslandArtResolver.LoadWaterTexture(profile.islandId);
+    }
+
+    private static void ApplyLust(IslandVisualProfile profile)
+    {
+        profile.groundGradient = new CorruptionGradient
+        {
+            evilColor = new Color(0.18f, 0.02f, 0.06f),
+            neutralColor = new Color(0.72f, 0.30f, 0.35f),
+            goodColor = new Color(0.95f, 0.70f, 0.65f)
+        };
+        profile.groundTint = new Color(0.9f, 0.75f, 0.75f);
+        profile.wallColor = new Color(0.55f, 0.15f, 0.20f);
+        profile.wallHighlightColor = new Color(0.85f, 0.40f, 0.45f);
+        profile.waterShallowColor = new Color(0.80f, 0.35f, 0.45f);
+        profile.waterDeepColor = new Color(0.45f, 0.05f, 0.18f);
+        profile.corruptionOverlayColor = new Color(0.80f, 0.10f, 0.35f);
+        profile.corruptionOverlayMaxOpacity = 0.40f;
+        profile.tideColors = BuildTideColors(
+            new Color(0.55f, 0.15f, 0.25f), new Color(0.75f, 0.45f, 0.50f),
+            new Color(0.85f, 0.25f, 0.35f), new Color(0.95f, 0.60f, 0.50f),
+            new Color(0.80f, 0.55f, 0.60f));
+    }
+
+    private static void ApplyGreed(IslandVisualProfile profile)
+    {
+        profile.groundGradient = new CorruptionGradient
+        {
+            evilColor = new Color(0.15f, 0.10f, 0.05f),
+            neutralColor = new Color(0.62f, 0.50f, 0.20f),
+            goodColor = new Color(0.95f, 0.88f, 0.55f)
+        };
+        profile.groundTint = new Color(0.90f, 0.82f, 0.50f);
+        profile.wallColor = new Color(0.50f, 0.40f, 0.15f);
+        profile.wallHighlightColor = new Color(0.80f, 0.70f, 0.35f);
+        profile.waterShallowColor = new Color(0.60f, 0.55f, 0.30f);
+        profile.waterDeepColor = new Color(0.25f, 0.18f, 0.08f);
+        profile.corruptionOverlayColor = new Color(0.60f, 0.45f, 0.10f);
+        profile.corruptionOverlayMaxOpacity = 0.35f;
+        profile.tideColors = BuildTideColors(
+            new Color(0.45f, 0.35f, 0.12f), new Color(0.65f, 0.55f, 0.25f),
+            new Color(0.78f, 0.62f, 0.18f), new Color(0.90f, 0.85f, 0.50f),
+            new Color(0.80f, 0.70f, 0.35f));
+    }
+
+    private static void ApplyGluttony(IslandVisualProfile profile)
+    {
+        profile.groundGradient = new CorruptionGradient
+        {
+            evilColor = new Color(0.12f, 0.10f, 0.05f),
+            neutralColor = new Color(0.42f, 0.38f, 0.18f),
+            goodColor = new Color(0.68f, 0.62f, 0.30f)
+        };
+        profile.groundTint = new Color(0.70f, 0.64f, 0.36f);
+        profile.wallColor = new Color(0.35f, 0.28f, 0.12f);
+        profile.wallHighlightColor = new Color(0.58f, 0.50f, 0.25f);
+        profile.waterShallowColor = new Color(0.40f, 0.45f, 0.20f);
+        profile.waterDeepColor = new Color(0.12f, 0.18f, 0.06f);
+        profile.corruptionOverlayColor = new Color(0.25f, 0.20f, 0.08f);
+        profile.corruptionOverlayMaxOpacity = 0.35f;
+        profile.tideColors = BuildTideColors(
+            new Color(0.22f, 0.18f, 0.08f), new Color(0.32f, 0.28f, 0.12f),
+            new Color(0.42f, 0.38f, 0.18f), new Color(0.55f, 0.50f, 0.25f),
+            new Color(0.68f, 0.62f, 0.30f));
+    }
+
+    private static void ApplyWrath(IslandVisualProfile profile)
+    {
+        profile.groundGradient = new CorruptionGradient
+        {
+            evilColor = new Color(0.20f, 0.02f, 0.02f),
+            neutralColor = new Color(0.80f, 0.25f, 0.10f),
+            goodColor = new Color(1.0f, 0.75f, 0.45f)
+        };
+        profile.groundTint = new Color(0.95f, 0.60f, 0.40f);
+        profile.wallColor = new Color(0.60f, 0.15f, 0.08f);
+        profile.wallHighlightColor = new Color(0.90f, 0.40f, 0.20f);
+        profile.waterShallowColor = new Color(0.85f, 0.35f, 0.15f);
+        profile.waterDeepColor = new Color(0.40f, 0.05f, 0.05f);
+        profile.corruptionOverlayColor = new Color(0.85f, 0.15f, 0.05f);
+        profile.corruptionOverlayMaxOpacity = 0.50f;
+        profile.tideColors = BuildTideColors(
+            new Color(0.50f, 0.10f, 0.08f), new Color(0.70f, 0.20f, 0.12f),
+            new Color(0.90f, 0.25f, 0.10f), new Color(1.0f, 0.55f, 0.25f),
+            new Color(0.95f, 0.40f, 0.18f));
+    }
+
+    private static void ApplySloth(IslandVisualProfile profile)
+    {
+        profile.groundGradient = new CorruptionGradient
+        {
+            evilColor = new Color(0.08f, 0.05f, 0.12f),
+            neutralColor = new Color(0.45f, 0.35f, 0.52f),
+            goodColor = new Color(0.78f, 0.70f, 0.82f)
+        };
+        profile.groundTint = new Color(0.70f, 0.65f, 0.78f);
+        profile.wallColor = new Color(0.35f, 0.25f, 0.40f);
+        profile.wallHighlightColor = new Color(0.60f, 0.52f, 0.65f);
+        profile.waterShallowColor = new Color(0.50f, 0.42f, 0.55f);
+        profile.waterDeepColor = new Color(0.18f, 0.12f, 0.22f);
+        profile.corruptionOverlayColor = new Color(0.30f, 0.22f, 0.40f);
+        profile.corruptionOverlayMaxOpacity = 0.40f;
+        profile.tideColors = BuildTideColors(
+            new Color(0.25f, 0.18f, 0.32f), new Color(0.40f, 0.35f, 0.48f),
+            new Color(0.45f, 0.35f, 0.52f), new Color(0.65f, 0.58f, 0.72f),
+            new Color(0.55f, 0.48f, 0.62f));
+    }
+
+    private static void ApplyEnvy(IslandVisualProfile profile)
+    {
+        profile.groundGradient = new CorruptionGradient
+        {
+            evilColor = new Color(0.05f, 0.12f, 0.04f),
+            neutralColor = new Color(0.30f, 0.62f, 0.28f),
+            goodColor = new Color(0.65f, 0.90f, 0.60f)
+        };
+        profile.groundTint = new Color(0.60f, 0.85f, 0.55f);
+        profile.wallColor = new Color(0.20f, 0.42f, 0.18f);
+        profile.wallHighlightColor = new Color(0.45f, 0.70f, 0.42f);
+        profile.waterShallowColor = new Color(0.35f, 0.65f, 0.32f);
+        profile.waterDeepColor = new Color(0.10f, 0.25f, 0.08f);
+        profile.corruptionOverlayColor = new Color(0.20f, 0.45f, 0.18f);
+        profile.corruptionOverlayMaxOpacity = 0.40f;
+        profile.tideColors = BuildTideColors(
+            new Color(0.15f, 0.35f, 0.12f), new Color(0.28f, 0.52f, 0.25f),
+            new Color(0.30f, 0.62f, 0.28f), new Color(0.55f, 0.82f, 0.50f),
+            new Color(0.42f, 0.72f, 0.38f));
+    }
+
+    private static void ApplyPride(IslandVisualProfile profile)
+    {
+        profile.groundGradient = new CorruptionGradient
+        {
+            evilColor = new Color(0.15f, 0.12f, 0.05f),
+            neutralColor = new Color(0.75f, 0.70f, 0.50f),
+            goodColor = new Color(1.0f, 0.98f, 0.90f)
+        };
+        profile.groundTint = new Color(0.95f, 0.92f, 0.82f);
+        profile.wallColor = new Color(0.70f, 0.60f, 0.30f);
+        profile.wallHighlightColor = new Color(0.92f, 0.85f, 0.55f);
+        profile.waterShallowColor = new Color(0.75f, 0.72f, 0.55f);
+        profile.waterDeepColor = new Color(0.35f, 0.30f, 0.15f);
+        profile.corruptionOverlayColor = new Color(0.70f, 0.60f, 0.10f);
+        profile.corruptionOverlayMaxOpacity = 0.30f;
+        profile.tideColors = BuildTideColors(
+            new Color(0.45f, 0.40f, 0.18f), new Color(0.65f, 0.60f, 0.35f),
+            new Color(0.80f, 0.75f, 0.45f), new Color(0.95f, 0.92f, 0.72f),
+            new Color(0.88f, 0.82f, 0.58f));
     }
 
     private static TideColorEntry[] BuildTideColors(
@@ -447,6 +496,18 @@ public class GroundVisualizer : MonoBehaviour
         // Apply corruption overlay — stronger when restoration is low.
         Color overlay = activeProfile.GetCorruptionOverlay(percent);
         groundColor = Color.Lerp(groundColor, overlay, overlay.a);
+
+        // Apply ground texture if available. Wall/water textures are kept on the
+        // profile for separate wall/water renderers; this component only drives
+        // the ground renderer.
+        if (activeProfile.groundTexture != null)
+        {
+            cachedMaterial.mainTexture = activeProfile.groundTexture;
+            if (cachedMaterial.HasProperty("_BaseMap"))
+            {
+                cachedMaterial.SetTexture("_BaseMap", activeProfile.groundTexture);
+            }
+        }
 
         cachedMaterial.color = groundColor;
     }
