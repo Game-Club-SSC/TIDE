@@ -8,11 +8,11 @@ public class IslandVisualProfileTest : MonoBehaviour
     {
         "island_lust",
         "island_greed",
-        "island_greed",
-        "island_desire",
-        "island_anger",
+        "island_gluttony",
+        "island_wrath",
+        "island_sloth",
         "island_envy",
-        "island_ego"
+        "island_pride"
     };
 
     [ContextMenu("Run All Island Visual Profile Tests")]
@@ -35,6 +35,9 @@ public class IslandVisualProfileTest : MonoBehaviour
             Assert.AreEqual(islandId, profile.islandId, $"Profile islandId should be '{islandId}'.");
             Assert.IsNotNull(profile.groundGradient, $"Profile for '{islandId}' should have a ground gradient.");
             Assert.IsTrue(profile.tideColors.Length > 0, $"Profile for '{islandId}' should have tide colors.");
+            Assert.IsNotNull(profile.groundTexture, $"Profile for '{islandId}' should have a ground texture.");
+            Assert.IsNotNull(profile.wallTexture, $"Profile for '{islandId}' should have a wall texture.");
+            Assert.IsNotNull(profile.waterTexture, $"Profile for '{islandId}' should have a water texture.");
             DestroyImmediate(profile);
         }
 
