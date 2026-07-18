@@ -118,6 +118,33 @@ public class EnemyComposition
         return enemyDataSlots[index];
     }
 
+    public EnemyData GetConfiguredEnemyData(int configuredIndex)
+    {
+        if (enemyDataSlots == null || configuredIndex < 0)
+        {
+            return null;
+        }
+
+        int found = 0;
+        for (int i = 0; i < enemyDataSlots.Length; i++)
+        {
+            EnemyData enemyData = enemyDataSlots[i];
+            if (enemyData == null)
+            {
+                continue;
+            }
+
+            if (found == configuredIndex)
+            {
+                return enemyData;
+            }
+
+            found++;
+        }
+
+        return null;
+    }
+
     public static EnemyComposition FromEncounterConfig(EncounterConfig config)
     {
         if (config == null || config.enemies == null)

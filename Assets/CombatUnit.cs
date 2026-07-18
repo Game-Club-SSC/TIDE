@@ -440,6 +440,11 @@ public class CombatUnit : MonoBehaviour
             {
                 Debug.Log($"[CombatUnit] {unitName}'s {effect.Type} effect expired.");
                 activeEffects.RemoveAt(i);
+
+                if (effect.Type == StatusEffectType.Shield && !HasActiveShieldEffect())
+                {
+                    shieldHp = 0f;
+                }
             }
         }
 
@@ -461,6 +466,20 @@ public class CombatUnit : MonoBehaviour
         {
             tauntedBy = null;
         }
+    }
+
+    private bool HasActiveShieldEffect()
+    {
+        for (int i = 0; i < activeEffects.Count; i++)
+        {
+            StatusEffect effect = activeEffects[i];
+            if (effect != null && effect.Type == StatusEffectType.Shield)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

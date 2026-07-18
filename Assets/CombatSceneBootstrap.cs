@@ -403,7 +403,7 @@ public class CombatSceneBootstrap : MonoBehaviour
                     EnemyData enemyData = null;
                     if (enemyComposition != null && enemyComposition.HasEnemyDataSlots)
                     {
-                        enemyData = enemyComposition.GetEnemyData(i);
+                        enemyData = enemyComposition.GetConfiguredEnemyData(i);
                     }
 
                     if (enemyData != null)

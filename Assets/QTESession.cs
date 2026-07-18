@@ -81,7 +81,12 @@ public class QTESession : MonoBehaviour
     /// </summary>
     public IEnumerator ShowQTECoroutine(float timeWindow, Action<bool> onResult)
     {
-        ShowQTE(timeWindow);
+        if (!ShowQTE(timeWindow))
+        {
+            onResult?.Invoke(false);
+            yield break;
+        }
+
         yield return new WaitUntil(() => isComplete);
         onResult?.Invoke(lastResult);
     }

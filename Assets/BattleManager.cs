@@ -655,14 +655,13 @@ public class BattleManager : MonoBehaviour
             {
                 continue;
             }
-            if (candidate.SkipTurnThisRound)
-            {
-                Debug.Log($"[BattleManager] {candidate.UnitName} skips turn this round.");
-                continue;
-            }
+            // SkipTurnThisRound can be set by a party swap. Consume that flag
+            // here so it cannot carry into a later round.
+            bool skipForRound = candidate.SkipTurnThisRound;
+            candidate.SkipTurnThisRound = false;
 
-            currentActorShouldSkip = candidate.ShouldSkipTurn();
             candidate.ProcessTurnStartEffects();
+            currentActorShouldSkip = skipForRound || candidate.ShouldSkipTurn();
             candidate.ClearDefend();
             actor = candidate;
             currentActingUnit = candidate;
@@ -1530,11 +1529,7 @@ public class BattleManager : MonoBehaviour
 
     private void ResolveAttack(CombatUnit actor, CombatUnit requestedTarget)
     {
-        CombatUnit target = requestedTarget;
-        if (!IsValidTarget(actor, target))
-        {
-            target = GetRandomLivingOpponent(actor);
-        }
+        CombatUnit target = ResolveOpponentTarget(actor, requestedTarget);
 
         if (!IsValidTarget(actor, target))
         {
@@ -1671,18 +1666,6 @@ public class BattleManager : MonoBehaviour
             ResolveAttack(actor, requestedTarget);
             return;
         }
-        CombatUnit target = requestedTarget;
-        if (!IsValidTarget(actor, target))
-        {
-            target = GetRandomLivingOpponent(actor);
-        }
-
-        if (!IsValidTarget(actor, target))
-        {
-            Debug.Log($"[BattleManager] {actor.UnitName} uses {skill.skillName} but has no valid target.", this);
-            return;
-        }
-
         if (actor.Type == CombatUnit.UnitType.Ally)
         {
             lastAttacker = actor;
@@ -1816,11 +1799,7 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        CombatUnit target = requestedTarget;
-        if (!IsValidTarget(actor, target))
-        {
-            target = GetRandomLivingOpponent(actor);
-        }
+        CombatUnit target = ResolveOpponentTarget(actor, requestedTarget);
 
         if (!IsValidTarget(actor, target))
         {
@@ -2057,11 +2036,7 @@ public class BattleManager : MonoBehaviour
         }
         else
         {
-            CombatUnit target = requestedTarget;
-            if (!IsValidTarget(actor, target))
-            {
-                target = GetRandomLivingOpponent(actor);
-            }
+            CombatUnit target = ResolveOpponentTarget(actor, requestedTarget);
 
             if (target == null)
             {
@@ -2107,6 +2082,18 @@ public class BattleManager : MonoBehaviour
         }
 
         return candidates[UnityEngine.Random.Range(0, candidates.Count)];
+    }
+
+    private CombatUnit ResolveOpponentTarget(CombatUnit actor, CombatUnit requestedTarget)
+    {
+        if (actor != null && actor.IsTaunted && IsValidTarget(actor, actor.TauntedBy))
+        {
+            return actor.TauntedBy;
+        }
+
+        return IsValidTarget(actor, requestedTarget)
+            ? requestedTarget
+            : GetRandomLivingOpponent(actor);
     }
 
     /// <summary>

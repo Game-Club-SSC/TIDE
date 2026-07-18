@@ -7,7 +7,8 @@ public class PowerBudgetTracker : MonoBehaviour
 {
     public static PowerBudgetTracker Instance { get; private set; }
 
-    [SerializeField, Min(0f)] private float defaultBudgetPerIsland = 3f;
+    // Every island has four standard combat encounters and one boss encounter.
+    [SerializeField, Min(0f)] private float defaultBudgetPerIsland = 5f;
 
     public event Action<string, float, float> OnBudgetChanged;
 
