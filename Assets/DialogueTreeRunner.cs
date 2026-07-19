@@ -117,14 +117,30 @@ public class DialogueTreeRunner : MonoBehaviour
             for (int i = 0; i < node.choices.Length; i++)
             {
                 string nextId = node.choices[i].nextNodeId;
-                if (!string.IsNullOrEmpty(nextId) && nodeLookup.TryGetValue(nextId, out DialogueTreeNode next))
+                if (!string.IsNullOrEmpty(nextId) && !nodeLookup.TryGetValue(nextId, out DialogueTreeNode next))
+                {
+                    next = tree.allNodes?.Find(n => n != null && n.nodeId == nextId);
+                    if (next != null)
+                    {
+                        nodeLookup[next.nodeId] = next;
+                    }
+                }
+                if (!string.IsNullOrEmpty(nextId) && nodeLookup.TryGetValue(nextId, out next))
                 {
                     CollectNodesRecursive(next);
                 }
             }
         }
 
-        if (!string.IsNullOrEmpty(node.nextNodeId) && nodeLookup.TryGetValue(node.nextNodeId, out DialogueTreeNode autoNext))
+        if (!string.IsNullOrEmpty(node.nextNodeId) && !nodeLookup.TryGetValue(node.nextNodeId, out DialogueTreeNode autoNext))
+        {
+            autoNext = tree.allNodes?.Find(n => n != null && n.nodeId == node.nextNodeId);
+            if (autoNext != null)
+            {
+                nodeLookup[autoNext.nodeId] = autoNext;
+            }
+        }
+        if (!string.IsNullOrEmpty(node.nextNodeId) && nodeLookup.TryGetValue(node.nextNodeId, out autoNext))
         {
             CollectNodesRecursive(autoNext);
         }

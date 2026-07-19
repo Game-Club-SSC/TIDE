@@ -47,11 +47,12 @@ public class EndingEvaluator : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            DestroyImmediate(this);
+            DestroyImmediate(gameObject);
             return;
         }
 
         Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
 
     private void OnDestroy()

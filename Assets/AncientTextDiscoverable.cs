@@ -182,7 +182,7 @@ public class AncientTextDiscoverable : MonoBehaviour
         {
             if (string.Equals(progressionOrder[i], islandId, System.StringComparison.Ordinal))
             {
-                if (i <= midpoint / 2)
+                if (i <= midpoint)
                 {
                     return NarrativeAct.ActI;
                 }

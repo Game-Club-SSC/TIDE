@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 84a56f270b0480841bbfac6098eedded, type: 3}
-  m_Name: island_sloth
+  m_Name: island_desire
   m_EditorClassIdentifier: 
   islandId: island_desire
   viceName: Desire
@@ -19,7 +19,7 @@ MonoBehaviour:
   audioProfile: {fileID: 0}
   visualProfile: {fileID: 0}
   encounters:
-  - encounterId: sloth_c1
+  - encounterId: desire_c1
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
@@ -33,7 +33,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: sloth_p1
+  - encounterId: desire_p1
     type: 1
     isBossEncounter: 0
     restorationValue: 0.0625
@@ -47,7 +47,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: 7e5e1abdb926b4d2881ef8cf1bc078bf, type: 2}
-  - encounterId: sloth_c2
+  - encounterId: desire_c2
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
@@ -62,7 +62,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: sloth_p2
+  - encounterId: desire_p2
     type: 1
     isBossEncounter: 0
     restorationValue: 0.0625
@@ -76,7 +76,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: 1671261e38b6f4466bb5c9ad1f3cc9fe, type: 2}
-  - encounterId: sloth_c3
+  - encounterId: desire_c3
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
@@ -91,7 +91,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: sloth_p3
+  - encounterId: desire_p3
     type: 1
     isBossEncounter: 0
     restorationValue: 0.0625
@@ -105,7 +105,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: 6fd4f0881edd243f4ae2a6afba98e80d, type: 2}
-  - encounterId: sloth_c4
+  - encounterId: desire_c4
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
@@ -121,7 +121,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: sloth_p4
+  - encounterId: desire_p4
     type: 1
     isBossEncounter: 0
     restorationValue: 0.0625
@@ -135,7 +135,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: c48117c42d30a4309af545e2b434d42d, type: 2}
-  - encounterId: sloth_boss
+  - encounterId: desire_boss
     type: 0
     isBossEncounter: 1
     restorationValue: 0.25

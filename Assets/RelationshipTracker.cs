@@ -2,6 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+[Serializable]
+internal class RelationshipAffinityData
+{
+    public List<string> heroIds = new List<string>();
+    public List<int> affinities = new List<int>();
+}
+
 [DisallowMultipleComponent]
 public class RelationshipTracker : MonoBehaviour
 {
@@ -25,6 +32,8 @@ public class RelationshipTracker : MonoBehaviour
     public event Action<string, int, RelationshipTier> OnAffinityChanged;
     public event Action<string, RelationshipTier, RelationshipTier> OnTierChanged;
 
+    private const string AffinityPlayerPrefsKey = "RelationshipTracker_AffinityData";
+
     private Dictionary<string, int> affinityByHeroId = new Dictionary<string, int>();
 
     private void OnEnable()
@@ -37,6 +46,7 @@ public class RelationshipTracker : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        RestoreAffinityFromPrefs();
     }
 
     private void OnDestroy()
@@ -64,16 +74,18 @@ public class RelationshipTracker : MonoBehaviour
             return;
         }
 
+        RelationshipTier previousTier = GetRelationshipTier(heroId);
         int clamped = Mathf.Clamp(value, 0, 100);
-        RelationshipTier previousTier = GetRelationshipTier(clamped);
         affinityByHeroId[heroId] = clamped;
-        RelationshipTier newTier = GetRelationshipTier(clamped);
+        RelationshipTier newTier = GetRelationshipTier(heroId);
 
         OnAffinityChanged?.Invoke(heroId, clamped, newTier);
         if (previousTier != newTier)
         {
             OnTierChanged?.Invoke(heroId, previousTier, newTier);
         }
+
+        SaveAffinityToPrefs();
     }
 
     public void AdjustAffinity(string heroId, int delta)
@@ -125,5 +137,57 @@ public class RelationshipTracker : MonoBehaviour
     public void ResetForDebug()
     {
         affinityByHeroId.Clear();
+        SaveAffinityToPrefs();
+    }
+
+    private void OnDisable()
+    {
+        SaveAffinityToPrefs();
+    }
+
+    private void SaveAffinityToPrefs()
+    {
+        RelationshipAffinityData data = new RelationshipAffinityData();
+        foreach (var kvp in affinityByHeroId)
+        {
+            data.heroIds.Add(kvp.Key);
+            data.affinities.Add(kvp.Value);
+        }
+        string json = JsonUtility.ToJson(data);
+        PlayerPrefs.SetString(AffinityPlayerPrefsKey, json);
+        PlayerPrefs.Save();
+        Debug.Log($"[RelationshipTracker] Saved {affinityByHeroId.Count} affinity entries to PlayerPrefs.");
+    }
+
+    private void RestoreAffinityFromPrefs()
+    {
+        if (!PlayerPrefs.HasKey(AffinityPlayerPrefsKey))
+        {
+            return;
+        }
+
+        string json = PlayerPrefs.GetString(AffinityPlayerPrefsKey, string.Empty);
+        if (string.IsNullOrEmpty(json))
+        {
+            return;
+        }
+
+        RelationshipAffinityData data = JsonUtility.FromJson<RelationshipAffinityData>(json);
+        if (data == null || data.heroIds == null || data.affinities == null)
+        {
+            return;
+        }
+
+        affinityByHeroId.Clear();
+        int count = Mathf.Min(data.heroIds.Count, data.affinities.Count);
+        for (int i = 0; i < count; i++)
+        {
+            if (!string.IsNullOrEmpty(data.heroIds[i]))
+            {
+                affinityByHeroId[data.heroIds[i]] = data.affinities[i];
+            }
+        }
+
+        Debug.Log($"[RelationshipTracker] Restored {affinityByHeroId.Count} affinity entries from PlayerPrefs.");
     }
 }

@@ -145,13 +145,6 @@ public class PartySwapPanel : MonoBehaviour
                 Destroy(btn.gameObject);
         }
         buttonList.Clear();
-        if (container != null)
-        {
-            foreach (Transform child in container)
-            {
-                Destroy(child.gameObject);
-            }
-        }
     }
 
     private Button CreateHeroButton(Transform parent, CombatUnit unit, int index, bool isActive)

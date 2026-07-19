@@ -378,7 +378,11 @@ public class BossIntroDirector : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            if (skipRequested) yield break;
+            if (skipRequested)
+            {
+                atmosphereOverlay.color = baseColor;
+                yield break;
+            }
             elapsed += Time.deltaTime;
             float pulse = Mathf.Sin(elapsed * pulseFrequency * Mathf.PI * 2f) * pulseAmplitude;
             float alpha = Mathf.Clamp01(baseColor.a + pulse);

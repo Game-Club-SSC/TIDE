@@ -220,17 +220,18 @@ public class TideManager : MonoBehaviour
             }
         }
 
-        if (sealedTile.x < 0 || sealedTile.y < 0 || sealedTile.x >= gridCols || sealedTile.y >= gridRows)
-        {
-            return;
-        }
+        bool validSealedTile = sealedTile.x >= 0 && sealedTile.y >= 0
+            && sealedTile.x < gridCols && sealedTile.y < gridRows;
 
-        lockedPosition = sealedTile;
-        lockedEncounterId = BuildLegacyLockedEncounterId(sealedTile);
-
-        if (!IsLockedEncounterCleared())
+        if (validSealedTile)
         {
-            TrySetSealedTile(sealedTile, true);
+            lockedPosition = sealedTile;
+            lockedEncounterId = BuildLegacyLockedEncounterId(sealedTile);
+
+            if (!IsLockedEncounterCleared())
+            {
+                TrySetSealedTile(sealedTile, true);
+            }
         }
     }
 

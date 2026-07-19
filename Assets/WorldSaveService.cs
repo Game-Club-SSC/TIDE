@@ -104,6 +104,14 @@ public class WorldSaveService : MonoBehaviour
 
         PlayerPrefs.SetString(playerPrefsKey, json);
         PlayerPrefs.Save();
+
+        string verify = PlayerPrefs.GetString(playerPrefsKey, string.Empty);
+        if (!string.Equals(verify, json, System.StringComparison.Ordinal))
+        {
+            Debug.LogWarning("[WorldSaveService] Write verification failed — saved data does not match input.");
+            return false;
+        }
+
         OnSavePersisted?.Invoke(playerPrefsKey);
         return true;
     }

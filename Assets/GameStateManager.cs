@@ -267,11 +267,11 @@ public class GameStateManager : MonoBehaviour
         EnsureRestorationTracker();
         EnsureProgressionManager();
         BindProgressionManagerEvents();
+        LoadWorldState();
         IslandProgressionManager.Instance?.ReconcileStateFromRestoration();
         EnsureFadeCanvas();
         EnsureAudioManager();
         EnsureDeveloperTools();
-        LoadWorldState();
         ReconcileStoryProgressionFromIslandState();
     }
 

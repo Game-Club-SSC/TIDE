@@ -68,12 +68,9 @@ public class AcceptanceConversation : MonoBehaviour
             return false;
         }
 
-        if (!CanPlayAcceptanceConversation() && !CanPlayAcceptanceConversation())
+        if (!CanPlayAcceptanceConversation())
         {
-            if (!HasMetPrerequisites())
-            {
-                return false;
-            }
+            return false;
         }
 
         isPlaying = true;

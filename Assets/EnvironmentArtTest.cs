@@ -33,8 +33,8 @@ public class EnvironmentArtTest : MonoBehaviour
         // Verify progression order exists
         IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
         Assert.IsNotNull(progressionOrder, "Progression order should exist.");
-        // ProgressionOrder currently contains 6 legacy IDs; gluttony + canonical rename
-        // are deferred to a separate refactor to avoid breaking Dialogue/Boss systems.
+        // ProgressionOrder currently contains 6 canonical V2 island IDs;
+        // legacy aliases are handled by IslandThemeRegistry.
         Assert.GreaterOrEqual(progressionOrder.Count, 6, "Should have at least 6 islands.");
 
         Debug.Log($"IslandThemeRegistry exists with {progressionOrder.Count} islands: PASS");
@@ -121,11 +121,10 @@ public class EnvironmentArtTest : MonoBehaviour
         string[] canonicalIds = {
             "island_lust",
             "island_greed",
-            "island_gluttony",
-            "island_wrath",
-            "island_sloth",
+            "island_anger",
+            "island_desire",
             "island_envy",
-            "island_pride"
+            "island_ego"
         };
 
         foreach (string islandId in canonicalIds)
@@ -192,5 +191,8 @@ public class EnvironmentArtTest : MonoBehaviour
         }
 
         return Color.magenta; // Fallback for testing
+    }
+}
+
     }
 }

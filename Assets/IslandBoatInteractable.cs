@@ -525,6 +525,7 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         }
 
         destinations.Sort((left, right) => GetProgressionIndex(left.islandId).CompareTo(GetProgressionIndex(right.islandId)));
+        RefreshDestinationOrder();
     }
 
     private IslandDestination CreateDefaultDestination(string islandId, int progressionIndex)

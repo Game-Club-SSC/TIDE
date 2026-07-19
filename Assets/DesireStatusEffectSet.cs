@@ -10,7 +10,7 @@ public static class DesireStatusEffectSet
 
     public static StatusEffect CreateDrowsyEffect(string sourceName, int duration)
     {
-        StatusEffect effect = new StatusEffect(StatusEffectType.Drowsy, Mathf.Max(1, duration), 0f, sourceName);
+        StatusEffect effect = new StatusEffect(StatusEffectType.Drowsy, Mathf.Max(1, duration), 0.5f, sourceName);
         return effect;
     }
 

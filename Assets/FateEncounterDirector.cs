@@ -794,6 +794,8 @@ public class FateEncounterDirector : MonoBehaviour
                 fateUnit.Defense = fateDefense;
                 fateUnit.Speed = fateSpeed;
                 fateUnit.ElementType = fateBaseElement;
+                fateUnit.Type = CombatUnit.UnitType.Enemy;
+                fateUnit.UnitName = "Fate, The Inevitable";
             }
         }
 

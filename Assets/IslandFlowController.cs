@@ -224,9 +224,11 @@ public class IslandFlowController : MonoBehaviour
         }
 
         string encounterId = GetEncounterId(encounter, currentEncounterIndex);
-        while (tracker != null && tracker.HasClearedEncounter(activeIslandId, encounterId) && currentEncounterIndex < islandConfig.encounters.Length - 1)
+        while (tracker != null && tracker.HasClearedEncounter(activeIslandId, encounterId) && currentEncounterIndex < islandConfig.encounters.Length)
         {
             currentEncounterIndex++;
+            if (currentEncounterIndex >= islandConfig.encounters.Length)
+                break;
             encounter = islandConfig.encounters[currentEncounterIndex];
             encounterId = GetEncounterId(encounter, currentEncounterIndex);
         }

@@ -62,7 +62,7 @@ public class SelfHarmBeat : MonoBehaviour
 
     public bool PlaySelfHarmSequence()
     {
-        if (!CanPlaySelfHarmSequence() && !CanPlaySelfHarmSequence())
+        if (!CanPlaySelfHarmSequence())
         {
             return false;
         }

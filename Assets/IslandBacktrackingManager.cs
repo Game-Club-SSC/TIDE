@@ -256,6 +256,26 @@ public class IslandBacktrackingManager : MonoBehaviour
                 continue;
             }
 
+            if (unlock.unlockedIslands == null)
+            {
+                continue;
+            }
+
+            bool appliesToThisIsland = false;
+            for (int j = 0; j < unlock.unlockedIslands.Length; j++)
+            {
+                if (string.Equals(unlock.unlockedIslands[j], resolvedId, System.StringComparison.Ordinal))
+                {
+                    appliesToThisIsland = true;
+                    break;
+                }
+            }
+
+            if (!appliesToThisIsland)
+            {
+                continue;
+            }
+
             int unlockIndex = GetProgressionIndex(unlock.unlockIslandId);
             if (unlockIndex > highestIndex)
             {

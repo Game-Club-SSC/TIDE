@@ -59,6 +59,14 @@ public class TideBreakUnlockUI : MonoBehaviour
 
         StopAllCoroutines();
         isDisplaying = false;
+
+        if (popupCanvasGroup != null)
+        {
+            popupCanvasGroup.alpha = 0f;
+            popupCanvasGroup.gameObject.SetActive(false);
+        }
+
+        unlockQueue.Clear();
     }
 
     private void HandleTideBreakUnlocked(string heroId, TideBreakData tideBreak)

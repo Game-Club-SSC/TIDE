@@ -113,6 +113,7 @@ public class BattleManager : MonoBehaviour
     private Dictionary<CombatUnit, PlannedAction> selectedPlayerActions = new Dictionary<CombatUnit, PlannedAction>();
     private Dictionary<CombatUnit, PlannedAction> enemyPlannedActions = new Dictionary<CombatUnit, PlannedAction>();
     private List<CombatUnit> playerInputUnits = new List<CombatUnit>();
+    private Dictionary<Transform, Coroutine> activeHitFeedbackCoroutines = new Dictionary<Transform, Coroutine>();
     private MomentumState momentumState = new MomentumState();
 
     public IReadOnlyList<CombatUnit> AllyUnits => allyUnits;
@@ -1587,7 +1588,7 @@ public class BattleManager : MonoBehaviour
         int finalDamage = modifiedDamage;
         if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
         {
-            finalDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamage * relationshipDefenseMultiplier));
+            finalDamage = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamage / relationshipDefenseMultiplier));
         }
         target.TakeDamage(finalDamage);
 
@@ -1609,7 +1610,7 @@ public class BattleManager : MonoBehaviour
         TriggerBattleHitFeedback(actor, target, isCrit, false);
 
         Debug.Log(
-            $"[BattleManager] {actor.UnitName} attacks {target.UnitName} for {modifiedDamage} (base {baseDamage} x{multiplier:F2}). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
+            $"[BattleManager] {actor.UnitName} attacks {target.UnitName} for {finalDamage} (base {baseDamage} x{multiplier:F2}). HP {hpBefore} -> {hpAfter}.{matchupFeedback}",
             this);
 
         if (actor.Type == CombatUnit.UnitType.Ally && target.IsAlive)
@@ -1783,7 +1784,7 @@ public class BattleManager : MonoBehaviour
 
                 if (aoeTarget.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
                 {
-                    dmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(dmg * relationshipDefenseMultiplier));
+                    dmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(dmg / relationshipDefenseMultiplier));
                 }
 
                 int hpBefore = aoeTarget.HP;
@@ -1866,7 +1867,7 @@ public class BattleManager : MonoBehaviour
         int finalDamageSingle = modifiedDamageSingle;
         if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
         {
-            finalDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageSingle * relationshipDefenseMultiplier));
+            finalDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageSingle / relationshipDefenseMultiplier));
         }
         target.TakeDamage(finalDamageSingle);
 
@@ -1991,14 +1992,14 @@ public class BattleManager : MonoBehaviour
                 int finalDmg = modifiedDmg;
                 if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
                 {
-                    finalDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDmg * relationshipDefenseMultiplier));
+                    finalDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDmg / relationshipDefenseMultiplier));
                 }
 
                 int hpBefore = target.HP;
                 target.TakeDamage(finalDmg);
                 TriggerBattleHitFeedback(actor, target, false, true);
                 totalDamage += (hpBefore - target.HP);
-                Debug.Log($"  -> {target.UnitName} takes {modifiedDmg} damage. HP {hpBefore} -> {target.HP}", this);
+                Debug.Log($"  -> {target.UnitName} takes {finalDmg} damage. HP {hpBefore} -> {target.HP}", this);
             }
             Debug.Log($"[BattleManager] {abilityName} hits {targets.Count} targets for {totalDamage} total.", this);
         }
@@ -2065,7 +2066,7 @@ public class BattleManager : MonoBehaviour
             int finalDmg = modifiedDmg;
             if (target.Type == CombatUnit.UnitType.Ally && actor.Type == CombatUnit.UnitType.Enemy)
             {
-                finalDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDmg * relationshipDefenseMultiplier));
+                finalDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDmg / relationshipDefenseMultiplier));
             }
 
             int hpBefore = target.HP;
@@ -2322,13 +2323,21 @@ public class BattleManager : MonoBehaviour
         if (actorVisual != null)
         {
             float direction = actor.Type == CombatUnit.UnitType.Ally ? 1f : -1f;
-            StartCoroutine(AnimateLunge(actorVisual, direction, isHeavy));
+            if (activeHitFeedbackCoroutines.TryGetValue(actorVisual, out Coroutine existing))
+            {
+                StopCoroutine(existing);
+            }
+            activeHitFeedbackCoroutines[actorVisual] = StartCoroutine(AnimateLunge(actorVisual, direction, isHeavy));
         }
 
         Transform targetVisual = ResolveActionVisualTransform(target);
         if (targetVisual != null)
         {
-            StartCoroutine(AnimateHitShake(targetVisual, isCrit));
+            if (activeHitFeedbackCoroutines.TryGetValue(targetVisual, out Coroutine existing))
+            {
+                StopCoroutine(existing);
+            }
+            activeHitFeedbackCoroutines[targetVisual] = StartCoroutine(AnimateHitShake(targetVisual, isCrit));
         }
 
         if (isHeavy)
@@ -2389,6 +2398,7 @@ public class BattleManager : MonoBehaviour
         }
 
         visualTransform.localPosition = start;
+        activeHitFeedbackCoroutines.Remove(visualTransform);
     }
 
     private IEnumerator AnimateHitShake(Transform visualTransform, bool isCrit)
@@ -2414,6 +2424,7 @@ public class BattleManager : MonoBehaviour
         }
 
         visualTransform.localPosition = start;
+        activeHitFeedbackCoroutines.Remove(visualTransform);
     }
 
     private IEnumerator AnimateShadowPulse(Transform shadowTransform)

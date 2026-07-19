@@ -113,7 +113,12 @@ public class TideTile : MonoBehaviour
 
         currentTideValue -= decay;
         currentTideValue = Mathf.Max(currentTideValue, 5);
-        StartCorruptionTransition();
+        if (activeTransitionCoroutine != null)
+        {
+            StopCoroutine(activeTransitionCoroutine);
+            activeTransitionCoroutine = null;
+        }
+        activeTransitionCoroutine = StartCorruptionTransition();
         StartFlash(FlashDecay());
     }
 

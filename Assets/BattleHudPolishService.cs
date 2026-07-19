@@ -1,9 +1,14 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 public static class BattleHudPolishService
 {
+    private static Dictionary<Image, Coroutine> activeImageCoroutines = new Dictionary<Image, Coroutine>();
+    private static Dictionary<SpriteRenderer, Coroutine> activeSpriteCoroutines = new Dictionary<SpriteRenderer, Coroutine>();
+    private static Dictionary<Transform, Coroutine> activeTransformCoroutines = new Dictionary<Transform, Coroutine>();
+
     public static Color GetCritFlashColor()
     {
         return new Color(1f, 0.93f, 0.42f, 1f);
@@ -74,25 +79,49 @@ public static class BattleHudPolishService
     public static Coroutine PlayCritFlash(MonoBehaviour host, Image target)
     {
         if (host == null || target == null) return null;
-        return host.StartCoroutine(FlashRoutine(target, GetCritFlashColor(), GetCritFlashDuration()));
+        if (activeImageCoroutines.TryGetValue(target, out Coroutine existing))
+        {
+            host.StopCoroutine(existing);
+        }
+        Coroutine coroutine = host.StartCoroutine(FlashRoutine(target, GetCritFlashColor(), GetCritFlashDuration()));
+        activeImageCoroutines[target] = coroutine;
+        return coroutine;
     }
 
     public static Coroutine PlayDamageShake(MonoBehaviour host, Transform target, float duration = 0.15f, float magnitude = 0.08f)
     {
         if (host == null || target == null) return null;
-        return host.StartCoroutine(ShakeRoutine(target, duration, magnitude));
+        if (activeTransformCoroutines.TryGetValue(target, out Coroutine existing))
+        {
+            host.StopCoroutine(existing);
+        }
+        Coroutine coroutine = host.StartCoroutine(ShakeRoutine(target, duration, magnitude));
+        activeTransformCoroutines[target] = coroutine;
+        return coroutine;
     }
 
     public static Coroutine PlayStatusPulse(MonoBehaviour host, Image target, StatusEffectType type, int pulseCount = 2, float pulseScale = 1.25f)
     {
         if (host == null || target == null) return null;
-        return host.StartCoroutine(PulseRoutine(target, GetStatusEffectIconColor(type), pulseCount, pulseScale));
+        if (activeImageCoroutines.TryGetValue(target, out Coroutine existing))
+        {
+            host.StopCoroutine(existing);
+        }
+        Coroutine coroutine = host.StartCoroutine(PulseRoutine(target, GetStatusEffectIconColor(type), pulseCount, pulseScale));
+        activeImageCoroutines[target] = coroutine;
+        return coroutine;
     }
 
     public static Coroutine PlayHitFlash(MonoBehaviour host, SpriteRenderer target, float duration = 0.12f)
     {
         if (host == null || target == null) return null;
-        return host.StartCoroutine(SpriteFlashRoutine(target, duration));
+        if (activeSpriteCoroutines.TryGetValue(target, out Coroutine existing))
+        {
+            host.StopCoroutine(existing);
+        }
+        Coroutine coroutine = host.StartCoroutine(SpriteFlashRoutine(target, duration));
+        activeSpriteCoroutines[target] = coroutine;
+        return coroutine;
     }
 
     private static IEnumerator FlashRoutine(Image target, Color flashColor, float duration)
@@ -108,7 +137,11 @@ public static class BattleHudPolishService
             target.color = Color.Lerp(flashColor, original, t);
             yield return null;
         }
-        if (target != null) target.color = original;
+        if (target != null)
+        {
+            target.color = original;
+            activeImageCoroutines.Remove(target);
+        }
     }
 
     private static IEnumerator ShakeRoutine(Transform target, float duration, float magnitude)
@@ -125,7 +158,11 @@ public static class BattleHudPolishService
             target.localPosition = originalPos + new Vector3(offsetX, offsetY, 0f);
             yield return null;
         }
-        if (target != null) target.localPosition = originalPos;
+        if (target != null)
+        {
+            target.localPosition = originalPos;
+            activeTransformCoroutines.Remove(target);
+        }
     }
 
     private static IEnumerator PulseRoutine(Image target, Color pulseColor, int pulseCount, float pulseScale)

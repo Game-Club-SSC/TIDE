@@ -443,6 +443,11 @@ public class AudioManager : MonoBehaviour
             sfxSource.mute = isMuted;
         }
 
+        if (!isMuted)
+        {
+            ApplyVolumes();
+        }
+
         PlayerPrefs.SetInt(MutedKey, isMuted ? 1 : 0);
         PlayerPrefs.Save();
     }
@@ -775,7 +780,13 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
         bgmSource.Play();
 
         elapsed = 0f;
-        float targetVolume = BgmVolume;
+        float actVolMult = 1f;
+        if (activeIslandProfile != null && GameStateManager.Instance != null)
+        {
+            int actNumber = (int)GameStateManager.Instance.CurrentStoryAct;
+            actVolMult = activeIslandProfile.GetActVolumeMultiplier(actNumber);
+        }
+        float targetVolume = BgmVolume * actVolMult;
         while (elapsed < bgmFadeSeconds)
         {
             elapsed += Time.unscaledDeltaTime;

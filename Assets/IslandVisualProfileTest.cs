@@ -8,22 +8,21 @@ public class IslandVisualProfileTest : MonoBehaviour
     {
         "island_lust",
         "island_greed",
-        "island_gluttony",
-        "island_wrath",
-        "island_sloth",
+        "island_desire",
+        "island_anger",
         "island_envy",
-        "island_pride"
+        "island_ego"
     };
 
     [ContextMenu("Run All Island Visual Profile Tests")]
     public void RunAllTests()
     {
-        TestGetDefaultCoversAllSevenIslands();
+        TestGetDefaultCoversAllSixIslands();
         Debug.Log("=== All Island Visual Profile Tests Passed ===");
     }
 
-    [ContextMenu("Test GetDefault Covers All 7 Islands")]
-    public void TestGetDefaultCoversAllSevenIslands()
+    [ContextMenu("Test GetDefault Covers All 6 Islands")]
+    public void TestGetDefaultCoversAllSixIslands()
     {
         Debug.Log("[IslandVisualProfileTest] Testing GetDefault() covers all 7 islands...");
 
@@ -52,4 +51,8 @@ public class IslandVisualProfileTest : MonoBehaviour
 
         Debug.Log("[IslandVisualProfileTest] TestGetDefaultCoversAllSevenIslands passed.");
     }
+}
+SixIslands passed.");
+    }
+}
 }

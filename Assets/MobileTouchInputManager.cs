@@ -312,8 +312,8 @@ public class MobileTouchInputManager : MonoBehaviour
         Vector2 clamped = localPoint.normalized * clampedDistance;
         joystickKnob.anchoredPosition = clamped;
 
-        // Normalize to -1..1
-        float normalized = clampedDistance / joystickRadius;
+        float radius = Mathf.Max(0.0001f, joystickRadius);
+        float normalized = clampedDistance / radius;
         if (normalized < joystickDeadZone)
         {
             moveH = 0f;

@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 84a56f270b0480841bbfac6098eedded, type: 3}
-  m_Name: island_wrath
+  m_Name: island_anger
   m_EditorClassIdentifier: 
   islandId: island_anger
   viceName: Anger
@@ -19,7 +19,7 @@ MonoBehaviour:
   audioProfile: {fileID: 0}
   visualProfile: {fileID: 0}
   encounters:
-  - encounterId: wrath_c1
+  - encounterId: anger_c1
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
@@ -33,7 +33,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: wrath_p1
+  - encounterId: anger_p1
     type: 1
     isBossEncounter: 0
     restorationValue: 0.0625
@@ -47,7 +47,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: 103a90d37c8074dcca523b55c7e2f2b8, type: 2}
-  - encounterId: wrath_c2
+  - encounterId: anger_c2
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
@@ -62,7 +62,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: wrath_p2
+  - encounterId: anger_p2
     type: 1
     isBossEncounter: 0
     restorationValue: 0.0625
@@ -76,7 +76,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: 14f7117c7af8a4190ba692ea3c2f36df, type: 2}
-  - encounterId: wrath_c3
+  - encounterId: anger_c3
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
@@ -91,7 +91,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: wrath_p3
+  - encounterId: anger_p3
     type: 1
     isBossEncounter: 0
     restorationValue: 0.0625
@@ -105,7 +105,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: ef6179e7da32741caa5aaaf2bad29062, type: 2}
-  - encounterId: wrath_c4
+  - encounterId: anger_c4
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
@@ -121,7 +121,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 0}
-  - encounterId: wrath_p4
+  - encounterId: anger_p4
     type: 1
     isBossEncounter: 0
     restorationValue: 0.0625
@@ -135,7 +135,7 @@ MonoBehaviour:
       defenseModifiers: 
       maxHpModifiers: 
     puzzleData: {fileID: 11400000, guid: 61b2ee400019345c6a42fc808f7c8fde, type: 2}
-  - encounterId: wrath_boss
+  - encounterId: anger_boss
     type: 0
     isBossEncounter: 1
     restorationValue: 0.25

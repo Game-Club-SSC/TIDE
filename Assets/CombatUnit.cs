@@ -307,8 +307,9 @@ public class CombatUnit : MonoBehaviour
         {
             float shieldAbsorb = Mathf.Min(shieldHp, actualDamage);
             shieldHp -= shieldAbsorb;
-            actualDamage -= Mathf.RoundToInt(shieldAbsorb);
-            Debug.Log($"[CombatUnit] {unitName}'s shield absorbed {Mathf.RoundToInt(shieldAbsorb)} damage. Shield HP: {shieldHp:F0}");
+            int absorbed = Mathf.CeilToInt(shieldAbsorb);
+            actualDamage -= absorbed;
+            Debug.Log($"[CombatUnit] {unitName}'s shield absorbed {absorbed} damage. Shield HP: {shieldHp:F0}");
         }
 
         if (actualDamage > 0)

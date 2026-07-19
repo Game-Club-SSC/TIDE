@@ -107,6 +107,7 @@ public class CeremonyIntroDirector : MonoBehaviour
         HasPlayedIntro = true;
         MarkIntroCompleted();
         isPlaying = false;
+        LockPlayerMovement(false);
         StopAllCoroutines();
         HideUI();
         OnIntroFinished?.Invoke();
@@ -414,6 +415,7 @@ public class CeremonyIntroDirector : MonoBehaviour
 
     private void OnDestroy()
     {
+        LockPlayerMovement(false);
         StopAllCoroutines();
     }
 }

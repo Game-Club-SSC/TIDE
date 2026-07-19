@@ -373,9 +373,7 @@ public class AncientTextLogUI : MonoBehaviour
             return;
         }
 
-        if (GameStateManager.Instance != null
-            && GameStateManager.Instance.currentState == GameStateManager.GameState.Exploration
-            && !GameStateManager.Instance.IsTransitioning)
+        if (cachedPlayer != null)
         {
             cachedPlayer.canMove = wasPlayerMoveEnabled;
         }
