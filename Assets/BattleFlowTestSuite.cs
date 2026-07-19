@@ -72,6 +72,161 @@ public class BattleFlowTestSuite
     }
 
     [Test]
+    public void CombatUnitIgnoresNonPositiveDamage()
+    {
+        CombatUnit unit = CreateUnit(
+            unitsRoot.transform,
+            "DamageGuardUnit",
+            CombatUnit.UnitType.Ally,
+            speed: 10,
+            attack: 10,
+            defense: 0,
+            hp: 50);
+
+        unit.TakeDamage(0);
+        unit.TakeDamage(-10);
+
+        Assert.AreEqual(50, unit.HP, "Zero or negative damage must not reduce HP.");
+        Assert.IsTrue(unit.IsAlive, "Zero or negative damage must not defeat a unit.");
+    }
+
+    [Test]
+    public void MomentumIgnoresInvalidInputs()
+    {
+        MomentumState momentum = new MomentumState();
+
+        momentum.ShiftTowardPlayer(-0.5f);
+        momentum.ShiftTowardEnemy(-0.5f);
+        momentum.ShiftForAction(null, MatchupResult.Strong);
+
+        Assert.AreEqual(0f, momentum.Value, 0.0001f,
+            "Negative shifts and null attackers must not reverse or change momentum.");
+    }
+
+    [Test]
+    public void TurnStartDamageSkipsDefeatedActor()
+    {
+        CombatUnit poisoned = CreateUnit(
+            unitsRoot.transform,
+            "PoisonedActor",
+            CombatUnit.UnitType.Ally,
+            speed: 20,
+            attack: 10,
+            defense: 0,
+            hp: 1);
+        CombatUnit next = CreateUnit(
+            unitsRoot.transform,
+            "NextActor",
+            CombatUnit.UnitType.Enemy,
+            speed: 10,
+            attack: 10,
+            defense: 0,
+            hp: 50);
+        poisoned.ApplyStatusEffect(new StatusEffect(StatusEffectType.Poison, 1, 2f, "Test"));
+        manager.RegisterUnit(poisoned);
+        manager.RegisterUnit(next);
+        InvokePrivate(manager, "BuildTurnQueueFromLivingUnits");
+
+        CombatUnit actor = (CombatUnit)InvokePrivate(manager, "TryGetNextActingUnit");
+
+        Assert.IsFalse(poisoned.IsAlive, "Turn-start poison should defeat the first unit.");
+        Assert.AreSame(next, actor, "A unit defeated by turn-start damage must not receive a turn.");
+    }
+
+    [Test]
+    public void EnemyAllyTargetHealCannotHealPlayerUnit()
+    {
+        CombatUnit player = CreateUnit(
+            unitsRoot.transform,
+            "PlayerTarget",
+            CombatUnit.UnitType.Ally,
+            speed: 10,
+            attack: 10,
+            defense: 0,
+            hp: 100);
+        CombatUnit enemyHealer = CreateUnit(
+            unitsRoot.transform,
+            "EnemyHealer",
+            CombatUnit.UnitType.Enemy,
+            speed: 10,
+            attack: 20,
+            defense: 0,
+            hp: 100);
+        enemyHealer.HP = 20;
+        player.HP = 20;
+        manager.RegisterUnit(player);
+        manager.RegisterUnit(enemyHealer);
+        SkillData heal = ScriptableObject.CreateInstance<SkillData>();
+        heal.skillName = "Enemy Heal";
+        heal.target = SkillTarget.SingleAlly;
+        heal.healMultiplier = 1f;
+        heal.mpCost = 0;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", enemyHealer, player, heal);
+
+            Assert.AreEqual(20, player.HP, "Enemy ally-target heals must reject player targets.");
+            Assert.Greater(enemyHealer.HP, 20, "An invalid ally target should fall back to the caster.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(heal);
+        }
+    }
+
+    [Test]
+    public void EnemyAllAlliesHealUsesEnemySide()
+    {
+        CombatUnit player = CreateUnit(
+            unitsRoot.transform,
+            "PlayerNotHealed",
+            CombatUnit.UnitType.Ally,
+            speed: 10,
+            attack: 10,
+            defense: 0,
+            hp: 100);
+        CombatUnit enemyHealer = CreateUnit(
+            unitsRoot.transform,
+            "EnemyGroupHealer",
+            CombatUnit.UnitType.Enemy,
+            speed: 10,
+            attack: 20,
+            defense: 0,
+            hp: 100);
+        CombatUnit enemyAlly = CreateUnit(
+            unitsRoot.transform,
+            "EnemyHealAlly",
+            CombatUnit.UnitType.Enemy,
+            speed: 8,
+            attack: 10,
+            defense: 0,
+            hp: 100);
+        player.HP = 20;
+        enemyHealer.HP = 20;
+        enemyAlly.HP = 20;
+        manager.RegisterUnit(player);
+        manager.RegisterUnit(enemyHealer);
+        manager.RegisterUnit(enemyAlly);
+        SkillData heal = ScriptableObject.CreateInstance<SkillData>();
+        heal.skillName = "Enemy Group Heal";
+        heal.target = SkillTarget.AllAllies;
+        heal.healMultiplier = 1f;
+        heal.mpCost = 0;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", enemyHealer, null, heal);
+
+            Assert.AreEqual(20, player.HP, "Enemy group heals must not heal player units.");
+            Assert.Greater(enemyHealer.HP, 20, "Enemy group heals should heal the caster.");
+            Assert.Greater(enemyAlly.HP, 20, "Enemy group heals should heal enemy allies.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(heal);
+        }
+    }
+
+    [Test]
     public void NeutralClashQteRuntimeSuccessShiftsMomentumToPlayer()
     {
         CombatUnit ally = CreateUnit(

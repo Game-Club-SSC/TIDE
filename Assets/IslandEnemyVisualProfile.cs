@@ -48,7 +48,7 @@ public class IslandEnemyVisualProfile : ScriptableObject
 
     /// <summary>
     /// Returns a pre-configured profile for the given island id.
-    /// Returns null if the island id is not one of the seven vices.
+    /// Returns null if the island id is not one of the six island themes.
     /// </summary>
     public static IslandEnemyVisualProfile GetDefault(string islandId)
     {
@@ -76,22 +76,6 @@ public class IslandEnemyVisualProfile : ScriptableObject
                 profile.movementSpeedMultiplier = 1.1f;
                 profile.floatsAboveGround = true;
                 profile.floatHeight = 0.25f;
-                break;
-
-            case "island_greed":
-                profile.primaryColor = new Color(0.42f, 0.48f, 0.22f);        // Bloated green-brown
-                profile.secondaryColor = new Color(0.78f, 0.72f, 0.30f);      // Sickly yellow
-                profile.eyeColor = new Color(0.90f, 0.85f, 0.20f);            // Parasitic yellow
-                profile.corruptionColor = new Color(0.35f, 0.50f, 0.15f);     // Slime green
-                profile.baseScale = new Vector3(1.25f, 1.15f, 1.25f);
-                profile.bossScaleMultiplier = 1.7f;
-                profile.bodyShape = EnemyBodyShape.Beast;
-                profile.hasCorruptionAura = true;
-                profile.auraIntensity = 0.4f;
-                profile.idleParticle = ParticleSystemType.Smoke;
-                profile.movementSpeedMultiplier = 0.7f;
-                profile.floatsAboveGround = false;
-                profile.floatHeight = 0f;
                 break;
 
             case "island_greed":

@@ -760,7 +760,6 @@ public class OverworldEnemy : MonoBehaviour
         switch (islandId)
         {
             case "island_lust":     return CombatUnit.Element.Water;
-            case "island_greed": return CombatUnit.Element.Earth;
             case "island_greed":    return CombatUnit.Element.Earth;
             case "island_desire":    return CombatUnit.Element.Air;
             case "island_anger":    return CombatUnit.Element.Fire;

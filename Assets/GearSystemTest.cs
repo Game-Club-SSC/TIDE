@@ -15,7 +15,39 @@ public class GearSystemTest : MonoBehaviour
         TestFullSetBonus();
         TestGearWithLevelGrowth();
         TestGearStatBonuses();
+        TestIslandDropRateTiers();
         Debug.Log("=== All gear tests passed ===");
+    }
+
+    [ContextMenu("Test Island Drop Rate Tiers")]
+    public void TestIslandDropRateTiers()
+    {
+        GearDropService service = ScriptableObject.CreateInstance<GearDropService>();
+        try
+        {
+            string[] islandIds =
+            {
+                "island_lust",
+                "island_greed",
+                "island_desire",
+                "island_anger",
+                "island_envy",
+                "island_ego"
+            };
+
+            for (int i = 0; i < islandIds.Length; i++)
+            {
+                float expectedRate = 0.3f + i * 0.05f;
+                Assert.AreEqual(expectedRate, service.GetEffectiveDropRate(islandIds[i]), 0.0001f,
+                    $"{islandIds[i]} should use drop-rate tier {i}.");
+            }
+
+            Debug.Log("[GearSystemTest] TestIslandDropRateTiers passed.");
+        }
+        finally
+        {
+            DestroyImmediate(service);
+        }
     }
 
     [ContextMenu("Test Equip Gear Set")]

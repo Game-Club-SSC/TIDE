@@ -15,7 +15,6 @@ public class IslandContentVerificationTest : MonoBehaviour
     {
         "island_lust",
         "island_greed",
-        "island_greed",
         "island_desire",
         "island_anger",
         "island_envy",
@@ -48,7 +47,7 @@ public class IslandContentVerificationTest : MonoBehaviour
 
         IslandConfig[] configs = LoadConfigs();
         Assert.AreEqual(ExpectedIslandIds.Length, configs.Length,
-            "Should have exactly seven island configs for the current vertical slice islands.");
+            "Should have exactly six island configs for the current vertical slice islands.");
 
         HashSet<string> observedIds = new HashSet<string>();
         for (int i = 0; i < configs.Length; i++)

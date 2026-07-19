@@ -125,7 +125,6 @@ public static class AutoWireReferences
     // Note: island_anger = Anger, island_desire = Desire, island_ego = Ego
     private static readonly Dictionary<string, string[]> IslandEncounterMap = new Dictionary<string, string[]>
     {
-        { "island_greed", new[] { "greed_c1", "greed_p1", "greed_c2", "greed_p2", "greed_c3", "greed_p3", "greed_c4", "greed_p4", "greed_boss" } },
         { "island_lust",  new[] { "lust_c1", "lust_p1", "lust_c2", "lust_p2", "lust_c3", "lust_p3", "lust_c4", "lust_p4", "lust_boss" } },
         { "island_anger", new[] { "anger_c1", "anger_p1", "anger_c2", "anger_p2", "anger_c3", "anger_p3", "anger_c4", "anger_p4", "anger_boss" } },
         { "island_desire",new[] { "desire_c1", "desire_p1", "desire_c2", "desire_p2", "desire_c3", "desire_p3", "desire_c4", "desire_p4", "desire_boss" } },
@@ -137,8 +136,6 @@ public static class AutoWireReferences
     // Maps encounter IDs to their puzzle data asset names
     private static readonly Dictionary<string, string> EncounterPuzzleMap = new Dictionary<string, string>
     {
-        { "greed_p1", "puzzle_greed_p1" }, { "greed_p2", "puzzle_greed_p2" },
-        { "greed_p3", "puzzle_greed_p3" }, { "greed_p4", "puzzle_greed_p4" },
         { "lust_p1", "puzzle_lust_p1" }, { "lust_p2", "puzzle_lust_p2" },
         { "lust_p3", "puzzle_lust_p3" }, { "lust_p4", "puzzle_lust_p4" },
         { "anger_p1", "puzzle_anger_p1" }, { "anger_p2", "puzzle_anger_p2" },

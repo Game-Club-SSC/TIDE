@@ -226,9 +226,6 @@ public class BossIntroDirector : MonoBehaviour
             case "island_ego":
                 yield return StartCoroutine(EgoSequence(atmosphereColor));
                 break;
-            case "island_greed":
-                yield return StartCoroutine(GreedSequence(atmosphereColor));
-                break;
         }
     }
 

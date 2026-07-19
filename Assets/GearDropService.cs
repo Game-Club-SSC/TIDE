@@ -62,11 +62,10 @@ public class GearDropService : ScriptableObject
     {
         { "island_lust", 0 },
         { "island_greed", 1 },
-        { "island_greed", 2 },
-        { "island_desire", 3 },
-        { "island_anger", 4 },
-        { "island_envy", 5 },
-        { "island_ego", 6 }
+        { "island_desire", 2 },
+        { "island_anger", 3 },
+        { "island_envy", 4 },
+        { "island_ego", 5 }
     };
 
     public static GearDropService ActiveInstance => activeInstance;

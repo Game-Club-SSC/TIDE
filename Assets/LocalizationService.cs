@@ -92,7 +92,7 @@ public static class LocalizationService
             { "npc.merchant.welcome", new Dictionary<Language, string> { { Language.English, "See anything you like?" }, { Language.Spanish, "¿Ves algo que te guste?" } } },
 
             { "ancient.text.fragment_1", new Dictionary<Language, string> { { Language.English, "The tide rose and swallowed the old world..." }, { Language.Spanish, "La marea subio y se trago el mundo antiguo..." } } },
-            { "ancient.text.fragment_2", new Dictionary<Language, string> { { Language.English, "Seven sins, seven islands, one redemption." }, { Language.Spanish, "Siete pecados, siete islas, una redencion." } } },
+            { "ancient.text.fragment_2", new Dictionary<Language, string> { { Language.English, "Six vices, six islands, one redemption." }, { Language.Spanish, "Seis vicios, seis islas, una redencion." } } },
 
             { "narrative.act_i.intro", new Dictionary<Language, string> { { Language.English, "The islands drift in silence..." }, { Language.Spanish, "Las islas flotan en silencio..." } } },
             { "narrative.act_ii.intro", new Dictionary<Language, string> { { Language.English, "The tide shifts. A new darkness rises." }, { Language.Spanish, "La marea cambia. Una nueva oscuridad surge." } } },

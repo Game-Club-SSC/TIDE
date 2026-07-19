@@ -14,7 +14,7 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
         TestRunnerExecutesAllChecks();
         TestRunnerTracksPassedAndFailedCounts();
         TestPerIslandContentRegistryCoverage();
-        TestPuzzleVariantServiceGreed();
+        TestPuzzleVariantServiceConsumption();
         TestPuzzleVariantServiceGreed();
         TestDesireStatusEffectSlow();
         TestDesireStatusEffectDrowsy();
@@ -82,7 +82,7 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
         Assert.IsNotNull(PerIslandContentRegistry.GetPackForIsland("island_ego"), "Should find ego pack.");
     }
 
-    private void TestPuzzleVariantServiceGreed()
+    private void TestPuzzleVariantServiceConsumption()
     {
         PuzzleData data = ScriptableObject.CreateInstance<PuzzleData>();
         try

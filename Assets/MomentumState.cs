@@ -33,18 +33,23 @@ public class MomentumState
 
     public void ShiftTowardPlayer(float amount)
     {
-        momentum = Mathf.Clamp(momentum + amount, MinValue, MaxValue);
+        momentum = Mathf.Clamp(momentum + Mathf.Max(0f, amount), MinValue, MaxValue);
         OnMomentumChanged?.Invoke(momentum);
     }
 
     public void ShiftTowardEnemy(float amount)
     {
-        momentum = Mathf.Clamp(momentum - amount, MinValue, MaxValue);
+        momentum = Mathf.Clamp(momentum - Mathf.Max(0f, amount), MinValue, MaxValue);
         OnMomentumChanged?.Invoke(momentum);
     }
 
     public void ShiftForAction(CombatUnit attacker, MatchupResult matchup)
     {
+        if (attacker == null)
+        {
+            return;
+        }
+
         bool attackerIsAlly = attacker.Type == CombatUnit.UnitType.Ally;
 
         switch (matchup)

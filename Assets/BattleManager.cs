@@ -661,6 +661,11 @@ public class BattleManager : MonoBehaviour
             candidate.SkipTurnThisRound = false;
 
             candidate.ProcessTurnStartEffects();
+            if (!candidate.IsAlive)
+            {
+                continue;
+            }
+
             currentActorShouldSkip = skipForRound || candidate.ShouldSkipTurn();
             candidate.ClearDefend();
             actor = candidate;
@@ -1706,14 +1711,18 @@ public class BattleManager : MonoBehaviour
 
             if (skill.target == SkillTarget.SingleAlly)
             {
-                CombatUnit healTarget = requestedTarget != null && requestedTarget.IsAlive ? requestedTarget : actor;
+                CombatUnit healTarget = requestedTarget != null
+                    && requestedTarget.IsAlive
+                    && requestedTarget.Type == actor.Type
+                        ? requestedTarget
+                        : actor;
                 int hpBefore = healTarget.HP;
                 healTarget.Heal(healAmount);
                 Debug.Log($"[BattleManager] {actor.UnitName} heals {healTarget.UnitName} for {healAmount} via {skill.skillName}. HP {hpBefore} -> {healTarget.HP}.");
             }
             else
             {
-                IReadOnlyList<CombatUnit> allies = GetAliveUnits(CombatUnit.UnitType.Ally);
+                IReadOnlyList<CombatUnit> allies = GetAliveUnits(actor.Type);
                 for (int i = 0; i < allies.Count; i++)
                 {
                     CombatUnit ally = allies[i];

@@ -49,8 +49,6 @@ public class PostDeferralVerticalSliceRegressionRunner : MonoBehaviour
             RunContextMenuSuite<DevGodModeStateTest>(nameof(DevGodModeStateTest.RunTests)));
         RunStep("VSR-010", "level_1.unity", "Greed island content + mechanics", "GreedIslandVerificationTest.RunTests", () =>
             RunContextMenuSuite<GreedIslandVerificationTest>(nameof(GreedIslandVerificationTest.RunTests)));
-        RunStep("VSR-011", "level_1.unity", "Greed island content + mechanics", "GreedIslandVerificationTest.RunTests", () =>
-            RunContextMenuSuite<GreedIslandVerificationTest>(nameof(GreedIslandVerificationTest.RunTests)));
         RunStep("VSR-012", "level_1.unity", "Desire island content + mechanics", "DesireIslandVerificationTest.RunTests", () =>
             RunContextMenuSuite<DesireIslandVerificationTest>(nameof(DesireIslandVerificationTest.RunTests)));
         RunStep("VSR-013", "level_1.unity", "Anger island content + mechanics", "AngerIslandVerificationTest.RunTests", () =>

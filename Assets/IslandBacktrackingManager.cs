@@ -368,25 +368,25 @@ public class IslandBacktrackingManager : MonoBehaviour
             new BacktrackingUnlock
             {
                 unlockIslandId = "island_desire",
-                unlockedIslands = new[] { "island_greed", "island_greed", "island_lust" },
+                unlockedIslands = new[] { "island_greed", "island_lust" },
                 narrativeReason = "The texts mention something we missed on the earlier islands. The tribe leaders might know more than they let on."
             },
             new BacktrackingUnlock
             {
                 unlockIslandId = "island_anger",
-                unlockedIslands = new[] { "island_desire", "island_greed", "island_greed", "island_lust" },
+                unlockedIslands = new[] { "island_desire", "island_greed", "island_lust" },
                 narrativeReason = "Anger's fury has subsided. The path back to the earlier islands is clear once more."
             },
             new BacktrackingUnlock
             {
                 unlockIslandId = "island_envy",
-                unlockedIslands = new[] { "island_anger", "island_desire", "island_greed", "island_greed", "island_lust" },
+                unlockedIslands = new[] { "island_anger", "island_desire", "island_greed", "island_lust" },
                 narrativeReason = "The ancient texts grow clearer with each island restored. We must return and speak with the tribe leaders again — they have been withholding the truth."
             },
             new BacktrackingUnlock
             {
                 unlockIslandId = "island_ego",
-                unlockedIslands = new[] { "island_envy", "island_anger", "island_desire", "island_greed", "island_greed", "island_lust" },
+                unlockedIslands = new[] { "island_envy", "island_anger", "island_desire", "island_greed", "island_lust" },
                 narrativeReason = "With ego overcome, every island is within reach. The final truths await where we first began."
             }
         };

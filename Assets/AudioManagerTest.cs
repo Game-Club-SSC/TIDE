@@ -209,7 +209,6 @@ public class AudioManagerTest : MonoBehaviour
             Assert.DoesNotThrow(() => manager.HandleActTransition(), "HandleActTransition should not throw.");
 
             // Per-island BGM
-            Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandGreedBgm), "PlayCue(IslandGreedBgm) should not throw.");
             Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandDesireBgm), "PlayCue(IslandDesireBgm) should not throw.");
             Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandEnvyBgm), "PlayCue(IslandEnvyBgm) should not throw.");
             Assert.DoesNotThrow(() => manager.PlayCue(AudioCue.IslandLustBgm), "PlayCue(IslandLustBgm) should not throw.");

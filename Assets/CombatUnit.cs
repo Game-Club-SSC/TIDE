@@ -283,6 +283,15 @@ public class CombatUnit : MonoBehaviour
     {
         if (!isAlive) return;
 
+        if (damage <= 0)
+        {
+            if (damage < 0)
+            {
+                Debug.LogWarning($"[CombatUnit] TakeDamage called with negative amount {damage}. Treating as no-op.");
+            }
+            return;
+        }
+
         // Apply defense reduction
         int modifiedDamage = damage;
         if (isDefending)
