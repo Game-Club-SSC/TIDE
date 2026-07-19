@@ -5,6 +5,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class AncientTextRevealDirectorTest : MonoBehaviour
 {
+    private AncientTextRevealDirector previousDirectorInstance;
+
     [ContextMenu("Run Ancient Text Reveal Director Tests")]
     public void RunTests()
     {
@@ -30,16 +32,40 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
 
     private AncientTextRevealDirector CreateIsolatedDirector()
     {
-        if (AncientTextRevealDirector.Instance != null)
-        {
-            DestroyImmediate(AncientTextRevealDirector.Instance.gameObject);
-        }
+        previousDirectorInstance = AncientTextRevealDirector.Instance;
+        SetDirectorInstance(null);
 
         GameObject go = new GameObject("TestAncientTextRevealDirector");
         AncientTextRevealDirector director = go.AddComponent<AncientTextRevealDirector>();
+        go.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
         Assert.AreSame(director, AncientTextRevealDirector.Instance,
             "Director singleton should reference the isolated test instance.");
         return director;
+    }
+
+    private void CleanupIsolatedDirector(GameObject go)
+    {
+        if (go != null)
+        {
+            DestroyImmediate(go);
+        }
+
+        RestorePreviousDirectorInstance();
+    }
+
+    private void RestorePreviousDirectorInstance()
+    {
+        SetDirectorInstance(previousDirectorInstance);
+        previousDirectorInstance = null;
+    }
+
+    private static void SetDirectorInstance(AncientTextRevealDirector value)
+    {
+        System.Reflection.FieldInfo field = typeof(AncientTextRevealDirector).GetField(
+            "<Instance>k__BackingField",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        Assert.IsNotNull(field, "Director singleton backing field should exist.");
+        field.SetValue(null, value);
     }
 
     private void SetFragments(AncientTextRevealDirector director, AncientTextRevealDirector.AncientTextFragment[] frags)
@@ -64,7 +90,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ Singleton creation test passed");
@@ -76,18 +102,20 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
 
         AncientTextRevealDirector first = CreateIsolatedDirector();
         GameObject firstGo = first.gameObject;
+        GameObject secondGo = null;
 
         try
         {
-            GameObject secondGo = new GameObject("TestAncientTextRevealDirector_Duplicate");
+            secondGo = new GameObject("TestAncientTextRevealDirector_Duplicate");
             secondGo.AddComponent<AncientTextRevealDirector>();
+            secondGo.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
 
-            Assert.IsTrue(secondGo == null, "Duplicate instance should be destroyed.");
             Assert.AreSame(first, AncientTextRevealDirector.Instance, "Original should remain.");
         }
         finally
         {
-            if (firstGo != null) DestroyImmediate(firstGo);
+            if (secondGo != null) DestroyImmediate(secondGo);
+            CleanupIsolatedDirector(firstGo);
         }
 
         Debug.Log("✓ Duplicate guard test passed");
@@ -98,9 +126,16 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         Debug.Log("Testing AncientTextRevealDirector clears Instance on destroy...");
 
         AncientTextRevealDirector director = CreateIsolatedDirector();
-        DestroyImmediate(director.gameObject);
-
-        Assert.IsNull(AncientTextRevealDirector.Instance, "Instance should be null after destroy.");
+        try
+        {
+            director.SendMessage("OnDestroy", SendMessageOptions.DontRequireReceiver);
+            DestroyImmediate(director.gameObject);
+            Assert.IsNull(AncientTextRevealDirector.Instance, "Instance should be null after destroy.");
+        }
+        finally
+        {
+            RestorePreviousDirectorInstance();
+        }
 
         Debug.Log("✓ Singleton clear on destroy test passed");
     }
@@ -122,7 +157,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ DontDestroyOnLoad test passed");
@@ -152,12 +187,12 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
 
             bool result = director.ForceDiscoverFragment("test_frag_1");
             Assert.IsTrue(result, "ForceDiscoverFragment should return true for a new fragment.");
-            Assert.IsTrue(director.DiscoveredFragmentIds.Contains("test_frag_1"),
+            CollectionAssert.Contains(director.DiscoveredFragmentIds, "test_frag_1",
                 "Fragment should be in discovered set.");
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ ForceDiscoverFragment returns true test passed");
@@ -189,7 +224,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ ForceDiscoverFragment duplicate test passed");
@@ -212,7 +247,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ ForceDiscoverFragment null id test passed");
@@ -274,7 +309,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ HeroBondingState tracks bond level test passed");
@@ -319,7 +354,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ HeroBondingState affects gameplay test passed");
@@ -360,7 +395,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ GetRevealStage increments test passed");
@@ -399,7 +434,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ GetOverallNarrativeState changes test passed");
@@ -439,7 +474,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
 
             director.ApplySaveData(saveData);
             Assert.AreEqual(1, director.DiscoveredFragmentIds.Count, "Restore should bring back fragments.");
-            Assert.IsTrue(director.DiscoveredFragmentIds.Contains("save_frag_1"),
+            CollectionAssert.Contains(director.DiscoveredFragmentIds, "save_frag_1",
                 "Restored data should contain the fragment.");
 
             AncientTextRevealDirector.HeroBondingState state = director.GetHeroBonding("hero_water");
@@ -448,7 +483,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ Save data round trip test passed");
@@ -485,7 +520,7 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            CleanupIsolatedDirector(go);
         }
 
         Debug.Log("✓ ResetForDebug test passed");

@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84a56f270b0480841bbfac6098eedded, type: 3}
   m_Name: island_pride
   m_EditorClassIdentifier: 
-  islandId: island_pride
-  viceName: Pride
+  islandId: island_ego
+  viceName: Ego
   vicePrimaryColor: {r: 0.38, g: 0.82, b: 0.96, a: 1}
   viceSecondaryColor: {r: 0.14, g: 0.46, b: 0.62, a: 1}
   audioProfile: {fileID: 0}

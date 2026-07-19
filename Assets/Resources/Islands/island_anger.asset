@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84a56f270b0480841bbfac6098eedded, type: 3}
   m_Name: island_wrath
   m_EditorClassIdentifier: 
-  islandId: island_wrath
-  viceName: Wrath
+  islandId: island_anger
+  viceName: Anger
   vicePrimaryColor: {r: 0.9, g: 0.2, b: 0.16, a: 1}
   viceSecondaryColor: {r: 0.52, g: 0.08, b: 0.08, a: 1}
   audioProfile: {fileID: 0}

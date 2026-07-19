@@ -44,12 +44,15 @@ public class GamepadInputManager : MonoBehaviour
     public bool TabRightPressed { get; private set; }
     public bool ConfirmPressed { get; private set; }
     public bool BackPressed { get; private set; }
+    public bool NavUpPressed { get; private set; }
+    public bool NavDownPressed { get; private set; }
 
     // ----- State -----
     public bool IsGamepadConnected { get; private set; }
     public bool IsGamepadActive { get; private set; }
 
     private bool previousAnyButton;
+    private float previousNavigationY;
 
     // ----- Lifecycle -----
 
@@ -210,6 +213,9 @@ public class GamepadInputManager : MonoBehaviour
             TabRightPressed = false;
             ConfirmPressed = false;
             BackPressed = false;
+            NavUpPressed = false;
+            NavDownPressed = false;
+            previousNavigationY = 0f;
             return;
         }
 
@@ -217,6 +223,11 @@ public class GamepadInputManager : MonoBehaviour
         TabRightPressed = Input.GetButtonDown("joystick button 5");   // RB
         ConfirmPressed = Input.GetButtonDown("joystick button 0");    // A / Cross
         BackPressed = Input.GetButtonDown("joystick button 1");       // B / Circle
+
+        float navigationY = ApplyDeadZone(Input.GetAxisRaw(VerticalAxis));
+        NavUpPressed = navigationY > 0f && previousNavigationY <= 0f;
+        NavDownPressed = navigationY < 0f && previousNavigationY >= 0f;
+        previousNavigationY = navigationY;
     }
 
     // ----- Target Selection -----

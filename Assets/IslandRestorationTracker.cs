@@ -33,7 +33,10 @@ public class IslandRestorationTracker : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (Application.isPlaying)
+        {
+            DontDestroyOnLoad(gameObject);
+        }
     }
 
     private void OnDestroy()
@@ -107,7 +110,7 @@ public class IslandRestorationTracker : MonoBehaviour
             $"Restoration: {state.RestorationPercent:F1}% " +
             $"(Combat: {state.CombatContribution * 100:F0}%, Puzzle: {state.PuzzleContribution * 100:F0}%)");
 
-        OnRestorationChanged?.Invoke(islandId, state.TotalContribution);
+        OnRestorationChanged?.Invoke(islandId, state.RestorationPercent);
 
         if (state.IsIslandRestored && previous < 1f)
         {
@@ -293,7 +296,7 @@ public class IslandRestorationTracker : MonoBehaviour
 
         foreach (KeyValuePair<string, IslandRestorationState> pair in islandStates)
         {
-            OnRestorationChanged?.Invoke(pair.Key, pair.Value.TotalContribution);
+            OnRestorationChanged?.Invoke(pair.Key, pair.Value.RestorationPercent);
             if (pair.Value.IsIslandRestored)
             {
                 OnIslandRestored?.Invoke(pair.Key);
@@ -364,7 +367,7 @@ public class IslandRestorationTracker : MonoBehaviour
             state.ApplySnapshot(snapshot);
         }
 
-        OnRestorationChanged?.Invoke(scopedIslandId, state.TotalContribution);
+        OnRestorationChanged?.Invoke(scopedIslandId, state.RestorationPercent);
         if (state.IsIslandRestored)
         {
             OnIslandRestored?.Invoke(scopedIslandId);

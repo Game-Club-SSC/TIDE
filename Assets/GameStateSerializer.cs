@@ -14,11 +14,16 @@ public static class GameStateSerializer
         StringBuilder sb = new StringBuilder();
         sb.Append('{');
 
+        // Keep one field present at the start so each optional section can
+        // safely prepend a comma even when its manager does not exist.
+        string activeIsland = IslandThemeRegistry.GetActiveIslandId();
+        AppendJsonField(sb, "activeIsland", activeIsland, true);
+
         // Game state
         GameStateManager gsm = GameStateManager.Instance;
         if (gsm != null)
         {
-            AppendJsonField(sb, "gameState", gsm.currentState.ToString(), true);
+            AppendJsonField(sb, "gameState", gsm.currentState.ToString(), false);
             AppendJsonField(sb, "storyAct", gsm.CurrentStoryAct.ToString(), false);
             AppendJsonField(sb, "highestAct", gsm.HighestStoryActReached.ToString(), false);
             AppendJsonField(sb, "endingBranch", gsm.ResolvedEndingBranch.ToString(), false);
@@ -26,16 +31,12 @@ public static class GameStateSerializer
             AppendJsonField(sb, "isTransitioning", gsm.IsTransitioning.ToString().ToLowerInvariant(), false);
         }
 
-        // Active island
-        string activeIsland = IslandThemeRegistry.GetActiveIslandId();
-        AppendJsonField(sb, "activeIsland", activeIsland, false);
-
         // Player position
         IsometricPlayer player = Object.FindFirstObjectByType<IsometricPlayer>();
         if (player != null)
         {
             Vector3 pos = player.transform.position;
-            sb.Append("\"playerPos\":{");
+            sb.Append(",\"playerPos\":{");
             AppendJsonFieldRaw(sb, "x", pos.x.ToString("F2", CultureInfo.InvariantCulture), true);
             AppendJsonFieldRaw(sb, "y", pos.y.ToString("F2", CultureInfo.InvariantCulture), false);
             AppendJsonFieldRaw(sb, "z", pos.z.ToString("F2", CultureInfo.InvariantCulture), false);
@@ -54,14 +55,14 @@ public static class GameStateSerializer
         IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
         if (tracker != null)
         {
-            sb.Append("\"islandRestorations\":{");
+            sb.Append(",\"islandRestorations\":{");
             bool first = true;
             foreach (string islandId in IslandThemeRegistry.ProgressionOrder)
             {
                 if (!first) sb.Append(',');
                 first = false;
                 float pct = tracker.GetRestorationPercent(islandId);
-                sb.Append($"\"{EscapeJson(islandId)}\":{pct.ToString("F1", CultureInfo.InvariantCulture)}";
+                sb.Append($"\"{EscapeJson(islandId)}\":{pct.ToString("F1", CultureInfo.InvariantCulture)}");
             }
             sb.Append('}');
         }

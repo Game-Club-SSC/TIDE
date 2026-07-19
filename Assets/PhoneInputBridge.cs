@@ -45,6 +45,10 @@ public class PhoneInputBridge : MonoBehaviour
     public bool PhoneInteractPressed => phoneInteractPressed;
     public bool PhoneDashPressed => phoneDashPressed;
     public bool PhoneHopPressed => phoneHopPressed;
+    public bool PhoneNavUpPressed { get; private set; }
+    public bool PhoneNavDownPressed { get; private set; }
+
+    private float previousNavigationY;
 
     private void Awake()
     {
@@ -65,6 +69,7 @@ public class PhoneInputBridge : MonoBehaviour
     private void OnDisable()
     {
         UnsubscribeFromServer();
+        ResetInputState();
     }
 
     private void SubscribeToServer()
@@ -111,6 +116,8 @@ public class PhoneInputBridge : MonoBehaviour
         phoneInteractPressed = false;
         phoneDashPressed = false;
         phoneHopPressed = false;
+        PhoneNavUpPressed = false;
+        PhoneNavDownPressed = false;
 
         // Consume queued one-shot actions
         if (phoneInteractQueued)
@@ -128,6 +135,10 @@ public class PhoneInputBridge : MonoBehaviour
             phoneHopPressed = true;
             phoneHopQueued = false;
         }
+
+        PhoneNavUpPressed = phoneInputV > effectiveDeadZone && previousNavigationY <= effectiveDeadZone;
+        PhoneNavDownPressed = phoneInputV < -effectiveDeadZone && previousNavigationY >= -effectiveDeadZone;
+        previousNavigationY = phoneInputV;
 
         // Determine if phone input is active
         float mag = new Vector2(phoneInputH, phoneInputV).magnitude;
@@ -304,6 +315,9 @@ public class PhoneInputBridge : MonoBehaviour
         phoneDashQueued = false;
         phoneHopQueued = false;
         phoneInputActive = false;
+        PhoneNavUpPressed = false;
+        PhoneNavDownPressed = false;
+        previousNavigationY = 0f;
     }
 
     private void OnDestroy()

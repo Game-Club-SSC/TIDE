@@ -136,6 +136,7 @@ public class DevGodModeStateTest : MonoBehaviour
 
         GameObject trackerObject = new GameObject(trackerName);
         IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        trackerObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
         Assert.AreSame(tracker, IslandRestorationTracker.Instance,
             "Tracker singleton should reference isolated test tracker instance.");
         return tracker;
@@ -150,6 +151,7 @@ public class DevGodModeStateTest : MonoBehaviour
 
         GameObject progressionObject = new GameObject(progressionName);
         IslandProgressionManager progression = progressionObject.AddComponent<IslandProgressionManager>();
+        progressionObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
         Assert.AreSame(progression, IslandProgressionManager.Instance,
             "Progression singleton should reference isolated test progression instance.");
         return progression;

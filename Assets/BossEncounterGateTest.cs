@@ -31,6 +31,7 @@ public class BossEncounterGateTest : MonoBehaviour
 
         GameObject trackerObject = new GameObject(trackerName);
         IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        trackerObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
         Assert.AreSame(tracker, IslandRestorationTracker.Instance,
             "Tracker singleton should reference the isolated test tracker instance.");
         return tracker;
@@ -54,6 +55,7 @@ public class BossEncounterGateTest : MonoBehaviour
         SetPrivateField(gate, "bossInteractionCollider", interactionCollider);
         SetPrivateField(gate, "bossTrigger", bossTrigger);
         SetPrivateField(gate, "bossUnlockThresholdPercent", 75f);
+        SetPrivateField(gate, "islandId", "island_lust");
 
         bossVisuals.SetActive(false);
         interactionCollider.enabled = false;
@@ -61,7 +63,7 @@ public class BossEncounterGateTest : MonoBehaviour
 
         gateObject.SendMessage("OnEnable");
 
-        tracker.RecordEncounterCompletion("island_test", "c1", EncounterType.Combat, 0.3f);
+        tracker.RecordEncounterCompletion("island_lust", "c1", EncounterType.Combat, 0.3f);
 
         Assert.IsFalse(gate.IsBossUnlocked, "Boss should be locked at 30%.");
         Assert.IsFalse(bossVisuals.activeSelf, "Boss visuals should be inactive at 30%.");
@@ -92,6 +94,7 @@ public class BossEncounterGateTest : MonoBehaviour
         SetPrivateField(gate, "bossInteractionCollider", interactionCollider);
         SetPrivateField(gate, "bossTrigger", bossTrigger);
         SetPrivateField(gate, "bossUnlockThresholdPercent", 75f);
+        SetPrivateField(gate, "islandId", "island_lust");
 
         bossVisuals.SetActive(false);
         interactionCollider.enabled = false;
@@ -99,7 +102,8 @@ public class BossEncounterGateTest : MonoBehaviour
 
         gateObject.SendMessage("OnEnable");
 
-        tracker.RecordEncounterCompletion("island_test", "c1", EncounterType.Combat, 0.75f);
+        tracker.RecordEncounterCompletion("island_lust", "c1", EncounterType.Combat, 0.5f);
+        tracker.RecordEncounterCompletion("island_lust", "p1", EncounterType.Puzzle, 0.25f);
 
         Assert.IsTrue(gate.IsBossUnlocked, "Boss should be unlocked at 75%.");
         Assert.IsTrue(bossVisuals.activeSelf, "Boss visuals should be active at 75%.");
@@ -130,6 +134,7 @@ public class BossEncounterGateTest : MonoBehaviour
         SetPrivateField(gate, "bossInteractionCollider", interactionCollider);
         SetPrivateField(gate, "bossTrigger", bossTrigger);
         SetPrivateField(gate, "bossUnlockThresholdPercent", 75f);
+        SetPrivateField(gate, "islandId", "island_lust");
 
         bossVisuals.SetActive(false);
         interactionCollider.enabled = false;
@@ -137,8 +142,8 @@ public class BossEncounterGateTest : MonoBehaviour
 
         gateObject.SendMessage("OnEnable");
 
-        tracker.RecordEncounterCompletion("island_test", "c1", EncounterType.Combat, 0.5f);
-        tracker.RecordEncounterCompletion("island_test", "p1", EncounterType.Puzzle, 0.5f);
+        tracker.RecordEncounterCompletion("island_lust", "c1", EncounterType.Combat, 0.5f);
+        tracker.RecordEncounterCompletion("island_lust", "p1", EncounterType.Puzzle, 0.5f);
 
         Assert.IsTrue(gate.IsBossUnlocked, "Boss should be unlocked at 100%.");
         Assert.IsTrue(bossVisuals.activeSelf, "Boss visuals should be active at 100%.");
@@ -158,8 +163,8 @@ public class BossEncounterGateTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossReenable");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_reload", "c1", EncounterType.Combat, 0.4f);
-        tracker.RecordEncounterCompletion("island_reload", "p1", EncounterType.Puzzle, 0.4f);
+        tracker.RecordEncounterCompletion("island_greed", "c1", EncounterType.Combat, 0.4f);
+        tracker.RecordEncounterCompletion("island_greed", "p1", EncounterType.Puzzle, 0.4f);
 
         GameObject gateObject = new GameObject("TestGate_BossReenable");
         BossEncounterGate gate = gateObject.AddComponent<BossEncounterGate>();
@@ -172,6 +177,7 @@ public class BossEncounterGateTest : MonoBehaviour
         SetPrivateField(gate, "bossInteractionCollider", interactionCollider);
         SetPrivateField(gate, "bossTrigger", bossTrigger);
         SetPrivateField(gate, "bossUnlockThresholdPercent", 75f);
+        SetPrivateField(gate, "islandId", "island_greed");
 
         bossVisuals.SetActive(false);
         interactionCollider.enabled = false;
@@ -221,6 +227,7 @@ public class BossEncounterGateTest : MonoBehaviour
         SetPrivateField(gate, "bossInteractionCollider", interactionCollider);
         SetPrivateField(gate, "bossTrigger", bossTrigger);
         SetPrivateField(gate, "bossUnlockThresholdPercent", 75f);
+        SetPrivateField(gate, "islandId", "island_desire");
 
         bossVisuals.SetActive(false);
         interactionCollider.enabled = false;
@@ -233,11 +240,11 @@ public class BossEncounterGateTest : MonoBehaviour
 
         gateObject.SendMessage("OnEnable");
 
-        tracker.RecordEncounterCompletion("island_evt", "c1", EncounterType.Combat, 0.5f);
+        tracker.RecordEncounterCompletion("island_desire", "c1", EncounterType.Combat, 0.5f);
         Assert.AreEqual(0, unlockCount, "OnBossUnlocked should not fire at 50%.");
         Assert.AreEqual(0, lockCount, "OnBossLocked should not fire when staying locked.");
 
-        tracker.RecordEncounterCompletion("island_evt", "p1", EncounterType.Puzzle, 0.3f);
+        tracker.RecordEncounterCompletion("island_desire", "p1", EncounterType.Puzzle, 0.3f);
         Assert.AreEqual(1, unlockCount, "OnBossUnlocked should fire once at 80%.");
         Assert.AreEqual(0, lockCount, "OnBossLocked should not fire after unlock.");
 
@@ -254,7 +261,8 @@ public class BossEncounterGateTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossNoRepeat");
         GameObject trackerObject = tracker.gameObject;
 
-        tracker.RecordEncounterCompletion("island_norepeat", "c1", EncounterType.Combat, 0.8f);
+        tracker.RecordEncounterCompletion("island_anger", "c1", EncounterType.Combat, 0.5f);
+        tracker.RecordEncounterCompletion("island_anger", "p0", EncounterType.Puzzle, 0.3f);
 
         GameObject gateObject = new GameObject("TestGate_BossNoRepeat");
         BossEncounterGate gate = gateObject.AddComponent<BossEncounterGate>();
@@ -267,6 +275,7 @@ public class BossEncounterGateTest : MonoBehaviour
         SetPrivateField(gate, "bossInteractionCollider", interactionCollider);
         SetPrivateField(gate, "bossTrigger", bossTrigger);
         SetPrivateField(gate, "bossUnlockThresholdPercent", 75f);
+        SetPrivateField(gate, "islandId", "island_anger");
 
         bossVisuals.SetActive(false);
         interactionCollider.enabled = false;
@@ -279,7 +288,7 @@ public class BossEncounterGateTest : MonoBehaviour
 
         Assert.AreEqual(0, unlockCount, "OnBossUnlocked should not fire on initial enable (already unlocked).");
 
-        tracker.RecordEncounterCompletion("island_norepeat", "p1", EncounterType.Puzzle, 0.2f);
+        tracker.RecordEncounterCompletion("island_anger", "p1", EncounterType.Puzzle, 0.2f);
         Assert.AreEqual(0, unlockCount, "OnBossUnlocked should not re-fire when already unlocked.");
 
         DestroyImmediate(gateObject);
@@ -306,7 +315,7 @@ public class BossEncounterGateTest : MonoBehaviour
         SetPrivateField(gate, "bossInteractionCollider", interactionCollider);
         SetPrivateField(gate, "bossTrigger", bossTrigger);
         SetPrivateField(gate, "bossUnlockThresholdPercent", 75f);
-        SetPrivateField(gate, "islandId", "island_a");
+        SetPrivateField(gate, "islandId", "island_envy");
 
         bossVisuals.SetActive(false);
         interactionCollider.enabled = false;
@@ -314,11 +323,13 @@ public class BossEncounterGateTest : MonoBehaviour
 
         gateObject.SendMessage("OnEnable");
 
-        tracker.RecordEncounterCompletion("island_b", "c1", EncounterType.Combat, 0.8f);
+        tracker.RecordEncounterCompletion("island_greed", "c1", EncounterType.Combat, 0.5f);
+        tracker.RecordEncounterCompletion("island_greed", "p1", EncounterType.Puzzle, 0.3f);
 
         Assert.IsFalse(gate.IsBossUnlocked, "Boss should stay locked when other island reaches threshold.");
 
-        tracker.RecordEncounterCompletion("island_a", "c1", EncounterType.Combat, 0.8f);
+        tracker.RecordEncounterCompletion("island_envy", "c1", EncounterType.Combat, 0.5f);
+        tracker.RecordEncounterCompletion("island_envy", "p1", EncounterType.Puzzle, 0.3f);
 
         Assert.IsTrue(gate.IsBossUnlocked, "Boss should unlock when correct island reaches threshold.");
 
@@ -346,6 +357,7 @@ public class BossEncounterGateTest : MonoBehaviour
         SetPrivateField(gate, "bossInteractionCollider", interactionCollider);
         SetPrivateField(gate, "bossTrigger", bossTrigger);
         SetPrivateField(gate, "bossUnlockThresholdPercent", 50f);
+        SetPrivateField(gate, "islandId", "island_ego");
 
         bossVisuals.SetActive(false);
         interactionCollider.enabled = false;
@@ -353,11 +365,11 @@ public class BossEncounterGateTest : MonoBehaviour
 
         gateObject.SendMessage("OnEnable");
 
-        tracker.RecordEncounterCompletion("island_tune", "c1", EncounterType.Combat, 0.4f);
+        tracker.RecordEncounterCompletion("island_ego", "c1", EncounterType.Combat, 0.4f);
 
         Assert.IsFalse(gate.IsBossUnlocked, "Boss should be locked at 40% with 50% threshold.");
 
-        tracker.RecordEncounterCompletion("island_tune", "p1", EncounterType.Puzzle, 0.1f);
+        tracker.RecordEncounterCompletion("island_ego", "p1", EncounterType.Puzzle, 0.1f);
 
         Assert.IsTrue(gate.IsBossUnlocked, "Boss should unlock at 50% with 50% threshold.");
 

@@ -22,6 +22,25 @@ public class PostDeferralVerticalSliceRegressionRunner : MonoBehaviour
     [TextArea(8, 24)]
     private string latestReport;
 
+    public int PassedCount
+    {
+        get
+        {
+            int count = 0;
+            for (int i = 0; i < lastResults.Count; i++)
+            {
+                if (lastResults[i].passed)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+    }
+
+    public int FailedCount => lastResults.Count - PassedCount;
+
     [ContextMenu("Run Post-Deferral Vertical Slice Regression Matrix")]
     public void RunMatrix()
     {

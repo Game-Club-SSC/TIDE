@@ -370,6 +370,8 @@ public class IslandProgressionTravelTest : MonoBehaviour
     private static IslandBoatInteractable CreateBoat(string boatName)
     {
         GameObject boatObject = new GameObject(boatName);
+        boatObject.AddComponent<MeshRenderer>();
+        boatObject.AddComponent<BoxCollider>();
         IslandBoatInteractable boat = boatObject.AddComponent<IslandBoatInteractable>();
         return boat;
     }
@@ -385,7 +387,9 @@ public class IslandProgressionTravelTest : MonoBehaviour
     private static object InvokePrivate(object target, string methodName, params object[] args)
     {
         System.Reflection.MethodInfo method = target.GetType().GetMethod(methodName,
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            System.Reflection.BindingFlags.Instance
+            | System.Reflection.BindingFlags.Static
+            | System.Reflection.BindingFlags.NonPublic);
         Assert.IsNotNull(method, $"Method '{methodName}' should exist for verification.");
         return method.Invoke(target, args);
     }
@@ -412,6 +416,7 @@ public class IslandProgressionTravelTest : MonoBehaviour
 
         GameObject trackerObject = new GameObject(trackerName);
         IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        trackerObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
         Assert.AreSame(tracker, IslandRestorationTracker.Instance,
             "Tracker singleton should reference isolated test tracker instance.");
         return tracker;
@@ -426,6 +431,7 @@ public class IslandProgressionTravelTest : MonoBehaviour
 
         GameObject progressionObject = new GameObject(progressionName);
         IslandProgressionManager progression = progressionObject.AddComponent<IslandProgressionManager>();
+        progressionObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
         Assert.AreSame(progression, IslandProgressionManager.Instance,
             "Progression singleton should reference isolated test progression instance.");
         return progression;

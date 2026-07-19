@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84a56f270b0480841bbfac6098eedded, type: 3}
   m_Name: island_sloth
   m_EditorClassIdentifier: 
-  islandId: island_sloth
-  viceName: Sloth
+  islandId: island_desire
+  viceName: Desire
   vicePrimaryColor: {r: 0.72, g: 0.4, b: 0.94, a: 1}
   viceSecondaryColor: {r: 0.39, g: 0.18, b: 0.58, a: 1}
   audioProfile: {fileID: 0}

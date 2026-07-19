@@ -299,7 +299,7 @@ public class BattleEscapeMenu : MonoBehaviour
         battleManager.SetPendingSkill(skill);
 
         CombatUnit autoTarget = FindAutoTarget(skill, unit);
-        if (autoTarget != null || skill.targetType == SkillTarget.Self)
+        if (autoTarget != null || skill.target == SkillTarget.Self)
         {
             battleManager.TryAssignActionFromHud(CombatActionType.Skill, autoTarget);
         }
@@ -309,7 +309,7 @@ public class BattleEscapeMenu : MonoBehaviour
     {
         if (skill == null || actor == null) return null;
 
-        switch (skill.targetType)
+        switch (skill.target)
         {
             case SkillTarget.Self:
                 return actor;

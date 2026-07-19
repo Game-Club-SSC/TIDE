@@ -84,7 +84,10 @@ public class AncientTextRevealDirector : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (Application.isPlaying)
+        {
+            DontDestroyOnLoad(gameObject);
+        }
     }
 
     private void OnDestroy()

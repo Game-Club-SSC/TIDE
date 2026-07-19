@@ -11,6 +11,7 @@ public class MobileTouchInputManagerTest : MonoBehaviour
         TestHandleBattleTouchIsImplemented();
         TestIsMobilePlatformToggleableInEditor();
         TestAutoHideDelayIsSerialized();
+        TestNavigationEdgesAndReset();
         Debug.Log("=== All Mobile Touch Input Manager Tests Passed ===");
     }
 
@@ -114,6 +115,46 @@ public class MobileTouchInputManagerTest : MonoBehaviour
                 "AutoHideDelay should exist as either const or [SerializeField].");
 
             Debug.Log("[MobileTouchInputManagerTest] TestAutoHideDelayIsSerialized passed.");
+        }
+        finally
+        {
+            DestroyImmediate(managerObject);
+        }
+    }
+
+    [ContextMenu("Test Navigation Edges And Reset")]
+    public void TestNavigationEdgesAndReset()
+    {
+        Debug.Log("[MobileTouchInputManagerTest] Testing navigation edge input and reset...");
+        GameObject managerObject = new GameObject("MobileTouchManager_NavigationTest");
+        MobileTouchInputManager manager = managerObject.AddComponent<MobileTouchInputManager>();
+        try
+        {
+            FieldInfo moveVField = typeof(MobileTouchInputManager).GetField(
+                "moveV", BindingFlags.NonPublic | BindingFlags.Instance);
+            MethodInfo updateNavigation = typeof(MobileTouchInputManager).GetMethod(
+                "UpdateNavigationInput", BindingFlags.NonPublic | BindingFlags.Instance);
+
+            Assert.IsNotNull(moveVField, "moveV field should exist.");
+            Assert.IsNotNull(updateNavigation, "UpdateNavigationInput method should exist.");
+
+            moveVField.SetValue(manager, 1f);
+            updateNavigation.Invoke(manager, null);
+            Assert.IsTrue(manager.NavUpPressed, "Moving above the dead zone should press navigation up once.");
+            Assert.IsFalse(manager.NavDownPressed, "Navigation down should stay clear while moving up.");
+
+            updateNavigation.Invoke(manager, null);
+            Assert.IsFalse(manager.NavUpPressed, "Holding up should not repeat the edge press.");
+
+            moveVField.SetValue(manager, -1f);
+            updateNavigation.Invoke(manager, null);
+            Assert.IsTrue(manager.NavDownPressed, "Moving below the dead zone should press navigation down once.");
+
+            manager.SetEnabled(false);
+            Assert.IsFalse(manager.NavUpPressed, "Disabling touch input should clear navigation up.");
+            Assert.IsFalse(manager.NavDownPressed, "Disabling touch input should clear navigation down.");
+
+            Debug.Log("[MobileTouchInputManagerTest] TestNavigationEdgesAndReset passed.");
         }
         finally
         {

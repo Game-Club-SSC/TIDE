@@ -172,10 +172,10 @@ public class DialogueTreeRunner : MonoBehaviour
 
         currentNode = node;
 
-        // Null entry guard — skip node to avoid NullReferenceException
-        if (node.entry == null)
+        DialogueSystem.DialogueEntry entry = node.entry;
+        if (string.IsNullOrWhiteSpace(entry.speakerName) && string.IsNullOrWhiteSpace(entry.dialogueText))
         {
-            Debug.LogWarning($"[DialogueTreeRunner] Node '{node.nodeId}' has null entry. Skipping.");
+            Debug.LogWarning("[DialogueTreeRunner] Skipping a node with an empty dialogue entry.");
             AdvanceToNextNode();
             return;
         }
@@ -564,7 +564,7 @@ public class DialogueTreeRunner : MonoBehaviour
                     {
                         if (TideBreakProgressionManager.Instance != null)
                         {
-                            string heroId = currentNode.entry != null ? currentNode.entry.relatedHeroId : null;
+                            string heroId = currentNode.entry.relatedHeroId;
                             if (!string.IsNullOrEmpty(heroId))
                             {
                                 TideBreakProgressionManager.Instance.RevealHiddenTideBreak(heroId, effect.targetId);

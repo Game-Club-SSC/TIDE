@@ -38,7 +38,10 @@ public class VerticalSliceRegressionRunner : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (Application.isPlaying)
+        {
+            DontDestroyOnLoad(gameObject);
+        }
         RegisterAllChecks();
     }
 

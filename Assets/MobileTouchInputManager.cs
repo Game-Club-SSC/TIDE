@@ -52,12 +52,15 @@ public class MobileTouchInputManager : MonoBehaviour
     public bool DashPressed => dashPressed;
     public bool HopPressed => hopPressed;
     public bool MenuPressed => menuPressed;
+    public bool NavUpPressed { get; private set; }
+    public bool NavDownPressed { get; private set; }
 
     // Platform detection
     public bool IsMobilePlatform { get; private set; }
     public bool AreControlsVisible { get; private set; } = true;
 
     private bool isActive;
+    private float previousNavigationY;
 
     // --- Joystick ---
     private Canvas touchCanvas;
@@ -123,14 +126,30 @@ public class MobileTouchInputManager : MonoBehaviour
     {
         if (!isActive)
         {
+            ResetNavigationInput();
             return;
         }
 
         ConsumeOneShots();
         HandleTouches();
         HandleJoystickInput();
+        UpdateNavigationInput();
         UpdateBattlePanelVisibility();
         UpdateAutoHide();
+    }
+
+    private void UpdateNavigationInput()
+    {
+        NavUpPressed = moveV > joystickDeadZone && previousNavigationY <= joystickDeadZone;
+        NavDownPressed = moveV < -joystickDeadZone && previousNavigationY >= -joystickDeadZone;
+        previousNavigationY = moveV;
+    }
+
+    private void ResetNavigationInput()
+    {
+        NavUpPressed = false;
+        NavDownPressed = false;
+        previousNavigationY = 0f;
     }
 
     // ====================================================================
@@ -889,6 +908,11 @@ public class MobileTouchInputManager : MonoBehaviour
     {
         enableMobileControls = enabled;
         isActive = enabled && IsMobilePlatform;
+
+        if (!isActive)
+        {
+            ResetNavigationInput();
+        }
 
         if (!isActive && touchCanvas != null)
         {

@@ -22,7 +22,7 @@ MonoBehaviour:
   - encounterId: greed_c1
     type: 0
     isBossEncounter: 0
-    restorationValue: 0.125
+    restorationValue: 0.09375
     encounterConfig: {fileID: 11400000, guid: b34efdb279636407396d8f6236b102f2, type: 2}
     enemyComposition:
       enemyDataSlots:
@@ -36,7 +36,7 @@ MonoBehaviour:
   - encounterId: greed_p1
     type: 1
     isBossEncounter: 0
-    restorationValue: 0.0625
+    restorationValue: 0.09375
     encounterConfig: {fileID: 11400000, guid: f2e36a667aec942d2935cbaaeb2a9878, type: 2}
     enemyComposition:
       enemyDataSlots:
@@ -50,7 +50,7 @@ MonoBehaviour:
   - encounterId: greed_c2
     type: 0
     isBossEncounter: 0
-    restorationValue: 0.125
+    restorationValue: 0.09375
     encounterConfig: {fileID: 11400000, guid: d7677a37eafaa425280e0f76622f4fef, type: 2}
     enemyComposition:
       enemyDataSlots:
@@ -65,7 +65,7 @@ MonoBehaviour:
   - encounterId: greed_p2
     type: 1
     isBossEncounter: 0
-    restorationValue: 0.0625
+    restorationValue: 0.09375
     encounterConfig: {fileID: 11400000, guid: 85e72d92a7fad4bd991f513200f76b77, type: 2}
     enemyComposition:
       enemyDataSlots:
@@ -79,7 +79,7 @@ MonoBehaviour:
   - encounterId: greed_c3
     type: 0
     isBossEncounter: 0
-    restorationValue: 0.125
+    restorationValue: 0.09375
     encounterConfig: {fileID: 11400000, guid: dc48619ece7f9497e9b47b48c556014c, type: 2}
     enemyComposition:
       enemyDataSlots:
@@ -94,7 +94,7 @@ MonoBehaviour:
   - encounterId: greed_p3
     type: 1
     isBossEncounter: 0
-    restorationValue: 0.0625
+    restorationValue: 0.09375
     encounterConfig: {fileID: 11400000, guid: c75bfb20607c646f69fa0e9e09e9d3dd, type: 2}
     enemyComposition:
       enemyDataSlots:
@@ -108,7 +108,7 @@ MonoBehaviour:
   - encounterId: greed_c4
     type: 0
     isBossEncounter: 0
-    restorationValue: 0.125
+    restorationValue: 0.09375
     encounterConfig: {fileID: 11400000, guid: c826aa4416fbc4653ac3145fb666b165, type: 2}
     enemyComposition:
       enemyDataSlots:
@@ -124,7 +124,7 @@ MonoBehaviour:
   - encounterId: greed_p4
     type: 1
     isBossEncounter: 0
-    restorationValue: 0.0625
+    restorationValue: 0.09375
     encounterConfig: {fileID: 11400000, guid: 359af5236b5a04992be52c9011c44f83, type: 2}
     enemyComposition:
       enemyDataSlots:

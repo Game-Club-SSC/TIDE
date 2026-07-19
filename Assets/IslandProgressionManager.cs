@@ -49,7 +49,10 @@ public class IslandProgressionManager : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (Application.isPlaying)
+        {
+            DontDestroyOnLoad(gameObject);
+        }
 
         activeIslandId = ResolveKnownOrDefault(activeIslandId);
         if (!hasInitializedDefaults)
@@ -586,6 +589,7 @@ public class IslandProgressionManager : MonoBehaviour
     {
         unlockedIslandIds.Clear();
         islandReturnPositions.Clear();
+        activeIslandId = IslandThemeRegistry.DefaultIslandId;
         InitializeSafeDefaults();
         IslandThemeRegistry.SetActiveIslandId(activeIslandId);
         OnActiveIslandChanged?.Invoke(activeIslandId);

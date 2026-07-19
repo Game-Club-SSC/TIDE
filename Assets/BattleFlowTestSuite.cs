@@ -542,7 +542,7 @@ public class BattleFlowTestSuite
     }
 
     [Test]
-    public void EnemyAiFallsBackToAttackWithoutAdvantageousSkill()
+    public void EnemyAiUsesSupportedFallbackSkillWithoutAdvantage()
     {
         CombatUnit allyWater = CreateUnit(
             unitsRoot.transform,
@@ -576,8 +576,10 @@ public class BattleFlowTestSuite
 
         PlannedAction action = (PlannedAction)InvokePrivate(manager, "ComputeEnemyAction", enemy);
 
-        Assert.AreEqual(CombatActionType.Attack, action.ActionType,
-            "Enemy AI should fall back to attack when no skill has elemental advantage.");
+        Assert.AreEqual(CombatActionType.Skill, action.ActionType,
+            "Enemy AI without a vice profile should still use a supported fallback skill.");
+        Assert.AreSame(fireSkill, action.SelectedSkill,
+            "Enemy AI should use its available supported skill when no advantageous skill exists.");
     }
 
     [Test]
@@ -658,8 +660,10 @@ public class BattleFlowTestSuite
 
         PlannedAction action = (PlannedAction)InvokePrivate(manager, "ComputeEnemyAction", enemy);
 
-        Assert.AreNotEqual(CombatActionType.Skill, action.ActionType,
-            "Enemy AI should not pick a skill via advantage path when no player has a known element.");
+        Assert.AreEqual(CombatActionType.Skill, action.ActionType,
+            "Enemy AI should fall back to normal skill selection when player elements are unknown.");
+        Assert.AreSame(fireSkill, action.SelectedSkill,
+            "Enemy AI should keep a valid fallback action when player elements are unknown.");
     }
 
     private static CombatUnit CreateUnit(

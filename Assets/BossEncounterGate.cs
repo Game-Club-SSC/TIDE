@@ -17,13 +17,13 @@ public class BossEncounterGate : MonoBehaviour
     [SerializeField] private EnemyTrigger bossTrigger;
 
     [Header("Events")]
-    public UnityEvent OnBossUnlocked;
-    public UnityEvent OnBossLocked;
+    public UnityEvent OnBossUnlocked = new UnityEvent();
+    public UnityEvent OnBossLocked = new UnityEvent();
 
     [Header("Bad Ending Rule")]
     [SerializeField] [Min(1)] private int defeatsForBadEnding = DefaultDefeatsForBadEnding;
     [SerializeField] private bool treatAsFinalBoss;
-    public UnityEvent OnBadEndingThresholdReached;
+    public UnityEvent OnBadEndingThresholdReached = new UnityEvent();
 
     private bool isBossUnlocked;
     private IslandRestorationTracker tracker;

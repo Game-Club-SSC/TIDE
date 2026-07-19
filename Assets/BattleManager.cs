@@ -1755,8 +1755,8 @@ public class BattleManager : MonoBehaviour
                 lastPlayerSkill = skill;
             }
 
-            float attackMod = actor.GetAttackModifier();
-            int baseDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
+            float aoeAttackMod = actor.GetAttackModifier();
+            int baseDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + aoeAttackMod)));
             float relDmgMult = actor.Type == CombatUnit.UnitType.Ally ? relationshipDamageMultiplier : 1f;
             int totalDmg = 0;
 

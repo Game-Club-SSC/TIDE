@@ -83,7 +83,10 @@ public class HeroProgressionManager : MonoBehaviour
         Instance = this;
         enableCosmeticProgressionEconomy = runtimeCosmeticProgressionEconomyEnabled;
         EnsureStarterGearRegistry();
-        DontDestroyOnLoad(gameObject);
+        if (Application.isPlaying)
+        {
+            DontDestroyOnLoad(gameObject);
+        }
     }
 
     public void EnsureStarterGearRegistry()

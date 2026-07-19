@@ -5,12 +5,14 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class VerticalSliceRegressionRunnerTest : MonoBehaviour
 {
+    private static VerticalSliceRegressionRunner previousRunnerInstance;
+
     [ContextMenu("Run Vertical Slice Regression Runner Tests")]
     public void RunTests()
     {
         Debug.Log("=== Starting Vertical Slice Regression Runner Tests ===");
 
-        TestRunnerRegistersAll32Checks();
+        TestRunnerRegistersAll31Checks();
         TestRunnerExecutesAllChecks();
         TestRunnerTracksPassedAndFailedCounts();
         TestPerIslandContentRegistryCoverage();
@@ -31,24 +33,24 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
         Debug.Log("=== All Vertical Slice Regression Runner Tests Passed ===");
     }
 
-    private void TestRunnerRegistersAll32Checks()
+    private void TestRunnerRegistersAll31Checks()
     {
-        GameObject host = new GameObject("Test_Regression");
-        VerticalSliceRegressionRunner runner = host.AddComponent<VerticalSliceRegressionRunner>();
+        VerticalSliceRegressionRunner runner = CreateIsolatedRunner("Test_Regression");
+        GameObject host = runner.gameObject;
         try
         {
-            Assert.GreaterOrEqual(runner.TotalCount, 32, "Runner should have at least 32 checks.");
+            Assert.AreEqual(31, runner.TotalCount, "Runner should have one check for each issue from 10 through 40.");
         }
         finally
         {
-            Object.DestroyImmediate(host);
+            CleanupIsolatedRunner(host);
         }
     }
 
     private void TestRunnerExecutesAllChecks()
     {
-        GameObject host = new GameObject("Test_Runner2");
-        VerticalSliceRegressionRunner runner = host.AddComponent<VerticalSliceRegressionRunner>();
+        VerticalSliceRegressionRunner runner = CreateIsolatedRunner("Test_Runner2");
+        GameObject host = runner.gameObject;
         try
         {
             runner.RunRegression();
@@ -56,14 +58,14 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
         }
         finally
         {
-            Object.DestroyImmediate(host);
+            CleanupIsolatedRunner(host);
         }
     }
 
     private void TestRunnerTracksPassedAndFailedCounts()
     {
-        GameObject host = new GameObject("Test_Runner3");
-        VerticalSliceRegressionRunner runner = host.AddComponent<VerticalSliceRegressionRunner>();
+        VerticalSliceRegressionRunner runner = CreateIsolatedRunner("Test_Runner3");
+        GameObject host = runner.gameObject;
         try
         {
             Assert.GreaterOrEqual(runner.PassedCount, 0, "PassedCount should be non-negative.");
@@ -71,8 +73,41 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
         }
         finally
         {
+            CleanupIsolatedRunner(host);
+        }
+    }
+
+    private static VerticalSliceRegressionRunner CreateIsolatedRunner(string objectName)
+    {
+        previousRunnerInstance = VerticalSliceRegressionRunner.Instance;
+        SetRunnerInstance(null);
+
+        GameObject host = new GameObject(objectName);
+        VerticalSliceRegressionRunner runner = host.AddComponent<VerticalSliceRegressionRunner>();
+        host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+        Assert.AreSame(runner, VerticalSliceRegressionRunner.Instance,
+            "Regression runner singleton should reference the isolated test instance.");
+        return runner;
+    }
+
+    private static void CleanupIsolatedRunner(GameObject host)
+    {
+        if (host != null)
+        {
             Object.DestroyImmediate(host);
         }
+
+        SetRunnerInstance(previousRunnerInstance);
+        previousRunnerInstance = null;
+    }
+
+    private static void SetRunnerInstance(VerticalSliceRegressionRunner value)
+    {
+        System.Reflection.FieldInfo field = typeof(VerticalSliceRegressionRunner).GetField(
+            "<Instance>k__BackingField",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        Assert.IsNotNull(field, "Regression runner singleton backing field should exist.");
+        field.SetValue(null, value);
     }
 
     private void TestPerIslandContentRegistryCoverage()

@@ -40,6 +40,7 @@ public class RestorationTrackerTest : MonoBehaviour
 
         GameObject trackerObject = new GameObject(trackerName);
         IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        trackerObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
         Assert.AreSame(tracker, IslandRestorationTracker.Instance,
             "Tracker singleton should reference the isolated test tracker instance.");
         return tracker;
@@ -162,6 +163,7 @@ public class RestorationTrackerTest : MonoBehaviour
         try
         {
             IslandRestorationTracker duplicate = duplicateObject.AddComponent<IslandRestorationTracker>();
+            duplicateObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
 
             Assert.AreSame(tracker, IslandRestorationTracker.Instance,
                 "Duplicate tracker should not replace the active singleton.");
@@ -206,6 +208,7 @@ public class RestorationTrackerTest : MonoBehaviour
         IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_SingletonDestroy");
         GameObject trackerObject = tracker.gameObject;
 
+        trackerObject.SendMessage("OnDestroy", SendMessageOptions.DontRequireReceiver);
         DestroyImmediate(trackerObject);
 
         Assert.IsNull(IslandRestorationTracker.Instance,
@@ -367,16 +370,16 @@ public class RestorationTrackerTest : MonoBehaviour
 
         try
         {
-            tracker.RecordEncounterCompletion("island_evt", "c1", EncounterType.Combat, 0.5f);
+            tracker.RecordEncounterCompletion("island_envy", "c1", EncounterType.Combat, 0.5f);
             Assert.IsNull(restoredIsland, "Should not fire OnIslandRestored at 50%.");
             Assert.AreEqual(1, changedIslands.Count, "Should fire OnRestorationChanged once.");
-            Assert.AreEqual("island_evt", changedIslands[0], "Event should report the correct islandId.");
+            Assert.AreEqual("island_envy", changedIslands[0], "Event should report the correct islandId.");
             Assert.AreEqual(50f, changedProgress[0], 0.01f, "Event should report 50% progress.");
 
-            tracker.RecordEncounterCompletion("island_evt", "p1", EncounterType.Puzzle, 0.5f);
-            Assert.AreEqual("island_evt", restoredIsland, "Should fire OnIslandRestored with correct islandId at 100%.");
+            tracker.RecordEncounterCompletion("island_envy", "p1", EncounterType.Puzzle, 0.5f);
+            Assert.AreEqual("island_envy", restoredIsland, "Should fire OnIslandRestored with correct islandId at 100%.");
             Assert.AreEqual(2, changedIslands.Count, "Should fire OnRestorationChanged twice total.");
-            Assert.AreEqual("island_evt", changedIslands[1], "Second event should report the correct islandId.");
+            Assert.AreEqual("island_envy", changedIslands[1], "Second event should report the correct islandId.");
             Assert.AreEqual(100f, changedProgress[1], 0.01f, "Second event should report 100% progress.");
         }
         finally
@@ -424,15 +427,15 @@ public class RestorationTrackerTest : MonoBehaviour
 
         try
         {
-            tracker.RecordEncounterCompletion("island_a", "c1", EncounterType.Combat, 0.5f);
-            tracker.RecordEncounterCompletion("island_b", "c1", EncounterType.Combat, 0.3f);
+            tracker.RecordEncounterCompletion("island_lust", "c1", EncounterType.Combat, 0.5f);
+            tracker.RecordEncounterCompletion("island_greed", "c1", EncounterType.Combat, 0.3f);
 
-            Assert.AreEqual(50f, tracker.GetRestorationPercent("island_a"), 0.01f, "Island A should be 50%.");
-            Assert.AreEqual(30f, tracker.GetRestorationPercent("island_b"), 0.01f, "Island B should be 30%.");
+            Assert.AreEqual(50f, tracker.GetRestorationPercent("island_lust"), 0.01f, "Lust should be 50%.");
+            Assert.AreEqual(30f, tracker.GetRestorationPercent("island_greed"), 0.01f, "Greed should be 30%.");
 
-            tracker.ResetIsland("island_a");
-            Assert.AreEqual(0f, tracker.GetRestorationPercent("island_a"), 0.01f, "Island A should be 0% after reset.");
-            Assert.AreEqual(30f, tracker.GetRestorationPercent("island_b"), 0.01f, "Island B should still be 30%.");
+            tracker.ResetIsland("island_lust");
+            Assert.AreEqual(0f, tracker.GetRestorationPercent("island_lust"), 0.01f, "Lust should be 0% after reset.");
+            Assert.AreEqual(30f, tracker.GetRestorationPercent("island_greed"), 0.01f, "Greed should still be 30%.");
         }
         finally
         {

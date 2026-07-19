@@ -169,8 +169,10 @@ public class HeroProgressionTest : MonoBehaviour
 
             manager.GrantBattleXp(100, active, reserve);
 
-            Assert.AreEqual(100, manager.GetXp("hero_fire"), "Active member should get full 100 XP.");
-            Assert.AreEqual(100, manager.GetXp("hero_water"), "Active member should get full 100 XP.");
+            Assert.AreEqual(2, manager.GetLevel("hero_fire"), "Active member should level up after receiving 100 XP.");
+            Assert.AreEqual(0, manager.GetXp("hero_fire"), "Active member XP should roll over after leveling.");
+            Assert.AreEqual(2, manager.GetLevel("hero_water"), "Second active member should also level up.");
+            Assert.AreEqual(0, manager.GetXp("hero_water"), "Second active member XP should roll over after leveling.");
             Assert.AreEqual(50, manager.GetXp("hero_air"), "Reserve member should get 50 XP (50% of 100).");
 
             Debug.Log("[HeroProgressionTest] TestActiveVsReserveXp passed.");

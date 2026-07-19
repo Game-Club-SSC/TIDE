@@ -24,6 +24,7 @@ public class RestorationThresholdGateTest : MonoBehaviour
 
         GameObject trackerObject = new GameObject(trackerName);
         IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        trackerObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
         Assert.AreSame(tracker, IslandRestorationTracker.Instance,
             "Tracker singleton should reference the isolated test tracker instance.");
         return tracker;
@@ -42,11 +43,13 @@ public class RestorationThresholdGateTest : MonoBehaviour
         {
             IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_ThresholdLow");
             trackerObject = tracker.gameObject;
-            tracker.RecordEncounterCompletion("island_low", "c1", EncounterType.Combat, 0.3f);
+            tracker.RecordEncounterCompletion("island_desire", "c1", EncounterType.Combat, 0.3f);
 
             gateObject.SetActive(false);
             RestorationThresholdGate gate = gateObject.AddComponent<RestorationThresholdGate>();
-            SetPrivateField(gate, "islandId", "island_low");
+            gate.OnThresholdReached = new UnityEngine.Events.UnityEvent();
+            gate.OnThresholdLost = new UnityEngine.Events.UnityEvent();
+            SetPrivateField(gate, "islandId", "island_desire");
             SetPrivateField(gate, "thresholdPercent", 75f);
             SetPrivateField(gate, "objectToEnable", objectToEnable);
             SetPrivateField(gate, "objectToDisable", objectToDisable);
@@ -60,6 +63,7 @@ public class RestorationThresholdGateTest : MonoBehaviour
             gate.OnThresholdLost.AddListener(() => lostCount++);
 
             gateObject.SetActive(true);
+            gateObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
 
             Assert.IsFalse(gate.ThresholdMet, "Threshold should be unmet at 30%.");
             Assert.IsFalse(objectToEnable.activeSelf, "Startup sync should disable the gated object below threshold.");
@@ -67,7 +71,7 @@ public class RestorationThresholdGateTest : MonoBehaviour
             Assert.AreEqual(0, reachedCount, "Startup sync should not emit a false threshold reached event.");
             Assert.AreEqual(0, lostCount, "Startup sync should not emit a false threshold lost event.");
 
-            tracker.RecordEncounterCompletion("island_low", "p1", EncounterType.Puzzle, 0.5f);
+            tracker.RecordEncounterCompletion("island_desire", "p1", EncounterType.Puzzle, 0.5f);
 
             Assert.IsTrue(gate.ThresholdMet, "Threshold should become met at 80%.");
             Assert.IsTrue(objectToEnable.activeSelf, "Threshold crossing should enable the gated object.");
@@ -99,11 +103,14 @@ public class RestorationThresholdGateTest : MonoBehaviour
         {
             IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_ThresholdHigh");
             trackerObject = tracker.gameObject;
-            tracker.RecordEncounterCompletion("island_high", "c1", EncounterType.Combat, 0.8f);
+            tracker.RecordEncounterCompletion("island_ego", "c1", EncounterType.Combat, 0.5f);
+            tracker.RecordEncounterCompletion("island_ego", "p1", EncounterType.Puzzle, 0.3f);
 
             gateObject.SetActive(false);
             RestorationThresholdGate gate = gateObject.AddComponent<RestorationThresholdGate>();
-            SetPrivateField(gate, "islandId", "island_high");
+            gate.OnThresholdReached = new UnityEngine.Events.UnityEvent();
+            gate.OnThresholdLost = new UnityEngine.Events.UnityEvent();
+            SetPrivateField(gate, "islandId", "island_ego");
             SetPrivateField(gate, "thresholdPercent", 75f);
             SetPrivateField(gate, "objectToEnable", objectToEnable);
             SetPrivateField(gate, "objectToDisable", objectToDisable);
@@ -117,6 +124,7 @@ public class RestorationThresholdGateTest : MonoBehaviour
             gate.OnThresholdLost.AddListener(() => lostCount++);
 
             gateObject.SetActive(true);
+            gateObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
 
             Assert.IsTrue(gate.ThresholdMet, "Threshold should be met at 80%.");
             Assert.IsTrue(objectToEnable.activeSelf, "Startup sync should enable the gated object above threshold.");
@@ -124,7 +132,7 @@ public class RestorationThresholdGateTest : MonoBehaviour
             Assert.AreEqual(0, reachedCount, "Startup sync should not emit a false threshold reached event.");
             Assert.AreEqual(0, lostCount, "Startup sync should not emit a false threshold lost event.");
 
-            tracker.ResetIsland("island_high");
+            tracker.ResetIsland("island_ego");
 
             Assert.IsFalse(gate.ThresholdMet, "Threshold should clear after the island is reset.");
             Assert.IsFalse(objectToEnable.activeSelf, "Dropping below threshold should disable the gated object.");
