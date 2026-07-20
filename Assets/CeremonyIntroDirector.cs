@@ -252,6 +252,7 @@ public class CeremonyIntroDirector : MonoBehaviour
     {
         int count = Mathf.Min(heroDisplayNames.Length, heroElementLabels.Length, 5);
 
+        // Reveal each chosen hero one by one with a staggered cadence.
         for (int i = 0; i < count; i++)
         {
             string heroText = $"<size=36>{heroDisplayNames[i]}</size>\n<size=22>{heroElementLabels[i]}</size>";
@@ -259,6 +260,26 @@ public class CeremonyIntroDirector : MonoBehaviour
             yield return new WaitForSecondsRealtime(heroNameStaggerDelay);
             yield return FadeTextOut();
         }
+
+        // Hold the full roster so the player can read all five chosen names
+        // before the ceremony continues (uses heroNameHoldDuration).
+        yield return FadeTextIn(BuildHeroRosterText(count));
+        yield return new WaitForSecondsRealtime(heroNameHoldDuration);
+        yield return FadeTextOut();
+    }
+
+    private string BuildHeroRosterText(int count)
+    {
+        string roster = string.Empty;
+        for (int i = 0; i < count; i++)
+        {
+            if (i > 0)
+            {
+                roster += "\n";
+            }
+            roster += $"<size=30>{heroDisplayNames[i]}</size> <size=18>{heroElementLabels[i]}</size>";
+        }
+        return roster;
     }
 
     // ------------------------------------------------------------------ //

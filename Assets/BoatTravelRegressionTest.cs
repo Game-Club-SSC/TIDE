@@ -92,7 +92,7 @@ public class BoatTravelRegressionTest : MonoBehaviour
                 TravelValidationService.ValidationResult result = TravelValidationService.ValidateTravel("island_lust", islandId);
                 if (i == 0)
                 {
-                    Assert.IsTrue(result.IsValid, $"Lust (starting island) should be valid travel target. Error: {result.FailureReason}");
+                    Assert.IsTrue(result.CanTravel, $"Lust (starting island) should be valid travel target. Error: {result.FailureReason}");
                 }
             }
             Debug.Log("  Travel validation verified for 6 islands");

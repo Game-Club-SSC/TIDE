@@ -12,7 +12,6 @@ public class BillboardSprite : MonoBehaviour
 
     [Header("Y-Axis Lock")]
     [SerializeField] private bool keepUpright = true;
-    [SerializeField] private float groundShadowOffset = 0.04f;
 
     private Transform cachedTransform;
     private SpriteRenderer spriteRenderer;

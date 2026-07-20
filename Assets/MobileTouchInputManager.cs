@@ -26,7 +26,6 @@ public class MobileTouchInputManager : MonoBehaviour
     [SerializeField] private bool forceMobileInEditor;
     [SerializeField] private float joystickRadius = 100f;
     [SerializeField] private float joystickDeadZone = 0.15f;
-    [SerializeField] private float sprintHoldTime = 0.3f;
     [SerializeField] private float joystickSmoothSpeed = 12f;
 
     // Movement input state
