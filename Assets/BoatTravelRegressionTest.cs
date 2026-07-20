@@ -1,5 +1,6 @@
-using NUnit.Framework;
+using System.Collections.Generic;
 using UnityEngine;
+using NUnit.Framework;
 
 [DisallowMultipleComponent]
 public class BoatTravelRegressionTest : MonoBehaviour
@@ -88,7 +89,7 @@ public class BoatTravelRegressionTest : MonoBehaviour
             for (int i = 0; i < SixIslandProgression.Length; i++)
             {
                 string islandId = SixIslandProgression[i];
-                ValidationResult result = TravelValidationService.ValidateTravel("island_lust", islandId);
+                TravelValidationService.ValidationResult result = TravelValidationService.ValidateTravel("island_lust", islandId);
                 if (i == 0)
                 {
                     Assert.IsTrue(result.IsValid, $"Lust (starting island) should be valid travel target. Error: {result.FailureReason}");
@@ -148,16 +149,37 @@ public class BoatTravelRegressionTest : MonoBehaviour
 
     private void TestLegacyAliasesDoNotLeakToDestinations()
     {
-        string[] legacyIds = { "island_wrath", "island_sloth", "island_pride", "island_gluttony" };
-        for (int i = 0; i < legacyIds.Length; i++)
+        // Each legacy seven-sin id must resolve to a SPECIFIC V2 canonical island,
+        // not silently fall through to the default. This guards the save-compat
+        // alias map in IslandThemeRegistry against regressions: a dropped alias
+        // would otherwise resolve to island_lust and still pass a weak check.
+        string[,] legacyToCanonical =
         {
-            string resolved = IslandThemeRegistry.ResolveIslandId(legacyIds[i]);
-            Assert.IsNotNull(resolved, $"Legacy ID '{legacyIds[i]}' should resolve to a V2 canonical ID.");
+            { "island_wrath", "island_anger" },
+            { "island_sloth", "island_desire" },
+            { "island_pride", "island_ego" },
+            { "island_gluttony", "island_greed" },
+        };
+
+        for (int i = 0; i < legacyToCanonical.GetLength(0); i++)
+        {
+            string legacy = legacyToCanonical[i, 0];
+            string expectedCanonical = legacyToCanonical[i, 1];
+            string resolved = IslandThemeRegistry.ResolveIslandId(legacy);
+            Assert.AreEqual(expectedCanonical, resolved,
+                $"Legacy id '{legacy}' should resolve to '{expectedCanonical}', got '{resolved}'.");
             bool isLegacy = resolved.Contains("wrath") || resolved.Contains("sloth")
                 || resolved.Contains("pride") || resolved.Contains("gluttony");
             Assert.IsFalse(isLegacy,
-                $"Legacy ID '{legacyIds[i]}' resolved to '{resolved}' which still contains a legacy name.");
+                $"Legacy ID '{legacy}' resolved to '{resolved}' which still contains a legacy name.");
         }
+
+        // Numeric aliases from the original prototyping roster.
+        Assert.AreEqual("island_lust", IslandThemeRegistry.ResolveIslandId("island_1"),
+            "Numeric alias island_1 should resolve to island_lust.");
+        Assert.AreEqual("island_greed", IslandThemeRegistry.ResolveIslandId("island_3"),
+            "Numeric alias island_3 should resolve to island_greed.");
+
         Debug.Log("  Legacy aliases resolve to V2 canonical IDs (no leakage)");
     }
 

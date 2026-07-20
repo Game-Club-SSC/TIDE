@@ -27,9 +27,14 @@ public static class IslandThemeRegistry
             { "island_6", "island_envy" },
             { "island_7", "island_envy" },
             { "island_8", "island_greed" },
+            // Legacy seven-sin roster dropped in GDD V2. Each maps to its closest
+            // thematic V2 canonical island so old saves resolve correctly.
             { "island_sloth", "island_desire" },
             { "island_wrath", "island_anger" },
             { "island_pride", "island_ego" },
+            // Gluttony (excess consumption) has no direct V2 vice; route it to Greed
+            // (excess acquisition) so legacy saves never fall through to the default.
+            { "island_gluttony", "island_greed" },
             { "island_anger", "island_anger" },
             { "island_desire", "island_desire" },
             { "island_ego", "island_ego" },

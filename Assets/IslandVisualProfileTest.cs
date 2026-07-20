@@ -49,10 +49,6 @@ public class IslandVisualProfileTest : MonoBehaviour
         IslandVisualProfile unknownProfile = IslandVisualProfile.GetDefault("island_unknown");
         Assert.IsNull(unknownProfile, "GetDefault('island_unknown') should return null.");
 
-        Debug.Log("[IslandVisualProfileTest] TestGetDefaultCoversAllSevenIslands passed.");
+        Debug.Log("[IslandVisualProfileTest] TestGetDefaultCoversAllSixIslands passed.");
     }
-}
-SixIslands passed.");
-    }
-}
 }

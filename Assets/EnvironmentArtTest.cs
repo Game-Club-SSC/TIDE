@@ -193,6 +193,3 @@ public class EnvironmentArtTest : MonoBehaviour
         return Color.magenta; // Fallback for testing
     }
 }
-
-    }
-}
