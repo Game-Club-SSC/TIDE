@@ -460,6 +460,7 @@ public static class GameAssetValidator
         int totalScenes = scenes.Count;
 
         string[] requiredScenes = {
+            "Assets/Scenes/level_1.unity",
             "Assets/Scenes/CombatScene.unity",
             "Assets/Scenes/PuzzleScene.unity",
             "Assets/Scenes/level_greed.unity",

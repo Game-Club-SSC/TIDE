@@ -445,20 +445,26 @@ public static class PhoneWebPageBuilder
         statusMsg.textContent = 'Connecting...';
         statusMsg.className = 'status-msg';
 
-        const resp = await fetch(serverBase + '/api/pair', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: code })
-        });
+        try {
+            const resp = await fetch(serverBase + '/api/pair', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code })
+            });
 
-        if (resp.ok) {
-            isPaired = true;
-            isConnected = true;
-            showController();
-            statusMsg.textContent = '';
-        } else {
-            const data = await resp.json();
-            statusMsg.textContent = data.message || 'Connection failed';
+            if (resp.ok) {
+                isPaired = true;
+                isConnected = true;
+                showController();
+                statusMsg.textContent = '';
+            } else {
+                const data = await resp.json();
+                statusMsg.textContent = data.message || 'Connection failed';
+                statusMsg.className = 'status-msg status-error';
+                btnPair.disabled = false;
+            }
+        } catch (err) {
+            statusMsg.textContent = 'Unable to reach host. Please try again.';
             statusMsg.className = 'status-msg status-error';
             btnPair.disabled = false;
         }
@@ -492,10 +498,16 @@ public static class PhoneWebPageBuilder
     });
 
     async function checkConnection() {
-        await fetch(serverBase + '/api/state', { method: 'GET', signal: AbortSignal.timeout(2000) });
-        isConnected = true;
-        connDot.classList.remove('disconnected');
-        bottomInfo.textContent = 'Connected';
+        try {
+            await fetch(serverBase + '/api/state', { method: 'GET', signal: AbortSignal.timeout(2000) });
+            isConnected = true;
+            connDot.classList.remove('disconnected');
+            bottomInfo.textContent = 'Connected';
+        } catch (err) {
+            isConnected = false;
+            connDot.classList.add('disconnected');
+            bottomInfo.textContent = 'Disconnected';
+        }
     }
 
     // ===== Joystick =====

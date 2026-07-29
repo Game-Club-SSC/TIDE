@@ -301,19 +301,19 @@ public class IslandRestorationTracker : MonoBehaviour
             }
         }
 
-        suppressEvents = true;
+        // Emit refresh events so that gates, HUD, and restoration visuals
+        // pick up the restored state. Preserve the caller's suppression flag.
+        bool previousSuppression = suppressEvents;
+        suppressEvents = false;
         foreach (KeyValuePair<string, IslandRestorationState> pair in islandStates)
         {
-            if (!suppressEvents)
-            {
-                OnRestorationChanged?.Invoke(pair.Key, pair.Value.RestorationPercent);
-            }
-            if (!suppressEvents && pair.Value.IsIslandRestored)
+            OnRestorationChanged?.Invoke(pair.Key, pair.Value.RestorationPercent);
+            if (pair.Value.IsIslandRestored)
             {
                 OnIslandRestored?.Invoke(pair.Key);
             }
         }
-        suppressEvents = false;
+        suppressEvents = previousSuppression;
     }
 
     private IslandRestorationState GetOrCreateState(string islandId)

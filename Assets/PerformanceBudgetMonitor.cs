@@ -31,6 +31,7 @@ public class PerformanceBudgetMonitor : MonoBehaviour
     private float qualityCheckTimer;
     private int overBudgetStreak;
     private int underBudgetStreak;
+    private int preDownscaleQualityLevel = -1;
 
     public float CurrentAverageFrameMs { get; private set; }
     public float MinObservedFrameMs { get; private set; } = float.MaxValue;
@@ -112,6 +113,7 @@ public class PerformanceBudgetMonitor : MonoBehaviour
         MaxObservedFrameMs = 0f;
         overBudgetStreak = 0;
         underBudgetStreak = 0;
+        preDownscaleQualityLevel = -1;
     }
 
     private void RecalculateMaxSampleCount()
@@ -160,6 +162,10 @@ public class PerformanceBudgetMonitor : MonoBehaviour
                 int current = QualitySettings.GetQualityLevel();
                 if (current > minQualityLevel)
                 {
+                    if (preDownscaleQualityLevel < 0)
+                    {
+                        preDownscaleQualityLevel = current;
+                    }
                     QualitySettings.SetQualityLevel(current - 1, true);
                     Debug.Log($"[PerformanceBudgetMonitor] Quality downgraded to {QualitySettings.names[QualitySettings.GetQualityLevel()]} (avg {CurrentAverageFrameMs:F1}ms > {maxFrameMs:F1}ms).");
                 }
@@ -174,10 +180,16 @@ public class PerformanceBudgetMonitor : MonoBehaviour
             if (underBudgetStreak >= qualityRestoreThresholdFrames)
             {
                 int current = QualitySettings.GetQualityLevel();
-                if (current < maxLevel)
+                int restoreCeiling = preDownscaleQualityLevel > 0 ? preDownscaleQualityLevel : current;
+                if (current < restoreCeiling && current < maxLevel)
                 {
-                    QualitySettings.SetQualityLevel(current + 1, true);
+                    int target = Mathf.Min(current + 1, restoreCeiling);
+                    QualitySettings.SetQualityLevel(target, true);
                     Debug.Log($"[PerformanceBudgetMonitor] Quality upgraded to {QualitySettings.names[QualitySettings.GetQualityLevel()]} (avg {CurrentAverageFrameMs:F1}ms <= {maxFrameMs:F1}ms).");
+                    if (target == restoreCeiling)
+                    {
+                        preDownscaleQualityLevel = -1;
+                    }
                 }
                 underBudgetStreak = 0;
             }

@@ -89,7 +89,19 @@ public class AcceptanceConversation : MonoBehaviour
 
         isPlaying = true;
         currentLineIndex = 0;
-        StartCoroutine(FireLinesRoutine());
+
+        // Fire all lines synchronously so that tests (and context-menu
+        // regression checks) observe every event in a single frame.
+        string[] lines = BuildDialogueLines();
+        for (int i = 0; i < lines.Length; i++)
+        {
+            currentLineIndex = i;
+            OnAcceptanceLinePresented?.Invoke(i, lines[i]);
+        }
+
+        isPlaying = false;
+        hasPlayed = true;
+        OnAcceptanceConversationFinished?.Invoke();
     }
 
     public void ResetForDebug()
