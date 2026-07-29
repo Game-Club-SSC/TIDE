@@ -1223,6 +1223,8 @@ public class GameStateManager : MonoBehaviour
                 }
             }
 
+            EnsureRestorationTracker();
+
             if (IslandRestorationTracker.Instance != null)
             {
                 saveData.restorationSnapshot = IslandRestorationTracker.Instance.CaptureSnapshot();

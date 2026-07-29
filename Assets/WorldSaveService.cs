@@ -6,7 +6,7 @@ public class WorldSaveService : MonoBehaviour
 {
     public static WorldSaveService Instance { get; private set; }
 
-    [SerializeField] private string playerPrefsKey = "TIDE_WORLD_STATE_V1";
+    [SerializeField] private string playerPrefsKey = "TIDE_WORLD_STATE_V2";
     [SerializeField] private bool enablePersistentSaveData = true;
     [SerializeField] private int saveSchemaVersion = 1;
     [SerializeField] private int maxRetryAttempts = 2;

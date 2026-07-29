@@ -149,7 +149,13 @@ public class EndingEvaluator : MonoBehaviour
             }
         }
 
-        if (requiredIslandCount > 0)
+        if (requiredIslandCount == 0)
+        {
+            // No islands matched the filter criteria; disable the rule so it
+            // does not force a false BadEnding when the ratio is 0.
+            snapshot.isMinimumRestorationRuleEnabled = false;
+        }
+        else
         {
             snapshot.minimumRestorationClearedRatio = Mathf.Clamp01(satisfiedIslandCount / (float)requiredIslandCount);
         }

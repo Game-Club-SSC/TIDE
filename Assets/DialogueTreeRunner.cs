@@ -189,9 +189,10 @@ public class DialogueTreeRunner : MonoBehaviour
         currentNode = node;
 
         DialogueSystem.DialogueEntry entry = node.entry;
-        if (string.IsNullOrWhiteSpace(entry.speakerName) && string.IsNullOrWhiteSpace(entry.dialogueText))
+        if (entry == null
+            || (string.IsNullOrWhiteSpace(entry.speakerName) && string.IsNullOrWhiteSpace(entry.dialogueText)))
         {
-            Debug.LogWarning("[DialogueTreeRunner] Skipping a node with an empty dialogue entry.");
+            Debug.LogWarning("[DialogueTreeRunner] Skipping a node with a null or empty dialogue entry.");
             AdvanceToNextNode();
             return;
         }

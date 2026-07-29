@@ -263,6 +263,13 @@ public class IslandRestorationTracker : MonoBehaviour
         return snapshot;
     }
 
+    private bool suppressEvents;
+
+    public void SetSuppressEvents(bool suppress)
+    {
+        suppressEvents = suppress;
+    }
+
     public void ApplySnapshot(TrackerSnapshot snapshot)
     {
         if (snapshot == null)
@@ -294,14 +301,19 @@ public class IslandRestorationTracker : MonoBehaviour
             }
         }
 
+        suppressEvents = true;
         foreach (KeyValuePair<string, IslandRestorationState> pair in islandStates)
         {
-            OnRestorationChanged?.Invoke(pair.Key, pair.Value.RestorationPercent);
-            if (pair.Value.IsIslandRestored)
+            if (!suppressEvents)
+            {
+                OnRestorationChanged?.Invoke(pair.Key, pair.Value.RestorationPercent);
+            }
+            if (!suppressEvents && pair.Value.IsIslandRestored)
             {
                 OnIslandRestored?.Invoke(pair.Key);
             }
         }
+        suppressEvents = false;
     }
 
     private IslandRestorationState GetOrCreateState(string islandId)

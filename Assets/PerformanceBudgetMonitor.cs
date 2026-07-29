@@ -18,6 +18,7 @@ public class PerformanceBudgetMonitor : MonoBehaviour
     [SerializeField, Min(1)] private int minQualityLevel;
     [SerializeField, Min(0.1f)] private float qualityCheckInterval = 2f;
     [SerializeField, Min(1)] private int qualityDropThresholdFrames = 3;
+    [SerializeField, Min(1)] private int qualityRestoreThresholdFrames = 60;
 
     public int TargetFrameRate => targetFrameRate;
     public int MaxHeroes => maxHeroes;
@@ -29,6 +30,7 @@ public class PerformanceBudgetMonitor : MonoBehaviour
     private int maxSampleCount;
     private float qualityCheckTimer;
     private int overBudgetStreak;
+    private int underBudgetStreak;
 
     public float CurrentAverageFrameMs { get; private set; }
     public float MinObservedFrameMs { get; private set; } = float.MaxValue;
@@ -109,6 +111,7 @@ public class PerformanceBudgetMonitor : MonoBehaviour
         MinObservedFrameMs = float.MaxValue;
         MaxObservedFrameMs = 0f;
         overBudgetStreak = 0;
+        underBudgetStreak = 0;
     }
 
     private void RecalculateMaxSampleCount()
@@ -150,6 +153,7 @@ public class PerformanceBudgetMonitor : MonoBehaviour
 
         if (!IsMeetingBudget)
         {
+            underBudgetStreak = 0;
             overBudgetStreak++;
             if (overBudgetStreak >= qualityDropThresholdFrames)
             {
@@ -165,6 +169,18 @@ public class PerformanceBudgetMonitor : MonoBehaviour
         else
         {
             overBudgetStreak = 0;
+            underBudgetStreak++;
+            int maxLevel = QualitySettings.names.Length - 1;
+            if (underBudgetStreak >= qualityRestoreThresholdFrames)
+            {
+                int current = QualitySettings.GetQualityLevel();
+                if (current < maxLevel)
+                {
+                    QualitySettings.SetQualityLevel(current + 1, true);
+                    Debug.Log($"[PerformanceBudgetMonitor] Quality upgraded to {QualitySettings.names[QualitySettings.GetQualityLevel()]} (avg {CurrentAverageFrameMs:F1}ms <= {maxFrameMs:F1}ms).");
+                }
+                underBudgetStreak = 0;
+            }
         }
     }
 }

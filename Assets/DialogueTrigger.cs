@@ -254,4 +254,14 @@ public class DialogueTrigger : MonoBehaviour
     {
         hasPlayed = false;
     }
+
+    private void OnDestroy()
+    {
+        DialogueSystem sys = DialogueSystem.Instance;
+        if (sys != null)
+        {
+            sys.OnDialogueTreeCompleted -= HandleTreeDialogueCompleted;
+            sys.OnDialogueCompleted -= HandleDialogueCompleted;
+        }
+    }
 }

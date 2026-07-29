@@ -7,6 +7,8 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class AncientTextLogUI : MonoBehaviour
 {
+    public static AncientTextLogUI Instance { get; private set; }
+
     public struct DialoguePage
     {
         public string Speaker;
@@ -54,9 +56,24 @@ public class AncientTextLogUI : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
         DontDestroyOnLoad(gameObject);
         EnsureCanvas();
         HidePanel();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
 
     private void Update()

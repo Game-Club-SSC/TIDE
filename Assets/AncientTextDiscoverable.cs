@@ -67,6 +67,7 @@ public class AncientTextDiscoverable : MonoBehaviour
             lastActMatched = actMatched;
             lastIslandMatched = islandMatched;
             ApplyVisibility(shouldShow);
+            ApplyVisualState();
         }
     }
 
