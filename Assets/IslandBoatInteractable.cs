@@ -216,6 +216,11 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         SetPromptVisible(CanInteractWithBoat());
     }
 
+    private void ShowTravelError(string message)
+    {
+        Debug.LogWarning($"[IslandBoatInteractable] Travel blocked: {message}");
+    }
+
     private void HandleTravelPanelInput()
     {
         if (Input.GetKeyDown(closePanelKey))
@@ -323,7 +328,7 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         TravelValidationService.ValidationResult validation = TravelValidationService.ValidateTravel(fromIslandId, destinationIslandId);
         if (!validation.CanTravel)
         {
-            Debug.LogWarning($"[IslandBoatInteractable] Travel validation failed: {validation.FailureReason}");
+            ShowTravelError(validation.FailureReason);
             return;
         }
 
@@ -331,7 +336,7 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         IslandBacktrackingManager backtrackingManager = IslandBacktrackingManager.Instance;
         if (backtrackingManager != null && !backtrackingManager.CanVisitIsland(destinationIslandId))
         {
-            Debug.LogWarning($"[IslandBoatInteractable] Island '{destinationIslandId}' is not yet accessible. Complete more islands to unlock backtracking.");
+            ShowTravelError("Complete more islands to unlock travel back to this location.");
             return;
         }
 

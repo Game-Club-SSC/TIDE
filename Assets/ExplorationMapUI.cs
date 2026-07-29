@@ -473,6 +473,11 @@ public class ExplorationMapUI : MonoBehaviour
         }
 
         IslandRestorationState state = IslandRestorationTracker.Instance.GetRestorationState(targetIslandId);
+        if (state == null)
+        {
+            restorationLabel.text = $"Restoration: {GetIslandDisplayName(targetIslandId)} 0.0%";
+            return;
+        }
         restorationLabel.text = $"Restoration: {GetIslandDisplayName(targetIslandId)} {state.RestorationPercent:F1}%";
     }
 

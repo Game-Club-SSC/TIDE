@@ -34,16 +34,6 @@ public static class TravelValidationService
             return new ValidationResult(false, $"Destination '{toIslandId}' is not yet unlocked.", null);
         }
 
-        IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
-        if (tracker != null)
-        {
-            if (!tracker.IsIslandRestored(toIslandId))
-            {
-                float restoration = tracker.GetRestorationPercent(toIslandId);
-                return new ValidationResult(false, $"Destination '{toIslandId}' is unrestored ({restoration:F0}%).", null);
-            }
-        }
-
         TeleportAnchor dock = TeleportAnchor.FindBoatDockForIsland(toIslandId);
         if (dock == null)
         {
@@ -71,12 +61,6 @@ public static class TravelValidationService
             }
 
             if (!IslandProgressionManager.Instance.IsIslandUnlocked(islandId))
-            {
-                continue;
-            }
-
-            IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
-            if (tracker != null && !tracker.IsIslandRestored(islandId))
             {
                 continue;
             }

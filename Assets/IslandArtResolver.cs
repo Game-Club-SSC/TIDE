@@ -20,36 +20,35 @@ public static class IslandArtResolver
     {
         public const string Greed = "greed";
         public const string Lust = "lust";
-        public const string Wrath = "wrath";
-        public const string Sloth = "sloth";
-        public const string Pride = "pride";
+        public const string Anger = "anger";
+        public const string Desire = "desire";
+        public const string Ego = "ego";
         public const string Envy = "envy";
-        public const string Gluttony = "gluttony";
     }
 
     private static readonly Dictionary<string, string> IslandIdToSinRoot =
         new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
         {
-            // Canonical sin IDs.
+            // GDD V2 canonical island IDs (6 corrupted islands).
             { "island_lust", SinRoot.Lust },
             { "island_greed", SinRoot.Greed },
-            { "island_gluttony", SinRoot.Gluttony },
-            { "island_wrath", SinRoot.Wrath },
-            { "island_sloth", SinRoot.Sloth },
-            { "island_pride", SinRoot.Pride },
+            { "island_desire", SinRoot.Desire },
+            { "island_anger", SinRoot.Anger },
             { "island_envy", SinRoot.Envy },
+            { "island_ego", SinRoot.Ego },
 
-            // Legacy vice IDs still used by DialogueContentLibrary, BossNarrativeMechanic, etc.
-            { "island_anger", SinRoot.Wrath },
-            { "island_desire", SinRoot.Sloth },
-            { "island_ego", SinRoot.Pride },
+            // Legacy aliases for save compatibility — map old names to V2 art roots.
+            { "island_gluttony", SinRoot.Greed },
+            { "island_wrath", SinRoot.Anger },
+            { "island_sloth", SinRoot.Desire },
+            { "island_pride", SinRoot.Ego },
 
             // Numeric aliases from IslandThemeRegistry.
             { "island_1", SinRoot.Lust },
-            { "island_2", SinRoot.Wrath }, // legacy maps island_2 -> island_anger
+            { "island_2", SinRoot.Anger },
             { "island_3", SinRoot.Greed },
-            { "island_4", SinRoot.Sloth }, // legacy maps island_4 -> island_desire
-            { "island_5", SinRoot.Pride }, // legacy maps island_5 -> island_ego
+            { "island_4", SinRoot.Desire },
+            { "island_5", SinRoot.Ego },
             { "island_6", SinRoot.Envy },
             { "island_7", SinRoot.Envy },
             { "island_8", SinRoot.Greed },
@@ -57,7 +56,7 @@ public static class IslandArtResolver
 
     /// <summary>
     /// Returns the canonical sin root for an island id, or null if unknown.
-    /// Accepts "island_wrath", "island_anger", "island_2", etc.
+    /// Accepts "island_anger", "island_wrath", "island_2", etc.
     /// </summary>
     public static string ToSinRoot(string islandId)
     {
@@ -120,11 +119,10 @@ public static class IslandArtResolver
         {
             case SinRoot.Greed:
             case SinRoot.Lust:
-            case SinRoot.Wrath:
-            case SinRoot.Sloth:
-            case SinRoot.Pride:
+            case SinRoot.Anger:
+            case SinRoot.Desire:
+            case SinRoot.Ego:
             case SinRoot.Envy:
-            case SinRoot.Gluttony:
                 return true;
             default:
                 return false;

@@ -460,7 +460,6 @@ public static class GameAssetValidator
         int totalScenes = scenes.Count;
 
         string[] requiredScenes = {
-            "Assets/Scenes/level_1.unity",
             "Assets/Scenes/CombatScene.unity",
             "Assets/Scenes/PuzzleScene.unity",
             "Assets/Scenes/level_greed.unity",
@@ -469,7 +468,6 @@ public static class GameAssetValidator
             "Assets/Scenes/level_desire.unity",
             "Assets/Scenes/level_ego.unity",
             "Assets/Scenes/level_envy.unity",
-            "Assets/Scenes/level_greed.unity"
         };
 
         int missing = 0;

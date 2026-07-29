@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Editor-only procedural generator for the 21 island environment tilesets.
+/// Editor-only procedural generator for the 18 island environment tilesets (6 islands × 3 textures).
 /// Regenerates Assets/Resources/Sprites/Islands/<sin>_{ground,wall,water}.png
 /// so artists and designers can iterate without external tools.
 ///
@@ -20,11 +20,10 @@ public static class TilesetTextureGenerator
     {
         public const string Greed = "greed";
         public const string Lust = "lust";
-        public const string Wrath = "wrath";
-        public const string Sloth = "sloth";
-        public const string Pride = "pride";
+        public const string Anger = "anger";
+        public const string Desire = "desire";
+        public const string Ego = "ego";
         public const string Envy = "envy";
-        public const string Gluttony = "gluttony";
     }
 
     private readonly struct Palette
@@ -43,10 +42,10 @@ public static class TilesetTextureGenerator
         }
     }
 
-    private static readonly Palette[] GroundPalettes = new Palette[7];
-    private static readonly Palette[] WallPalettes = new Palette[7];
-    private static readonly Palette[] WaterPalettes = new Palette[7];
-    private static readonly string[] SinOrder = new string[7];
+    private static readonly Palette[] GroundPalettes = new Palette[6];
+    private static readonly Palette[] WallPalettes = new Palette[6];
+    private static readonly Palette[] WaterPalettes = new Palette[6];
+    private static readonly string[] SinOrder = new string[6];
 
     [MenuItem("TIDE/Generate Island Tilesets")]
     public static void GenerateAll()
@@ -82,17 +81,17 @@ public static class TilesetTextureGenerator
         WallPalettes[1] = new Palette(H(0.55f, 0.15f, 0.20f), H(0.85f, 0.40f, 0.45f), H(0.25f, 0.05f, 0.10f), H(0.70f, 0.35f, 0.40f));
         WaterPalettes[1] = new Palette(H(0.80f, 0.35f, 0.45f), H(0.45f, 0.05f, 0.18f), H(0.18f, 0.02f, 0.06f), H(0.95f, 0.65f, 0.70f));
 
-        SinOrder[2] = SinRoot.Wrath;
+        SinOrder[2] = SinRoot.Anger;
         GroundPalettes[2] = new Palette(H(0.80f, 0.25f, 0.10f), H(1.00f, 0.75f, 0.45f), H(0.20f, 0.02f, 0.02f), H(0.95f, 0.50f, 0.25f));
         WallPalettes[2] = new Palette(H(0.60f, 0.15f, 0.08f), H(0.90f, 0.40f, 0.20f), H(0.30f, 0.04f, 0.04f), H(0.80f, 0.30f, 0.15f));
         WaterPalettes[2] = new Palette(H(0.85f, 0.35f, 0.15f), H(0.40f, 0.05f, 0.05f), H(0.20f, 0.02f, 0.02f), H(1.00f, 0.70f, 0.35f));
 
-        SinOrder[3] = SinRoot.Sloth;
+        SinOrder[3] = SinRoot.Desire;
         GroundPalettes[3] = new Palette(H(0.45f, 0.35f, 0.52f), H(0.78f, 0.70f, 0.82f), H(0.08f, 0.05f, 0.12f), H(0.65f, 0.55f, 0.70f));
         WallPalettes[3] = new Palette(H(0.35f, 0.25f, 0.40f), H(0.60f, 0.52f, 0.65f), H(0.15f, 0.10f, 0.22f), H(0.50f, 0.42f, 0.58f));
         WaterPalettes[3] = new Palette(H(0.50f, 0.42f, 0.55f), H(0.18f, 0.12f, 0.22f), H(0.08f, 0.05f, 0.12f), H(0.72f, 0.65f, 0.78f));
 
-        SinOrder[4] = SinRoot.Pride;
+        SinOrder[4] = SinRoot.Ego;
         GroundPalettes[4] = new Palette(H(0.75f, 0.70f, 0.50f), H(1.00f, 0.98f, 0.90f), H(0.15f, 0.12f, 0.05f), H(0.92f, 0.90f, 0.75f));
         WallPalettes[4] = new Palette(H(0.70f, 0.60f, 0.30f), H(0.92f, 0.85f, 0.55f), H(0.30f, 0.25f, 0.10f), H(0.85f, 0.78f, 0.50f));
         WaterPalettes[4] = new Palette(H(0.75f, 0.72f, 0.55f), H(0.35f, 0.30f, 0.15f), H(0.15f, 0.12f, 0.05f), H(0.95f, 0.92f, 0.75f));
@@ -101,11 +100,6 @@ public static class TilesetTextureGenerator
         GroundPalettes[5] = new Palette(H(0.30f, 0.62f, 0.28f), H(0.65f, 0.90f, 0.60f), H(0.05f, 0.12f, 0.04f), H(0.50f, 0.80f, 0.45f));
         WallPalettes[5] = new Palette(H(0.20f, 0.42f, 0.18f), H(0.45f, 0.70f, 0.42f), H(0.08f, 0.20f, 0.06f), H(0.35f, 0.60f, 0.32f));
         WaterPalettes[5] = new Palette(H(0.35f, 0.65f, 0.32f), H(0.10f, 0.25f, 0.08f), H(0.05f, 0.12f, 0.04f), H(0.60f, 0.90f, 0.55f));
-
-        SinOrder[6] = SinRoot.Gluttony;
-        GroundPalettes[6] = new Palette(H(0.42f, 0.38f, 0.18f), H(0.68f, 0.62f, 0.30f), H(0.12f, 0.10f, 0.05f), H(0.55f, 0.50f, 0.25f));
-        WallPalettes[6] = new Palette(H(0.35f, 0.28f, 0.12f), H(0.58f, 0.50f, 0.25f), H(0.15f, 0.12f, 0.06f), H(0.48f, 0.40f, 0.18f));
-        WaterPalettes[6] = new Palette(H(0.40f, 0.45f, 0.20f), H(0.12f, 0.18f, 0.06f), H(0.08f, 0.10f, 0.04f), H(0.62f, 0.68f, 0.35f));
     }
 
     private static Color H(float r, float g, float b)

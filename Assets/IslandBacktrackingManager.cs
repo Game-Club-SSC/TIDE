@@ -376,11 +376,11 @@ public class IslandBacktrackingManager : MonoBehaviour
 
     private static BacktrackingUnlock[] GetDefaultUnlocks()
     {
-        // Progression order: lust(0), greed(1), greed(2), desire(3), anger(4), envy(5), ego(6)
+        // GDD V2 progression order: lust(0), greed(1), desire(2), anger(3), envy(4), ego(5)
         //
-        // After completing desire (index 3): unlock greed(2), greed(1), lust(0)
+        // After completing desire (index 2): unlock greed(1), lust(0)
         //   "The texts mention something we missed on the earlier islands..."
-        // After completing envy (index 5): unlock anger(4), desire(3), greed(2), greed(1), lust(0)
+        // After completing envy (index 4): unlock anger(3), desire(2), greed(1), lust(0)
         //   "The ancient texts grow clearer. We must return and speak with the tribe leaders again."
 
         return new[]

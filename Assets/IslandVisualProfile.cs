@@ -140,20 +140,17 @@ public class IslandVisualProfile : ScriptableObject
             case IslandArtResolver.SinRoot.Greed:
                 ApplyGreed(profile);
                 break;
-            case IslandArtResolver.SinRoot.Gluttony:
-                ApplyGluttony(profile);
+            case IslandArtResolver.SinRoot.Anger:
+                ApplyAnger(profile);
                 break;
-            case IslandArtResolver.SinRoot.Wrath:
-                ApplyWrath(profile);
-                break;
-            case IslandArtResolver.SinRoot.Sloth:
-                ApplySloth(profile);
+            case IslandArtResolver.SinRoot.Desire:
+                ApplyDesire(profile);
                 break;
             case IslandArtResolver.SinRoot.Envy:
                 ApplyEnvy(profile);
                 break;
-            case IslandArtResolver.SinRoot.Pride:
-                ApplyPride(profile);
+            case IslandArtResolver.SinRoot.Ego:
+                ApplyEgo(profile);
                 break;
             default:
                 Debug.LogWarning($"[IslandVisualProfile] Unknown sin root '{sinRoot}' derived from '{islandId}'. Returning null.");
@@ -220,28 +217,7 @@ public class IslandVisualProfile : ScriptableObject
             new Color(0.80f, 0.70f, 0.35f));
     }
 
-    private static void ApplyGluttony(IslandVisualProfile profile)
-    {
-        profile.groundGradient = new CorruptionGradient
-        {
-            evilColor = new Color(0.12f, 0.10f, 0.05f),
-            neutralColor = new Color(0.42f, 0.38f, 0.18f),
-            goodColor = new Color(0.68f, 0.62f, 0.30f)
-        };
-        profile.groundTint = new Color(0.70f, 0.64f, 0.36f);
-        profile.wallColor = new Color(0.35f, 0.28f, 0.12f);
-        profile.wallHighlightColor = new Color(0.58f, 0.50f, 0.25f);
-        profile.waterShallowColor = new Color(0.40f, 0.45f, 0.20f);
-        profile.waterDeepColor = new Color(0.12f, 0.18f, 0.06f);
-        profile.corruptionOverlayColor = new Color(0.25f, 0.20f, 0.08f);
-        profile.corruptionOverlayMaxOpacity = 0.35f;
-        profile.tideColors = BuildTideColors(
-            new Color(0.22f, 0.18f, 0.08f), new Color(0.32f, 0.28f, 0.12f),
-            new Color(0.42f, 0.38f, 0.18f), new Color(0.55f, 0.50f, 0.25f),
-            new Color(0.68f, 0.62f, 0.30f));
-    }
-
-    private static void ApplyWrath(IslandVisualProfile profile)
+    private static void ApplyAnger(IslandVisualProfile profile)
     {
         profile.groundGradient = new CorruptionGradient
         {
@@ -262,7 +238,7 @@ public class IslandVisualProfile : ScriptableObject
             new Color(0.95f, 0.40f, 0.18f));
     }
 
-    private static void ApplySloth(IslandVisualProfile profile)
+    private static void ApplyDesire(IslandVisualProfile profile)
     {
         profile.groundGradient = new CorruptionGradient
         {
@@ -304,7 +280,7 @@ public class IslandVisualProfile : ScriptableObject
             new Color(0.42f, 0.72f, 0.38f));
     }
 
-    private static void ApplyPride(IslandVisualProfile profile)
+    private static void ApplyEgo(IslandVisualProfile profile)
     {
         profile.groundGradient = new CorruptionGradient
         {
