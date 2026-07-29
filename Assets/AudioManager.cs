@@ -766,6 +766,10 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
         float elapsed = 0f;
         float startVolume = bgmSource.volume;
 
+        // Capture the act volume multiplier from the current volume before fade-out
+        // so it survives the crossfade even when activeIslandProfile is null.
+        float actVolMult = (BgmVolume > 0f) ? startVolume / BgmVolume : 1f;
+
         while (elapsed < bgmFadeSeconds)
         {
             elapsed += Time.unscaledDeltaTime;
@@ -780,12 +784,6 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
         bgmSource.Play();
 
         elapsed = 0f;
-        float actVolMult = 1f;
-        if (activeIslandProfile != null && GameStateManager.Instance != null)
-        {
-            int actNumber = (int)GameStateManager.Instance.CurrentStoryAct;
-            actVolMult = activeIslandProfile.GetActVolumeMultiplier(actNumber);
-        }
         float targetVolume = BgmVolume * actVolMult;
         while (elapsed < bgmFadeSeconds)
         {

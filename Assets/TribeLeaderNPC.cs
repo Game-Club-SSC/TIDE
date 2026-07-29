@@ -21,9 +21,6 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
     [Header("Identity")]
     [SerializeField] private string npcName = "Elder";
     [SerializeField] private string islandId;
-#pragma warning disable 0414
-    [SerializeField, HideInInspector] private string _tribeName;
-#pragma warning restore 0414
 
     [Header("Dialogue")]
     [Tooltip("Lines shown when the player asks about the ancient texts (pre-revelation).")]

@@ -445,26 +445,20 @@ public static class PhoneWebPageBuilder
         statusMsg.textContent = 'Connecting...';
         statusMsg.className = 'status-msg';
 
-        try {
-            const resp = await fetch(serverBase + '/api/pair', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: code })
-            });
+        const resp = await fetch(serverBase + '/api/pair', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: code })
+        });
 
-            if (resp.ok) {
-                isPaired = true;
-                isConnected = true;
-                showController();
-                statusMsg.textContent = '';
-            } else {
-                const data = await resp.json();
-                statusMsg.textContent = data.message || 'Connection failed';
-                statusMsg.className = 'status-msg status-error';
-                btnPair.disabled = false;
-            }
-        } catch (err) {
-            statusMsg.textContent = 'Network error: ' + err.message;
+        if (resp.ok) {
+            isPaired = true;
+            isConnected = true;
+            showController();
+            statusMsg.textContent = '';
+        } else {
+            const data = await resp.json();
+            statusMsg.textContent = data.message || 'Connection failed';
             statusMsg.className = 'status-msg status-error';
             btnPair.disabled = false;
         }
@@ -498,16 +492,10 @@ public static class PhoneWebPageBuilder
     });
 
     async function checkConnection() {
-        try {
-            await fetch(serverBase + '/api/state', { method: 'GET', signal: AbortSignal.timeout(2000) });
-            isConnected = true;
-            connDot.classList.remove('disconnected');
-            bottomInfo.textContent = 'Connected';
-        } catch (err) {
-            isConnected = false;
-            connDot.classList.add('disconnected');
-            bottomInfo.textContent = 'Connection lost...';
-        }
+        await fetch(serverBase + '/api/state', { method: 'GET', signal: AbortSignal.timeout(2000) });
+        isConnected = true;
+        connDot.classList.remove('disconnected');
+        bottomInfo.textContent = 'Connected';
     }
 
     // ===== Joystick =====
@@ -644,27 +632,19 @@ public static class PhoneWebPageBuilder
 
     async function sendCommand(cmd) {
         if (!isConnected) return;
-        try {
-            await fetch(serverBase + '/api/command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cmd)
-            });
-        } catch (err) {
-            // Silently fail - connection check will handle it
-        }
+        await fetch(serverBase + '/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cmd)
+        });
     }
 
     // ===== Game State Polling =====
     async function fetchGameState() {
         if (!isConnected) return;
-        try {
-            const resp = await fetch(serverBase + '/api/state', { signal: AbortSignal.timeout(2000) });
-            const data = await resp.json();
-            updateStatsPanel(data);
-        } catch (err) {
-            // Silently fail
-        }
+        const resp = await fetch(serverBase + '/api/state', { signal: AbortSignal.timeout(2000) });
+        const data = await resp.json();
+        updateStatsPanel(data);
     }
 
     function updateStatsPanel(data) {
