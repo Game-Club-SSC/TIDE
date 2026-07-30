@@ -4,7 +4,6 @@ using UnityEngine;
 /// Validates that ambient audio loops are configured for all 6 V2 islands
 /// via IslandAudioProfile and AudioManager ambient support.
 /// </summary>
-[ContextMenu("Run Ambient Audio Content Validation")]
 public class AmbientAudioValidationTest : MonoBehaviour
 {
     [ContextMenu("Validate Ambient Audio Content")]

@@ -4,7 +4,6 @@ using UnityEngine;
 /// Validates that FuturisticSpriteLibrary generates unique boss sprites
 /// for all 6 V2 islands (per-element, overworld + battle variants).
 /// </summary>
-[ContextMenu("Run Boss Art Content Validation")]
 public class BossArtContentValidationTest : MonoBehaviour
 {
     [ContextMenu("Validate Boss Art Content")]

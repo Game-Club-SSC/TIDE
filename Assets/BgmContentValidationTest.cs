@@ -4,7 +4,6 @@ using UnityEngine;
 /// Validates that ProceduralAudioBuilder can generate all required BGM tracks
 /// for the GDD V2 six-island campaign. Run via ContextMenu in the Editor.
 /// </summary>
-[ContextMenu("Run BGM Content Validation")]
 public class BgmContentValidationTest : MonoBehaviour
 {
     [ContextMenu("Validate All BGM Content")]

@@ -4,7 +4,6 @@ using UnityEngine;
 /// Validates that FuturisticSpriteLibrary generates enemy sprites for all
 /// 5 elemental types with overworld and battle variants.
 /// </summary>
-[ContextMenu("Run Enemy Sprite Content Validation")]
 public class EnemySpriteContentValidationTest : MonoBehaviour
 {
     [ContextMenu("Validate Enemy Sprite Content")]

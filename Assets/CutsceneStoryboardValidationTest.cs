@@ -4,7 +4,6 @@ using UnityEngine;
 /// Validates that cutscene director scripts implement the required storyboard
 /// sequences for ceremony intro, boss intros, and endings.
 /// </summary>
-[ContextMenu("Run Cutscene Storyboard Validation")]
 public class CutsceneStoryboardValidationTest : MonoBehaviour
 {
     [ContextMenu("Validate Cutscene Storyboards")]
