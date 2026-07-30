@@ -766,6 +766,19 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
         float elapsed = 0f;
         float startVolume = bgmSource.volume;
 
+        // Use the current profile and new act when available; the captured ratio
+        // is only a fallback for when no profile is active.
+        float actVolMult;
+        if (activeIslandProfile != null && GameStateManager.Instance != null)
+        {
+            int actNumber = (int)GameStateManager.Instance.CurrentStoryAct;
+            actVolMult = activeIslandProfile.GetActVolumeMultiplier(actNumber);
+        }
+        else
+        {
+            actVolMult = (BgmVolume > 0f) ? startVolume / BgmVolume : 1f;
+        }
+
         while (elapsed < bgmFadeSeconds)
         {
             elapsed += Time.unscaledDeltaTime;
@@ -780,12 +793,6 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
         bgmSource.Play();
 
         elapsed = 0f;
-        float actVolMult = 1f;
-        if (activeIslandProfile != null && GameStateManager.Instance != null)
-        {
-            int actNumber = (int)GameStateManager.Instance.CurrentStoryAct;
-            actVolMult = activeIslandProfile.GetActVolumeMultiplier(actNumber);
-        }
         float targetVolume = BgmVolume * actVolMult;
         while (elapsed < bgmFadeSeconds)
         {

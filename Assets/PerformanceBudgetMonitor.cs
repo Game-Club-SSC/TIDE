@@ -18,6 +18,7 @@ public class PerformanceBudgetMonitor : MonoBehaviour
     [SerializeField, Min(1)] private int minQualityLevel;
     [SerializeField, Min(0.1f)] private float qualityCheckInterval = 2f;
     [SerializeField, Min(1)] private int qualityDropThresholdFrames = 3;
+    [SerializeField, Min(1)] private int qualityRestoreThresholdFrames = 60;
 
     public int TargetFrameRate => targetFrameRate;
     public int MaxHeroes => maxHeroes;
@@ -29,6 +30,8 @@ public class PerformanceBudgetMonitor : MonoBehaviour
     private int maxSampleCount;
     private float qualityCheckTimer;
     private int overBudgetStreak;
+    private int underBudgetStreak;
+    private int preDownscaleQualityLevel = -1;
 
     public float CurrentAverageFrameMs { get; private set; }
     public float MinObservedFrameMs { get; private set; } = float.MaxValue;
@@ -109,6 +112,8 @@ public class PerformanceBudgetMonitor : MonoBehaviour
         MinObservedFrameMs = float.MaxValue;
         MaxObservedFrameMs = 0f;
         overBudgetStreak = 0;
+        underBudgetStreak = 0;
+        preDownscaleQualityLevel = -1;
     }
 
     private void RecalculateMaxSampleCount()
@@ -150,12 +155,17 @@ public class PerformanceBudgetMonitor : MonoBehaviour
 
         if (!IsMeetingBudget)
         {
+            underBudgetStreak = 0;
             overBudgetStreak++;
             if (overBudgetStreak >= qualityDropThresholdFrames)
             {
                 int current = QualitySettings.GetQualityLevel();
                 if (current > minQualityLevel)
                 {
+                    if (preDownscaleQualityLevel < 0)
+                    {
+                        preDownscaleQualityLevel = current;
+                    }
                     QualitySettings.SetQualityLevel(current - 1, true);
                     Debug.Log($"[PerformanceBudgetMonitor] Quality downgraded to {QualitySettings.names[QualitySettings.GetQualityLevel()]} (avg {CurrentAverageFrameMs:F1}ms > {maxFrameMs:F1}ms).");
                 }
@@ -165,6 +175,24 @@ public class PerformanceBudgetMonitor : MonoBehaviour
         else
         {
             overBudgetStreak = 0;
+            underBudgetStreak++;
+            int maxLevel = QualitySettings.names.Length - 1;
+            if (underBudgetStreak >= qualityRestoreThresholdFrames)
+            {
+                int current = QualitySettings.GetQualityLevel();
+                int restoreCeiling = preDownscaleQualityLevel > 0 ? preDownscaleQualityLevel : current;
+                if (current < restoreCeiling && current < maxLevel)
+                {
+                    int target = Mathf.Min(current + 1, restoreCeiling);
+                    QualitySettings.SetQualityLevel(target, true);
+                    Debug.Log($"[PerformanceBudgetMonitor] Quality upgraded to {QualitySettings.names[QualitySettings.GetQualityLevel()]} (avg {CurrentAverageFrameMs:F1}ms <= {maxFrameMs:F1}ms).");
+                    if (target == restoreCeiling)
+                    {
+                        preDownscaleQualityLevel = -1;
+                    }
+                }
+                underBudgetStreak = 0;
+            }
         }
     }
 }

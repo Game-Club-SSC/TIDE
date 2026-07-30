@@ -114,6 +114,7 @@ public class DialogueSystem : MonoBehaviour
 
         isDialogueActive = true;
         LockPlayerMovement(true);
+        pendingEntries = entries;
 
         DialogueUI ui = EnsureDialogueUI();
         ui.PlaySequence(entries, OnSequenceComplete);
@@ -266,11 +267,14 @@ public class DialogueSystem : MonoBehaviour
     //  Internal
     // ------------------------------------------------------------------ //
 
+    private List<DialogueEntry> pendingEntries;
+
     private void OnSequenceComplete()
     {
         isDialogueActive = false;
         LockPlayerMovement(false);
-        OnDialogueCompleted?.Invoke(null);
+        OnDialogueCompleted?.Invoke(pendingEntries);
+        pendingEntries = null;
     }
 
     private void HandleTreeCompleted(string treeId)

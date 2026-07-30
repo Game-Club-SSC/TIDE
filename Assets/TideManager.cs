@@ -1239,6 +1239,7 @@ public class TideManager : MonoBehaviour
                 TideTile tile = activeTiles[row, col];
                 if (tile == null)
                 {
+                    grid[row, col] = puzzleValues[row, col];
                     continue;
                 }
 

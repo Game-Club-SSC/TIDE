@@ -29,6 +29,7 @@ public class NewGamePlusService : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        Load();
     }
 
     private void OnDestroy()
@@ -47,6 +48,7 @@ public class NewGamePlusService : MonoBehaviour
     public void RegisterCompletion()
     {
         CompletedRuns++;
+        Save();
         Debug.Log($"[NewGamePlusService] Registered completion #{CompletedRuns}.");
     }
 
@@ -59,6 +61,7 @@ public class NewGamePlusService : MonoBehaviour
 
         IsInNewGamePlus = true;
         LoopIndex++;
+        Save();
         OnNewGamePlusStarted?.Invoke(LoopIndex);
         Debug.Log($"[NewGamePlusService] Starting NG+ loop {LoopIndex}.");
         return true;
@@ -72,6 +75,7 @@ public class NewGamePlusService : MonoBehaviour
         }
 
         IsInNewGamePlus = false;
+        Save();
         OnNewGamePlusEnded?.Invoke();
     }
 
@@ -119,5 +123,41 @@ public class NewGamePlusService : MonoBehaviour
         IsInNewGamePlus = false;
         LoopIndex = 0;
         CompletedRuns = 0;
+        Save();
+    }
+
+    private void Save()
+    {
+        NgPlusSaveData data = new NgPlusSaveData
+        {
+            completedRuns = CompletedRuns,
+            loopIndex = LoopIndex,
+            isInNewGamePlus = IsInNewGamePlus
+        };
+        string json = JsonUtility.ToJson(data);
+        PlayerPrefs.SetString("NewGamePlusService", json);
+        PlayerPrefs.Save();
+    }
+
+    private void Load()
+    {
+        if (!PlayerPrefs.HasKey("NewGamePlusService"))
+        {
+            return;
+        }
+
+        string json = PlayerPrefs.GetString("NewGamePlusService");
+        NgPlusSaveData data = JsonUtility.FromJson<NgPlusSaveData>(json);
+        CompletedRuns = data.completedRuns;
+        LoopIndex = data.loopIndex;
+        IsInNewGamePlus = data.isInNewGamePlus;
+    }
+
+    [System.Serializable]
+    private struct NgPlusSaveData
+    {
+        public int completedRuns;
+        public int loopIndex;
+        public bool isInNewGamePlus;
     }
 }

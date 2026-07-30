@@ -369,12 +369,13 @@ public class BossIntroDirector : MonoBehaviour
 
     private IEnumerator PulseAtmosphere(Color pulseColor, float duration)
     {
+        Color baseColor = atmosphereOverlay != null ? atmosphereOverlay.color : default;
+
         if (atmosphereOverlay == null)
         {
             yield break;
         }
 
-        Color baseColor = atmosphereOverlay.color;
         float elapsed = 0f;
         while (elapsed < duration)
         {

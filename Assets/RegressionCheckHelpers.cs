@@ -260,8 +260,14 @@ public static class BattleHudPolishServiceLogic
 
 public static class NewGamePlusServiceLogic
 {
+    private const string NgPlusKey = "NewGamePlusService";
+
     public static bool Ok()
     {
+        // Snapshot PlayerPrefs so the regression check does not persist fake
+        // completion data to the user's save.
+        string savedData = PlayerPrefs.HasKey(NgPlusKey) ? PlayerPrefs.GetString(NgPlusKey) : null;
+
         GameObject host = new GameObject("Test_NGPlus");
         NewGamePlusService service = host.AddComponent<NewGamePlusService>();
         try
@@ -272,6 +278,17 @@ public static class NewGamePlusServiceLogic
         finally
         {
             Object.DestroyImmediate(host);
+
+            // Restore the original PlayerPrefs value (or remove if none existed).
+            if (savedData != null)
+            {
+                PlayerPrefs.SetString(NgPlusKey, savedData);
+            }
+            else
+            {
+                PlayerPrefs.DeleteKey(NgPlusKey);
+            }
+            PlayerPrefs.Save();
         }
     }
 }

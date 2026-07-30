@@ -464,7 +464,7 @@ public static class PhoneWebPageBuilder
                 btnPair.disabled = false;
             }
         } catch (err) {
-            statusMsg.textContent = 'Network error: ' + err.message;
+            statusMsg.textContent = 'Unable to reach host. Please try again.';
             statusMsg.className = 'status-msg status-error';
             btnPair.disabled = false;
         }
@@ -506,7 +506,7 @@ public static class PhoneWebPageBuilder
         } catch (err) {
             isConnected = false;
             connDot.classList.add('disconnected');
-            bottomInfo.textContent = 'Connection lost...';
+            bottomInfo.textContent = 'Disconnected';
         }
     }
 
@@ -644,27 +644,19 @@ public static class PhoneWebPageBuilder
 
     async function sendCommand(cmd) {
         if (!isConnected) return;
-        try {
-            await fetch(serverBase + '/api/command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cmd)
-            });
-        } catch (err) {
-            // Silently fail - connection check will handle it
-        }
+        await fetch(serverBase + '/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cmd)
+        });
     }
 
     // ===== Game State Polling =====
     async function fetchGameState() {
         if (!isConnected) return;
-        try {
-            const resp = await fetch(serverBase + '/api/state', { signal: AbortSignal.timeout(2000) });
-            const data = await resp.json();
-            updateStatsPanel(data);
-        } catch (err) {
-            // Silently fail
-        }
+        const resp = await fetch(serverBase + '/api/state', { signal: AbortSignal.timeout(2000) });
+        const data = await resp.json();
+        updateStatsPanel(data);
     }
 
     function updateStatsPanel(data) {

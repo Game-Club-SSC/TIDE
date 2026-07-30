@@ -8,6 +8,7 @@ public static class BattleHudPolishService
     private static Dictionary<Image, Coroutine> activeImageCoroutines = new Dictionary<Image, Coroutine>();
     private static Dictionary<SpriteRenderer, Coroutine> activeSpriteCoroutines = new Dictionary<SpriteRenderer, Coroutine>();
     private static Dictionary<Transform, Coroutine> activeTransformCoroutines = new Dictionary<Transform, Coroutine>();
+    private static Dictionary<SpriteRenderer, Color> originalSpriteColors = new Dictionary<SpriteRenderer, Color>();
 
     public static Color GetCritFlashColor()
     {
@@ -118,6 +119,12 @@ public static class BattleHudPolishService
         if (activeSpriteCoroutines.TryGetValue(target, out Coroutine existing))
         {
             host.StopCoroutine(existing);
+            activeSpriteCoroutines.Remove(target);
+            if (originalSpriteColors.TryGetValue(target, out Color savedOriginal))
+            {
+                target.color = savedOriginal;
+                originalSpriteColors.Remove(target);
+            }
         }
         Coroutine coroutine = host.StartCoroutine(SpriteFlashRoutine(target, duration));
         activeSpriteCoroutines[target] = coroutine;
@@ -198,6 +205,7 @@ public static class BattleHudPolishService
         {
             t.localScale = originalScale;
             target.color = originalColor;
+            activeImageCoroutines.Remove(target);
         }
     }
 
@@ -205,6 +213,7 @@ public static class BattleHudPolishService
     {
         if (target == null) yield break;
         Color original = target.color;
+        originalSpriteColors[target] = original;
         Color flash = Color.white;
         target.color = flash;
         float elapsed = 0f;
@@ -215,6 +224,11 @@ public static class BattleHudPolishService
             target.color = Color.Lerp(flash, original, t);
             yield return null;
         }
-        if (target != null) target.color = original;
+        if (target != null)
+        {
+            target.color = original;
+            originalSpriteColors.Remove(target);
+            activeSpriteCoroutines.Remove(target);
+        }
     }
 }

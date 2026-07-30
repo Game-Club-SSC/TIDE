@@ -751,7 +751,8 @@ public class HeroProgressionManager : MonoBehaviour
             GrantCosmeticXp(totalXp);
         }
 
-        AddCurrency(Mathf.Max(1, totalXp / 2));
+        float currencyMult = DifficultyModeService.Instance != null ? DifficultyModeService.Instance.GetCurrencyMultiplier() : 1f;
+        AddCurrency(Mathf.RoundToInt(Mathf.Max(0, totalXp / 2) * currencyMult));
 
         int reserveXp = Mathf.RoundToInt(totalXp * levelingConfig.reserveXpMultiplier);
         int reserveGearXp = Mathf.RoundToInt(gearXpPerBattleWin * levelingConfig.reserveXpMultiplier);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Text;
 using UnityEngine;
 
@@ -75,7 +76,7 @@ public class AcceptanceConversation : MonoBehaviour
 
         isPlaying = true;
         currentLineIndex = 0;
-        FireLines();
+        StartCoroutine(FireLinesRoutine());
         return true;
     }
 
@@ -88,7 +89,19 @@ public class AcceptanceConversation : MonoBehaviour
 
         isPlaying = true;
         currentLineIndex = 0;
-        FireLines();
+
+        // Fire all lines synchronously so that tests (and context-menu
+        // regression checks) observe every event in a single frame.
+        string[] lines = BuildDialogueLines();
+        for (int i = 0; i < lines.Length; i++)
+        {
+            currentLineIndex = i;
+            OnAcceptanceLinePresented?.Invoke(i, lines[i]);
+        }
+
+        isPlaying = false;
+        hasPlayed = true;
+        OnAcceptanceConversationFinished?.Invoke();
     }
 
     public void ResetForDebug()
@@ -110,13 +123,14 @@ public class AcceptanceConversation : MonoBehaviour
         return restoration >= restorationThreshold;
     }
 
-    private void FireLines()
+    private IEnumerator FireLinesRoutine()
     {
         string[] lines = BuildDialogueLines();
         for (int i = 0; i < lines.Length; i++)
         {
             currentLineIndex = i;
             OnAcceptanceLinePresented?.Invoke(i, lines[i]);
+            yield return null;
         }
 
         isPlaying = false;

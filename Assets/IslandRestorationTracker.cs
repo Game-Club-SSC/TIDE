@@ -263,6 +263,13 @@ public class IslandRestorationTracker : MonoBehaviour
         return snapshot;
     }
 
+    private bool suppressEvents;
+
+    public void SetSuppressEvents(bool suppress)
+    {
+        suppressEvents = suppress;
+    }
+
     public void ApplySnapshot(TrackerSnapshot snapshot)
     {
         if (snapshot == null)
@@ -294,6 +301,10 @@ public class IslandRestorationTracker : MonoBehaviour
             }
         }
 
+        // Emit refresh events so that gates, HUD, and restoration visuals
+        // pick up the restored state. Preserve the caller's suppression flag.
+        bool previousSuppression = suppressEvents;
+        suppressEvents = false;
         foreach (KeyValuePair<string, IslandRestorationState> pair in islandStates)
         {
             OnRestorationChanged?.Invoke(pair.Key, pair.Value.RestorationPercent);
@@ -302,6 +313,7 @@ public class IslandRestorationTracker : MonoBehaviour
                 OnIslandRestored?.Invoke(pair.Key);
             }
         }
+        suppressEvents = previousSuppression;
     }
 
     private IslandRestorationState GetOrCreateState(string islandId)

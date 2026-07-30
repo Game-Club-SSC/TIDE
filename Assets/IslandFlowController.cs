@@ -233,6 +233,13 @@ public class IslandFlowController : MonoBehaviour
             encounterId = GetEncounterId(encounter, currentEncounterIndex);
         }
 
+        if (encounter == null)
+        {
+            Debug.LogWarning("[IslandFlowController] No remaining encounters after skipping cleared ones.");
+            isActive = false;
+            return;
+        }
+
         int subsection = currentEncounterIndex / 2;
         int totalSubsections = Mathf.Max(1, (islandConfig.encounters.Length + 1) / 2);
 

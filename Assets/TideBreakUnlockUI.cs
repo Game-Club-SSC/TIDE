@@ -34,14 +34,12 @@ public class TideBreakUnlockUI : MonoBehaviour
 
     private readonly Queue<TideBreakData> unlockQueue = new Queue<TideBreakData>();
     private Coroutine displayCoroutine;
+    private bool isSubscribed;
     private bool isDisplaying;
 
     private void OnEnable()
     {
-        if (TideBreakProgressionManager.Instance != null)
-        {
-            TideBreakProgressionManager.Instance.OnTideBreakUnlocked += HandleTideBreakUnlocked;
-        }
+        TrySubscribe();
 
         if (popupCanvasGroup != null)
         {
@@ -50,11 +48,34 @@ public class TideBreakUnlockUI : MonoBehaviour
         }
     }
 
-    private void OnDisable()
+    private void Update()
     {
+        if (!isSubscribed)
+        {
+            TrySubscribe();
+        }
+    }
+
+    private void TrySubscribe()
+    {
+        if (isSubscribed)
+        {
+            return;
+        }
+
         if (TideBreakProgressionManager.Instance != null)
         {
+            TideBreakProgressionManager.Instance.OnTideBreakUnlocked += HandleTideBreakUnlocked;
+            isSubscribed = true;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (isSubscribed && TideBreakProgressionManager.Instance != null)
+        {
             TideBreakProgressionManager.Instance.OnTideBreakUnlocked -= HandleTideBreakUnlocked;
+            isSubscribed = false;
         }
 
         StopAllCoroutines();
