@@ -339,6 +339,7 @@ public class IslandFlowController : MonoBehaviour
         }
 
         int nonBossFallback = -1;
+        int unlockedBossIndex = -1;
         int lockedBossIndex = -1;
 
         for (int i = 0; i < islandConfig.encounters.Length; i++)
@@ -356,10 +357,12 @@ public class IslandFlowController : MonoBehaviour
                 {
                     if (IsBossUnlocked())
                     {
-                        return i;
+                        if (unlockedBossIndex < 0)
+                        {
+                            unlockedBossIndex = i;
+                        }
                     }
-
-                    if (lockedBossIndex < 0)
+                    else if (lockedBossIndex < 0)
                     {
                         lockedBossIndex = i;
                     }
@@ -372,6 +375,14 @@ public class IslandFlowController : MonoBehaviour
                     nonBossFallback = i;
                 }
             }
+        }
+
+        // Preserve the configured encounter order. An unlocked boss must not
+        // bypass an earlier incomplete combat or puzzle encounter.
+        if (unlockedBossIndex >= 0
+            && (nonBossFallback < 0 || unlockedBossIndex < nonBossFallback))
+        {
+            return unlockedBossIndex;
         }
 
         if (nonBossFallback >= 0)

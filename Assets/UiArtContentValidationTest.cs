@@ -1,10 +1,10 @@
+using NUnit.Framework;
 using UnityEngine;
 
 /// <summary>
 /// Validates that PersonaUIStyle provides all required Persona 5-inspired
 /// UI components: angular panels, buttons, icons, and color palette.
 /// </summary>
-[ContextMenu("Run UI Art Content Validation")]
 public class UiArtContentValidationTest : MonoBehaviour
 {
     [ContextMenu("Validate UI Art Content")]

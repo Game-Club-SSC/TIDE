@@ -187,6 +187,35 @@ public static class PersonaUIStyle
         return btn;
     }
 
+    /// <summary>
+    /// Creates a standard Persona-style button with a label and background.
+    /// </summary>
+    public static Button CreateButton(Transform parent, string label, Color backgroundColor)
+    {
+        if (parent == null)
+        {
+            return null;
+        }
+
+        GameObject buttonObject = CreateUIElement("PersonaButton", parent);
+        Image background = buttonObject.AddComponent<Image>();
+        background.color = backgroundColor;
+
+        Button button = buttonObject.AddComponent<Button>();
+        button.targetGraphic = background;
+
+        ColorBlock colors = button.colors;
+        colors.normalColor = backgroundColor;
+        colors.highlightedColor = MediumBlue;
+        colors.pressedColor = DeepNavy;
+        colors.selectedColor = BrightBlue;
+        button.colors = colors;
+
+        Text buttonLabel = CreatePersonaLabel(buttonObject.transform, label, 18, White, TextAnchor.MiddleCenter);
+        StretchFull(buttonLabel.GetComponent<RectTransform>());
+        return button;
+    }
+
     // ======================================================================
     //  Animated slash transition
     // ======================================================================

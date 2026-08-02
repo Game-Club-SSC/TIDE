@@ -1,10 +1,10 @@
+using NUnit.Framework;
 using UnityEngine;
 
 /// <summary>
 /// Validates that ProceduralAudioBuilder can generate all required SFX
 /// for the GDD V2 combat, UI, and interaction systems.
 /// </summary>
-[ContextMenu("Run SFX Content Validation")]
 public class SfxContentValidationTest : MonoBehaviour
 {
     [ContextMenu("Validate All SFX Content")]

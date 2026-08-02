@@ -104,7 +104,7 @@ public static class LocalizationService
             { "boss.lust.intro", new Dictionary<Language, string> { { Language.English, "Come closer..." }, { Language.Spanish, "Acercate..." } } },
             { "boss.anger.intro", new Dictionary<Language, string> { { Language.English, "BURN!" }, { Language.Spanish, "¡ARDE!" } } },
             { "boss.ego.intro", new Dictionary<Language, string> { { Language.English, "Kneel before perfection." }, { Language.Spanish, "Arrodillate ante la perfeccion." } } },
-            { "boss.greed.intro", new Dictionary<Language, string> { { Language.English, "I hunger..." }, { Language.Spanish, "Tengo hambre..." } } },
+            { "boss.greed.hunger", new Dictionary<Language, string> { { Language.English, "I hunger..." }, { Language.Spanish, "Tengo hambre..." } } },
 
             { "ending.good.text", new Dictionary<Language, string> { { Language.English, "The islands find peace. The tide recedes." }, { Language.Spanish, "Las islas encuentran paz. La marea retrocede." } } },
             { "ending.bad.text", new Dictionary<Language, string> { { Language.English, "The tide consumes all. Darkness remains." }, { Language.Spanish, "La marea lo consume todo. La oscuridad permanece." } } },

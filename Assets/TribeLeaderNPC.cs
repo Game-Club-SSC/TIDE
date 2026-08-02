@@ -20,6 +20,7 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
 
     [Header("Identity")]
     [SerializeField] private string npcName = "Elder";
+    [SerializeField] private string _tribeName;
     [SerializeField] private string islandId;
 
     [Header("Dialogue")]

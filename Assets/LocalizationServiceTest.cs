@@ -16,6 +16,7 @@ public class LocalizationServiceTest : MonoBehaviour
         TestGetReturnsRawKeyForUnknown();
         TestGetReturnsEmptyForNullOrEmptyKey();
         TestHasKeyReturnsTrueForKnownKey();
+        TestBossGreedKeysRemainDistinct();
         TestHasKeyReturnsFalseForUnknownKey();
         TestHasKeyReturnsFalseForNullOrEmpty();
         TestSetLanguagePersistenceToPlayerPrefs();
@@ -112,6 +113,21 @@ public class LocalizationServiceTest : MonoBehaviour
         Assert.IsTrue(LocalizationService.HasKey("ui.endings.bad"), "HasKey('ui.endings.bad') should return true.");
 
         Debug.Log("✓ HasKey known key test passed");
+    }
+
+    private void TestBossGreedKeysRemainDistinct()
+    {
+        Debug.Log("Testing Greed boss localization keys remain distinct...");
+
+        Assert.IsTrue(LocalizationService.HasKey("boss.greed.intro"),
+            "Greed boss intro key should remain available.");
+        Assert.IsTrue(LocalizationService.HasKey("boss.greed.hunger"),
+            "Greed boss hunger key should be available.");
+        Assert.AreNotEqual(LocalizationService.Get("boss.greed.intro"),
+            LocalizationService.Get("boss.greed.hunger"),
+            "Greed intro and hunger lines should remain distinct.");
+
+        Debug.Log("✓ Greed boss localization key test passed");
     }
 
     private void TestHasKeyReturnsFalseForUnknownKey()

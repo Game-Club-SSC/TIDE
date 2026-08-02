@@ -427,7 +427,14 @@ public class FateEncounterDirector : MonoBehaviour
         HideDialogueCanvas();
 
         // Spawn the Fate boss and configure combat
-        SpawnFateBoss();
+        if (!SpawnFateBoss())
+        {
+            Debug.LogError("[FateEncounterDirector] Fate boss could not be spawned. Aborting encounter.");
+            currentPhase = EncounterPhase.Complete;
+            SetFadeAlpha(0f);
+            yield break;
+        }
+
         ConfigureFateCombat();
 
         currentPhase = EncounterPhase.Combat;
@@ -763,17 +770,38 @@ public class FateEncounterDirector : MonoBehaviour
     //  Fate Boss Setup
     // ──────────────────────────────────────────────────────────────────
 
-    private void SpawnFateBoss()
+    private bool SpawnFateBoss()
     {
         if (spawnedFateBoss != null)
         {
-            return;
+            CombatUnit existingFateUnit = spawnedFateBoss.GetComponent<CombatUnit>();
+            if (existingFateUnit == null)
+            {
+                Debug.LogError("[FateEncounterDirector] Existing Fate boss object has no CombatUnit component. Aborting encounter.");
+                return false;
+            }
+
+            ConfigureFateUnit(existingFateUnit);
+            return true;
         }
 
         if (fateBossPrefab != null)
         {
             Vector3 spawnPos = fateBossSpawnPoint != null ? fateBossSpawnPoint.position : Vector3.zero;
             spawnedFateBoss = Instantiate(fateBossPrefab, spawnPos, Quaternion.identity);
+
+            CombatUnit configuredFateUnit = spawnedFateBoss.GetComponent<CombatUnit>();
+            if (configuredFateUnit != null)
+            {
+                ConfigureFateUnit(configuredFateUnit);
+            }
+            else
+            {
+                Debug.LogError("[FateEncounterDirector] Assigned Fate boss prefab has no CombatUnit component. Aborting encounter.");
+                Destroy(spawnedFateBoss);
+                spawnedFateBoss = null;
+                return false;
+            }
         }
         else
         {
@@ -788,18 +816,35 @@ public class FateEncounterDirector : MonoBehaviour
             CombatUnit fateUnit = spawnedFateBoss.GetComponent<CombatUnit>();
             if (fateUnit != null)
             {
-                fateUnit.MaxHP = fateMaxHp;
-                fateUnit.HP = fateMaxHp;
-                fateUnit.Attack = fateAttack;
-                fateUnit.Defense = fateDefense;
-                fateUnit.Speed = fateSpeed;
-                fateUnit.ElementType = fateBaseElement;
-                fateUnit.Type = CombatUnit.UnitType.Enemy;
-                fateUnit.UnitName = "Fate, The Inevitable";
+                ConfigureFateUnit(fateUnit);
             }
         }
 
+        if (spawnedFateBoss == null)
+        {
+            return false;
+        }
+
         spawnedFateBoss.name = "Fate_The_Inevitable";
+        return true;
+    }
+
+    private void ConfigureFateUnit(CombatUnit fateUnit)
+    {
+        if (fateUnit == null)
+        {
+            return;
+        }
+
+        fateUnit.MaxHP = Mathf.Max(1, fateMaxHp);
+        fateUnit.HP = fateUnit.MaxHP;
+        fateUnit.CheckDeathState();
+        fateUnit.Attack = Mathf.Max(1, fateAttack);
+        fateUnit.Defense = Mathf.Max(0, fateDefense);
+        fateUnit.Speed = Mathf.Max(1, fateSpeed);
+        fateUnit.ElementType = fateBaseElement;
+        fateUnit.Type = CombatUnit.UnitType.Enemy;
+        fateUnit.UnitName = "Fate, The Inevitable";
     }
 
     private void ConfigureFateCombat()
@@ -812,7 +857,9 @@ public class FateEncounterDirector : MonoBehaviour
         }
 
         // Register fate boss if it has a CombatUnit
-        CombatUnit fateUnit = spawnedFateBoss.GetComponent<CombatUnit>();
+        CombatUnit fateUnit = spawnedFateBoss != null
+            ? spawnedFateBoss.GetComponent<CombatUnit>()
+            : null;
         if (fateUnit != null && bm != null)
         {
             bm.RegisterUnit(fateUnit);
