@@ -178,6 +178,11 @@ public class IslandFlowController : MonoBehaviour
 
     public void StopFlowForDebug()
     {
+        AbortFlowAfterFatalError();
+    }
+
+    public void AbortFlowAfterFatalError()
+    {
         isActive = false;
         awaitingEncounterResolution = false;
         activeIslandId = string.Empty;

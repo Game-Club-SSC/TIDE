@@ -25,7 +25,7 @@ public class CutsceneStoryboardValidationTest : MonoBehaviour
         Debug.Log("Validating ceremony intro storyboard...");
 
         // Verify the director exists and has the expected sequence components
-        CeremonyIntroDirector director = FindObjectOfType<CeremonyIntroDirector>();
+        CeremonyIntroDirector director = FindFirstObjectByType<CeremonyIntroDirector>();
         if (director == null)
         {
             Debug.Log("CeremonyIntroDirector not in scene — verifying type exists.");
@@ -47,7 +47,7 @@ public class CutsceneStoryboardValidationTest : MonoBehaviour
         Assert.IsNotNull(typeof(BossIntroDirector), "BossIntroDirector type should exist.");
 
         // Verify it has atmosphere pulse and boss reveal capabilities
-        BossIntroDirector director = FindObjectOfType<BossIntroDirector>();
+        BossIntroDirector director = FindFirstObjectByType<BossIntroDirector>();
         if (director != null)
         {
             Assert.IsTrue(director.gameObject.activeInHierarchy || !director.gameObject.activeInHierarchy,

@@ -430,8 +430,7 @@ public class FateEncounterDirector : MonoBehaviour
         if (!SpawnFateBoss())
         {
             Debug.LogError("[FateEncounterDirector] Fate boss could not be spawned. Aborting encounter.");
-            currentPhase = EncounterPhase.Complete;
-            SetFadeAlpha(0f);
+            RecoverFromFailedCombatSetup();
             yield break;
         }
 
@@ -827,6 +826,37 @@ public class FateEncounterDirector : MonoBehaviour
 
         spawnedFateBoss.name = "Fate_The_Inevitable";
         return true;
+    }
+
+    private void RecoverFromFailedCombatSetup()
+    {
+        CleanupFateBoss();
+        HideDialogueCanvas();
+        currentPhase = EncounterPhase.Complete;
+        SetFadeAlpha(0f);
+
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm == null)
+        {
+            return;
+        }
+
+        gsm.PendingCombatIslandId = null;
+        gsm.PendingCombatEncounterId = null;
+        gsm.PendingCombatRestorationValue = 0f;
+        gsm.PendingEnemyComposition = null;
+        gsm.SetBossDefeatTrackingContext(null, false);
+        gsm.EndCombat();
+        if (gsm.HasActiveFlowController)
+        {
+            gsm.FlowController.AbortFlowAfterFatalError();
+        }
+
+        Debug.LogWarning("[FateEncounterDirector] Fate setup failed permanently for this encounter. Returning to exploration without retrying.");
+        if (!gsm.IsTransitioning)
+        {
+            gsm.ReturnToMainScene();
+        }
     }
 
     private void ConfigureFateUnit(CombatUnit fateUnit)

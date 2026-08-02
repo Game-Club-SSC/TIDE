@@ -23,6 +23,8 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
     [SerializeField] private string _tribeName;
     [SerializeField] private string islandId;
 
+    public string TribeName => _tribeName;
+
     [Header("Dialogue")]
     [Tooltip("Lines shown when the player asks about the ancient texts (pre-revelation).")]
     [SerializeField] private string[] refuseToShareTruthLines;
