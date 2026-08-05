@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -664,6 +665,479 @@ public class BattleFlowTestSuite
             "Enemy AI should fall back to normal skill selection when player elements are unknown.");
         Assert.AreSame(fireSkill, action.SelectedSkill,
             "Enemy AI should keep a valid fallback action when player elements are unknown.");
+    }
+
+    [Test]
+    public void AllySingleAllyHealSkillHealsRequestedAllyOnly()
+    {
+        CombatUnit healer = CreateUnit(unitsRoot.transform, "AllyHealer", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit wounded = CreateUnit(unitsRoot.transform, "AllyWounded", CombatUnit.UnitType.Ally, speed: 8, attack: 10, defense: 0, hp: 100);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "EnemyObserver", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        healer.HP = 40;
+        wounded.HP = 20;
+        enemy.HP = 50;
+        healer.MaxMP = 50;
+        healer.MP = 50;
+        manager.RegisterUnit(healer);
+        manager.RegisterUnit(wounded);
+        manager.RegisterUnit(enemy);
+
+        SkillData heal = ScriptableObject.CreateInstance<SkillData>();
+        heal.skillName = "Ally Mend";
+        heal.target = SkillTarget.SingleAlly;
+        heal.healMultiplier = 1f;
+        heal.mpCost = 3;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", healer, wounded, heal);
+
+            Assert.Greater(wounded.HP, 20, "Requested ally should be healed.");
+            Assert.AreEqual(40, healer.HP, "Caster should not be healed by a SingleAlly heal aimed at another ally.");
+            Assert.AreEqual(50, enemy.HP, "Enemies must never be healed by ally heals.");
+            Assert.AreEqual(47, healer.MP, "Skill should spend its MP cost.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(heal);
+        }
+    }
+
+    [Test]
+    public void AllySingleAllyBuffSkillBuffsAllyAndNeverDamagesEnemies()
+    {
+        CombatUnit caster = CreateUnit(unitsRoot.transform, "AllyBuffCaster", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit allyTarget = CreateUnit(unitsRoot.transform, "AllyBuffTarget", CombatUnit.UnitType.Ally, speed: 8, attack: 10, defense: 0, hp: 100);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "EnemyBuffObserver", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        caster.MaxMP = 50;
+        caster.MP = 50;
+        manager.RegisterUnit(caster);
+        manager.RegisterUnit(allyTarget);
+        manager.RegisterUnit(enemy);
+
+        SkillData buff = ScriptableObject.CreateInstance<SkillData>();
+        buff.skillName = "War Cry";
+        buff.target = SkillTarget.SingleAlly;
+        buff.healMultiplier = 0f;
+        buff.appliedEffectType = StatusEffectType.BuffAttack;
+        buff.effectDuration = 3;
+        buff.effectMagnitude = 0.25f;
+        buff.mpCost = 2;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", caster, allyTarget, buff);
+
+            Assert.IsTrue(HasStatusEffect(allyTarget, StatusEffectType.BuffAttack), "Ally target should receive the buff.");
+            Assert.IsFalse(HasStatusEffect(caster, StatusEffectType.BuffAttack), "Caster should not receive a SingleAlly buff aimed at another ally.");
+            Assert.AreEqual(100, enemy.HP, "Buff skills must not resolve as damage against enemies.");
+            Assert.AreEqual(48, caster.MP, "Buff skills should still spend MP.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(buff);
+        }
+    }
+
+    [Test]
+    public void AllAlliesHealSkillHealsWholeAllyParty()
+    {
+        CombatUnit healer = CreateUnit(unitsRoot.transform, "PartyHealer", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit allyTwo = CreateUnit(unitsRoot.transform, "PartyAllyTwo", CombatUnit.UnitType.Ally, speed: 8, attack: 10, defense: 0, hp: 100);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "PartyEnemy", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        healer.HP = 30;
+        allyTwo.HP = 25;
+        enemy.HP = 40;
+        manager.RegisterUnit(healer);
+        manager.RegisterUnit(allyTwo);
+        manager.RegisterUnit(enemy);
+
+        SkillData heal = ScriptableObject.CreateInstance<SkillData>();
+        heal.skillName = "Party Mend";
+        heal.target = SkillTarget.AllAllies;
+        heal.healMultiplier = 1f;
+        heal.mpCost = 0;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", healer, null, heal);
+
+            Assert.Greater(healer.HP, 30, "Party heal should heal the caster.");
+            Assert.Greater(allyTwo.HP, 25, "Party heal should heal every ally.");
+            Assert.AreEqual(40, enemy.HP, "Party heals must never heal enemies.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(heal);
+        }
+    }
+
+    [Test]
+    public void SelfHealSkillHealsAndBuffsCaster()
+    {
+        CombatUnit caster = CreateUnit(unitsRoot.transform, "SelfCaster", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "SelfEnemy", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        caster.HP = 30;
+        manager.RegisterUnit(caster);
+        manager.RegisterUnit(enemy);
+
+        SkillData self = ScriptableObject.CreateInstance<SkillData>();
+        self.skillName = "Inner Focus";
+        self.target = SkillTarget.Self;
+        self.healMultiplier = 1f;
+        self.appliedEffectType = StatusEffectType.BuffDefense;
+        self.effectDuration = 3;
+        self.effectMagnitude = 0.2f;
+        self.mpCost = 0;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", caster, null, self);
+
+            Assert.Greater(caster.HP, 30, "Self skills with a heal multiplier should heal the caster.");
+            Assert.IsTrue(HasStatusEffect(caster, StatusEffectType.BuffDefense), "Self skills should apply their status effect to the caster.");
+            Assert.AreEqual(100, enemy.HP, "Self skills must never damage enemies.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(self);
+        }
+    }
+
+    [Test]
+    public void AllEnemiesDamageSkillDamagesEveryEnemyAndSpendsMp()
+    {
+        CombatUnit caster = CreateUnit(unitsRoot.transform, "AoECaster", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit enemyOne = CreateUnit(unitsRoot.transform, "AoEEnemyOne", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        CombatUnit enemyTwo = CreateUnit(unitsRoot.transform, "AoEEnemyTwo", CombatUnit.UnitType.Enemy, speed: 5, attack: 10, defense: 0, hp: 100);
+        caster.MaxMP = 50;
+        caster.MP = 50;
+        manager.RegisterUnit(caster);
+        manager.RegisterUnit(enemyOne);
+        manager.RegisterUnit(enemyTwo);
+
+        SkillData aoe = ScriptableObject.CreateInstance<SkillData>();
+        aoe.skillName = "Tidal Nova";
+        aoe.target = SkillTarget.AllEnemies;
+        aoe.damageMultiplier = 1f;
+        aoe.mpCost = 5;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", caster, null, aoe);
+
+            Assert.Less(enemyOne.HP, 100, "AoE skill should damage the first enemy.");
+            Assert.Less(enemyTwo.HP, 100, "AoE skill should damage the second enemy.");
+            Assert.AreEqual(45, caster.MP, "AoE skills should spend MP.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(aoe);
+        }
+    }
+
+    [Test]
+    public void SkillSpendsMpAndInsufficientMpFallsBackToAttack()
+    {
+        CombatUnit caster = CreateUnit(unitsRoot.transform, "MpCaster", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "MpEnemy", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        caster.MaxMP = 50;
+        caster.MP = 50;
+        manager.RegisterUnit(caster);
+        manager.RegisterUnit(enemy);
+
+        SkillData affordable = ScriptableObject.CreateInstance<SkillData>();
+        affordable.skillName = "Cheap Strike";
+        affordable.target = SkillTarget.SingleEnemy;
+        affordable.damageMultiplier = 1f;
+        affordable.mpCost = 10;
+        SkillData tooExpensive = ScriptableObject.CreateInstance<SkillData>();
+        tooExpensive.skillName = "Overpriced Strike";
+        tooExpensive.target = SkillTarget.SingleEnemy;
+        tooExpensive.damageMultiplier = 1f;
+        tooExpensive.mpCost = 60;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", caster, enemy, affordable);
+            Assert.AreEqual(40, caster.MP, "Casting an affordable skill should deduct its MP cost.");
+
+            int enemyHpBefore = enemy.HP;
+            InvokePrivate(manager, "ResolveSkill", caster, enemy, tooExpensive);
+            Assert.Less(enemy.HP, enemyHpBefore, "A skill the caster cannot afford should fall back to a basic attack.");
+            Assert.AreEqual(40, caster.MP, "An unaffordable skill must not spend MP.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(affordable);
+            UnityEngine.Object.DestroyImmediate(tooExpensive);
+        }
+    }
+
+    [Test]
+    public void AllyHealSkillShiftsMomentumTowardPlayer()
+    {
+        CombatUnit healer = CreateUnit(unitsRoot.transform, "MomentumHealer", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit wounded = CreateUnit(unitsRoot.transform, "MomentumWounded", CombatUnit.UnitType.Ally, speed: 8, attack: 10, defense: 0, hp: 100);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "MomentumEnemy", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        wounded.HP = 20;
+        manager.RegisterUnit(healer);
+        manager.RegisterUnit(wounded);
+        manager.RegisterUnit(enemy);
+
+        SkillData heal = ScriptableObject.CreateInstance<SkillData>();
+        heal.skillName = "Momentum Mend";
+        heal.target = SkillTarget.SingleAlly;
+        heal.healMultiplier = 1f;
+        heal.mpCost = 0;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", healer, wounded, heal);
+
+            Assert.That(manager.Momentum.Value, Is.EqualTo(0.05f).Within(0.0001f), "Ally healing should shift momentum toward the player.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(heal);
+        }
+    }
+
+    [Test]
+    public void EnemyHealSkillShiftsMomentumTowardEnemy()
+    {
+        CombatUnit enemyHealer = CreateUnit(unitsRoot.transform, "EnemyMomentumHealer", CombatUnit.UnitType.Enemy, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit enemyWounded = CreateUnit(unitsRoot.transform, "EnemyMomentumWounded", CombatUnit.UnitType.Enemy, speed: 8, attack: 10, defense: 0, hp: 100);
+        CombatUnit player = CreateUnit(unitsRoot.transform, "MomentumPlayer", CombatUnit.UnitType.Ally, speed: 6, attack: 10, defense: 0, hp: 100);
+        enemyWounded.HP = 20;
+        manager.RegisterUnit(enemyHealer);
+        manager.RegisterUnit(enemyWounded);
+        manager.RegisterUnit(player);
+
+        SkillData heal = ScriptableObject.CreateInstance<SkillData>();
+        heal.skillName = "Dark Mend";
+        heal.target = SkillTarget.SingleAlly;
+        heal.healMultiplier = 1f;
+        heal.mpCost = 0;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", enemyHealer, enemyWounded, heal);
+
+            Assert.That(manager.Momentum.Value, Is.EqualTo(-0.05f).Within(0.0001f), "Enemy healing should shift momentum toward the enemy.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(heal);
+        }
+    }
+
+    [Test]
+    public void EnemySingleAllyHealSkillHealsEnemyAllyNotPlayer()
+    {
+        CombatUnit enemyHealer = CreateUnit(unitsRoot.transform, "EnemySideHealer", CombatUnit.UnitType.Enemy, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit enemyWounded = CreateUnit(unitsRoot.transform, "EnemySideWounded", CombatUnit.UnitType.Enemy, speed: 8, attack: 10, defense: 0, hp: 100);
+        CombatUnit player = CreateUnit(unitsRoot.transform, "PlayerNeverHealed", CombatUnit.UnitType.Ally, speed: 6, attack: 10, defense: 0, hp: 100);
+        enemyHealer.HP = 40;
+        enemyWounded.HP = 10;
+        player.HP = 50;
+        manager.RegisterUnit(enemyHealer);
+        manager.RegisterUnit(enemyWounded);
+        manager.RegisterUnit(player);
+
+        SkillData heal = ScriptableObject.CreateInstance<SkillData>();
+        heal.skillName = "Enemy Side Mend";
+        heal.target = SkillTarget.SingleAlly;
+        heal.healMultiplier = 1f;
+        heal.mpCost = 0;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", enemyHealer, enemyWounded, heal);
+
+            Assert.Greater(enemyWounded.HP, 10, "Enemy heals must heal wounded enemy allies.");
+            Assert.AreEqual(50, player.HP, "Enemy heals must never heal the player.");
+            Assert.AreEqual(40, enemyHealer.HP, "The enemy caster should not absorb a SingleAlly heal aimed at another enemy.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(heal);
+        }
+    }
+
+    [Test]
+    public void RelationshipHealingMultiplierScalesAllyHeals()
+    {
+        CombatUnit healer = CreateUnit(unitsRoot.transform, "BondHealer", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit wounded = CreateUnit(unitsRoot.transform, "BondWounded", CombatUnit.UnitType.Ally, speed: 8, attack: 10, defense: 0, hp: 100);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "BondEnemy", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        wounded.HP = 20;
+        manager.RegisterUnit(healer);
+        manager.RegisterUnit(wounded);
+        manager.RegisterUnit(enemy);
+        SetPrivateField(manager, "relationshipHealingMultiplier", 2f);
+
+        SkillData heal = ScriptableObject.CreateInstance<SkillData>();
+        heal.skillName = "Bond Mend";
+        heal.target = SkillTarget.SingleAlly;
+        heal.healMultiplier = 1f;
+        heal.mpCost = 0;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", healer, wounded, heal);
+
+            int gained = wounded.HP - 20;
+            Assert.Greater(gained, 30, "A 2x relationship healing multiplier should roughly double the ~20 base heal.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(heal);
+            SetPrivateField(manager, "relationshipHealingMultiplier", 1f);
+        }
+    }
+
+    [Test]
+    public void TideBreakSingleAllyGrantsShieldThatAbsorbsDamage()
+    {
+        CombatUnit caster = CreateUnit(unitsRoot.transform, "ShieldCaster", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit allyTarget = CreateUnit(unitsRoot.transform, "ShieldTarget", CombatUnit.UnitType.Ally, speed: 8, attack: 10, defense: 0, hp: 100);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "ShieldEnemy", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        manager.RegisterUnit(caster);
+        manager.RegisterUnit(allyTarget);
+        manager.RegisterUnit(enemy);
+
+        TideBreakData shield = ScriptableObject.CreateInstance<TideBreakData>();
+        shield.abilityName = "Ember Shield";
+        shield.targetType = SkillTarget.SingleAlly;
+        shield.damageMultiplier = 1f;
+        try
+        {
+            InvokePrivate(manager, "ResolveTideBreak", caster, allyTarget, shield);
+
+            Assert.IsTrue(HasStatusEffect(allyTarget, StatusEffectType.Shield), "SingleAlly Tide Break should grant a shield to the requested ally.");
+            Assert.AreEqual(30f, allyTarget.ShieldHp, 0.01f, "Shield strength should scale with MaxHP.");
+
+            int hpBefore = allyTarget.HP;
+            allyTarget.TakeDamage(20);
+            Assert.AreEqual(hpBefore, allyTarget.HP, "Shield should absorb incoming damage before HP is reduced.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(shield);
+        }
+    }
+
+    [Test]
+    public void TideBreakAllAlliesHealsWholeAllyParty()
+    {
+        CombatUnit caster = CreateUnit(unitsRoot.transform, "RainCaster", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit allyTwo = CreateUnit(unitsRoot.transform, "RainAllyTwo", CombatUnit.UnitType.Ally, speed: 8, attack: 10, defense: 0, hp: 100);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "RainEnemy", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        caster.HP = 30;
+        allyTwo.HP = 25;
+        enemy.HP = 40;
+        manager.RegisterUnit(caster);
+        manager.RegisterUnit(allyTwo);
+        manager.RegisterUnit(enemy);
+
+        TideBreakData rain = ScriptableObject.CreateInstance<TideBreakData>();
+        rain.abilityName = "Healing Rain";
+        rain.targetType = SkillTarget.AllAllies;
+        rain.damageMultiplier = 1f;
+        try
+        {
+            InvokePrivate(manager, "ResolveTideBreak", caster, null, rain);
+
+            Assert.Greater(caster.HP, 30, "AllAllies Tide Break should heal the caster.");
+            Assert.Greater(allyTwo.HP, 25, "AllAllies Tide Break should heal every ally.");
+            Assert.AreEqual(40, enemy.HP, "AllAllies Tide Break must never heal enemies.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(rain);
+        }
+    }
+
+    [Test]
+    public void TideBreakSelfBuffsAndHealsCasterAndResetsMomentum()
+    {
+        CombatUnit caster = CreateUnit(unitsRoot.transform, "SelfTideBreakCaster", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "SelfTideBreakEnemy", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        caster.HP = 30;
+        manager.RegisterUnit(caster);
+        manager.RegisterUnit(enemy);
+        manager.Momentum.ShiftTowardPlayer(1f);
+
+        TideBreakData self = ScriptableObject.CreateInstance<TideBreakData>();
+        self.abilityName = "Overdrive";
+        self.targetType = SkillTarget.Self;
+        self.damageMultiplier = 1f;
+        try
+        {
+            InvokePrivate(manager, "ResolveTideBreak", caster, null, self);
+
+            Assert.IsTrue(HasStatusEffect(caster, StatusEffectType.BuffAttack), "Self Tide Break should buff the caster.");
+            Assert.Greater(caster.HP, 30, "Self Tide Break should heal the caster.");
+            Assert.AreEqual(100, enemy.HP, "Self Tide Break must never damage enemies.");
+            Assert.That(manager.Momentum.Value, Is.EqualTo(0f).Within(0.0001f), "Using a Tide Break should consume and reset momentum.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(self);
+        }
+    }
+
+    [Test]
+    public void TideBreakAllEnemiesDamagesEveryEnemyAndResetsMomentum()
+    {
+        CombatUnit caster = CreateUnit(unitsRoot.transform, "NovaCaster", CombatUnit.UnitType.Ally, speed: 10, attack: 20, defense: 0, hp: 100);
+        CombatUnit enemyOne = CreateUnit(unitsRoot.transform, "NovaEnemyOne", CombatUnit.UnitType.Enemy, speed: 6, attack: 10, defense: 0, hp: 100);
+        CombatUnit enemyTwo = CreateUnit(unitsRoot.transform, "NovaEnemyTwo", CombatUnit.UnitType.Enemy, speed: 5, attack: 10, defense: 0, hp: 100);
+        manager.RegisterUnit(caster);
+        manager.RegisterUnit(enemyOne);
+        manager.RegisterUnit(enemyTwo);
+        manager.Momentum.ShiftTowardPlayer(1f);
+
+        TideBreakData nova = ScriptableObject.CreateInstance<TideBreakData>();
+        nova.abilityName = "Tidal Nova";
+        nova.targetType = SkillTarget.AllEnemies;
+        nova.damageMultiplier = 1f;
+        try
+        {
+            InvokePrivate(manager, "ResolveTideBreak", caster, null, nova);
+
+            Assert.Less(enemyOne.HP, 100, "AllEnemies Tide Break should damage the first enemy.");
+            Assert.Less(enemyTwo.HP, 100, "AllEnemies Tide Break should damage the second enemy.");
+            Assert.That(manager.Momentum.Value, Is.EqualTo(0f).Within(0.0001f), "Using a Tide Break should consume and reset momentum.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(nova);
+        }
+    }
+
+    [Test]
+    public void StatusEffectDurationExpiresAfterConfiguredTurns()
+    {
+        CombatUnit unit = CreateUnit(unitsRoot.transform, "DurationUnit", CombatUnit.UnitType.Ally, speed: 10, attack: 10, defense: 0, hp: 50);
+        unit.ApplyStatusEffect(new StatusEffect(StatusEffectType.BuffAttack, 2, 0.2f, "Test"));
+
+        unit.ProcessTurnStartEffects();
+        Assert.AreEqual(1, unit.ActiveEffects[0].Duration, "Effect duration should tick down once per turn start.");
+
+        unit.ProcessTurnStartEffects();
+        Assert.AreEqual(0, unit.ActiveEffects.Count, "Effect should expire when its duration reaches zero.");
+        Assert.AreEqual(0f, unit.GetAttackModifier(), 0.0001f, "An expired buff must no longer modify attack.");
+    }
+
+    private static bool HasStatusEffect(CombatUnit unit, StatusEffectType type)
+    {
+        if (unit == null)
+        {
+            return false;
+        }
+
+        IReadOnlyList<StatusEffect> effects = unit.ActiveEffects;
+        for (int i = 0; i < effects.Count; i++)
+        {
+            if (effects[i] != null && effects[i].Type == type)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static CombatUnit CreateUnit(

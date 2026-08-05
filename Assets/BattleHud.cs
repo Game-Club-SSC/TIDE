@@ -39,6 +39,7 @@ public class BattleHud : MonoBehaviour
     private GameObject victoryOverlay;
     private GameObject defeatOverlay;
     private Text xpRewardText;
+    private Text gearDropText;
 
     // Clash announcement
     private GameObject clashOverlay;
@@ -933,6 +934,11 @@ public class BattleHud : MonoBehaviour
         if (victoryOverlay != null)
             victoryOverlay.SetActive(isVictory);
 
+        if (!isVictory && gearDropText != null)
+        {
+            gearDropText.text = "";
+        }
+
         if (isVictory && xpRewardText != null && HeroProgressionManager.Instance != null)
         {
             int totalXp = HeroProgressionManager.Instance.GetTotalXpFromEnemies(battleManager);
@@ -1009,7 +1015,7 @@ public class BattleHud : MonoBehaviour
 
         if (supportedSkillCount <= 0)
         {
-            Debug.Log("[BattleHud] All available skills are deferred for this milestone.");
+            Debug.Log("[BattleHud] No usable skill available for current unit.");
             return;
         }
 
@@ -1036,14 +1042,21 @@ public class BattleHud : MonoBehaviour
             return;
         }
 
-        if (!battleManager.IsSkillSupportedForCurrentSlice(skill))
-        {
-            Debug.Log($"[BattleHud] {skill.skillName} target {skill.target} is deferred for this milestone.");
-            return;
-        }
-
         battleManager.SetPendingSkill(skill);
-        ShowTargetSelection(CombatActionType.Skill);
+
+        switch (skill.target)
+        {
+            case SkillTarget.SingleEnemy:
+                ShowTargetSelection(CombatActionType.Skill);
+                break;
+            case SkillTarget.SingleAlly:
+                ShowAllySelection(CombatActionType.Skill);
+                break;
+            default:
+                // Self / AllAllies / AllEnemies resolve without a picked target.
+                battleManager.TryAssignActionFromHud(CombatActionType.Skill, null);
+                break;
+        }
     }
 
     private void ShowSkillSelectionPanel(CombatUnit actor)
@@ -1172,7 +1185,7 @@ public class BattleHud : MonoBehaviour
 
         if (supportedAbilities.Count == 0)
         {
-            Debug.LogWarning("[BattleHud] All TideBreak abilities are deferred for this milestone.");
+            Debug.LogWarning("[BattleHud] No usable TideBreak abilities available.");
             tideBreakPanelRequestedOpen = false;
             tideBreakPanel.SetActive(false);
             return;
@@ -1227,25 +1240,20 @@ public class BattleHud : MonoBehaviour
         tideBreakPanel.SetActive(false);
         if (battleManager == null) return;
 
-        if (!battleManager.IsTideBreakSupportedForCurrentSlice(ability))
-        {
-            Debug.LogWarning($"[BattleHud] {ability.abilityName} target {ability.targetType} is deferred for this milestone.");
-            return;
-        }
-        
         battleManager.SetPendingTideBreak(ability);
         
-        if (ability.targetType == SkillTarget.AllEnemies)
+        switch (ability.targetType)
         {
-            battleManager.TryAssignActionFromHud(CombatActionType.TideBreak, null);
-        }
-        else if (ability.targetType == SkillTarget.SingleEnemy)
-        {
-            ShowTargetSelection(CombatActionType.TideBreak);
-        }
-        else
-        {
-            Debug.LogWarning($"[BattleHud] {ability.abilityName} has unsupported Tide Break target type {ability.targetType} for this milestone.");
+            case SkillTarget.SingleEnemy:
+                ShowTargetSelection(CombatActionType.TideBreak);
+                break;
+            case SkillTarget.SingleAlly:
+                ShowAllySelection(CombatActionType.TideBreak);
+                break;
+            default:
+                // AllEnemies / AllAllies / Self resolve without a picked target.
+                battleManager.TryAssignActionFromHud(CombatActionType.TideBreak, null);
+                break;
         }
     }
 
@@ -1285,13 +1293,14 @@ public class BattleHud : MonoBehaviour
                 return;
             }
 
-            if (autoSelect != null && autoSelect.targetType != SkillTarget.AllEnemies)
+            if (autoSelect != null && autoSelect.targetType == SkillTarget.SingleAlly)
             {
-                Debug.LogWarning($"[BattleHud] {autoSelect.abilityName} has unsupported Tide Break target type {autoSelect.targetType} for this milestone.");
+                ShowAllySelection(CombatActionType.TideBreak);
                 return;
             }
 
-            // No supported custom ability available falls back to default player Tide Break (AllEnemies).
+            // AllEnemies / AllAllies / Self resolve without a picked target; with no custom
+            // ability this falls back to the default player Tide Break (AllEnemies).
             battleManager.TryAssignActionFromHud(CombatActionType.TideBreak, null);
         }
     }
@@ -1750,7 +1759,34 @@ public class BattleHud : MonoBehaviour
         xpRewardText.text = "";
         xpRewardText.raycastTarget = false;
 
+        GameObject gearDropObj = new GameObject("GearDropText", typeof(RectTransform));
+        gearDropObj.transform.SetParent(victoryOverlay.transform, false);
+        gearDropText = gearDropObj.AddComponent<Text>();
+        RectTransform gearDropRect = gearDropText.rectTransform;
+        gearDropRect.anchorMin = new Vector2(0.2f, 0.05f);
+        gearDropRect.anchorMax = new Vector2(0.8f, 0.18f);
+        gearDropRect.offsetMin = Vector2.zero;
+        gearDropRect.offsetMax = Vector2.zero;
+        gearDropText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        gearDropText.fontSize = 24;
+        gearDropText.fontStyle = FontStyle.Bold;
+        gearDropText.alignment = TextAnchor.MiddleCenter;
+        gearDropText.color = new Color(0.6f, 0.9f, 1f);
+        gearDropText.text = "";
+        gearDropText.raycastTarget = false;
+
         victoryOverlay.SetActive(false);
+    }
+
+    /// <summary>Shows a freshly awarded gear drop on the victory overlay (battle results exposure).</summary>
+    public void ShowGearDrop(string message)
+    {
+        if (gearDropText == null)
+        {
+            return;
+        }
+
+        gearDropText.text = string.IsNullOrEmpty(message) ? string.Empty : $"Gear acquired: {message}";
     }
 
     private void CreateDefeatOverlay(Transform parent)

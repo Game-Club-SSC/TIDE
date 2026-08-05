@@ -787,7 +787,7 @@ public class MobileTouchInputManager : MonoBehaviour
             btn.onClick.AddListener(() =>
             {
                 bm.SetPendingSkill(capturedSkill);
-                bm.TryAssignActionFromHud(CombatActionType.Skill, null);
+                bm.TryAssignActionFromHud(CombatActionType.Skill, FindAutoTargetForSkill(bm, capturedSkill, currentUnit));
                 skillPopupPanel.SetActive(false);
             });
         }
@@ -853,12 +853,45 @@ public class MobileTouchInputManager : MonoBehaviour
         if (supportedCount == 1 && onlySkill != null)
         {
             bm.SetPendingSkill(onlySkill);
-            bm.TryAssignActionFromHud(CombatActionType.Skill, null);
+            bm.TryAssignActionFromHud(CombatActionType.Skill, FindAutoTargetForSkill(bm, onlySkill, currentUnit));
             return;
         }
 
         // Multiple skills: show popup
         PopulateSkillPopup(bm);
+    }
+
+    private CombatUnit FindAutoTargetForSkill(BattleManager bm, SkillData skill, CombatUnit actor)
+    {
+        if (skill == null || actor == null)
+        {
+            return null;
+        }
+
+        switch (skill.target)
+        {
+            case SkillTarget.SingleEnemy:
+                return FindFirstAliveUnitOfType(bm, CombatUnit.UnitType.Enemy);
+            case SkillTarget.SingleAlly:
+                return FindFirstAliveUnitOfType(bm, CombatUnit.UnitType.Ally);
+            default:
+                // Self / AllAllies / AllEnemies do not require a picked target.
+                return null;
+        }
+    }
+
+    private CombatUnit FindFirstAliveUnitOfType(BattleManager bm, CombatUnit.UnitType type)
+    {
+        IReadOnlyList<CombatUnit> units = type == CombatUnit.UnitType.Ally ? bm.AllyUnits : bm.EnemyUnits;
+        for (int i = 0; i < units.Count; i++)
+        {
+            if (units[i] != null && units[i].IsAlive)
+            {
+                return units[i];
+            }
+        }
+
+        return null;
     }
 
     private void OnBattleDefend()
