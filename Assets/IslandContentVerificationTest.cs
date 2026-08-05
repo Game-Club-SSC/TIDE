@@ -272,7 +272,55 @@ public class IslandContentVerificationTest : MonoBehaviour
     {
         IslandConfig[] configs = Resources.LoadAll<IslandConfig>("Islands");
         Assert.IsNotNull(configs, "Should load island configs from Resources/Islands/.");
-        return configs;
+
+        // The central hub island is canonical but intentionally NOT a corrupted
+        // island: no restoration work, no encounters. Exclude it so the returned
+        // set is exactly the corrupted vertical-slice islands.
+        List<IslandConfig> corruptedConfigs = new List<IslandConfig>();
+        for (int i = 0; i < configs.Length; i++)
+        {
+            IslandConfig config = configs[i];
+            if (config != null && IslandThemeRegistry.IsHubIslandId(config.islandId))
+            {
+                continue;
+            }
+
+            corruptedConfigs.Add(config);
+        }
+
+        return corruptedConfigs.ToArray();
+    }
+
+    [Test]
+    public void HubIslandConfigIsCanonicalAndExempt()
+    {
+        Debug.Log("Testing hub island config is canonical and exempt from progression...");
+
+        IslandConfig[] configs = Resources.LoadAll<IslandConfig>("Islands");
+        Assert.IsNotNull(configs, "Should load island configs from Resources/Islands/.");
+
+        int hubCount = 0;
+        for (int i = 0; i < configs.Length; i++)
+        {
+            IslandConfig config = configs[i];
+            if (config != null && IslandThemeRegistry.IsHubIslandId(config.islandId))
+            {
+                hubCount++;
+                Assert.False(string.IsNullOrEmpty(config.viceName),
+                    $"Hub island '{config.islandId}' has empty viceName.");
+            }
+        }
+
+        Assert.AreEqual(1, hubCount,
+            $"Should be exactly one hub island config with islandId '{IslandThemeRegistry.HubIslandId}'.");
+
+        for (int i = 0; i < IslandThemeRegistry.ProgressionOrder.Count; i++)
+        {
+            Assert.AreNotEqual(IslandThemeRegistry.HubIslandId, IslandThemeRegistry.ProgressionOrder[i],
+                $"Hub island '{IslandThemeRegistry.HubIslandId}' must not appear in the progression order.");
+        }
+
+        Debug.Log("  Hub island canonical and exempt verified");
     }
 
     private static void AssertApproximately(float actual, float expected, string message)

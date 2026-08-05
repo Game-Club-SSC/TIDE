@@ -91,6 +91,13 @@ public class IslandBacktrackingManager : MonoBehaviour
             return false;
         }
 
+        // The central hub is always accessible for return travel; it is not part
+        // of the corruption progression or backtracking rule set.
+        if (IslandThemeRegistry.IsHubIslandId(resolvedId))
+        {
+            return true;
+        }
+
         // Always allow visiting the current active island
         IslandProgressionManager progressionManager = IslandProgressionManager.Instance;
         if (progressionManager != null

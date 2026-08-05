@@ -231,6 +231,30 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
                 };
                 break;
 
+            case "island_hub":
+                npc.npcName = "Harbormaster Wren";
+                npc.islandId = "island_hub";
+                npc._tribeName = "Tidehaven";
+                npc.requiredAct = GameStateManager.StoryAct.ActI;
+                npc.refuseToShareTruthLines = new[]
+                {
+                    "Welcome to Tidehaven, traveler. The boats are moored and the fires are lit.",
+                    "The six corrupted isles ring this harbor. Each is lost to its own sin.",
+                    "Restore a land and its tide will turn. The harbor remembers every voyage.",
+                    "The smith and the quartermaster are at your service before you set sail."
+                };
+                npc.hintLines = new[]
+                {
+                    "The wayward isles are not all open at once. The tide opens them as you restore others.",
+                    "If you are ever lost, the boat is never far. It always knows the way home."
+                };
+                npc.postRevelationLines = new[]
+                {
+                    "You have seen what the isles keep hidden. Tidehaven is proud to call you kin.",
+                    "The harbor lights will always guide you back, no matter how deep the corruption runs."
+                };
+                break;
+
             default:
                 Debug.LogWarning($"[TribeLeaderNPC] No preset defined for island '{islandKey}'.");
                 break;
