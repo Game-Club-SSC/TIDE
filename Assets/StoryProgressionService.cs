@@ -221,6 +221,16 @@ public class StoryProgressionService : MonoBehaviour
         Debug.Log("[StoryProgressionService] Applied state to GameStateManager.");
     }
 
+    /// <summary>
+    /// Clears only the story flags, leaving act/ending state untouched.
+    /// Used by the new-game/reset flow so dialogue-set flags cannot leak into a
+    /// fresh playthrough (issue #297).
+    /// </summary>
+    public void ClearFlagsForDebug()
+    {
+        storyFlags.Clear();
+    }
+
     public void ResetForDebug()
     {
         currentAct = StoryAct.None;

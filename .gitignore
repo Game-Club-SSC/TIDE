@@ -102,3 +102,9 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Agent tooling dirs (do not commit)
+.freebuff/
+.medley/
+.local-untracked-backup/
+${CLAUDE_PLUGIN_DATA}/
