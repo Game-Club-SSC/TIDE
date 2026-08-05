@@ -60,6 +60,452 @@ public class DialogueSystem : MonoBehaviour
     private GameObject activeTreeRunnerObj;
     private bool isDialogueActive;
 
+    // ------------------------------------------------------------------ //
+    //  Dialogue narrative state (issue #297)
+    //  Durable ledger for authored dialogue effects: story flags, Tide Break
+    //  unlocks, and one-shot rewards. Captured by GameStateManager into the
+    //  top-level "dialogueState" save section and restored on load.
+    // ------------------------------------------------------------------ //
+
+    private readonly Dictionary<string, bool> dialogueFlags = new Dictionary<string, bool>(StringComparer.Ordinal);
+    private readonly HashSet<string> unlockedTideBreakKeys = new HashSet<string>(StringComparer.Ordinal);
+    private readonly HashSet<string> grantedRewardKeys = new HashSet<string>(StringComparer.Ordinal);
+    private readonly List<DialoguePendingRewardEntry> pendingRewards = new List<DialoguePendingRewardEntry>();
+
+    /// <summary>True if the dialogue ledger has the flag recorded (regardless of live service state).</summary>
+    public bool IsDialogueFlagSet(string flagId)
+    {
+        return !string.IsNullOrEmpty(flagId) && dialogueFlags.TryGetValue(flagId, out bool value) && value;
+    }
+
+    /// <summary>True if the one-shot reward keyed by treeId|nodeId|effectIndex was already delivered.</summary>
+    public bool HasGrantedReward(string rewardKey)
+    {
+        return !string.IsNullOrEmpty(rewardKey) && grantedRewardKeys.Contains(rewardKey);
+    }
+
+    public static string MakeRewardKey(string treeId, string nodeId, int effectIndex)
+    {
+        return $"{treeId ?? string.Empty}|{nodeId ?? string.Empty}|{effectIndex}";
+    }
+
+    public static string MakeTideBreakUnlockKey(string heroId, string abilityName)
+    {
+        return $"{heroId ?? string.Empty}|{abilityName ?? string.Empty}";
+    }
+
+    /// <summary>
+    /// Applies an authored dialogue effect to durable gameplay state. Successful
+    /// one-shot effects are recorded in the granted ledger so a replayed tree
+    /// (or a save/load cycle) never delivers them twice. Effects that cannot be
+    /// applied because a target service is missing are kept in the pending
+    /// ledger with full details — never silently discarded — and are retried
+    /// when the save data is applied again.
+    /// </summary>
+    public bool ApplyDialogueEffect(DialogueTreeEffect effect, string heroId, string treeId, string nodeId, int effectIndex)
+    {
+        if (effect == null)
+        {
+            return false;
+        }
+
+        string rewardKey = MakeRewardKey(treeId, nodeId, effectIndex);
+
+        // Flags are idempotent and persisted through their own list; every
+        // other effect type is one-shot per tree node.
+        bool isOneShot = effect.type != DialogueEffectType.SetFlag;
+        if (isOneShot && !string.IsNullOrEmpty(rewardKey) && grantedRewardKeys.Contains(rewardKey))
+        {
+            return true; // already delivered on an earlier walk of this tree
+        }
+
+        bool applied = TryApplyEffectToServices(effect, heroId);
+
+        if (effect.type == DialogueEffectType.SetFlag && !string.IsNullOrEmpty(effect.targetId))
+        {
+            // Persist the flag even when StoryProgressionService is absent; it
+            // is pushed into the service on the next save load.
+            dialogueFlags[effect.targetId] = effect.intValue != 0;
+        }
+
+        if (applied)
+        {
+            if (isOneShot && !string.IsNullOrEmpty(rewardKey))
+            {
+                grantedRewardKeys.Add(rewardKey);
+            }
+
+            if (effect.type == DialogueEffectType.UnlockTideBreak
+                && !string.IsNullOrEmpty(effect.targetId)
+                && !string.IsNullOrEmpty(heroId))
+            {
+                unlockedTideBreakKeys.Add(MakeTideBreakUnlockKey(heroId, effect.targetId));
+            }
+        }
+        else
+        {
+            pendingRewards.Add(new DialoguePendingRewardEntry
+            {
+                treeId = treeId,
+                nodeId = nodeId,
+                effectIndex = effectIndex,
+                effectType = (int)effect.type,
+                targetId = effect.targetId,
+                intValue = effect.intValue,
+                heroId = heroId
+            });
+            Debug.LogWarning($"[DialogueSystem] Dialogue effect '{effect.type}' (targetId='{effect.targetId}', intValue={effect.intValue}) could not be applied now; queued as a pending reward (tree '{treeId}', node '{nodeId}', effect {effectIndex}). It will be retried on the next save load.");
+        }
+
+        return applied;
+    }
+
+    /// <summary>
+    /// Attempts to apply an authored dialogue effect directly to the live
+    /// gameplay services. Logs an error with the full effect details when a
+    /// required service is missing so the effect is never silently dropped.
+    /// Never throws.
+    /// </summary>
+    public static bool TryApplyEffectToServices(DialogueTreeEffect effect, string heroId)
+    {
+        if (effect == null)
+        {
+            return false;
+        }
+
+        switch (effect.type)
+        {
+            case DialogueEffectType.GrantXP:
+                return TryApplyGrantXp(effect);
+
+            case DialogueEffectType.UnlockTideBreak:
+                return TryApplyUnlockTideBreak(effect, heroId);
+
+            case DialogueEffectType.SetFlag:
+                return TryApplySetFlag(effect);
+
+            case DialogueEffectType.GiveItem:
+                return TryApplyGiveItem(effect);
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryApplyGrantXp(DialogueTreeEffect effect)
+    {
+        if (string.IsNullOrEmpty(effect.targetId) || effect.intValue <= 0)
+        {
+            return false;
+        }
+
+        HeroProgressionManager progression = HeroProgressionManager.Instance;
+        if (progression == null)
+        {
+            LogEffectFailure(effect, null, "HeroProgressionManager is not available.");
+            return false;
+        }
+
+        progression.GrantXp(effect.targetId, effect.intValue);
+        return true;
+    }
+
+    private static bool TryApplyUnlockTideBreak(DialogueTreeEffect effect, string heroId)
+    {
+        if (string.IsNullOrEmpty(effect.targetId))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(heroId))
+        {
+            LogEffectFailure(effect, null, "the dialogue node has no relatedHeroId to attach the Tide Break unlock to.");
+            return false;
+        }
+
+        TideBreakProgressionManager tideBreaks = TideBreakProgressionManager.Instance;
+        if (tideBreaks == null)
+        {
+            LogEffectFailure(effect, heroId, "TideBreakProgressionManager is not available.");
+            return false;
+        }
+
+        if (tideBreaks.HasTideBreak(heroId, effect.targetId))
+        {
+            return true; // idempotent: already unlocked
+        }
+
+        bool unlocked = tideBreaks.UnlockTideBreak(heroId, effect.targetId);
+        if (!unlocked)
+        {
+            LogEffectFailure(effect, heroId, $"no TideBreak named '{effect.targetId}' exists in the TideBreakData catalog.");
+        }
+
+        return unlocked;
+    }
+
+    private static bool TryApplySetFlag(DialogueTreeEffect effect)
+    {
+        if (string.IsNullOrEmpty(effect.targetId))
+        {
+            return false;
+        }
+
+        StoryProgressionService story = StoryProgressionService.Instance;
+        if (story == null)
+        {
+            LogEffectFailure(effect, null, "StoryProgressionService is not available; the flag is recorded in the dialogue ledger and will be applied on the next save load.");
+            return false;
+        }
+
+        story.SetFlag(effect.targetId, effect.intValue != 0);
+        return true;
+    }
+
+    private static bool TryApplyGiveItem(DialogueTreeEffect effect)
+    {
+        if (effect.intValue <= 0)
+        {
+            return false;
+        }
+
+        HeroProgressionManager progression = HeroProgressionManager.Instance;
+
+        // Gear rewards: the effect's item id resolves against registered gear sets.
+        if (!string.IsNullOrEmpty(effect.targetId) && IsKnownGearSetId(effect.targetId))
+        {
+            PlayerGearInventory inventory = PlayerGearInventory.Instance;
+            if (inventory == null)
+            {
+                LogEffectFailure(effect, null, $"the item id '{effect.targetId}' is a registered gear set but PlayerGearInventory is not available.");
+                return false;
+            }
+
+            GearInstance awarded = inventory.AddGear(effect.targetId, GearDropService.GearRarity.Common);
+            if (awarded != null)
+            {
+                return true;
+            }
+
+            LogEffectFailure(effect, null, $"gear award for '{effect.targetId}' failed despite a registered gear set.");
+            return false;
+        }
+
+        // Non-gear items fall back to the legacy currency reward.
+        if (progression == null)
+        {
+            LogEffectFailure(effect, null, "the item id is not a registered gear set and HeroProgressionManager is not available for the currency fallback.");
+            return false;
+        }
+
+        progression.AddCurrency(effect.intValue);
+        return true;
+    }
+
+    private static bool IsKnownGearSetId(string gearSetId)
+    {
+        HeroProgressionManager progression = HeroProgressionManager.Instance;
+        GearSetData[] sets = progression != null ? progression.AvailableGearSets : null;
+        if (sets == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < sets.Length; i++)
+        {
+            if (sets[i] != null && sets[i].setId == gearSetId)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void LogEffectFailure(DialogueTreeEffect effect, string heroId, string reason)
+    {
+        Debug.LogError($"[DialogueSystem] Dialogue effect not applied: type={effect.type}, targetId='{effect.targetId}', intValue={effect.intValue}, heroId='{heroId ?? "null"}'. Reason: {reason}");
+    }
+
+    // ------------------------------------------------------------------ //
+    //  Dialogue state save / restore (top-level "dialogueState" section)
+    // ------------------------------------------------------------------ //
+
+    [Serializable]
+    public sealed class DialogueStateSaveData
+    {
+        public List<string> setFlagIds = new List<string>();
+        public List<bool> setFlagValues = new List<bool>();
+        public List<string> unlockedTideBreakHeroIds = new List<string>();
+        public List<string> unlockedTideBreakNames = new List<string>();
+        public List<string> grantedRewardKeys = new List<string>();
+        public List<DialoguePendingRewardEntry> pendingRewards = new List<DialoguePendingRewardEntry>();
+    }
+
+    [Serializable]
+    public sealed class DialoguePendingRewardEntry
+    {
+        public string treeId;
+        public string nodeId;
+        public int effectIndex;
+        public int effectType;
+        public string targetId;
+        public int intValue;
+        public string heroId;
+    }
+
+    public DialogueStateSaveData CaptureDialogueStateSaveData()
+    {
+        DialogueStateSaveData saveData = new DialogueStateSaveData();
+
+        foreach (KeyValuePair<string, bool> pair in dialogueFlags)
+        {
+            saveData.setFlagIds.Add(pair.Key);
+            saveData.setFlagValues.Add(pair.Value);
+        }
+
+        foreach (string key in unlockedTideBreakKeys)
+        {
+            string[] parts = key.Split('|');
+            saveData.unlockedTideBreakHeroIds.Add(parts.Length > 0 ? parts[0] : string.Empty);
+            saveData.unlockedTideBreakNames.Add(parts.Length > 1 ? parts[1] : string.Empty);
+        }
+
+        foreach (string key in grantedRewardKeys)
+        {
+            if (!string.IsNullOrEmpty(key))
+            {
+                saveData.grantedRewardKeys.Add(key);
+            }
+        }
+
+        if (pendingRewards.Count > 0)
+        {
+            saveData.pendingRewards = new List<DialoguePendingRewardEntry>(pendingRewards);
+        }
+
+        return saveData;
+    }
+
+    public void ApplyDialogueStateSaveData(DialogueStateSaveData saveData)
+    {
+        if (saveData == null)
+        {
+            return;
+        }
+
+        grantedRewardKeys.Clear();
+        if (saveData.grantedRewardKeys != null)
+        {
+            for (int i = 0; i < saveData.grantedRewardKeys.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(saveData.grantedRewardKeys[i]))
+                {
+                    grantedRewardKeys.Add(saveData.grantedRewardKeys[i]);
+                }
+            }
+        }
+
+        unlockedTideBreakKeys.Clear();
+        if (saveData.unlockedTideBreakHeroIds != null && saveData.unlockedTideBreakNames != null)
+        {
+            int count = Mathf.Min(saveData.unlockedTideBreakHeroIds.Count, saveData.unlockedTideBreakNames.Count);
+            for (int i = 0; i < count; i++)
+            {
+                if (!string.IsNullOrEmpty(saveData.unlockedTideBreakNames[i]))
+                {
+                    unlockedTideBreakKeys.Add(MakeTideBreakUnlockKey(saveData.unlockedTideBreakHeroIds[i], saveData.unlockedTideBreakNames[i]));
+                }
+            }
+        }
+
+        // Push restored unlocks into the Tide Break progression manager.
+        if (TideBreakProgressionManager.Instance != null)
+        {
+            foreach (string key in unlockedTideBreakKeys)
+            {
+                string[] parts = key.Split('|');
+                if (parts.Length == 2 && !string.IsNullOrEmpty(parts[0]) && !string.IsNullOrEmpty(parts[1]))
+                {
+                    TideBreakProgressionManager.Instance.UnlockTideBreak(parts[0], parts[1]);
+                }
+            }
+        }
+
+        dialogueFlags.Clear();
+        if (saveData.setFlagIds != null && saveData.setFlagValues != null)
+        {
+            int count = Mathf.Min(saveData.setFlagIds.Count, saveData.setFlagValues.Count);
+            for (int i = 0; i < count; i++)
+            {
+                if (!string.IsNullOrEmpty(saveData.setFlagIds[i]))
+                {
+                    dialogueFlags[saveData.setFlagIds[i]] = saveData.setFlagValues[i];
+                }
+            }
+        }
+
+        // Push restored flags into StoryProgressionService (what conditions read).
+        if (StoryProgressionService.Instance != null)
+        {
+            foreach (KeyValuePair<string, bool> pair in dialogueFlags)
+            {
+                StoryProgressionService.Instance.SetFlag(pair.Key, pair.Value);
+            }
+        }
+
+        // Retry pending rewards now that services are (hopefully) present.
+        pendingRewards.Clear();
+        if (saveData.pendingRewards != null)
+        {
+            for (int i = 0; i < saveData.pendingRewards.Count; i++)
+            {
+                DialoguePendingRewardEntry entry = saveData.pendingRewards[i];
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                DialogueTreeEffect effect = new DialogueTreeEffect
+                {
+                    type = (DialogueEffectType)entry.effectType,
+                    targetId = entry.targetId,
+                    intValue = entry.intValue
+                };
+
+                if (TryApplyEffectToServices(effect, entry.heroId))
+                {
+                    if (entry.effectType != (int)DialogueEffectType.SetFlag)
+                    {
+                        grantedRewardKeys.Add(MakeRewardKey(entry.treeId, entry.nodeId, entry.effectIndex));
+                    }
+
+                    if (entry.effectType == (int)DialogueEffectType.UnlockTideBreak
+                        && !string.IsNullOrEmpty(entry.targetId)
+                        && !string.IsNullOrEmpty(entry.heroId))
+                    {
+                        unlockedTideBreakKeys.Add(MakeTideBreakUnlockKey(entry.heroId, entry.targetId));
+                    }
+                }
+                else
+                {
+                    // Service still missing; keep the entry so the next load retries it.
+                    pendingRewards.Add(entry);
+                }
+            }
+        }
+
+        Debug.Log($"[DialogueSystem] Restored dialogue state: {dialogueFlags.Count} flags, {unlockedTideBreakKeys.Count} Tide Break unlocks, {grantedRewardKeys.Count} granted rewards, {pendingRewards.Count} pending.");
+    }
+
+    public void ResetDialogueStateForDebug()
+    {
+        dialogueFlags.Clear();
+        unlockedTideBreakKeys.Clear();
+        grantedRewardKeys.Clear();
+        pendingRewards.Clear();
+    }
+
     /// <summary>Fired when a dialogue sequence completes. Passes the list of entries shown.</summary>
     public event Action<List<DialogueEntry>> OnDialogueCompleted;
 
