@@ -287,12 +287,6 @@ public class BattleEscapeMenu : MonoBehaviour
             return;
         }
 
-        if (!battleManager.IsSkillSupportedForCurrentSlice(skill))
-        {
-            Debug.LogWarning($"[BattleEscapeMenu] Skill '{skill.skillName}' is not supported in the current milestone.");
-            return;
-        }
-
         CloseSubPanel(abilitiesPanel);
         SetMenuOpen(false);
 
@@ -315,7 +309,10 @@ public class BattleEscapeMenu : MonoBehaviour
                 return actor;
             case SkillTarget.SingleAlly:
             case SkillTarget.AllAllies:
-                return FindFirstAliveUnit(CombatUnit.UnitType.Ally, actor);
+            {
+                CombatUnit ally = FindFirstAliveUnit(CombatUnit.UnitType.Ally, actor);
+                return ally != null ? ally : actor;
+            }
             case SkillTarget.SingleEnemy:
             case SkillTarget.AllEnemies:
             default:

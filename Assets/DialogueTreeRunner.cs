@@ -43,6 +43,9 @@ public class DialogueTreeRunner : MonoBehaviour
     private bool waitingForAdvance;
     private Coroutine typewriterRoutine;
 
+    /// <summary>Human-readable issues for effects that could not be applied, surfaced in the dialogue panel.</summary>
+    private readonly List<string> effectDeliveryIssues = new List<string>();
+
     /// <summary>Fired when the tree finishes. Passes the treeId.</summary>
     public event Action<string> OnTreeCompleted;
 
@@ -64,6 +67,7 @@ public class DialogueTreeRunner : MonoBehaviour
 
         tree = dialogueTree;
         BuildNodeLookup();
+        effectDeliveryIssues.Clear();
 
         LockPlayerMovement(true);
         EnsureCanvas();
@@ -231,8 +235,18 @@ public class DialogueTreeRunner : MonoBehaviour
             StopCoroutine(typewriterRoutine);
         }
 
+        // Surface any authored effects that could not be applied: they are
+        // queued durably, so the player is told instead of the reward silently
+        // vanishing.
+        string displayText = entry.dialogueText;
+        if (effectDeliveryIssues.Count > 0)
+        {
+            displayText += "\n\n<color=#ff8a8a>" + string.Join(" ", effectDeliveryIssues) + "</color>";
+            effectDeliveryIssues.Clear();
+        }
+
         skipRequested = false;
-        typewriterRoutine = StartCoroutine(TypewriterRoutine(entry.dialogueText));
+        typewriterRoutine = StartCoroutine(TypewriterRoutine(displayText));
     }
 
     // ------------------------------------------------------------------ //
@@ -562,70 +576,68 @@ public class DialogueTreeRunner : MonoBehaviour
                     break;
 
                 case DialogueEffectType.GrantXP:
-                    if (!string.IsNullOrEmpty(effect.targetId) && effect.intValue > 0)
-                    {
-                        if (HeroProgressionManager.Instance != null)
-                        {
-                            HeroProgressionManager.Instance.GrantXp(effect.targetId, effect.intValue);
-                        }
-                        else
-                        {
-                            Debug.LogWarning("[DialogueTreeRunner] HeroProgressionManager not available for GrantXP effect.");
-                        }
-                    }
-                    break;
-
                 case DialogueEffectType.UnlockTideBreak:
-                    if (!string.IsNullOrEmpty(effect.targetId))
-                    {
-                        if (TideBreakProgressionManager.Instance != null)
-                        {
-                            string heroId = currentNode.entry.relatedHeroId;
-                            if (!string.IsNullOrEmpty(heroId))
-                            {
-                                TideBreakProgressionManager.Instance.RevealHiddenTideBreak(heroId, effect.targetId);
-                            }
-                            else
-                            {
-                                Debug.LogWarning("[DialogueTreeRunner] No relatedHeroId for UnlockTideBreak effect.");
-                            }
-                        }
-                        else
-                        {
-                            Debug.LogWarning("[DialogueTreeRunner] TideBreakProgressionManager not available for UnlockTideBreak effect.");
-                        }
-                    }
-                    break;
-
                 case DialogueEffectType.SetFlag:
-                    if (!string.IsNullOrEmpty(effect.targetId))
-                    {
-                        if (StoryProgressionService.Instance != null)
-                        {
-                            StoryProgressionService.Instance.SetFlag(effect.targetId, effect.intValue != 0);
-                        }
-                        else
-                        {
-                            Debug.LogWarning("[DialogueTreeRunner] StoryProgressionService not available for SetFlag effect.");
-                        }
-                    }
-                    break;
-
                 case DialogueEffectType.GiveItem:
-                    if (effect.intValue > 0)
-                    {
-                        if (HeroProgressionManager.Instance != null)
-                        {
-                            HeroProgressionManager.Instance.AddCurrency(effect.intValue);
-                        }
-                        else
-                        {
-                            Debug.LogWarning("[DialogueTreeRunner] HeroProgressionManager not available for GiveItem effect.");
-                        }
-                    }
+                    ApplyDurableEffect(effect, i);
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Routes a durable effect (XP, Tide Break unlock, story flag, item/gear
+    /// reward) through <see cref="DialogueSystem.ApplyDialogueEffect"/> so it is
+    /// written to gameplay state AND recorded in the persistent dialogue ledger
+    /// (never silently discarded, never double-delivered). Falls back to a direct
+    /// service application when no DialogueSystem is present.
+    /// </summary>
+    private void ApplyDurableEffect(DialogueTreeEffect effect, int effectIndex)
+    {
+        string heroId = currentNode != null
+            ? currentNode.entry.relatedHeroId
+            : null;
+        string treeId = tree != null ? tree.treeId : null;
+        string nodeId = currentNode != null ? currentNode.nodeId : null;
+
+        bool applied;
+        DialogueSystem sys = DialogueSystem.Instance;
+        if (sys != null)
+        {
+            applied = sys.ApplyDialogueEffect(effect, heroId, treeId, nodeId, effectIndex);
+        }
+        else
+        {
+            // No DialogueSystem: apply directly and warn on failure. Nothing is
+            // recorded, so a replayed tree can re-deliver — defense-in-depth only.
+            applied = DialogueSystem.TryApplyEffectToServices(effect, heroId);
+            if (!applied)
+            {
+                Debug.LogWarning($"[DialogueTreeRunner] Could not apply {effect.type} effect (targetId='{effect.targetId}', intValue={effect.intValue}) and no DialogueSystem is present to queue it.");
+            }
+        }
+
+        if (!applied)
+        {
+            RecordEffectDeliveryIssue(effect);
+        }
+    }
+
+    private void RecordEffectDeliveryIssue(DialogueTreeEffect effect)
+    {
+        string label;
+        switch (effect.type)
+        {
+            case DialogueEffectType.GrantXP: label = "XP"; break;
+            case DialogueEffectType.UnlockTideBreak: label = "Tide Break"; break;
+            case DialogueEffectType.SetFlag: label = "story flag"; break;
+            case DialogueEffectType.GiveItem: label = "item"; break;
+            default: label = "effect"; break;
+        }
+
+        string detail = $"{label} '{effect.targetId}' could not be delivered now; it is queued and will be applied on the next save load.";
+        effectDeliveryIssues.Add(detail);
+        Debug.LogWarning($"[DialogueTreeRunner] {detail}");
     }
 
     // ------------------------------------------------------------------ //

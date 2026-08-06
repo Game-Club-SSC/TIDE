@@ -41,6 +41,8 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
 
     [Header("Travel Destinations")]
     [SerializeField] private List<IslandDestination> destinations = new List<IslandDestination>();
+    [Tooltip("When enabled, the central hub (island_hub) is automatically added as a travel destination.")]
+    [SerializeField] private bool includeHubDestination = true;
     [SerializeField] private Vector3 defaultTravelOffset = new Vector3(6f, 0f, 0f);
     [SerializeField] private Vector3 fallbackSpawnPosition = DefaultFallbackSpawnPosition;
 
@@ -343,11 +345,33 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         // Resolve spawn position: prefer TeleportAnchor dock, fall back to configured offsets
         Vector3 destinationSpawn = ResolveDestinationSpawn(destinationIslandId, progressionManager, validation.Destination);
 
-        // Delegate to GameStateManager's fade pipeline (fade → teleport → snap camera → fade back)
-        if (!gameStateManager.TravelToIsland(destinationIslandId, destinationSpawn))
+        if (IslandThemeRegistry.IsHubIslandId(destinationIslandId))
         {
-            Debug.LogWarning($"[IslandBoatInteractable] GameStateManager rejected travel to '{destinationIslandId}'.");
-            return;
+            // Return travel to the hub switches scenes (HubScene) and always
+            // lands on the persisted hub return location.
+            if (!gameStateManager.TravelToHub(destinationSpawn))
+            {
+                Debug.LogWarning("[IslandBoatInteractable] GameStateManager rejected hub travel.");
+                return;
+            }
+        }
+        else if (IslandThemeRegistry.IsHubIslandId(fromIslandId))
+        {
+            // Departing the hub scene for a corrupted island loads the main scene.
+            if (!gameStateManager.TravelFromHubToIsland(destinationIslandId, destinationSpawn))
+            {
+                Debug.LogWarning($"[IslandBoatInteractable] GameStateManager rejected travel to '{destinationIslandId}'.");
+                return;
+            }
+        }
+        else
+        {
+            // Island-to-island travel repositions within the main scene.
+            if (!gameStateManager.TravelToIsland(destinationIslandId, destinationSpawn))
+            {
+                Debug.LogWarning($"[IslandBoatInteractable] GameStateManager rejected travel to '{destinationIslandId}'.");
+                return;
+            }
         }
 
         Debug.Log($"[IslandBoatInteractable] Traveled from '{fromIslandId}' to '{destinationIslandId}' at {destinationSpawn}.");
@@ -365,6 +389,27 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
         IslandProgressionManager progressionManager,
         TeleportAnchor dockAnchor)
     {
+        // The hub dock lives in the HubScene, so in-scene dock lookup always
+        // misses. Prefer the persisted hub return location, then the island
+        // return position recorded for the hub, then configured spawn.
+        if (IslandThemeRegistry.IsHubIslandId(destinationIslandId))
+        {
+            GameStateManager gameStateManager = GameStateManager.Instance;
+            if (gameStateManager != null
+                && gameStateManager.TryGetHubReturnPosition(out Vector3 hubReturn)
+                && IsFiniteVector(hubReturn))
+            {
+                return ResolveSafeSpawnPosition(hubReturn);
+            }
+
+            if (progressionManager != null
+                && progressionManager.TryGetIslandReturnPosition(destinationIslandId, out Vector3 hubIslandReturn)
+                && IsFiniteVector(hubIslandReturn))
+            {
+                return ResolveSafeSpawnPosition(hubIslandReturn);
+            }
+        }
+
         // 1. Prefer TeleportAnchor boat dock if available
         if (dockAnchor != null && IsFiniteVector(dockAnchor.SpawnPosition))
         {
@@ -529,8 +574,34 @@ public class IslandBoatInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             seenIds.Add(islandId);
         }
 
+        // Return travel: the central hub is always reachable from island boats.
+        // Boats placed inside the hub scene disable this so the hub is not its
+        // own destination.
+        if (includeHubDestination
+            && IslandThemeRegistry.IsKnownIslandId(IslandThemeRegistry.HubIslandId)
+            && !seenIds.Contains(IslandThemeRegistry.HubIslandId))
+        {
+            destinations.Add(CreateHubDestination());
+            seenIds.Add(IslandThemeRegistry.HubIslandId);
+        }
+
         destinations.Sort((left, right) => GetProgressionIndex(left.islandId).CompareTo(GetProgressionIndex(right.islandId)));
         RefreshDestinationOrder();
+    }
+
+    private IslandDestination CreateHubDestination()
+    {
+        return new IslandDestination
+        {
+            islandId = IslandThemeRegistry.HubIslandId,
+            displayName = string.Empty,
+            useCustomSpawnPosition = false,
+            customSpawnPosition = fallbackSpawnPosition,
+            boatOffset = new Vector3(
+                defaultTravelOffset.x + (IslandThemeRegistry.ProgressionOrder.Count - 1) * 1.8f + 3.6f,
+                defaultTravelOffset.y,
+                defaultTravelOffset.z)
+        };
     }
 
     private IslandDestination CreateDefaultDestination(string islandId, int progressionIndex)
@@ -984,6 +1055,13 @@ else
         if (progressionManager == null || string.IsNullOrEmpty(islandId))
         {
             return false;
+        }
+
+        // The central hub is a service hub, not a corrupted island: it has no
+        // restoration work and is always eligible for travel.
+        if (IslandThemeRegistry.IsHubIslandId(islandId))
+        {
+            return true;
         }
 
         if (string.Equals(progressionManager.ActiveIslandId, islandId, StringComparison.Ordinal))

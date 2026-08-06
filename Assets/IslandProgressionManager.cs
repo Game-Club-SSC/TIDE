@@ -105,7 +105,7 @@ public class IslandProgressionManager : MonoBehaviour
             return;
         }
 
-        if (!unlockedIslandIds.Contains(resolved))
+        if (!unlockedIslandIds.Contains(resolved) && !IslandThemeRegistry.IsHubIslandId(resolved))
         {
             Debug.LogWarning($"[IslandProgressionManager] Cannot set active island to locked id '{resolved}'.");
             return;
@@ -121,7 +121,7 @@ public class IslandProgressionManager : MonoBehaviour
             return false;
         }
 
-        if (!unlockedIslandIds.Contains(resolved))
+        if (!unlockedIslandIds.Contains(resolved) && !IslandThemeRegistry.IsHubIslandId(resolved))
         {
             return false;
         }
@@ -166,6 +166,13 @@ public class IslandProgressionManager : MonoBehaviour
         if (!TryResolveKnownIslandId(islandId, out string resolved))
         {
             return false;
+        }
+
+        // The central hub is always available: it is the travel/return hub and
+        // never participates in corruption unlock progression.
+        if (IslandThemeRegistry.IsHubIslandId(resolved))
+        {
+            return true;
         }
 
         return unlockedIslandIds.Contains(resolved);

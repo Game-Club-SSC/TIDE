@@ -220,6 +220,43 @@ public class TideBreakProgressionManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Force-unlocks a TideBreak for a hero by ability name, regardless of the
+    /// hidden flag, level requirement, or element match. Used by authored
+    /// dialogue UnlockTideBreak effects (issue #297) and by the dialogueState
+    /// save section on load. Returns false when the ability is already unlocked
+    /// or does not exist in the catalog.
+    /// </summary>
+    public bool UnlockTideBreak(string heroId, string abilityName)
+    {
+        if (string.IsNullOrEmpty(heroId) || string.IsNullOrEmpty(abilityName))
+        {
+            return false;
+        }
+
+        EnsureState(heroId);
+        HeroTideBreakState state = heroStates[heroId];
+
+        if (state.unlockedAbilityNames.Contains(abilityName))
+        {
+            return false;
+        }
+
+        TideBreakData[] all = GetAllTideBreaks();
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] != null && string.Equals(all[i].abilityName, abilityName, StringComparison.Ordinal))
+            {
+                state.unlockedAbilityNames.Add(abilityName);
+                Debug.Log($"[TideBreakProgressionManager] {heroId} unlocked TideBreak '{abilityName}' (dialogue effect).");
+                OnTideBreakUnlocked?.Invoke(heroId, all[i]);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Unlocks all non-hidden TideBreaks up to the given level for a hero.
     /// Useful when loading a save or for debug/testing.
     /// </summary>

@@ -28,6 +28,7 @@ public class GearInstance
     [NonSerialized] public GearSetData template;
     public int level = 1;
     public int currentXp;
+    public GearDropService.GearRarity rarity = GearDropService.GearRarity.Common;
     public List<GearSlotBonus> unlockedSlots = new List<GearSlotBonus>();
 
     public int MaxLevel => MaxBonusSlots + 1;
@@ -123,6 +124,7 @@ public class GearInstance
             template = template,
             level = level,
             currentXp = currentXp,
+            rarity = rarity,
             unlockedSlots = new List<GearSlotBonus>()
         };
 
@@ -189,6 +191,7 @@ public class GearInstance
         {
             instanceId = instanceId,
             setId = setId,
+            rarity = (int)rarity,
             level = Mathf.Clamp(level, 1, MaxLevel),
             currentXp = Mathf.Max(0, currentXp),
             slotStatTypes = new List<int>(),
@@ -222,6 +225,7 @@ public class GearInstance
         {
             instanceId = saveData.instanceId,
             setId = saveData.setId,
+            rarity = ClampRarityValue(saveData.rarity),
             level = Mathf.Clamp(saveData.level, 1, MaxBonusSlots + 1),
             currentXp = Mathf.Max(0, saveData.currentXp),
             unlockedSlots = new List<GearSlotBonus>()
@@ -358,6 +362,13 @@ public class GearInstance
         float clamped = Mathf.Clamp(value, MinBonusPercent, MaxBonusPercent);
         return Mathf.Round(clamped * 100f) / 100f;
     }
+
+    private static GearDropService.GearRarity ClampRarityValue(int value)
+    {
+        int min = (int)GearDropService.GearRarity.Common;
+        int max = (int)GearDropService.GearRarity.Legendary;
+        return (GearDropService.GearRarity)Mathf.Clamp(value, min, max);
+    }
 }
 
 [Serializable]
@@ -372,6 +383,7 @@ public class GearInstanceSaveData
 {
     public string instanceId;
     public string setId;
+    public int rarity;
     public int level;
     public int currentXp;
     public List<int> slotStatTypes = new List<int>();

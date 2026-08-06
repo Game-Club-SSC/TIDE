@@ -860,7 +860,7 @@ public class BattleManager : MonoBehaviour
             if (UnityEngine.Random.value < skillChance)
             {
                 Debug.Log($"[BattleManager] {actor.UnitName} picks element-advantageous skill {advantageousSkill.skillName}.");
-                return new PlannedAction(CombatActionType.Skill, actor, target, advantageousSkill);
+                return new PlannedAction(CombatActionType.Skill, actor, ResolveSkillTargetForAi(actor, advantageousSkill), advantageousSkill);
             }
         }
 
@@ -871,7 +871,7 @@ public class BattleManager : MonoBehaviour
             float skillChance = profile != null ? profile.skillUsageWeight : 1f;
             if (UnityEngine.Random.value < skillChance)
             {
-                return new PlannedAction(CombatActionType.Skill, actor, target, skill);
+                return new PlannedAction(CombatActionType.Skill, actor, ResolveSkillTargetForAi(actor, skill), skill);
             }
         }
 
@@ -893,11 +893,30 @@ public class BattleManager : MonoBehaviour
             {
                 Debug.Log($"[BattleManager] Envy Covet: {actor.UnitName} reuses {lastPlayerSkill.skillName} at 0.7x damage.");
                 envyCovetActors.Add(actor);
-                return new PlannedAction(CombatActionType.Skill, actor, target, lastPlayerSkill);
+                return new PlannedAction(CombatActionType.Skill, actor, ResolveSkillTargetForAi(actor, lastPlayerSkill), lastPlayerSkill);
             }
         }
 
         return new PlannedAction(CombatActionType.Attack, actor, target);
+    }
+
+    private CombatUnit ResolveSkillTargetForAi(CombatUnit actor, SkillData skill)
+    {
+        if (skill == null)
+        {
+            return null;
+        }
+
+        switch (skill.target)
+        {
+            case SkillTarget.SingleAlly:
+                return GetLowestHpAlly(actor);
+            case SkillTarget.SingleEnemy:
+                return SelectTargetWithProfile(actor, activeViceProfile);
+            default:
+                // Self, AllAllies, and AllEnemies do not need an explicit target.
+                return null;
+        }
     }
 
     private SkillData SelectAdvantageousSkillForActor(CombatUnit actor)
@@ -1016,7 +1035,7 @@ public class BattleManager : MonoBehaviour
                 return supported[index];
             }
 
-            Debug.LogWarning($"[BattleManager] {actor.UnitName} has no supported Tide Break target types for this milestone. Using default Tide Break.");
+            Debug.LogWarning($"[BattleManager] {actor.UnitName} has no usable Tide Break data. Falling back to the default Tide Break.");
         }
 
         return null;
@@ -1666,12 +1685,6 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        if (!IsSkillSupportedForCurrentSlice(skill))
-        {
-            Debug.Log($"[BattleManager] {skill.skillName} target {skill.target} is deferred for this milestone. Attacking instead.", this);
-            ResolveAttack(actor, requestedTarget);
-            return;
-        }
         if (actor.Type == CombatUnit.UnitType.Ally)
         {
             lastAttacker = actor;
@@ -1682,64 +1695,13 @@ public class BattleManager : MonoBehaviour
 
         if (skill.target == SkillTarget.Self)
         {
-            float selfHealMod = actor.GetAttackModifier();
-            int baseSelfHeal = Mathf.Max(1, Mathf.RoundToInt(actor.Attack * (1f + selfHealMod)));
-            float selfVariance = UnityEngine.Random.Range(0.9f, 1.1f);
-            float selfRelMod = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
-            int selfHealAmount = Mathf.Max(1, Mathf.RoundToInt(baseSelfHeal * skill.healMultiplier * selfVariance * selfRelMod));
-            if (selfHealAmount > 0)
-            {
-                int hpBefore = actor.HP;
-                actor.Heal(selfHealAmount);
-                Debug.Log($"[BattleManager] {actor.UnitName} heals self for {selfHealAmount} via {skill.skillName}. HP {hpBefore} -> {actor.HP}.");
-            }
-            TryApplySkillStatusEffect(actor, actor, skill);
-            AudioManager selfAudio = AudioManager.Instance;
-            if (selfAudio != null)
-            {
-                selfAudio.HandleHeal();
-            }
+            ResolveSelfSkill(actor, skill);
             return;
         }
 
-        if (skill.healMultiplier > 0f && (skill.target == SkillTarget.SingleAlly || skill.target == SkillTarget.AllAllies))
+        if (skill.target == SkillTarget.SingleAlly || skill.target == SkillTarget.AllAllies)
         {
-            float healMod = actor.GetAttackModifier();
-            int baseHeal = Mathf.Max(1, Mathf.RoundToInt(actor.Attack * (1f + healMod)));
-            float healVariance = UnityEngine.Random.Range(0.9f, 1.1f);
-            float relationshipHealMod = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
-            int healAmount = Mathf.Max(1, Mathf.RoundToInt(baseHeal * skill.healMultiplier * healVariance * relationshipHealMod));
-
-            if (skill.target == SkillTarget.SingleAlly)
-            {
-                CombatUnit healTarget = requestedTarget != null
-                    && requestedTarget.IsAlive
-                    && requestedTarget.Type == actor.Type
-                        ? requestedTarget
-                        : actor;
-                int hpBefore = healTarget.HP;
-                healTarget.Heal(healAmount);
-                Debug.Log($"[BattleManager] {actor.UnitName} heals {healTarget.UnitName} for {healAmount} via {skill.skillName}. HP {hpBefore} -> {healTarget.HP}.");
-            }
-            else
-            {
-                IReadOnlyList<CombatUnit> allies = GetAliveUnits(actor.Type);
-                for (int i = 0; i < allies.Count; i++)
-                {
-                    CombatUnit ally = allies[i];
-                    int hpBefore = ally.HP;
-                    ally.Heal(healAmount);
-                    Debug.Log($"[BattleManager] {actor.UnitName} heals {ally.UnitName} for {healAmount} via {skill.skillName}. HP {hpBefore} -> {ally.HP}.");
-                }
-            }
-
-            AudioManager audioManager = AudioManager.Instance;
-            if (audioManager != null)
-            {
-                audioManager.HandleHeal();
-            }
-
-            TryApplySkillStatusEffect(actor, actor, skill);
+            ResolveAllyTargetedSkill(actor, requestedTarget, skill);
             return;
         }
 
@@ -1916,6 +1878,112 @@ public class BattleManager : MonoBehaviour
             this);
     }
 
+    private void ResolveSelfSkill(CombatUnit actor, SkillData skill)
+    {
+        if (skill.healMultiplier > 0f)
+        {
+            float selfHealMod = actor.GetAttackModifier();
+            int baseSelfHeal = Mathf.Max(1, Mathf.RoundToInt(actor.Attack * (1f + selfHealMod)));
+            float selfVariance = UnityEngine.Random.Range(0.9f, 1.1f);
+            float selfRelMod = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
+            int selfHealAmount = Mathf.Max(1, Mathf.RoundToInt(baseSelfHeal * skill.healMultiplier * selfVariance * selfRelMod));
+            if (selfHealAmount > 0)
+            {
+                int hpBefore = actor.HP;
+                actor.Heal(selfHealAmount);
+                momentumState.ShiftForHeal(actor);
+                Debug.Log($"[BattleManager] {actor.UnitName} heals self for {selfHealAmount} via {skill.skillName}. HP {hpBefore} -> {actor.HP}.");
+
+                AudioManager selfAudio = AudioManager.Instance;
+                if (selfAudio != null)
+                {
+                    selfAudio.HandleHeal();
+                }
+            }
+        }
+
+        TryApplySkillStatusEffect(actor, actor, skill);
+    }
+
+    private void ResolveAllyTargetedSkill(CombatUnit actor, CombatUnit requestedTarget, SkillData skill)
+    {
+        bool heals = skill.healMultiplier > 0f;
+        bool appliesEffect = skill.appliedEffectType != StatusEffectType.None;
+
+        if (!heals && !appliesEffect)
+        {
+            Debug.LogWarning($"[BattleManager] {skill.skillName} targets {skill.target} but has no heal or status effect configured. Resolving as a no-op.", this);
+            return;
+        }
+
+        int healAmount = heals ? ComputeAllyHealAmount(actor, skill) : 0;
+
+        if (skill.target == SkillTarget.SingleAlly)
+        {
+            CombatUnit allyTarget = requestedTarget != null
+                && requestedTarget.IsAlive
+                && requestedTarget.Type == actor.Type
+                    ? requestedTarget
+                    : actor;
+
+            if (heals)
+            {
+                int hpBefore = allyTarget.HP;
+                allyTarget.Heal(healAmount);
+                momentumState.ShiftForHeal(actor);
+                Debug.Log($"[BattleManager] {actor.UnitName} heals {allyTarget.UnitName} for {healAmount} via {skill.skillName}. HP {hpBefore} -> {allyTarget.HP}.");
+                PlayHealAudio();
+            }
+
+            if (appliesEffect)
+            {
+                TryApplySkillStatusEffect(actor, allyTarget, skill);
+            }
+            return;
+        }
+
+        IReadOnlyList<CombatUnit> allies = GetAliveUnits(actor.Type);
+        for (int i = 0; i < allies.Count; i++)
+        {
+            CombatUnit ally = allies[i];
+            if (heals)
+            {
+                int hpBefore = ally.HP;
+                ally.Heal(healAmount);
+                Debug.Log($"[BattleManager] {actor.UnitName} heals {ally.UnitName} for {healAmount} via {skill.skillName}. HP {hpBefore} -> {ally.HP}.");
+            }
+
+            if (appliesEffect)
+            {
+                TryApplySkillStatusEffect(actor, ally, skill);
+            }
+        }
+
+        if (heals && allies.Count > 0)
+        {
+            momentumState.ShiftForHeal(actor);
+            PlayHealAudio();
+        }
+    }
+
+    private int ComputeAllyHealAmount(CombatUnit actor, SkillData skill)
+    {
+        float healMod = actor.GetAttackModifier();
+        int baseHeal = Mathf.Max(1, Mathf.RoundToInt(actor.Attack * (1f + healMod)));
+        float healVariance = UnityEngine.Random.Range(0.9f, 1.1f);
+        float relationshipHealMod = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
+        return Mathf.Max(1, Mathf.RoundToInt(baseHeal * skill.healMultiplier * healVariance * relationshipHealMod));
+    }
+
+    private void PlayHealAudio()
+    {
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleHeal();
+        }
+    }
+
     private void ResolveTideBreak(CombatUnit actor, CombatUnit requestedTarget, TideBreakData tideBreak)
     {
         if (actor == null || !actor.IsAlive)
@@ -1934,8 +2002,7 @@ public class BattleManager : MonoBehaviour
         float damageMultiplier;
         SkillTarget targetType;
 
-        bool hasSupportedCustomTideBreak = tideBreak != null && IsTideBreakSupportedForCurrentSlice(tideBreak);
-        if (hasSupportedCustomTideBreak)
+        if (tideBreak != null)
         {
             abilityName = tideBreak.abilityName;
             damageMultiplier = tideBreak.damageMultiplier;
@@ -1943,12 +2010,7 @@ public class BattleManager : MonoBehaviour
         }
         else
         {
-            if (tideBreak != null)
-            {
-                Debug.LogWarning($"[BattleManager] {tideBreak.abilityName} target {tideBreak.targetType} is deferred for this milestone. Using default Tide Break targeting.");
-            }
-
-            // Fallback to static defaults
+            // Missing TideBreak data falls back to the static default ability.
             TideBreakAbility tb = actor.Type == CombatUnit.UnitType.Ally
                 ? TideBreakAbility.PlayerDefault
                 : TideBreakAbility.EnemyDefault;
@@ -2757,12 +2819,13 @@ public class BattleManager : MonoBehaviour
                 return true;
 
             case CombatActionType.Attack:
-                if (!IsValidTarget(actor, target))
+                CombatUnit attackTarget = target != null ? target : GetRandomLivingOpponent(actor);
+                if (!IsValidTarget(actor, attackTarget))
                 {
                     return false;
                 }
 
-                AssignPlayerAction(actor, CombatActionType.Attack, target);
+                AssignPlayerAction(actor, CombatActionType.Attack, attackTarget);
                 TryAutoConfirmPlayerActions();
                 return true;
 
@@ -2783,7 +2846,7 @@ public class BattleManager : MonoBehaviour
                     return false;
                 }
 
-                if (!IsValidTargetForSkill(actor, target, skill.target))
+                if (RequiresExplicitTarget(skill.target) && !IsValidTargetForSkill(actor, target, skill.target))
                 {
                     return false;
                 }
@@ -3010,17 +3073,16 @@ public class BattleManager : MonoBehaviour
         return null;
     }
 
+    private static bool RequiresExplicitTarget(SkillTarget targetType)
+    {
+        return targetType == SkillTarget.SingleEnemy || targetType == SkillTarget.SingleAlly;
+    }
+
     private bool TideBreakRequiresExplicitTarget(TideBreakData tideBreak, CombatUnit actor)
     {
         if (tideBreak != null)
         {
-            if (!IsTideBreakSupportedForCurrentSlice(tideBreak))
-            {
-                return false;
-            }
-
-            return tideBreak.targetType == SkillTarget.SingleEnemy
-                || tideBreak.targetType == SkillTarget.SingleAlly;
+            return IsTideBreakSupportedForCurrentSlice(tideBreak) && RequiresExplicitTarget(tideBreak.targetType);
         }
 
         return actor != null && actor.Type == CombatUnit.UnitType.Enemy;

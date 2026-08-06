@@ -5,6 +5,7 @@ using UnityEngine;
 public static class IslandThemeRegistry
 {
     public const string DefaultIslandId = "island_lust";
+    public const string HubIslandId = "island_hub";
 
     private static readonly string[] progressionOrder =
     {
@@ -165,6 +166,16 @@ public static class IslandThemeRegistry
 
         return legacyIslandIdAliases.TryGetValue(islandId, out string aliasedIslandId)
             && configsById.ContainsKey(aliasedIslandId);
+    }
+
+    public static bool IsHubIslandId(string islandId)
+    {
+        if (string.IsNullOrEmpty(islandId))
+        {
+            return false;
+        }
+
+        return string.Equals(ResolveIslandId(islandId), HubIslandId, StringComparison.Ordinal);
     }
 
     private static void EnsureInitialized()

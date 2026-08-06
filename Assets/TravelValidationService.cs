@@ -24,23 +24,41 @@ public static class TravelValidationService
             return new ValidationResult(false, "Destination island id is empty.", null);
         }
 
-        if (IslandProgressionManager.Instance == null)
+        // The central hub is always reachable from any island (return travel),
+        // independent of unlock progression. The hub boat dock lives in the
+        // HubScene, so no in-scene dock lookup is required here either.
+        bool isHubDestination = IslandThemeRegistry.IsHubIslandId(toIslandId);
+        if (!isHubDestination)
         {
-            return new ValidationResult(false, "Island progression manager not initialized.", null);
+            if (IslandProgressionManager.Instance == null)
+            {
+                return new ValidationResult(false, "Island progression manager not initialized.", null);
+            }
+
+            if (!IslandProgressionManager.Instance.IsIslandUnlocked(toIslandId))
+            {
+                return new ValidationResult(false, $"Destination '{toIslandId}' is not yet unlocked.", null);
+            }
+
+            // Island docks only exist inside the main scene. When departing from
+            // the hub (a different scene), the dock lookup would always miss, so
+            // it only applies to in-scene island-to-island travel.
+            bool departingFromHub = IslandThemeRegistry.IsHubIslandId(fromIslandId);
+            if (!departingFromHub)
+            {
+                TeleportAnchor dock = TeleportAnchor.FindBoatDockForIsland(toIslandId);
+                if (dock == null)
+                {
+                    return new ValidationResult(false, $"No boat dock found at '{toIslandId}'.", null);
+                }
+
+                return new ValidationResult(true, string.Empty, dock);
+            }
+
+            return new ValidationResult(true, string.Empty, null);
         }
 
-        if (!IslandProgressionManager.Instance.IsIslandUnlocked(toIslandId))
-        {
-            return new ValidationResult(false, $"Destination '{toIslandId}' is not yet unlocked.", null);
-        }
-
-        TeleportAnchor dock = TeleportAnchor.FindBoatDockForIsland(toIslandId);
-        if (dock == null)
-        {
-            return new ValidationResult(false, $"No boat dock found at '{toIslandId}'.", null);
-        }
-
-        return new ValidationResult(true, string.Empty, dock);
+        return new ValidationResult(true, string.Empty, null);
     }
 
     public static IReadOnlyList<TeleportAnchor> GetAvailableTravelDestinations(string fromIslandId)

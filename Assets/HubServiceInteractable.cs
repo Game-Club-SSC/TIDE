@@ -1,35 +1,57 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
+/// <summary>
+/// Interactable service station placed in the hub scene. Reuses existing
+/// systems: PartySetupUI (party management), SmithyInteractable/SmithyUI
+/// (smithy + vendor economy), and DialogueSystem (narrative/NPC space).
+/// Follows the same trigger + prompt + interact-key pattern as
+/// <see cref="SmithyInteractable"/> and <see cref="IslandBoatInteractable"/>.
+/// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(BoxCollider))]
 [RequireComponent(typeof(Renderer))]
-public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
+public class HubServiceInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 {
+    public enum ServiceType
+    {
+        Party,
+        Smithy,
+        Vendor,
+        Narrative
+    }
+
     private const string DefaultPromptResourceName = "PuzzlePrompt";
     private const float DefaultPromptPixelsPerUnit = 360f;
+
+    [Header("Service")]
+    [SerializeField] private ServiceType serviceType = ServiceType.Party;
+
+    [Header("Narrative (Narrative service only)")]
+    [Tooltip("Speaker name shown above the narrative dialogue lines.")]
+    [SerializeField] private string narratorName = "Harbormaster Wren";
+    [Tooltip("Dialogue lines shown when the narrative station is used.")]
+    [SerializeField] private string[] narrativeLines = { "The harbor is quiet tonight. The boats are ready." };
 
     [Header("Prompt Layout")]
     [SerializeField] private Vector3 promptLocalOffset = new Vector3(1.45f, 1.15f, 0f);
     [SerializeField] private Vector3 promptScale = new Vector3(0.72f, 0.72f, 1f);
     [SerializeField] private Sprite promptSprite;
-    [SerializeField] private Color promptTint = new Color(1f, 0.85f, 0.4f);
+    [SerializeField] private Color promptTint = Color.white;
 
     [Header("Interaction")]
     [SerializeField] private Vector3 triggerSize = new Vector3(3.25f, 2.25f, 3.25f);
-    [SerializeField] private Color smithyColor = new Color(0.6f, 0.45f, 0.2f);
-    [SerializeField] private KeyCode primaryKey = KeyCode.Return;
-    [SerializeField] private KeyCode secondaryKey = KeyCode.JoystickButton0;
+    [SerializeField] private KeyCode interactKey = KeyCode.Return;
 
     private BoxCollider interactionTrigger;
     private Renderer cachedRenderer;
     private GameObject promptRoot;
     private bool playerInRange;
     private Sprite runtimePromptSprite;
-    private SmithyUI smithyUI;
-    private PartySetupUI cachedPartySetupUI;
+    private PartySetupUI partySetupUI;
 
-    public bool IsServiceOpen => smithyUI != null;
+    public ServiceType Type => serviceType;
 
     private void Awake()
     {
@@ -40,7 +62,6 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 
         EnsureSolidCollider();
         CreatePromptVisual();
-        ApplySmithyColor();
         SetPromptVisible(false);
     }
 
@@ -48,12 +69,12 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
     {
         UpdatePromptFacing();
 
-        GameStateManager gsm = GameStateManager.Instance;
+        GameStateManager gameStateManager = GameStateManager.Instance;
         bool canInteract = playerInRange
-            && gsm != null
-            && gsm.currentState == GameStateManager.GameState.Exploration
-            && !gsm.IsTransitioning
-            && smithyUI == null;
+            && gameStateManager != null
+            && gameStateManager.currentState == GameStateManager.GameState.Exploration
+            && !gameStateManager.IsTransitioning
+            && !IsServiceUiOpen();
 
         SetPromptVisible(canInteract);
         if (!canInteract)
@@ -61,50 +82,114 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
             return;
         }
 
-        if (!Input.GetKeyDown(primaryKey) && !Input.GetKeyDown(secondaryKey)
-            && !Input.GetMouseButtonDown(0) && !HasTouchDown())
+        if (!Input.GetKeyDown(interactKey) && !Input.GetKeyDown(KeyCode.KeypadEnter))
         {
             return;
         }
 
-        PartySetupUI partySetupUi = cachedPartySetupUI != null ? cachedPartySetupUI : FindFirstObjectByType<PartySetupUI>();
-        if (partySetupUi != null)
-        {
-            cachedPartySetupUI = partySetupUi;
-        }
-        if (partySetupUi != null && partySetupUi.IsOpen)
-        {
-            return;
-        }
-
-        OpenSmithy();
+        OpenService();
     }
 
-    private void OpenSmithy()
+    private bool IsServiceUiOpen()
     {
-        if (smithyUI != null)
+        if (partySetupUI != null)
+        {
+            return partySetupUI.IsOpen;
+        }
+
+        SmithyInteractable smithy = GetComponentInChildren<SmithyInteractable>();
+        if (smithy != null)
+        {
+            return smithy.IsServiceOpen;
+        }
+
+        return false;
+    }
+
+    private void OpenService()
+    {
+        switch (serviceType)
+        {
+            case ServiceType.Party:
+                OpenPartyService();
+                break;
+
+            case ServiceType.Smithy:
+            case ServiceType.Vendor:
+                OpenSmithyService();
+                break;
+
+            case ServiceType.Narrative:
+                OpenNarrativeService();
+                break;
+        }
+    }
+
+    private void OpenPartyService()
+    {
+        if (partySetupUI == null)
+        {
+            GameObject uiObject = new GameObject("HubPartySetupUI");
+            uiObject.transform.SetParent(transform, false);
+            partySetupUI = uiObject.AddComponent<PartySetupUI>();
+        }
+
+        if (partySetupUI != null && !partySetupUI.IsOpen)
+        {
+            partySetupUI.OpenMenu();
+        }
+    }
+
+    private void OpenSmithyService()
+    {
+        SmithyInteractable smithy = GetComponentInChildren<SmithyInteractable>();
+        if (smithy == null)
+        {
+            GameObject smithyObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            smithyObject.name = "HubSmithyStation";
+            smithyObject.transform.SetParent(transform, false);
+            smithyObject.transform.localPosition = Vector3.zero;
+            smithyObject.transform.localScale = new Vector3(1.4f, 1.1f, 1.4f);
+            smithy = smithyObject.AddComponent<SmithyInteractable>();
+        }
+
+        if (smithy != null)
+        {
+            smithy.TryOpenFromExternal();
+        }
+    }
+
+    private void OpenNarrativeService()
+    {
+        DialogueSystem dialogueSystem = DialogueSystem.Instance;
+        if (dialogueSystem == null || dialogueSystem.IsDialogueActive)
         {
             return;
         }
 
-        GameObject uiObject = new GameObject("SmithyUI_Root");
-        smithyUI = uiObject.AddComponent<SmithyUI>();
-        smithyUI.Initialize(this);
-    }
-
-    public void OnSmithyClosed()
-    {
-        smithyUI = null;
-    }
-
-    public void TryOpenFromExternal()
-    {
-        if (smithyUI != null)
+        List<DialogueSystem.DialogueEntry> entries = new List<DialogueSystem.DialogueEntry>();
+        if (narrativeLines != null)
         {
-            return;
+            for (int i = 0; i < narrativeLines.Length; i++)
+            {
+                if (string.IsNullOrEmpty(narrativeLines[i]))
+                {
+                    continue;
+                }
+
+                entries.Add(new DialogueSystem.DialogueEntry
+                {
+                    speakerName = narratorName,
+                    dialogueText = narrativeLines[i],
+                    emotion = DialogueSystem.Emotion.Neutral
+                });
+            }
         }
 
-        OpenSmithy();
+        if (entries.Count > 0)
+        {
+            dialogueSystem.ShowDialogue(entries);
+        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -126,20 +211,6 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 
         playerInRange = false;
         SetPromptVisible(false);
-
-        if (smithyUI != null)
-        {
-            smithyUI.CloseSmithy();
-            smithyUI = null;
-        }
-    }
-
-    private void ApplySmithyColor()
-    {
-        if (cachedRenderer != null)
-        {
-            cachedRenderer.material.color = smithyColor;
-        }
     }
 
     private void EnsureSolidCollider()
@@ -161,7 +232,7 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 
     private void CreatePromptVisual()
     {
-        promptRoot = new GameObject("SmithyPrompt");
+        promptRoot = new GameObject("ServicePrompt");
         promptRoot.transform.SetParent(transform, false);
         promptRoot.transform.localPosition = promptLocalOffset;
 
@@ -181,10 +252,16 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 
     private void UpdatePromptFacing()
     {
-        if (promptRoot == null) return;
+        if (promptRoot == null)
+        {
+            return;
+        }
 
         Camera mainCamera = Camera.main;
-        if (mainCamera == null) return;
+        if (mainCamera == null)
+        {
+            return;
+        }
 
         Vector3 facingDirection = promptRoot.transform.position - mainCamera.transform.position;
         if (facingDirection.sqrMagnitude <= Mathf.Epsilon)
@@ -237,12 +314,6 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
             Destroy(runtimePromptSprite);
             runtimePromptSprite = null;
         }
-
-        if (smithyUI != null)
-        {
-            smithyUI.CloseSmithy();
-            smithyUI = null;
-        }
     }
 
     public Vector3 GetInteractionAssistPosition()
@@ -257,12 +328,11 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
 
     public bool IsInteractionAssistActive()
     {
-        GameStateManager gsm = GameStateManager.Instance;
+        GameStateManager gameStateManager = GameStateManager.Instance;
         return playerInRange
-            && gsm != null
-            && gsm.currentState == GameStateManager.GameState.Exploration
-            && !gsm.IsTransitioning
-            && smithyUI == null;
+            && gameStateManager != null
+            && gameStateManager.currentState == GameStateManager.GameState.Exploration
+            && !gameStateManager.IsTransitioning;
     }
 
     private static bool IsPlayerCollider(Collider collider)
@@ -278,16 +348,5 @@ public class SmithyInteractable : MonoBehaviour, IPlayerInteractionAssistTarget
         }
 
         return collider.GetComponentInParent<IsometricPlayer>() != null;
-    }
-
-    private static bool HasTouchDown()
-    {
-        if (!Input.touchSupported || Input.touchCount == 0)
-        {
-            return false;
-        }
-
-        Touch touch = Input.GetTouch(0);
-        return touch.phase == TouchPhase.Began;
     }
 }

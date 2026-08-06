@@ -52,6 +52,7 @@ public class GameStateManager : MonoBehaviour
         public List<string> completedNarrativeBeatIds = new List<string>();
         public IslandRestorationTracker.TrackerSnapshot restorationSnapshot;
         public GearProgressionSaveData gearProgression;
+        public PlayerGearInventory.GearInventorySaveData gearInventory;
         public IslandProgressionManager.ProgressionSnapshot progressionSnapshot;
         public StoryProgressionSaveData storyProgression;
         public HeroProgressionManager.HeroProgressionSnapshot heroProgression;
@@ -59,6 +60,17 @@ public class GameStateManager : MonoBehaviour
         public bool ceremonyIntroCompleted;
         public TideBreakProgressionManager.TideBreakSaveData tideBreakProgression;
         public AncientTextRevealDirector.RevealDirectorSaveData ancientTextReveal;
+        public HubStateSaveData hubState;
+        public DialogueSystem.DialogueStateSaveData dialogueState;
+    }
+
+    [Serializable]
+    public sealed class HubStateSaveData
+    {
+        public bool hasReturnPosition;
+        public float returnX;
+        public float returnY;
+        public float returnZ;
     }
 
     [Serializable]
@@ -108,6 +120,8 @@ public class GameStateManager : MonoBehaviour
     public const string MainSceneName = "level_1";
     public const string PuzzleSceneName = "PuzzleScene";
     public const string CombatSceneName = "CombatScene";
+    public const string HubSceneName = "HubScene";
+    public const string TitleSceneName = "TitleScene";
 
     public static GameStateManager Instance { get; private set; }
 
@@ -115,6 +129,44 @@ public class GameStateManager : MonoBehaviour
     public bool PuzzleSolved { get; private set; }
     public bool IsTransitioning => isTransitioning;
     public bool HasLoadedWorldState => hasLoadedWorldState;
+    public bool HasPersistedWorldState => PlayerPrefs.HasKey(WorldStateSaveKey);
+
+    /// <summary>
+    /// True when a persisted world state exists AND parses as valid save data.
+    /// The title screen's Continue button uses this so a corrupt save never
+    /// enables loading (issue #294). JsonUtility.FromJson throws on malformed
+    /// input, so corrupt payloads are rejected structurally first, then via a
+    /// guarded parse.
+    /// </summary>
+    public bool HasLoadableWorldState()
+    {
+        if (!PlayerPrefs.HasKey(WorldStateSaveKey))
+        {
+            return false;
+        }
+
+        string payload = PlayerPrefs.GetString(WorldStateSaveKey, string.Empty);
+        if (string.IsNullOrEmpty(payload))
+        {
+            return false;
+        }
+
+        // Structural pre-check mirrors WorldSaveService.ValidateSaveJson so
+        // obvious corruption never reaches the JSON parser.
+        if (!payload.Contains("{") || !payload.Contains("}") || !payload.Contains("\"puzzleStates\""))
+        {
+            return false;
+        }
+
+        try
+        {
+            return JsonUtility.FromJson<WorldStateSaveData>(payload) != null;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
     public StoryAct CurrentStoryAct => currentStoryAct;
     public StoryAct HighestStoryActReached => highestStoryActReached;
     public EndingBranch ResolvedEndingBranch => resolvedEndingBranch;
@@ -159,6 +211,8 @@ public class GameStateManager : MonoBehaviour
     private float explorationPositionSyncTimer;
     private Vector3 lastKnownExplorationPlayerPosition;
     private bool hasLastKnownExplorationPlayerPosition;
+    private Vector3 hubReturnPosition;
+    private bool hasHubReturnPosition;
 
     public PuzzleData PendingPuzzleData { get; set; }
     public int[,] PendingPuzzleLayout { get; set; }
@@ -266,6 +320,7 @@ public class GameStateManager : MonoBehaviour
         }
         EnsureRestorationTracker();
         EnsureProgressionManager();
+        EnsureGearInventory();
         BindProgressionManagerEvents();
         LoadWorldState();
         IslandProgressionManager.Instance?.ReconcileStateFromRestoration();
@@ -418,6 +473,7 @@ public class GameStateManager : MonoBehaviour
             : null;
         finalBossDefeatsForBadEndingThreshold = ResolveFinalBossDefeatThreshold(pendingBossIslandIdForDefeatTracking);
         CaptureExplorationCameraTransform();
+        PlayerGearInventory.Instance?.BeginNewCombat();
         BeginCombatTransition();
     }
 
@@ -433,6 +489,7 @@ public class GameStateManager : MonoBehaviour
         PendingCombatEncounterId = encounterId;
         PendingCombatRestorationValue = Mathf.Max(0.001f, restorationValue);
         hasPendingCombatReturnPosition = false;
+        PlayerGearInventory.Instance?.BeginNewCombat();
         BeginCombatTransition();
     }
 
@@ -1235,6 +1292,11 @@ public class GameStateManager : MonoBehaviour
                 saveData.gearProgression = HeroProgressionManager.Instance.CaptureGearSnapshot();
             }
 
+            if (PlayerGearInventory.Instance != null)
+            {
+                saveData.gearInventory = PlayerGearInventory.Instance.CaptureGearInventorySnapshot();
+            }
+
             if (IslandProgressionManager.Instance != null)
             {
                 saveData.progressionSnapshot = IslandProgressionManager.Instance.CaptureSnapshot();
@@ -1257,6 +1319,13 @@ public class GameStateManager : MonoBehaviour
             {
                 saveData.heroProgression = HeroProgressionManager.Instance.CaptureHeroProgressionSnapshot();
                 saveData.partyComposition = HeroProgressionManager.Instance.CapturePartyCompositionSnapshot();
+            }
+
+            saveData.hubState = CaptureHubState();
+
+            if (DialogueSystem.Instance != null)
+            {
+                saveData.dialogueState = DialogueSystem.Instance.CaptureDialogueStateSaveData();
             }
 
             string payload = JsonUtility.ToJson(saveData);
@@ -1384,6 +1453,11 @@ public class GameStateManager : MonoBehaviour
                 HeroProgressionManager.Instance.ApplyGearSnapshot(saveData.gearProgression);
             }
 
+            if (PlayerGearInventory.Instance != null && saveData.gearInventory != null)
+            {
+                PlayerGearInventory.Instance.ApplyGearInventorySnapshot(saveData.gearInventory);
+            }
+
             if (IslandProgressionManager.Instance != null && saveData.progressionSnapshot != null)
             {
                 IslandProgressionManager.Instance.ApplySnapshot(saveData.progressionSnapshot);
@@ -1413,6 +1487,13 @@ public class GameStateManager : MonoBehaviour
                 {
                     HeroProgressionManager.Instance.ApplyHeroProgressionSnapshot(saveData.heroProgression);
                 }
+            }
+
+            ApplyHubState(saveData.hubState);
+
+            if (DialogueSystem.Instance != null && saveData.dialogueState != null)
+            {
+                DialogueSystem.Instance.ApplyDialogueStateSaveData(saveData.dialogueState);
             }
 
             PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
@@ -1598,7 +1679,22 @@ public class GameStateManager : MonoBehaviour
 
         if (dropService.TryRollDrop(enemyType, islandId, out string gearSetId, out GearDropService.GearRarity rarity))
         {
-            Debug.Log($"[GameStateManager] Gear drop: {gearSetId} ({rarity}) from {enemyType} on {islandId}.");
+            PlayerGearInventory inventory = PlayerGearInventory.Instance;
+            GearInstance awarded = inventory != null ? inventory.AddGear(gearSetId, rarity) : null;
+            if (awarded != null)
+            {
+                inventory.RecordBattleDrop(awarded);
+                Debug.Log($"[GameStateManager] Gear drop awarded: {gearSetId} ({rarity}) from {enemyType} on {islandId} -> inventory instance '{awarded.instanceId}'.");
+                BattleHud battleHud = FindFirstObjectByType<BattleHud>();
+                if (battleHud != null)
+                {
+                    battleHud.ShowGearDrop(PlayerGearInventory.GetDropSummary(awarded));
+                }
+            }
+            else
+            {
+                Debug.Log($"[GameStateManager] Gear drop rolled but not awarded: {gearSetId} ({rarity}) from {enemyType} on {islandId}.");
+            }
         }
     }
 
@@ -1837,6 +1933,49 @@ public class GameStateManager : MonoBehaviour
                 deferredFlowFromPuzzle = true;
             }
         }
+        else if (scene.name == HubSceneName)
+        {
+            EnsureHubSceneRuntimeComponents();
+
+            if (player != null && TryResolveSafeExplorationSpawnPosition(out Vector3 safeHubSpawn))
+            {
+                player.transform.position = safeHubSpawn;
+                Rigidbody playerBody = player.GetComponent<Rigidbody>();
+                if (playerBody != null)
+                {
+                    playerBody.linearVelocity = Vector3.zero;
+                    playerBody.angularVelocity = Vector3.zero;
+                }
+
+                lastKnownExplorationPlayerPosition = safeHubSpawn;
+                hasLastKnownExplorationPlayerPosition = true;
+
+                if (IslandProgressionManager.Instance != null)
+                {
+                    IslandProgressionManager.Instance.RecordIslandReturnPosition(
+                        IslandProgressionManager.Instance.ActiveIslandId,
+                        safeHubSpawn);
+                }
+            }
+
+            if (!isTransitioning)
+            {
+                currentState = GameState.Exploration;
+                SetPlayerMovementLocked(false);
+            }
+
+            SnapFollowCameraToPlayer();
+
+            if (cameraSnapRoutine != null)
+            {
+                StopCoroutine(cameraSnapRoutine);
+            }
+
+            cameraSnapRoutine = StartCoroutine(SnapFollowCameraAfterLoad());
+
+            hasPendingReturnPosition = false;
+            hasPendingCombatReturnPosition = false;
+        }
         else if (scene.name == PuzzleSceneName)
         {
             player = null;
@@ -1993,6 +2132,15 @@ public class GameStateManager : MonoBehaviour
         {
             GameObject revealDirectorObject = new GameObject("AncientTextRevealDirector");
             revealDirectorObject.AddComponent<AncientTextRevealDirector>();
+        }
+    }
+
+    private void EnsureGearInventory()
+    {
+        if (PlayerGearInventory.Instance == null)
+        {
+            GameObject inventoryObject = new GameObject("PlayerGearInventory");
+            inventoryObject.AddComponent<PlayerGearInventory>();
         }
     }
 
@@ -2160,6 +2308,16 @@ public class GameStateManager : MonoBehaviour
         pendingSolvedPuzzleBoxId = null;
         pendingBossIslandIdForDefeatTracking = null;
         PuzzleSolved = false;
+
+        if (DialogueSystem.Instance != null)
+        {
+            DialogueSystem.Instance.ResetDialogueStateForDebug();
+        }
+
+        if (StoryProgressionService.Instance != null)
+        {
+            StoryProgressionService.Instance.ClearFlagsForDebug();
+        }
     }
 
     public void ResetPuzzleRuntimeStateForDebug()
@@ -2228,11 +2386,52 @@ public class GameStateManager : MonoBehaviour
 
         EnsureSmithyInteractable();
         EnsureIslandBoatInteractable();
+        EnsurePauseMenu();
+    }
+
+    private void EnsureHubSceneRuntimeComponents()
+    {
+        // Dialogue system backs the hub narrative/NPC stations.
+        if (FindFirstObjectByType<DialogueSystem>() == null)
+        {
+            GameObject dialogueObject = new GameObject("DialogueSystem");
+            dialogueObject.AddComponent<DialogueSystem>();
+        }
+
+        EnsureSmithyInteractable();
+        EnsureIslandBoatInteractable();
+        EnsurePauseMenu();
+    }
+
+    /// <summary>
+    /// Ensures the exploration pause menu (issue #294) exists in the scene.
+    /// Runtime-created so level_1 and HubScene both get it without scene edits.
+    /// </summary>
+    private void EnsurePauseMenu()
+    {
+        if (FindFirstObjectByType<PauseMenuUI>() != null)
+        {
+            return;
+        }
+
+        GameObject pauseObject = new GameObject("PauseMenuUI");
+        pauseObject.AddComponent<PauseMenuUI>();
     }
 
     private void EnsureIslandFlowController()
     {
         if (isTransitioning || currentState != GameState.Exploration)
+        {
+            return;
+        }
+
+        if (IslandProgressionManager.Instance == null)
+        {
+            return;
+        }
+
+        // The hub is a service hub, not a corrupted island: no island flow runs there.
+        if (IslandThemeRegistry.IsHubIslandId(IslandProgressionManager.Instance.ActiveIslandId))
         {
             return;
         }
@@ -2378,6 +2577,198 @@ public class GameStateManager : MonoBehaviour
         Debug.Log($"[GameStateManager] Travel fade pipeline: '{previousIslandId}' -> '{resolvedIslandId}' at {safeSpawn}.");
 
         StartCoroutine(TravelFadeAndRepositionRoutine(safeSpawn));
+        return true;
+    }
+
+    public void RecordHubReturnPosition(Vector3 worldPosition)
+    {
+        if (!IsFiniteVector(worldPosition))
+        {
+            return;
+        }
+
+        hubReturnPosition = worldPosition;
+        hasHubReturnPosition = true;
+    }
+
+    public bool TryGetHubReturnPosition(out Vector3 worldPosition)
+    {
+        worldPosition = Vector3.zero;
+        if (!hasHubReturnPosition || !IsFiniteVector(hubReturnPosition))
+        {
+            return false;
+        }
+
+        worldPosition = hubReturnPosition;
+        return true;
+    }
+
+    private HubStateSaveData CaptureHubState()
+    {
+        HubStateSaveData saveData = new HubStateSaveData
+        {
+            hasReturnPosition = hasHubReturnPosition && IsFiniteVector(hubReturnPosition)
+        };
+
+        if (saveData.hasReturnPosition)
+        {
+            saveData.returnX = hubReturnPosition.x;
+            saveData.returnY = hubReturnPosition.y;
+            saveData.returnZ = hubReturnPosition.z;
+        }
+
+        return saveData;
+    }
+
+    private void ApplyHubState(HubStateSaveData saveData)
+    {
+        hasHubReturnPosition = false;
+        hubReturnPosition = Vector3.zero;
+
+        if (saveData == null || !saveData.hasReturnPosition)
+        {
+            return;
+        }
+
+        Vector3 candidate = new Vector3(saveData.returnX, saveData.returnY, saveData.returnZ);
+        if (!IsFiniteVector(candidate))
+        {
+            return;
+        }
+
+        hubReturnPosition = candidate;
+        hasHubReturnPosition = true;
+    }
+
+    public bool TravelToHub(Vector3 destinationSpawn)
+    {
+        if (isTransitioning)
+        {
+            return false;
+        }
+
+        if (currentState != GameState.Exploration)
+        {
+            return false;
+        }
+
+        IslandProgressionManager progressionManager = IslandProgressionManager.Instance;
+        if (progressionManager == null)
+        {
+            return false;
+        }
+
+        string hubIslandId = IslandThemeRegistry.ResolveIslandId(IslandThemeRegistry.HubIslandId);
+        if (string.IsNullOrEmpty(hubIslandId))
+        {
+            return false;
+        }
+
+        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+        if (player == null)
+        {
+            return false;
+        }
+
+        Vector3 safeSpawn = ResolveSafeReturnPosition(destinationSpawn);
+        if (!IsFiniteVector(safeSpawn))
+        {
+            return false;
+        }
+
+        string previousIslandId = progressionManager.ActiveIslandId;
+        Vector3 currentPosition = player.transform.position;
+        if (IsFiniteVector(currentPosition))
+        {
+            progressionManager.RecordIslandReturnPosition(previousIslandId, currentPosition);
+        }
+
+        if (!progressionManager.TrySetActiveIslandForTravel(hubIslandId))
+        {
+            return false;
+        }
+
+        pendingReturnPosition = safeSpawn;
+        hasPendingReturnPosition = true;
+        hasPendingCombatReturnPosition = false;
+        pendingBossIslandIdForDefeatTracking = null;
+
+        // No island flow runs at the hub; just clear the bootstrap flag so a
+        // later return to an island scene starts fresh flow.
+        hasBootstrappedFlowForCurrentScene = false;
+        SaveWorldState();
+        Debug.Log($"[GameStateManager] Travel to hub from '{previousIslandId}' at {safeSpawn}.");
+
+        StartCoroutine(TransitionToScene(HubSceneName, GameState.Exploration));
+        return true;
+    }
+
+    public bool TravelFromHubToIsland(string destinationIslandId, Vector3 destinationSpawn)
+    {
+        if (isTransitioning)
+        {
+            return false;
+        }
+
+        if (currentState != GameState.Exploration)
+        {
+            return false;
+        }
+
+        string resolvedIslandId = IslandThemeRegistry.ResolveIslandId(destinationIslandId);
+        if (string.IsNullOrEmpty(resolvedIslandId))
+        {
+            return false;
+        }
+
+        IslandProgressionManager progressionManager = IslandProgressionManager.Instance;
+        if (progressionManager == null)
+        {
+            return false;
+        }
+
+        if (!progressionManager.CanTravelToIsland(resolvedIslandId))
+        {
+            return false;
+        }
+
+        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+        if (player == null)
+        {
+            return false;
+        }
+
+        Vector3 safeSpawn = ResolveSafeReturnPosition(destinationSpawn);
+        if (!IsFiniteVector(safeSpawn))
+        {
+            return false;
+        }
+
+        // Persist where the player was standing in the hub so return travel
+        // lands them back at the same spot.
+        Vector3 currentPosition = player.transform.position;
+        if (IsFiniteVector(currentPosition))
+        {
+            RecordHubReturnPosition(currentPosition);
+            progressionManager.RecordIslandReturnPosition(IslandThemeRegistry.HubIslandId, currentPosition);
+        }
+
+        if (!progressionManager.TrySetActiveIslandForTravel(resolvedIslandId))
+        {
+            return false;
+        }
+
+        pendingReturnPosition = safeSpawn;
+        hasPendingReturnPosition = true;
+        hasPendingCombatReturnPosition = false;
+        pendingBossIslandIdForDefeatTracking = null;
+
+        // Island flow bootstraps via LateUpdate once level_1 has loaded.
+        hasBootstrappedFlowForCurrentScene = false;
+        SaveWorldState();
+        Debug.Log($"[GameStateManager] Travel from hub to '{resolvedIslandId}' at {safeSpawn}.");
+
+        StartCoroutine(TransitionToScene(MainSceneName, GameState.Exploration));
         return true;
     }
 
@@ -3053,5 +3444,110 @@ public class GameStateManager : MonoBehaviour
             PlayerPrefs.DeleteKey(FinalBossDefeatsSaveKey);
             PlayerPrefs.Save();
         }
+    }
+
+    // ======================================================================
+    //  Issue #294: title screen / pause menu entry points (additive API)
+    // ======================================================================
+
+    /// <summary>
+    /// Full new-game reset: clears persisted save data, resets all runtime
+    /// world state, restoration, island progression, hero progression, tide
+    /// break progression, and gear inventory, then persists a fresh save.
+    /// Mirrors DevCheatService.FullResetAllState but is self-contained so the
+    /// title screen does not depend on dev-cheat services.
+    /// </summary>
+    public void ResetWorldStateForNewGame()
+    {
+        ClearPersistentWorldStateForDebug(true);
+        ResetRuntimeWorldStateForDebug();
+
+        IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
+        if (tracker != null)
+        {
+            tracker.ResetAllIslandsForDebug();
+        }
+
+        IslandProgressionManager progression = IslandProgressionManager.Instance;
+        if (progression != null)
+        {
+            progression.ResetProgressionForDebug();
+        }
+
+        HeroProgressionManager heroProgression = HeroProgressionManager.Instance;
+        if (heroProgression != null)
+        {
+            heroProgression.ResetProgressionForDebug();
+        }
+
+        TideBreakProgressionManager tideBreakProgression = TideBreakProgressionManager.Instance;
+        if (tideBreakProgression != null)
+        {
+            tideBreakProgression.ResetProgressionForDebug();
+        }
+
+        PlayerGearInventory gearInventory = PlayerGearInventory.Instance;
+        if (gearInventory != null)
+        {
+            gearInventory.ResetInventoryForDebug();
+        }
+
+        WorldSaveService saveService = WorldSaveService.Instance;
+        if (saveService != null)
+        {
+            saveService.Clear();
+        }
+
+        PlayerPrefs.Save();
+        HandleIslandTravelFlowReset();
+        SaveWorldState();
+        Debug.Log("[GameStateManager] New game reset complete.");
+    }
+
+    /// <summary>
+    /// Loads the persisted world state, then transitions to the scene that
+    /// matches the restored progression (hub when the active island is the
+    /// hub, otherwise the main island scene). Used by Continue on the title
+    /// screen and by the pause menu's Load action.
+    /// </summary>
+    public void LoadWorldStateAndRestoreScene()
+    {
+        if (isTransitioning)
+        {
+            Debug.Log("[GameStateManager] Load ignored: scene transition in progress.");
+            return;
+        }
+
+        LoadWorldState();
+
+        if (!Application.isPlaying)
+        {
+            // Edit-mode verification path: restore state only, no scene load.
+            Debug.Log("[GameStateManager] Loaded world state (edit mode: scene transition skipped).");
+            return;
+        }
+
+        string targetScene = MainSceneName;
+        if (IslandProgressionManager.Instance != null
+            && IslandThemeRegistry.IsHubIslandId(IslandProgressionManager.Instance.ActiveIslandId))
+        {
+            targetScene = HubSceneName;
+        }
+
+        Debug.Log($"[GameStateManager] Restoring saved world state in scene '{targetScene}'.");
+        StartCoroutine(TransitionToScene(targetScene, GameState.Exploration));
+    }
+
+    /// <summary>
+    /// Transitions back to the title screen (issue #294).
+    /// </summary>
+    public void ReturnToTitleScene()
+    {
+        if (isTransitioning || !Application.isPlaying)
+        {
+            return;
+        }
+
+        StartCoroutine(TransitionToScene(TitleSceneName, GameState.Exploration));
     }
 }

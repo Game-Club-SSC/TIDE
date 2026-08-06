@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84a56f270b0480841bbfac6098eedded, type: 3}
+  m_Name: island_hub
+  m_EditorClassIdentifier: 
+  islandId: island_hub
+  viceName: Hub
+  vicePrimaryColor: {r: 0.35, g: 0.75, b: 0.95, a: 1}
+  viceSecondaryColor: {r: 0.12, g: 0.3, b: 0.45, a: 1}
+  audioProfile: {fileID: 0}
+  visualProfile: {fileID: 0}
+  encounters: []

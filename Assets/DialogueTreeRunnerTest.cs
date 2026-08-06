@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -17,10 +19,11 @@ public class DialogueTreeRunnerTest : MonoBehaviour
         TestEvaluateConditionHasAncientTextChecksDefinition();
         TestEvaluateConditionQuestCompletedChecksService();
         TestApplyEffectIncreaseBond();
-        TestApplyEffectGrantXPIsNoop();
-        TestApplyEffectUnlockTideBreakIsNoop();
-        TestApplyEffectSetFlagIsNoop();
-        TestApplyEffectGiveItemIsNoop();
+        TestApplyEffectGrantXPActuallyGrantsXp();
+        TestApplyEffectUnlockTideBreakActuallyUnlocks();
+        TestApplyEffectSetFlagActuallySetsFlag();
+        TestApplyEffectGiveItemActuallyAwardsGear();
+        TestApplyEffectGiveItemUnknownIdFallsBackToCurrency();
         TestStartTreeWithNullTreeDestroysRunner();
         TestStartTreeWithNullRootDestroysRunner();
 
@@ -53,13 +56,19 @@ public class DialogueTreeRunnerTest : MonoBehaviour
 
     private DialogueTreeNode CreateNodeWithEffect(DialogueEffectType type, string targetId, int intValue)
     {
+        return CreateNodeWithEffect(type, targetId, intValue, null);
+    }
+
+    private DialogueTreeNode CreateNodeWithEffect(DialogueEffectType type, string targetId, int intValue, string relatedHeroId)
+    {
         DialogueTreeNode node = new DialogueTreeNode
         {
             nodeId = "test_effect_node",
             entry = new DialogueSystem.DialogueEntry
             {
                 speakerName = "Test",
-                dialogueText = "Effect node"
+                dialogueText = "Effect node",
+                relatedHeroId = relatedHeroId ?? string.Empty
             },
             effects = new[]
             {
@@ -135,18 +144,26 @@ public class DialogueTreeRunnerTest : MonoBehaviour
 
         DialogueTreeRunner runner = CreateIsolatedRunner();
         GameObject go = runner.gameObject;
+        GameObject dialogueObject = null;
 
         try
         {
+            // Isolated DialogueSystem with zero bonds so the bond gate actually
+            // evaluates (no dependency on an ambient scene singleton).
+            dialogueObject = new GameObject("DialogueSystem_Test");
+            DialogueSystem dialogueSystem = dialogueObject.AddComponent<DialogueSystem>();
+            InvokeOnEnableIfUnregistered(dialogueSystem, () => DialogueSystem.Instance);
+
             System.Reflection.MethodInfo method = typeof(DialogueTreeRunner).GetMethod(
                 "EvaluateConditions",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
             bool result = (bool)method.Invoke(runner, new object[] { node });
-            Assert.IsFalse(result, "BondLevel condition with null DialogueSystem.Instance returns false.");
+            Assert.IsFalse(result, "BondLevel condition with insufficient bond returns false.");
         }
         finally
         {
+            if (dialogueObject != null) DestroyImmediate(dialogueObject);
             if (go != null) DestroyImmediate(go);
         }
 
@@ -285,108 +302,193 @@ public class DialogueTreeRunnerTest : MonoBehaviour
         Debug.Log("✓ ApplyEffect IncreaseBond test passed");
     }
 
-    private void TestApplyEffectGrantXPIsNoop()
+    private void TestApplyEffectGrantXPActuallyGrantsXp()
     {
-        Debug.Log("Testing ApplyEffect GrantXP is a TODO noop...");
+        Debug.Log("Testing ApplyEffect GrantXP grants XP to HeroProgressionManager...");
 
-        DialogueTreeNode node = CreateNodeWithEffect(DialogueEffectType.GrantXP, "hero_mc", 100);
-
-        DialogueTreeRunner runner = CreateIsolatedRunner();
-        GameObject go = runner.gameObject;
+        HeroProgressionManager progression = null;
+        GameObject progressionObject = null;
 
         try
         {
-            System.Reflection.MethodInfo method = typeof(DialogueTreeRunner).GetMethod(
-                "ApplyEffects",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            progressionObject = new GameObject("HeroProgressionManager_Test");
+            progression = progressionObject.AddComponent<HeroProgressionManager>();
+            InvokeOnEnableIfUnregistered(progression, () => HeroProgressionManager.Instance);
+            SetLevelingConfig(progression, CreateDefaultLevelingConfig());
 
-            method.Invoke(runner, new object[] { node });
-            Debug.Log("[DialogueTreeRunnerTest] GrantXP applied without exception (noop).");
+            DialogueTreeNode node = CreateNodeWithEffect(DialogueEffectType.GrantXP, "hero_fire", 50);
+            DialogueTreeRunner runner = CreateIsolatedRunner();
+            GameObject go = runner.gameObject;
+            try
+            {
+                InvokeApplyEffects(runner, node);
+                Assert.AreEqual(50, progression.GetXp("hero_fire"),
+                    "GrantXP must actually grant XP to the target hero's progression state.");
+            }
+            finally
+            {
+                if (go != null) DestroyImmediate(go);
+            }
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            if (progressionObject != null) DestroyImmediate(progressionObject);
         }
 
-        Debug.Log("✓ ApplyEffect GrantXP noop test passed");
+        Debug.Log("✓ ApplyEffect GrantXP state test passed");
     }
 
-    private void TestApplyEffectUnlockTideBreakIsNoop()
+    private void TestApplyEffectUnlockTideBreakActuallyUnlocks()
     {
-        Debug.Log("Testing ApplyEffect UnlockTideBreak is a TODO noop...");
+        Debug.Log("Testing ApplyEffect UnlockTideBreak registers the unlock...");
 
-        DialogueTreeNode node = CreateNodeWithEffect(DialogueEffectType.UnlockTideBreak, "tidebreak_fire", 1);
-
-        DialogueTreeRunner runner = CreateIsolatedRunner();
-        GameObject go = runner.gameObject;
+        TideBreakProgressionManager tideBreaks = null;
+        GameObject tideBreakObject = null;
 
         try
         {
-            System.Reflection.MethodInfo method = typeof(DialogueTreeRunner).GetMethod(
-                "ApplyEffects",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            tideBreakObject = new GameObject("TideBreakProgressionManager_Test");
+            tideBreaks = tideBreakObject.AddComponent<TideBreakProgressionManager>();
+            InvokeOnEnableIfUnregistered(tideBreaks, () => TideBreakProgressionManager.Instance);
 
-            method.Invoke(runner, new object[] { node });
-            Debug.Log("[DialogueTreeRunnerTest] UnlockTideBreak applied without exception (noop).");
+            DialogueTreeNode node = CreateNodeWithEffect(DialogueEffectType.UnlockTideBreak, "Inferno Surge", 1, "hero_fire");
+            DialogueTreeRunner runner = CreateIsolatedRunner();
+            GameObject go = runner.gameObject;
+            try
+            {
+                InvokeApplyEffects(runner, node);
+                Assert.IsTrue(tideBreaks.HasTideBreak("hero_fire", "Inferno Surge"),
+                    "UnlockTideBreak must actually register the unlock in TideBreakProgressionManager.");
+            }
+            finally
+            {
+                if (go != null) DestroyImmediate(go);
+            }
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            if (tideBreakObject != null) DestroyImmediate(tideBreakObject);
         }
 
-        Debug.Log("✓ ApplyEffect UnlockTideBreak noop test passed");
+        Debug.Log("✓ ApplyEffect UnlockTideBreak state test passed");
     }
 
-    private void TestApplyEffectSetFlagIsNoop()
+    private void TestApplyEffectSetFlagActuallySetsFlag()
     {
-        Debug.Log("Testing ApplyEffect SetFlag is a TODO noop...");
+        Debug.Log("Testing ApplyEffect SetFlag sets the story flag...");
 
-        DialogueTreeNode node = CreateNodeWithEffect(DialogueEffectType.SetFlag, "flag_merchant_helped", 1);
-
-        DialogueTreeRunner runner = CreateIsolatedRunner();
-        GameObject go = runner.gameObject;
+        StoryProgressionService story = null;
+        GameObject storyObject = null;
 
         try
         {
-            System.Reflection.MethodInfo method = typeof(DialogueTreeRunner).GetMethod(
-                "ApplyEffects",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            storyObject = new GameObject("StoryProgressionService_Test");
+            story = storyObject.AddComponent<StoryProgressionService>();
+            InvokeOnEnableIfUnregistered(story, () => StoryProgressionService.Instance);
 
-            method.Invoke(runner, new object[] { node });
-            Debug.Log("[DialogueTreeRunnerTest] SetFlag applied without exception (noop).");
+            DialogueTreeNode node = CreateNodeWithEffect(DialogueEffectType.SetFlag, "flag_merchant_helped", 1);
+            DialogueTreeRunner runner = CreateIsolatedRunner();
+            GameObject go = runner.gameObject;
+            try
+            {
+                InvokeApplyEffects(runner, node);
+                Assert.IsTrue(story.GetFlag("flag_merchant_helped"),
+                    "SetFlag must actually set the flag in StoryProgressionService.");
+            }
+            finally
+            {
+                if (go != null) DestroyImmediate(go);
+            }
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            if (storyObject != null) DestroyImmediate(storyObject);
         }
 
-        Debug.Log("✓ ApplyEffect SetFlag noop test passed");
+        Debug.Log("✓ ApplyEffect SetFlag state test passed");
     }
 
-    private void TestApplyEffectGiveItemIsNoop()
+    private void TestApplyEffectGiveItemActuallyAwardsGear()
     {
-        Debug.Log("Testing ApplyEffect GiveItem is a TODO noop...");
+        Debug.Log("Testing ApplyEffect GiveItem awards gear for a registered set...");
 
-        DialogueTreeNode node = CreateNodeWithEffect(DialogueEffectType.GiveItem, "item_key_1", 1);
-
-        DialogueTreeRunner runner = CreateIsolatedRunner();
-        GameObject go = runner.gameObject;
+        HeroProgressionManager progression = null;
+        PlayerGearInventory inventory = null;
+        GameObject progressionObject = null;
+        GameObject inventoryObject = null;
 
         try
         {
-            System.Reflection.MethodInfo method = typeof(DialogueTreeRunner).GetMethod(
-                "ApplyEffects",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            progressionObject = new GameObject("HeroProgressionManager_Test");
+            progression = progressionObject.AddComponent<HeroProgressionManager>();
+            InvokeOnEnableIfUnregistered(progression, () => HeroProgressionManager.Instance);
+            SetLevelingConfig(progression, CreateDefaultLevelingConfig());
+            SetAvailableGearSets(progression, new[] { CreateTestGearSet("iron_guard") });
 
-            method.Invoke(runner, new object[] { node });
-            Debug.Log("[DialogueTreeRunnerTest] GiveItem applied without exception (noop).");
+            inventoryObject = new GameObject("PlayerGearInventory_Test");
+            inventory = inventoryObject.AddComponent<PlayerGearInventory>();
+            InvokeOnEnableIfUnregistered(inventory, () => PlayerGearInventory.Instance);
+
+            DialogueTreeNode node = CreateNodeWithEffect(DialogueEffectType.GiveItem, "iron_guard", 1);
+            DialogueTreeRunner runner = CreateIsolatedRunner();
+            GameObject go = runner.gameObject;
+            try
+            {
+                InvokeApplyEffects(runner, node);
+                Assert.AreEqual(1, inventory.OwnedGearCount,
+                    "GiveItem must actually award an owned gear instance.");
+                Assert.AreEqual("iron_guard", inventory.GetOwnedGear()[0].setId,
+                    "Awarded gear must match the effect's item id.");
+            }
+            finally
+            {
+                if (go != null) DestroyImmediate(go);
+            }
         }
         finally
         {
-            if (go != null) DestroyImmediate(go);
+            if (inventoryObject != null) DestroyImmediate(inventoryObject);
+            if (progressionObject != null) DestroyImmediate(progressionObject);
         }
 
-        Debug.Log("✓ ApplyEffect GiveItem noop test passed");
+        Debug.Log("✓ ApplyEffect GiveItem state test passed");
+    }
+
+    private void TestApplyEffectGiveItemUnknownIdFallsBackToCurrency()
+    {
+        Debug.Log("Testing ApplyEffect GiveItem with an unknown item id grants currency...");
+
+        HeroProgressionManager progression = null;
+        GameObject progressionObject = null;
+
+        try
+        {
+            progressionObject = new GameObject("HeroProgressionManager_Test");
+            progression = progressionObject.AddComponent<HeroProgressionManager>();
+            InvokeOnEnableIfUnregistered(progression, () => HeroProgressionManager.Instance);
+            SetLevelingConfig(progression, CreateDefaultLevelingConfig());
+            SetAvailableGearSets(progression, new[] { CreateTestGearSet("iron_guard") });
+
+            DialogueTreeNode node = CreateNodeWithEffect(DialogueEffectType.GiveItem, "item_key_1", 25);
+            DialogueTreeRunner runner = CreateIsolatedRunner();
+            GameObject go = runner.gameObject;
+            try
+            {
+                InvokeApplyEffects(runner, node);
+                Assert.AreEqual(25, progression.Currency,
+                    "Unknown item ids must fall back to the legacy currency reward.");
+            }
+            finally
+            {
+                if (go != null) DestroyImmediate(go);
+            }
+        }
+        finally
+        {
+            if (progressionObject != null) DestroyImmediate(progressionObject);
+        }
+
+        Debug.Log("✓ ApplyEffect GiveItem currency fallback test passed");
     }
 
     private void TestStartTreeWithNullTreeDestroysRunner()
@@ -432,5 +534,114 @@ public class DialogueTreeRunnerTest : MonoBehaviour
         }
 
         Debug.Log("✓ StartTree null root test passed");
+    }
+
+    // ------------------------------------------------------------------ //
+    //  Helpers
+    // ------------------------------------------------------------------ //
+
+    private static void InvokeApplyEffects(DialogueTreeRunner runner, DialogueTreeNode node)
+    {
+        // Mirror what ShowNode does during a real tree walk: the current node is
+        // assigned before its effects are applied.
+        FieldInfo currentNodeField = typeof(DialogueTreeRunner).GetField("currentNode", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(currentNodeField, "currentNode field should exist on DialogueTreeRunner.");
+        if (currentNodeField.GetValue(runner) == null)
+        {
+            currentNodeField.SetValue(runner, node);
+        }
+
+        MethodInfo method = typeof(DialogueTreeRunner).GetMethod(
+            "ApplyEffects",
+            BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.IsNotNull(method, "ApplyEffects method should exist.");
+        method.Invoke(runner, new object[] { node });
+    }
+
+    /// <summary>
+    /// Edit-mode batchmode does not fire Awake/OnEnable synchronously on
+    /// AddComponent, so invoke the lifecycle callback directly; if that throws
+    /// (e.g. DontDestroyOnLoad outside play mode), register the singleton via
+    /// its backing field instead. The getter returns the typed MonoBehaviour so
+    /// the null check uses Unity's destroyed-object semantics.
+    /// </summary>
+    private static void InvokeOnEnableIfUnregistered(MonoBehaviour component, Func<MonoBehaviour> instanceGetter)
+    {
+        if (component == null || instanceGetter() != null)
+        {
+            return;
+        }
+
+        MethodInfo lifecycle = component.GetType().GetMethod("OnEnable", BindingFlags.Instance | BindingFlags.NonPublic);
+        if (lifecycle == null)
+        {
+            lifecycle = component.GetType().GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic);
+        }
+
+        if (lifecycle != null)
+        {
+            try
+            {
+                lifecycle.Invoke(component, null);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[DialogueTreeRunnerTest] Lifecycle invocation failed ({ex.GetType().Name}: {ex.Message}); registering singleton directly.");
+            }
+        }
+
+        if (instanceGetter() == null)
+        {
+            FieldInfo backing = component.GetType().GetField("<Instance>k__BackingField", BindingFlags.Static | BindingFlags.NonPublic);
+            if (backing != null)
+            {
+                backing.SetValue(null, component);
+            }
+        }
+    }
+
+    private static LevelingConfig CreateDefaultLevelingConfig()
+    {
+        LevelingConfig config = ScriptableObject.CreateInstance<LevelingConfig>();
+        config.baseXpToLevel = 100;
+        config.xpPerLevelIncrement = 50;
+        config.hpPerLevel = 5;
+        config.mpPerLevel = 2;
+        config.attackPerLevel = 1;
+        config.defensePerLevel = 1;
+        config.speedPerLevel = 1;
+        config.reserveXpMultiplier = 0.5f;
+        config.maxLevel = 20;
+        return config;
+    }
+
+    private static void SetLevelingConfig(HeroProgressionManager manager, LevelingConfig config)
+    {
+        FieldInfo field = typeof(HeroProgressionManager).GetField("levelingConfig", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.IsNotNull(field, "levelingConfig field should exist on HeroProgressionManager.");
+        field.SetValue(manager, config);
+    }
+
+    private static void SetAvailableGearSets(HeroProgressionManager manager, GearSetData[] gearSets)
+    {
+        FieldInfo field = typeof(HeroProgressionManager).GetField("availableGearSets", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.IsNotNull(field, "availableGearSets field should exist on HeroProgressionManager.");
+        field.SetValue(manager, gearSets);
+    }
+
+    private static GearSetData CreateTestGearSet(string setId)
+    {
+        GearSetData gear = ScriptableObject.CreateInstance<GearSetData>();
+        gear.setId = setId;
+        gear.displayName = "Test Gear Set";
+        gear.description = "Test gear set.";
+        gear.attackBonusPercent = 0.05f;
+        gear.defenseBonusPercent = 0.10f;
+        gear.hpBonusPercent = 0.10f;
+        gear.setBonusAttackPercent = 0.05f;
+        gear.setBonusDefensePercent = 0.10f;
+        gear.setBonusHpPercent = 0.10f;
+        gear.setBonusDescription = "Test set bonus";
+        return gear;
     }
 }
