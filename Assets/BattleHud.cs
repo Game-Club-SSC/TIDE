@@ -186,6 +186,9 @@ public class BattleHud : MonoBehaviour
         battleManager = FindFirstObjectByType<BattleManager>();
         if (battleManager != null)
         {
+            battleManager.Momentum.OnMomentumChanged -= OnMomentumChanged;
+            battleManager.OnClashResolved -= OnClashResolved;
+            battleManager.OnDamageDealt -= OnDamageDealt;
             battleManager.Momentum.OnMomentumChanged += OnMomentumChanged;
             battleManager.OnClashResolved += OnClashResolved;
             battleManager.OnDamageDealt += OnDamageDealt;

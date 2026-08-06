@@ -105,14 +105,21 @@ public class DialogueTreeRunner : MonoBehaviour
         // Fallback: traverse from root to catch any nodes not in allNodes
         if (tree.rootNode != null && !string.IsNullOrEmpty(tree.rootNode.nodeId))
         {
-            CollectNodesRecursive(tree.rootNode);
+            CollectNodesRecursive(tree.rootNode, 0);
         }
     }
 
-    private void CollectNodesRecursive(DialogueTreeNode node)
+    private const int MaxNodeLookupDepth = 256;
+
+    private void CollectNodesRecursive(DialogueTreeNode node, int depth)
     {
         if (node == null || string.IsNullOrEmpty(node.nodeId)) return;
         if (nodeLookup.ContainsKey(node.nodeId)) return;
+        if (depth >= MaxNodeLookupDepth)
+        {
+            Debug.LogWarning($"[DialogueTreeRunner] Node lookup depth limit ({MaxNodeLookupDepth}) reached at node '{node.nodeId}'. Possible cycle in dialogue tree '{tree.treeId}'.");
+            return;
+        }
 
         nodeLookup[node.nodeId] = node;
 
@@ -131,7 +138,7 @@ public class DialogueTreeRunner : MonoBehaviour
                 }
                 if (!string.IsNullOrEmpty(nextId) && nodeLookup.TryGetValue(nextId, out next))
                 {
-                    CollectNodesRecursive(next);
+                    CollectNodesRecursive(next, depth + 1);
                 }
             }
         }
@@ -146,7 +153,7 @@ public class DialogueTreeRunner : MonoBehaviour
         }
         if (!string.IsNullOrEmpty(node.nextNodeId) && nodeLookup.TryGetValue(node.nextNodeId, out autoNext))
         {
-            CollectNodesRecursive(autoNext);
+            CollectNodesRecursive(autoNext, depth + 1);
         }
     }
 

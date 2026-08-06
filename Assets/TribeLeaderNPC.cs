@@ -271,8 +271,26 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
         interactionTrigger.isTrigger = true;
         interactionTrigger.size = triggerSize;
 
+        EnsureSolidCollider();
         CreatePrompt();
         SetPromptVisible(false);
+    }
+
+    private void EnsureSolidCollider()
+    {
+        Collider[] colliders = GetComponents<Collider>();
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            if (!colliders[i].isTrigger)
+            {
+                return;
+            }
+        }
+
+        BoxCollider solidCollider = gameObject.AddComponent<BoxCollider>();
+        solidCollider.isTrigger = false;
+        solidCollider.size = triggerSize;
+        solidCollider.center = Vector3.zero;
     }
 
     private void Update()

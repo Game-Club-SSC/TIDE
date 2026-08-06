@@ -241,7 +241,11 @@ public class PauseMenuUI : MonoBehaviour
         SetOpen(false);
         ShowMobilePauseButton(true);
 
-        Time.timeScale = previousTimeScale;
+        // Always restore to 1f. The pause menu can only open during Exploration
+        // (verified by CanTogglePause), where timeScale is always 1. Using a
+        // cached previousTimeScale risked restoring a stale value if external
+        // code modified timeScale while the menu was open.
+        Time.timeScale = 1f;
 
         AudioManager audioManager = AudioManager.Instance;
         if (audioManager != null)
@@ -342,7 +346,7 @@ public class PauseMenuUI : MonoBehaviour
 
         // Restore time before the scene transition so the freshly loaded scene
         // does not start frozen (the pause canvas dies with the unloaded scene).
-        Time.timeScale = previousTimeScale;
+        Time.timeScale = 1f;
         isOpen = false;
         SetOpen(false);
 
