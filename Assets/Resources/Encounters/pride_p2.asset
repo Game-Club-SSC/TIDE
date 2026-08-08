@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: pride_p2
   displayName: Pride - Veiled Path
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 6bb0c88ce0f9640889bf5bf9471a5164, type: 2}

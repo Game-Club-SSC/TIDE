@@ -12,6 +12,7 @@ public class GameStateManagerRefactorTest : MonoBehaviour
         TestWorldSaveServiceWritesAndReads();
         TestWorldSaveServiceRejectsEmptyJson();
         TestWorldSaveServiceClears();
+        TestWorldSaveServiceClearsOrphanedBackup();
         TestWorldSaveServiceTogglePersistsDisabled();
         TestStoryProgressionServiceTracksAct();
         TestStoryProgressionServiceTracksHighestAct();
@@ -28,12 +29,12 @@ public class GameStateManagerRefactorTest : MonoBehaviour
         try
         {
             service.Clear();
-            string key = "TEST_KEY_" + System.Guid.NewGuid().ToString("N");
             service.SetPersistentSaveEnabled(true);
-            Assert.IsTrue(service.TryWriteJson("{\"foo\":42}"), "Write should succeed.");
+            Assert.IsTrue(service.TryWriteJson("{\"puzzleStates\":[],\"foo\":42}"), "Write should succeed.");
             Assert.IsTrue(service.HasPersistedData, "Should have persisted data.");
-            service.TryLoadJson(out string json);
-            Assert.AreEqual("{\"foo\":42}", json, "Should read back same JSON.");
+            Assert.IsTrue(service.TryLoadJson(out string json), "Valid saved JSON should load.");
+            Assert.AreEqual("{\"saveSchemaVersion\":1,\"puzzleStates\":[],\"foo\":42}", json,
+                "Loaded JSON should include the current schema version.");
             service.Clear();
         }
         finally
@@ -86,6 +87,29 @@ public class GameStateManagerRefactorTest : MonoBehaviour
         }
         finally
         {
+            Object.DestroyImmediate(host);
+        }
+    }
+
+    private void TestWorldSaveServiceClearsOrphanedBackup()
+    {
+        GameObject host = new GameObject("Test_SaveOrphanedBackup");
+        WorldSaveService service = host.AddComponent<WorldSaveService>();
+        string backupKey = service.PlayerPrefsKey + "_backup";
+        try
+        {
+            PlayerPrefs.DeleteKey(service.PlayerPrefsKey);
+            PlayerPrefs.SetString(backupKey, "{\"puzzleStates\":[]}");
+            PlayerPrefs.Save();
+
+            service.Clear();
+
+            Assert.IsFalse(PlayerPrefs.HasKey(backupKey),
+                "Clear should remove an orphaned backup even when the primary save is absent.");
+        }
+        finally
+        {
+            PlayerPrefs.DeleteKey(backupKey);
             Object.DestroyImmediate(host);
         }
     }

@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: lust_boss
   displayName: Lust - The Coral Queen
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 4e0b61fa0d7fe4cc1aaa4a29618611b7, type: 2}
+  - {fileID: 11400000, guid: 92fe82ab2ed5d48dfa5add04a46f02f3, type: 2}

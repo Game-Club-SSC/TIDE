@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: wrath_c1
   displayName: Wrath - First Fury
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 76c576006c4fb4474be550fd139b9180, type: 2}

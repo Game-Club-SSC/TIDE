@@ -167,14 +167,22 @@ public class WorldSaveService : MonoBehaviour
 
     public void Clear()
     {
+        bool removedData = false;
         if (PlayerPrefs.HasKey(playerPrefsKey))
         {
             PlayerPrefs.DeleteKey(playerPrefsKey);
-            string backupKey = playerPrefsKey + BackupKeySuffix;
-            if (PlayerPrefs.HasKey(backupKey))
-            {
-                PlayerPrefs.DeleteKey(backupKey);
-            }
+            removedData = true;
+        }
+
+        string backupKey = playerPrefsKey + BackupKeySuffix;
+        if (PlayerPrefs.HasKey(backupKey))
+        {
+            PlayerPrefs.DeleteKey(backupKey);
+            removedData = true;
+        }
+
+        if (removedData)
+        {
             PlayerPrefs.Save();
             OnSaveCleared?.Invoke();
         }

@@ -73,9 +73,28 @@ public class PauseMenuUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        // If the pause menu is destroyed while open (e.g. an external scene
-        // transition), never leave the game frozen.
-        Time.timeScale = 1f;
+        RestoreTimeIfOpen();
+    }
+
+    private void OnEnable()
+    {
+        if (!isOpen)
+        {
+            ShowMobilePauseButton(true);
+        }
+    }
+
+    private void OnDisable()
+    {
+        // Disabling the component does not destroy its canvas. Close the panel
+        // and restore time so an external UI toggle cannot leave play frozen.
+        if (isOpen)
+        {
+            RestoreTimeIfOpen();
+            SetOpen(false);
+        }
+
+        ShowMobilePauseButton(false);
     }
 
     private void Update()
@@ -623,5 +642,23 @@ public class PauseMenuUI : MonoBehaviour
         }
 
         return gsm.currentState == GameStateManager.GameState.Exploration && !gsm.IsTransitioning;
+    }
+
+    private void RestoreTimeIfOpen()
+    {
+        if (!isOpen)
+        {
+            return;
+        }
+
+        isOpen = false;
+        confirmLoadVisible = false;
+        Time.timeScale = 1f;
+
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleMenuClose();
+        }
     }
 }

@@ -1,4 +1,6 @@
 using NUnit.Framework;
+using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 /// <summary>
@@ -16,6 +18,8 @@ public class DialogueContentTest : MonoBehaviour
         TestDialogueSystemExists();
         TestDialogueTreeRunnerExists();
         TestDialogueTriggerExists();
+        TestEmptyOneShotTriggerIsNotConsumed();
+        TestBusyDialogueSystemDoesNotConsumeTrigger();
         TestBossNarrativeMechanicExists();
         TestFateEncounterDirectorExists();
         TestNarratorDirectorExists();
@@ -30,7 +34,8 @@ public class DialogueContentTest : MonoBehaviour
         Assert.IsNotNull(typeof(DialogueSystem), "DialogueSystem class should exist.");
 
         // Verify key methods exist
-        var showDialogue = typeof(DialogueSystem).GetMethod("ShowDialogue");
+        MethodInfo showDialogue = typeof(DialogueSystem).GetMethod(
+            "ShowDialogue", new[] { typeof(List<DialogueSystem.DialogueEntry>) });
         var startDialogueTree = typeof(DialogueSystem).GetMethod("StartDialogueTree");
 
         Assert.IsNotNull(showDialogue, "ShowDialogue method should exist.");
@@ -63,6 +68,124 @@ public class DialogueContentTest : MonoBehaviour
         Assert.IsNotNull(addEntry, "AddDialogueEntry method should exist.");
 
         Debug.Log("DialogueTrigger exists: PASS");
+    }
+
+    private void TestEmptyOneShotTriggerIsNotConsumed()
+    {
+        Debug.Log("Testing empty one-shot dialogue trigger is not consumed...");
+
+        GameObject dialogueObject = null;
+        GameObject triggerObject = new GameObject("DialogueTrigger_EmptyTest");
+        triggerObject.AddComponent<BoxCollider>();
+        DialogueTrigger trigger = triggerObject.AddComponent<DialogueTrigger>();
+        DialogueSystem system = DialogueSystem.Instance;
+
+        try
+        {
+            if (system == null)
+            {
+                dialogueObject = new GameObject("DialogueSystem_EmptyTriggerTest");
+                system = dialogueObject.AddComponent<DialogueSystem>();
+                SetDialogueSystemInstance(system);
+            }
+
+            trigger.SetDialogueEntries(new List<DialogueSystem.DialogueEntry>());
+
+            MethodInfo startMethod = typeof(DialogueTrigger).GetMethod(
+                "StartDialogue", BindingFlags.NonPublic | BindingFlags.Instance);
+            FieldInfo playedField = typeof(DialogueTrigger).GetField(
+                "hasPlayed", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.IsNotNull(startMethod, "DialogueTrigger.StartDialogue should exist.");
+            Assert.IsNotNull(playedField, "DialogueTrigger.hasPlayed should exist.");
+
+            startMethod.Invoke(trigger, null);
+
+            Assert.IsFalse((bool)playedField.GetValue(trigger),
+                "An empty one-shot trigger must remain available after it fails to start dialogue.");
+        }
+        finally
+        {
+            DestroyImmediate(triggerObject);
+            if (dialogueObject != null)
+            {
+                SetDialogueSystemInstance(null);
+                DestroyImmediate(dialogueObject);
+            }
+        }
+
+        Debug.Log("Empty one-shot dialogue trigger test: PASS");
+    }
+
+    private void TestBusyDialogueSystemDoesNotConsumeTrigger()
+    {
+        Debug.Log("Testing busy dialogue system does not consume another trigger...");
+
+        GameObject dialogueObject = null;
+        GameObject triggerObject = new GameObject("DialogueTrigger_BusyTest");
+        triggerObject.AddComponent<BoxCollider>();
+        DialogueTrigger trigger = triggerObject.AddComponent<DialogueTrigger>();
+        FieldInfo activeField = typeof(DialogueSystem).GetField(
+            "isDialogueActive", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.IsNotNull(activeField, "DialogueSystem.isDialogueActive should exist.");
+
+        DialogueSystem system = DialogueSystem.Instance;
+        if (system == null)
+        {
+            dialogueObject = new GameObject("DialogueSystem_BusyTriggerTest");
+            system = dialogueObject.AddComponent<DialogueSystem>();
+            SetDialogueSystemInstance(system);
+        }
+
+        bool wasActive = (bool)activeField.GetValue(system);
+        try
+        {
+            trigger.SetDialogueEntries(new List<DialogueSystem.DialogueEntry>
+            {
+                new DialogueSystem.DialogueEntry
+                {
+                    speakerName = "Test",
+                    dialogueText = "This line must wait."
+                }
+            });
+            activeField.SetValue(system, true);
+
+            MethodInfo startMethod = typeof(DialogueTrigger).GetMethod(
+                "StartDialogue", BindingFlags.NonPublic | BindingFlags.Instance);
+            FieldInfo playedField = typeof(DialogueTrigger).GetField(
+                "hasPlayed", BindingFlags.NonPublic | BindingFlags.Instance);
+            FieldInfo pendingField = typeof(DialogueTrigger).GetField(
+                "dialoguePending", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.IsNotNull(startMethod, "DialogueTrigger.StartDialogue should exist.");
+            Assert.IsNotNull(playedField, "DialogueTrigger.hasPlayed should exist.");
+            Assert.IsNotNull(pendingField, "DialogueTrigger.dialoguePending should exist.");
+
+            startMethod.Invoke(trigger, null);
+
+            Assert.IsFalse((bool)playedField.GetValue(trigger),
+                "A busy dialogue system must not consume a one-shot trigger.");
+            Assert.IsFalse((bool)pendingField.GetValue(trigger),
+                "A rejected dialogue request must not leave its trigger pending.");
+        }
+        finally
+        {
+            activeField.SetValue(system, wasActive);
+            DestroyImmediate(triggerObject);
+            if (dialogueObject != null)
+            {
+                SetDialogueSystemInstance(null);
+                DestroyImmediate(dialogueObject);
+            }
+        }
+
+        Debug.Log("Busy dialogue trigger test: PASS");
+    }
+
+    private static void SetDialogueSystemInstance(DialogueSystem system)
+    {
+        FieldInfo instanceField = typeof(DialogueSystem).GetField(
+            "<Instance>k__BackingField", BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(instanceField, "DialogueSystem.Instance backing field should exist.");
+        instanceField.SetValue(null, system);
     }
 
     private void TestBossNarrativeMechanicExists()

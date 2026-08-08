@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: wrath_p2
   displayName: Wrath - Berzerker's Trial
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 46313d672bcec4686b64fe0d58c90585, type: 2}

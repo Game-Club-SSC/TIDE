@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: lust_p2
   displayName: Lust - Phantom Currents
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 9db39316fade04332a982950894a2341, type: 2}

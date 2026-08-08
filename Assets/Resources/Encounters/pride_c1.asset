@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: pride_c1
   displayName: Pride - Sentinel's Watch
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 240260d05e47740a096e8b683e56b6da, type: 2}

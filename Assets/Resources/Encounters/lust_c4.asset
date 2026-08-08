@@ -15,6 +15,6 @@ MonoBehaviour:
   encounterId: lust_c4
   displayName: Lust - Coral Depths
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 92fe82ab2ed5d48dfa5add04a46f02f3, type: 2}
+  - {fileID: 11400000, guid: 9db39316fade04332a982950894a2341, type: 2}
+  - {fileID: 11400000, guid: e4f68105019df47b887a7f72cf10d9bd, type: 2}

@@ -33,6 +33,7 @@ public class IslandContentVerificationTest : MonoBehaviour
 
         TestLoadExactIslandSet();
         TestEncounterSequenceAndRestorationBudgets();
+        TestLiveEncounterEnemyReferences();
         TestDistinctViceColors();
         TestBossEncounterUniqueness();
         TestPuzzleDataVariation();
@@ -134,6 +135,40 @@ public class IslandContentVerificationTest : MonoBehaviour
         }
 
         Debug.Log("  Encounter ordering and restoration budgets verified");
+    }
+
+    private void TestLiveEncounterEnemyReferences()
+    {
+        Debug.Log("Testing live encounter enemy references...");
+
+        IslandConfig[] configs = LoadConfigs();
+        for (int i = 0; i < configs.Length; i++)
+        {
+            IslandConfig config = configs[i];
+            for (int j = 0; j < config.encounters.Length; j++)
+            {
+                EncounterDefinition encounter = config.encounters[j];
+                EncounterConfig encounterConfig = encounter.encounterConfig;
+                Assert.IsNotNull(encounterConfig,
+                    $"Island '{config.islandId}' encounter '{encounter.encounterId}' is missing EncounterConfig.");
+                Assert.IsNotNull(encounterConfig.enemies,
+                    $"EncounterConfig '{encounterConfig.encounterId}' has a null enemy array.");
+                Assert.Greater(encounterConfig.enemies.Length, 0,
+                    $"EncounterConfig '{encounterConfig.encounterId}' has no enemies.");
+
+                for (int enemyIndex = 0; enemyIndex < encounterConfig.enemies.Length; enemyIndex++)
+                {
+                    Assert.IsNotNull(encounterConfig.enemies[enemyIndex],
+                        $"EncounterConfig '{encounterConfig.encounterId}' has a null enemy at slot {enemyIndex}.");
+                }
+
+                EnemyComposition composition = EnemyComposition.FromEncounterConfig(encounterConfig);
+                Assert.AreEqual(encounterConfig.enemies.Length, composition.Count,
+                    $"EncounterConfig '{encounterConfig.encounterId}' would lose enemy slots before combat bootstrap.");
+            }
+        }
+
+        Debug.Log("  Live encounter enemy references verified");
     }
 
     private void TestDistinctViceColors()

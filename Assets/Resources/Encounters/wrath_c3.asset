@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: wrath_c3
   displayName: Wrath - Pyre March
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 42ab63aece0a84fc1a974ea53f3c2627, type: 2}
+  - {fileID: 11400000, guid: a85d4c65388f84296b46f15a639fc4fa, type: 2}

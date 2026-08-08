@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: sloth_p1
   displayName: Sloth - Slumbering Guard
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 59d25c27b3d904c7fa356b875ebe8cd4, type: 2}

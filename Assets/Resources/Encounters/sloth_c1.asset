@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: sloth_c1
   displayName: Sloth - Dreamer's Path
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: a3843ba9e0d574499834a8bd02d13295, type: 2}

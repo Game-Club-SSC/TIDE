@@ -99,7 +99,6 @@ public class DialogueTrigger : MonoBehaviour
     private void StartDialogue()
     {
         dialoguePending = true;
-        hasPlayed = true;
 
         DialogueSystem sys = DialogueSystem.Instance;
         if (sys == null)
@@ -109,11 +108,18 @@ public class DialogueTrigger : MonoBehaviour
             return;
         }
 
+        if (sys.IsDialogueActive)
+        {
+            dialoguePending = false;
+            return;
+        }
+
         // Prefer branching tree if assigned
         if (dialogueTree != null && dialogueTree.rootNode != null)
         {
             sys.OnDialogueTreeCompleted += HandleTreeDialogueCompleted;
             sys.StartDialogueTree(dialogueTree);
+            hasPlayed = true;
             return;
         }
 
@@ -125,6 +131,7 @@ public class DialogueTrigger : MonoBehaviour
 
         sys.OnDialogueCompleted += HandleDialogueCompleted;
         sys.ShowDialogue(dialogueEntries);
+        hasPlayed = true;
     }
 
     private void HandleDialogueCompleted(List<DialogueSystem.DialogueEntry> _)

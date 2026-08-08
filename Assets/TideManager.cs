@@ -237,14 +237,21 @@ public class TideManager : MonoBehaviour
 
     public void InitializePuzzle(PuzzleData data)
     {
-        if (data == null)
+        if (data == null || !data.IsValid())
         {
-            Debug.LogWarning("[TideManager] Null PuzzleData provided. Using default.");
+            Debug.LogWarning("[TideManager] Invalid PuzzleData provided. Keeping current puzzle.");
             return;
         }
 
-        gridRows = data.gridRows;
-        gridCols = data.gridCols;
+        Vector2Int dimensions = data.GetResolvedGridDimensions();
+        if (dimensions.x <= 0 || dimensions.y <= 0)
+        {
+            Debug.LogWarning("[TideManager] PuzzleData has invalid dimensions. Keeping current puzzle.");
+            return;
+        }
+
+        gridRows = dimensions.y;
+        gridCols = dimensions.x;
         activeTiles = new TideTile[gridRows, gridCols];
         uiTileViews = new UiTileView[gridRows, gridCols];
         puzzleValues = data.GetGrid();

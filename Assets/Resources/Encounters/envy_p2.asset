@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: envy_p2
   displayName: Envy - Covetous Path
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 09632909ee4a54fa7940f43e49aad4f9, type: 2}

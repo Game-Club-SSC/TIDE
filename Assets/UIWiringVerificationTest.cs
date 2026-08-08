@@ -102,6 +102,11 @@ public class UIWiringVerificationTest
             UnityEngine.Object.DestroyImmediate(GamepadInputManager.Instance.gameObject);
         }
 
+        if (MobileTouchInputManager.Instance != null)
+        {
+            UnityEngine.Object.DestroyImmediate(MobileTouchInputManager.Instance.gameObject);
+        }
+
         if (AudioManager.Instance != null)
         {
             UnityEngine.Object.DestroyImmediate(AudioManager.Instance.gameObject);
@@ -252,6 +257,67 @@ public class UIWiringVerificationTest
         Assert.IsTrue(pauseUI.IsOpen, "ToggleMenu should open a closed pause menu.");
         pauseUI.ToggleMenu();
         Assert.IsFalse(pauseUI.IsOpen, "ToggleMenu should close an open pause menu.");
+    }
+
+    [Test]
+    public void DisablingOpenPauseMenuRestoresTime()
+    {
+        GameObject managerObject = new GameObject("GameStateManager_PauseDisableTest");
+        spawnedObjects.Add(managerObject);
+        AddGameStateManagerTo(managerObject);
+
+        GameObject pauseObject = new GameObject("PauseMenuUI_DisableTest");
+        spawnedObjects.Add(pauseObject);
+        PauseMenuUI pauseUI = pauseObject.AddComponent<PauseMenuUI>();
+
+        pauseUI.OpenMenu();
+        Assert.AreEqual(0f, Time.timeScale, "Opening pause must stop scaled time.");
+
+        pauseUI.enabled = false;
+        pauseObject.SendMessage("OnDisable", SendMessageOptions.DontRequireReceiver);
+
+        Assert.IsFalse(pauseUI.IsOpen, "Disabling the pause component must clear its open state.");
+        Assert.AreEqual(1f, Time.timeScale, "Disabling an open pause menu must restore scaled time.");
+    }
+
+    [Test]
+    public void ReenablingPauseMenuRestoresMobilePauseButton()
+    {
+        GameObject managerObject = new GameObject("GameStateManager_PauseMobileReenableTest");
+        spawnedObjects.Add(managerObject);
+        AddGameStateManagerTo(managerObject);
+
+        GameObject mobileObject = new GameObject("MobileTouchInputManager_PauseReenableTest");
+        spawnedObjects.Add(mobileObject);
+        MobileTouchInputManager mobileInput = mobileObject.AddComponent<MobileTouchInputManager>();
+        PropertyInfo mobileProperty = typeof(MobileTouchInputManager).GetProperty("IsMobilePlatform");
+        Assert.IsNotNull(mobileProperty, "Mobile platform property should exist.");
+        mobileProperty.SetValue(mobileInput, true);
+        SetAutoPropertyBackingField(typeof(MobileTouchInputManager), "Instance", mobileInput);
+
+        GameObject pauseObject = new GameObject("PauseMenuUI_MobileReenableTest");
+        spawnedObjects.Add(pauseObject);
+        PauseMenuUI pauseUI = pauseObject.AddComponent<PauseMenuUI>();
+        pauseUI.EnsureUI();
+
+        FieldInfo buttonField = typeof(PauseMenuUI).GetField(
+            "mobilePauseButton", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(buttonField, "Pause menu mobile button field should exist.");
+        GameObject mobilePauseButton = (GameObject)buttonField.GetValue(pauseUI);
+        Assert.IsNotNull(mobilePauseButton, "Pause menu should build its mobile pause button.");
+        Assert.IsTrue(mobilePauseButton.activeSelf,
+            "Mobile pause button should be visible while the pause menu is closed.");
+
+        pauseUI.OpenMenu();
+        pauseUI.enabled = false;
+        pauseObject.SendMessage("OnDisable", SendMessageOptions.DontRequireReceiver);
+        Assert.IsFalse(mobilePauseButton.activeSelf,
+            "Disabling the pause component should hide its mobile button.");
+
+        pauseUI.enabled = true;
+        pauseObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+        Assert.IsTrue(mobilePauseButton.activeSelf,
+            "Re-enabling the pause component should restore its mobile button.");
     }
 
     [Test]

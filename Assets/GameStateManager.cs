@@ -1357,6 +1357,12 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
+        if (!HasLoadableWorldState())
+        {
+            Debug.LogError("[GameStateManager] Persisted world state is invalid and cannot be loaded.");
+            return;
+        }
+
         string payload = PlayerPrefs.GetString(WorldStateSaveKey, string.Empty);
         if (string.IsNullOrEmpty(payload))
         {

@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: lust_p3
   displayName: Lust - The Whisper
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: e4f68105019df47b887a7f72cf10d9bd, type: 2}

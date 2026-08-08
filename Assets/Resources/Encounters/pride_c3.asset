@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: pride_c3
   displayName: Pride - Mirror Duel
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 59a3bdd76bb5c4adaabddd380f988f18, type: 2}
+  - {fileID: 11400000, guid: 0ce3a006679ec40739500d743f5455ed, type: 2}

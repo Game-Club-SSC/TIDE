@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: sloth_p4
   displayName: Sloth - Haze Barrier
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 914aaec4a03ac4cdbb38959078c1d25f, type: 2}

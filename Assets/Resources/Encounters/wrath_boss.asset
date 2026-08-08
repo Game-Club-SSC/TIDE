@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: wrath_boss
   displayName: Wrath - The Crimson Warlord
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: ee7b3e46226c04bd992deebd11507f5e, type: 2}
+  - {fileID: 11400000, guid: 76c576006c4fb4474be550fd139b9180, type: 2}

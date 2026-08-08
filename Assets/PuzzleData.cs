@@ -166,16 +166,26 @@ public class PuzzleData : ScriptableObject
     }
 
     /// <summary>
-    /// Returns a 2D bool array marking sealed tiles. Dimensions match gridRows x gridCols.
+    /// Returns a 2D bool array marking sealed tiles. Dimensions match the resolved grid size.
     /// </summary>
     public bool[,] GetSealedMap()
     {
-        bool[,] map = new bool[gridRows, gridCols];
+        Vector2Int dimensions = GetResolvedGridDimensions();
+        int resolvedRows = dimensions.y;
+        int resolvedCols = dimensions.x;
+        long cellCount = (long)resolvedRows * resolvedCols;
+        if (resolvedRows <= 0 || resolvedCols <= 0 || cellCount > int.MaxValue)
+        {
+            Debug.LogWarning($"[PuzzleData] Invalid grid dimensions ({resolvedCols}x{resolvedRows}). Returning an empty sealed map.");
+            return new bool[0, 0];
+        }
+
+        bool[,] map = new bool[resolvedRows, resolvedCols];
         Vector2Int[] positions = GetAllSealedPositions();
 
         foreach (var pos in positions)
         {
-            if (pos.y >= 0 && pos.y < gridRows && pos.x >= 0 && pos.x < gridCols)
+            if (pos.y >= 0 && pos.y < resolvedRows && pos.x >= 0 && pos.x < resolvedCols)
             {
                 map[pos.y, pos.x] = true;
             }
@@ -189,24 +199,34 @@ public class PuzzleData : ScriptableObject
     /// </summary>
     public int[,] GetGrid()
     {
-        int[,] grid = new int[gridRows, gridCols];
-
-        if (tileValues == null || tileValues.Length < gridRows * gridCols)
+        Vector2Int dimensions = GetResolvedGridDimensions();
+        int resolvedRows = dimensions.y;
+        int resolvedCols = dimensions.x;
+        long cellCount = (long)resolvedRows * resolvedCols;
+        if (resolvedRows <= 0 || resolvedCols <= 0 || cellCount > int.MaxValue)
         {
-            Debug.LogWarning($"[PuzzleData] tileValues has fewer than {gridRows * gridCols} entries. Filling with 5s.");
-            for (int r = 0; r < gridRows; r++)
-                for (int c = 0; c < gridCols; c++)
+            Debug.LogWarning($"[PuzzleData] Invalid grid dimensions ({resolvedCols}x{resolvedRows}). Returning an empty grid.");
+            return new int[0, 0];
+        }
+
+        int[,] grid = new int[resolvedRows, resolvedCols];
+
+        if (tileValues == null || tileValues.LongLength < cellCount)
+        {
+            Debug.LogWarning($"[PuzzleData] tileValues has fewer than {cellCount} entries. Filling with 5s.");
+            for (int r = 0; r < resolvedRows; r++)
+                for (int c = 0; c < resolvedCols; c++)
                     grid[r, c] = 5;
             return grid;
         }
 
         bool[,] sealedMap = GetSealedMap();
 
-        for (int row = 0; row < gridRows; row++)
+        for (int row = 0; row < resolvedRows; row++)
         {
-            for (int col = 0; col < gridCols; col++)
+            for (int col = 0; col < resolvedCols; col++)
             {
-                int val = tileValues[row * gridCols + col];
+                int val = tileValues[row * resolvedCols + col];
                 if (sealedMap[row, col] || val == 0)
                 {
                     grid[row, col] = 0; // sealed/empty
@@ -225,11 +245,27 @@ public class PuzzleData : ScriptableObject
         || (sealedPosition.x >= 0 && sealedPosition.y >= 0);
     public bool HasLockedTile => lockedPosition.x >= 0 && lockedPosition.y >= 0;
 
+    public Vector2Int GetResolvedGridDimensions()
+    {
+        // Canonical 3x3 assets created before dynamic dimensions were added
+        // have nine values but inherit the newer 4x4 field defaults.
+        if (gridRows == 4 && gridCols == 4 && tileValues != null && tileValues.Length == 9)
+        {
+            return new Vector2Int(3, 3);
+        }
+
+        return new Vector2Int(gridCols, gridRows);
+    }
+
     public bool IsValid()
     {
-        return gridCols > 0
-            && gridRows > 0
-            && tileValues != null
-            && tileValues.Length >= gridRows * gridCols;
+        Vector2Int dimensions = GetResolvedGridDimensions();
+        if (dimensions.x <= 0 || dimensions.y <= 0 || tileValues == null)
+        {
+            return false;
+        }
+
+        long expectedValues = (long)dimensions.x * dimensions.y;
+        return expectedValues <= int.MaxValue && tileValues.LongLength >= expectedValues;
     }
 }

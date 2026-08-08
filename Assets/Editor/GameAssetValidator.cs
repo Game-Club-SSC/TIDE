@@ -113,6 +113,14 @@ public static class GameAssetValidator
                 continue;
             }
 
+            // The central hub is a travel and story space, not a corrupted
+            // island. Its empty encounter list is intentional.
+            if (IslandThemeRegistry.IsHubIslandId(data.islandId))
+            {
+                valid++;
+                continue;
+            }
+
             if (data.encounters == null || data.encounters.Length == 0)
             {
                 errors.Add($"[IslandConfig] {data.islandId} — no encounters defined");
@@ -204,7 +212,22 @@ public static class GameAssetValidator
             PuzzleData data = AssetDatabase.LoadAssetAtPath<PuzzleData>(path);
             if (data == null) continue;
 
-            int expected = data.gridRows * data.gridCols;
+            Vector2Int dimensions = data.GetResolvedGridDimensions();
+            if (dimensions.x <= 0 || dimensions.y <= 0)
+            {
+                errors.Add($"[PuzzleData] {path} — invalid grid dimensions ({dimensions.x}x{dimensions.y})");
+                badGrid++;
+                continue;
+            }
+
+            long expected = (long)dimensions.y * dimensions.x;
+            if (expected > int.MaxValue)
+            {
+                errors.Add($"[PuzzleData] {path} — grid dimensions are too large ({dimensions.x}x{dimensions.y})");
+                badGrid++;
+                continue;
+            }
+
             if (data.tileValues == null || data.tileValues.Length == 0)
             {
                 warnings.Add($"[PuzzleData] {path} — no tile data");
@@ -212,7 +235,7 @@ public static class GameAssetValidator
             }
             else if (data.tileValues.Length != expected)
             {
-                warnings.Add($"[PuzzleData] {path} — tileValues has {data.tileValues.Length} entries, expected {expected} ({data.gridCols}x{data.gridRows})");
+                warnings.Add($"[PuzzleData] {path} — tileValues has {data.tileValues.Length} entries, expected {expected} ({dimensions.x}x{dimensions.y})");
                 badGrid++;
             }
 
@@ -221,9 +244,9 @@ public static class GameAssetValidator
             {
                 foreach (var pos in data.sealedPositions)
                 {
-                    if (pos.x < 0 || pos.x >= data.gridCols || pos.y < 0 || pos.y >= data.gridRows)
+                    if (pos.x < 0 || pos.x >= dimensions.x || pos.y < 0 || pos.y >= dimensions.y)
                     {
-                        errors.Add($"[PuzzleData] {path} — sealed position ({pos.x},{pos.y}) out of grid bounds ({data.gridCols}x{data.gridRows})");
+                        errors.Add($"[PuzzleData] {path} — sealed position ({pos.x},{pos.y}) out of grid bounds ({dimensions.x}x{dimensions.y})");
                     }
                 }
             }
@@ -460,15 +483,11 @@ public static class GameAssetValidator
         int totalScenes = scenes.Count;
 
         string[] requiredScenes = {
+            "Assets/Scenes/TitleScene.unity",
             "Assets/Scenes/level_1.unity",
+            "Assets/Scenes/HubScene.unity",
             "Assets/Scenes/CombatScene.unity",
             "Assets/Scenes/PuzzleScene.unity",
-            "Assets/Scenes/level_greed.unity",
-            "Assets/Scenes/level_lust.unity",
-            "Assets/Scenes/level_anger.unity",
-            "Assets/Scenes/level_desire.unity",
-            "Assets/Scenes/level_ego.unity",
-            "Assets/Scenes/level_envy.unity",
         };
 
         int missing = 0;

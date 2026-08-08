@@ -27,6 +27,10 @@ public class TideMovementTest
     {
         if (tilesRoot != null) Object.DestroyImmediate(tilesRoot);
         if (managerObject != null) Object.DestroyImmediate(managerObject);
+        if (IslandRestorationTracker.Instance != null)
+        {
+            Object.DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
+        }
     }
 
     private TideTile CreateTile(int col, int row, bool isSealed)
@@ -112,6 +116,7 @@ public class TideMovementTest
 
         GameObject trackerObject = new GameObject(trackerName);
         IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+        trackerObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
         Assert.AreSame(tracker, IslandRestorationTracker.Instance,
             "Tracker singleton should reference the isolated test tracker instance.");
         return tracker;
@@ -384,6 +389,8 @@ public class TideMovementTest
     {
 
         PuzzleData data = ScriptableObject.CreateInstance<PuzzleData>();
+        data.gridRows = 3;
+        data.gridCols = 3;
         data.tileValues = new int[] { 8, 5, 3, 6, 5, 4, 5, 5, 5 };
         data.sealedPosition = new Vector2Int(2, 0);
         data.winCondition = new PuzzleWinCondition
@@ -398,7 +405,7 @@ public class TideMovementTest
         int[,] values = (int[,])GetPrivateFieldValue("puzzleValues");
         Assert.AreEqual(8, values[0, 0], "Tile (0,0) should be 8.");
         Assert.AreEqual(5, values[0, 1], "Tile (0,1) should be 5.");
-        Assert.AreEqual(3, values[0, 2], "Tile (0,2) should be 3.");
+        Assert.AreEqual(0, values[0, 2], "Sealed tile (0,2) should have a zero tide value.");
 
         bool[,] sealedArr = (bool[,])GetPrivateFieldValue("sealedTiles");
         Assert.IsTrue(sealedArr[0, 2], "Tile at row 0 col 2 should be sealed.");
@@ -409,6 +416,148 @@ public class TideMovementTest
         Assert.AreEqual(0.6f, cond.requiredPercent, "Required percent should be 0.6.");
 
         Object.DestroyImmediate(data);
+    }
+
+    [Test]
+    public void InvalidPuzzleDataKeepsCurrentPuzzle()
+    {
+        int[,] originalLayout =
+        {
+            { 8, 5 },
+            { 3, 6 }
+        };
+        manager.InitializePuzzle(originalLayout, new Vector2Int(-1, -1));
+
+        PuzzleData invalidData = ScriptableObject.CreateInstance<PuzzleData>();
+        invalidData.gridRows = -1;
+        invalidData.gridCols = 2;
+        invalidData.tileValues = new int[0];
+
+        try
+        {
+            Assert.DoesNotThrow(() => manager.InitializePuzzle(invalidData),
+                "PuzzleData with invalid dimensions should not throw during puzzle setup.");
+
+            int[,] currentValues = (int[,])GetPrivateFieldValue("puzzleValues");
+            Assert.AreEqual(2, currentValues.GetLength(0), "Invalid data should not replace the current row count.");
+            Assert.AreEqual(2, currentValues.GetLength(1), "Invalid data should not replace the current column count.");
+            Assert.AreEqual(8, currentValues[0, 0], "Invalid data should not replace current tile values.");
+            Assert.AreEqual(6, currentValues[1, 1], "Invalid data should not replace current tile values.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(invalidData);
+        }
+    }
+
+    [Test]
+    public void ShortPuzzleDataKeepsCurrentPuzzle()
+    {
+        int[,] originalLayout =
+        {
+            { 8, 5 },
+            { 3, 6 }
+        };
+        manager.InitializePuzzle(originalLayout, new Vector2Int(-1, -1));
+
+        PuzzleData invalidData = ScriptableObject.CreateInstance<PuzzleData>();
+        invalidData.gridRows = 3;
+        invalidData.gridCols = 3;
+        invalidData.tileValues = new int[8];
+
+        try
+        {
+            manager.InitializePuzzle(invalidData);
+
+            int[,] currentValues = (int[,])GetPrivateFieldValue("puzzleValues");
+            Assert.AreEqual(2, currentValues.GetLength(0), "Short data should not replace the current row count.");
+            Assert.AreEqual(2, currentValues.GetLength(1), "Short data should not replace the current column count.");
+            Assert.AreEqual(8, currentValues[0, 0], "Short data should not replace current tile values.");
+            Assert.AreEqual(6, currentValues[1, 1], "Short data should not replace current tile values.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(invalidData);
+        }
+    }
+
+    [Test]
+    public void OversizedPuzzleDimensionsAreInvalid()
+    {
+        PuzzleData invalidData = ScriptableObject.CreateInstance<PuzzleData>();
+        invalidData.gridRows = int.MaxValue;
+        invalidData.gridCols = 2;
+        invalidData.tileValues = new int[1];
+
+        try
+        {
+            Assert.IsFalse(invalidData.IsValid(),
+                "Puzzle dimensions whose tile count exceeds array limits must be invalid.");
+            Assert.DoesNotThrow(() => manager.InitializePuzzle(invalidData),
+                "Oversized puzzle dimensions must be rejected before array allocation.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(invalidData);
+        }
+    }
+
+    [Test]
+    public void OversizedPuzzleDimensionsReturnEmptyGrids()
+    {
+        PuzzleData invalidData = ScriptableObject.CreateInstance<PuzzleData>();
+        invalidData.gridRows = int.MaxValue;
+        invalidData.gridCols = 2;
+        invalidData.tileValues = new int[1];
+
+        try
+        {
+            int[,] grid = null;
+            bool[,] sealedMap = null;
+            Assert.DoesNotThrow(() => grid = invalidData.GetGrid(),
+                "GetGrid must reject oversized dimensions before allocation.");
+            Assert.DoesNotThrow(() => sealedMap = invalidData.GetSealedMap(),
+                "GetSealedMap must reject oversized dimensions before allocation.");
+            Assert.AreEqual(0, grid.GetLength(0), "Invalid grids should have no rows.");
+            Assert.AreEqual(0, grid.GetLength(1), "Invalid grids should have no columns.");
+            Assert.AreEqual(0, sealedMap.GetLength(0), "Invalid sealed maps should have no rows.");
+            Assert.AreEqual(0, sealedMap.GetLength(1), "Invalid sealed maps should have no columns.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(invalidData);
+        }
+    }
+
+    [Test]
+    public void LegacyNineValuePuzzleDataInfersThreeByThreeDimensions()
+    {
+        PuzzleData legacyData = ScriptableObject.CreateInstance<PuzzleData>();
+        legacyData.tileValues = new int[] { 8, 5, 3, 6, 5, 4, 5, 5, 7 };
+        legacyData.sealedPosition = new Vector2Int(2, 0);
+
+        try
+        {
+            manager.InitializePuzzle(legacyData);
+
+            int[,] currentValues = (int[,])GetPrivateFieldValue("puzzleValues");
+            Assert.AreEqual(3, currentValues.GetLength(0),
+                "Legacy nine-value assets should resolve to three rows.");
+            Assert.AreEqual(3, currentValues.GetLength(1),
+                "Legacy nine-value assets should resolve to three columns.");
+            Assert.AreEqual(8, currentValues[0, 0],
+                "Legacy puzzle values should not be replaced by fallback values.");
+            Assert.AreEqual(7, currentValues[2, 2],
+                "Legacy puzzle values should preserve row-major layout.");
+
+            bool[,] sealedMap = (bool[,])GetPrivateFieldValue("sealedTiles");
+            Assert.IsTrue(sealedMap[0, 2],
+                "Legacy sealed positions should use the resolved three-by-three bounds.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(legacyData);
+        }
     }
 
     [Test]

@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: wrath_p4
   displayName: Wrath - Fiend's Domain
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 42ab63aece0a84fc1a974ea53f3c2627, type: 2}

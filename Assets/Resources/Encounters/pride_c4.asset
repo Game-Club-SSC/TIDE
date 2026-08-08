@@ -15,6 +15,6 @@ MonoBehaviour:
   encounterId: pride_c4
   displayName: Pride - Grand Assault
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 240260d05e47740a096e8b683e56b6da, type: 2}
+  - {fileID: 11400000, guid: 0ce3a006679ec40739500d743f5455ed, type: 2}
+  - {fileID: 11400000, guid: 6bb0c88ce0f9640889bf5bf9471a5164, type: 2}

@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: sloth_c3
   displayName: Sloth - Void Depths
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 59d25c27b3d904c7fa356b875ebe8cd4, type: 2}
+  - {fileID: 11400000, guid: 8e8e97a7b43014048a88972d64e2cd8c, type: 2}

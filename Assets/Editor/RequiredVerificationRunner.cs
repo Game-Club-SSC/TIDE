@@ -16,6 +16,11 @@ public static class RequiredVerificationRunner
         RunContextSuite<VerticalSliceRegressionRunnerTest>(nameof(VerticalSliceRegressionRunnerTest.RunTests), ref passed, ref failed);
         RunContextSuite<AncientTextRevealDirectorTest>(nameof(AncientTextRevealDirectorTest.RunTests), ref passed, ref failed);
         RunContextSuite<MobileTouchInputManagerTest>(nameof(MobileTouchInputManagerTest.RunAllTests), ref passed, ref failed);
+        RunContextSuite<GameStateManagerRefactorTest>(nameof(GameStateManagerRefactorTest.RunTests), ref passed, ref failed);
+        RunContextSuite<SavePersistenceTest>(nameof(SavePersistenceTest.RunTests), ref passed, ref failed);
+        RunContextSuite<DialogueContentTest>(nameof(DialogueContentTest.RunTests), ref passed, ref failed);
+        RunNUnitSuite<TideMovementTest>(ref passed, ref failed);
+        RunNUnitSuite<UIWiringVerificationTest>(ref passed, ref failed);
         RunNUnitSuite<BattleFlowTestSuite>(ref passed, ref failed);
 
         string summary = $"Required verification complete. Suites passed: {passed}. Tests or suites failed: {failed}.";

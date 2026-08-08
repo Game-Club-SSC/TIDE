@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: envy_c2
   displayName: Envy - Jealous Pair
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: b22bb661367da413695db6ead324993a, type: 2}
+  - {fileID: 11400000, guid: 8180fa95a94784bf4bf705356baf813f, type: 2}

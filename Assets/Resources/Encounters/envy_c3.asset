@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: envy_c3
   displayName: Envy - Mimic's Web
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 8180fa95a94784bf4bf705356baf813f, type: 2}
+  - {fileID: 11400000, guid: 09632909ee4a54fa7940f43e49aad4f9, type: 2}

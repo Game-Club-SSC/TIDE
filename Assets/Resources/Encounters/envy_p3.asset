@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: envy_p3
   displayName: Envy - Shade's Trail
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 07d87df43e36e460c95c556f4c031716, type: 2}

@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: pride_boss
   displayName: Pride - The Grand Monarch
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 37e9185d4732a4a8583e20b41a5220cf, type: 2}
+  - {fileID: 11400000, guid: 240260d05e47740a096e8b683e56b6da, type: 2}

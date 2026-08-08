@@ -15,6 +15,7 @@ public class SavePersistenceTest : MonoBehaviour
         TestHeroProgressionRoundTrip();
         TestPersistentSaveDataEnabledByDefault();
         TestExistingWorldStateSaveSchemaExtendsCleanly();
+        TestCorruptWorldStateLoadFailsClosed();
 
         Debug.Log("=== All Save Persistence Tests Passed ===");
     }
@@ -115,12 +116,19 @@ public class SavePersistenceTest : MonoBehaviour
         Debug.Log("Testing hero XP and level round-trip...");
 
         GameStateManager manager = null;
+        LevelingConfig levelingConfig = null;
 
         try
         {
             manager = CreateIsolatedManager("TestGameStateManager_HeroProgression");
             HeroProgressionManager progression = HeroProgressionManager.Instance;
             Assert.IsNotNull(progression, "HeroProgressionManager should be bootstrapped.");
+
+            levelingConfig = ScriptableObject.CreateInstance<LevelingConfig>();
+            FieldInfo configField = typeof(HeroProgressionManager).GetField(
+                "levelingConfig", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(configField, "HeroProgressionManager levelingConfig field should exist.");
+            configField.SetValue(progression, levelingConfig);
 
             progression.EnsureHero("hero_fire");
             progression.GrantXp("hero_fire", 200);
@@ -145,6 +153,11 @@ public class SavePersistenceTest : MonoBehaviour
             if (manager != null)
             {
                 DestroyImmediate(manager.gameObject);
+            }
+
+            if (levelingConfig != null)
+            {
+                DestroyImmediate(levelingConfig);
             }
 
             Cleanup();
@@ -189,13 +202,49 @@ public class SavePersistenceTest : MonoBehaviour
 
             GameStateManager.WorldStateSaveData parsed = JsonUtility.FromJson<GameStateManager.WorldStateSaveData>(legacyJson);
             Assert.IsNotNull(parsed, "Legacy save JSON should still deserialize cleanly with new fields.");
-            Assert.IsNull(parsed.heroProgression,
-                "New heroProgression field should default to null on legacy save data.");
-            Assert.IsNull(parsed.partyComposition,
-                "New partyComposition field should default to null on legacy save data.");
+            if (parsed.heroProgression != null)
+            {
+                Assert.IsTrue(parsed.heroProgression.heroIds == null || parsed.heroProgression.heroIds.Count == 0,
+                    "Legacy save data should not invent hero progression entries.");
+            }
+
+            if (parsed.partyComposition != null)
+            {
+                Assert.IsTrue(parsed.partyComposition.activeHeroIds == null || parsed.partyComposition.activeHeroIds.Count == 0,
+                    "Legacy save data should not invent active party entries.");
+                Assert.IsTrue(parsed.partyComposition.reserveHeroIds == null || parsed.partyComposition.reserveHeroIds.Count == 0,
+                    "Legacy save data should not invent reserve party entries.");
+            }
         }
         finally
         {
+            Cleanup();
+        }
+    }
+
+    private void TestCorruptWorldStateLoadFailsClosed()
+    {
+        Debug.Log("Testing corrupt world state load fails closed...");
+
+        GameStateManager manager = null;
+        try
+        {
+            manager = CreateIsolatedManager("TestGameStateManager_CorruptLoad");
+            PlayerPrefs.SetString("TIDE_WORLD_STATE_V1", "{\"puzzleStates\":[");
+            PlayerPrefs.Save();
+
+            Assert.DoesNotThrow(manager.LoadWorldState,
+                "A direct load request must not throw when persisted JSON is corrupt.");
+            Assert.IsFalse(manager.HasLoadableWorldState(),
+                "Corrupt persisted JSON must remain unavailable for loading.");
+        }
+        finally
+        {
+            if (manager != null)
+            {
+                DestroyImmediate(manager.gameObject);
+            }
+
             Cleanup();
         }
     }
@@ -208,7 +257,18 @@ public class SavePersistenceTest : MonoBehaviour
 
         GameObject managerObject = new GameObject(managerName);
         GameStateManager manager = managerObject.AddComponent<GameStateManager>();
+        HeroProgressionManager progression = managerObject.AddComponent<HeroProgressionManager>();
+        SetAutoPropertyBackingField(typeof(HeroProgressionManager), "Instance", progression);
         return manager;
+    }
+
+    private static void SetAutoPropertyBackingField(System.Type type, string propertyName, object value)
+    {
+        FieldInfo field = type.GetField(
+            "<" + propertyName + ">k__BackingField",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"{type.Name}.{propertyName} backing field should exist.");
+        field.SetValue(null, value);
     }
 
     private static void Cleanup()

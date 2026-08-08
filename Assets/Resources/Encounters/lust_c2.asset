@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: lust_c2
   displayName: Lust - Double Entice
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 92fe82ab2ed5d48dfa5add04a46f02f3, type: 2}
+  - {fileID: 11400000, guid: 03cbfeafba229402a9b8f22d2ccad1fe, type: 2}

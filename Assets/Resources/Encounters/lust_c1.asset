@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: lust_c1
   displayName: Lust - Siren's Call
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 92fe82ab2ed5d48dfa5add04a46f02f3, type: 2}

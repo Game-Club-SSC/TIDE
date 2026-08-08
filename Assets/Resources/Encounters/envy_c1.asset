@@ -15,4 +15,4 @@ MonoBehaviour:
   encounterId: envy_c1
   displayName: Envy - Stalker's Trail
   enemies:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: b22bb661367da413695db6ead324993a, type: 2}

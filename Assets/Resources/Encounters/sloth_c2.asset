@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: sloth_c2
   displayName: Sloth - Lethargic Duo
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: a3843ba9e0d574499834a8bd02d13295, type: 2}
+  - {fileID: 11400000, guid: 8e8e97a7b43014048a88972d64e2cd8c, type: 2}

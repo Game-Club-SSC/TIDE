@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: sloth_boss
   displayName: Sloth - The Somnolent
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: e45e68969071f44659f5d283745cae22, type: 2}
+  - {fileID: 11400000, guid: a3843ba9e0d574499834a8bd02d13295, type: 2}

@@ -15,5 +15,5 @@ MonoBehaviour:
   encounterId: pride_c2
   displayName: Pride - Arrogant Pair
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 240260d05e47740a096e8b683e56b6da, type: 2}
+  - {fileID: 11400000, guid: 0ce3a006679ec40739500d743f5455ed, type: 2}

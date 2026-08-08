@@ -15,6 +15,6 @@ MonoBehaviour:
   encounterId: wrath_c4
   displayName: Wrath - Warlord's Vanguard
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 76c576006c4fb4474be550fd139b9180, type: 2}
+  - {fileID: 11400000, guid: 46313d672bcec4686b64fe0d58c90585, type: 2}
+  - {fileID: 11400000, guid: a85d4c65388f84296b46f15a639fc4fa, type: 2}

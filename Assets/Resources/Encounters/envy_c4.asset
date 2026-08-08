@@ -15,6 +15,6 @@ MonoBehaviour:
   encounterId: envy_c4
   displayName: Envy - Final Covet
   enemies:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 09632909ee4a54fa7940f43e49aad4f9, type: 2}
+  - {fileID: 11400000, guid: 07d87df43e36e460c95c556f4c031716, type: 2}
+  - {fileID: 11400000, guid: b22bb661367da413695db6ead324993a, type: 2}
