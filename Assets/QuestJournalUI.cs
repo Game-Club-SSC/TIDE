@@ -395,7 +395,7 @@ public class QuestJournalUI : MonoBehaviour
             for (int i = 0; i < totalIslands; i++)
             {
                 float restoration = gsm.GetIslandRestorationPercent(progression[i]);
-                if (restoration >= 0.999f)
+                if (restoration >= 99.9f)
                 {
                     clearedIslands++;
                 }
@@ -408,7 +408,7 @@ public class QuestJournalUI : MonoBehaviour
         string activeIslandId = ipm != null ? ipm.ActiveIslandId : "island_lust";
         float currentRestoration = gsm.GetIslandRestorationPercent(activeIslandId);
         string islandDisplayName = FormatIslandName(activeIslandId);
-        SetLabel(storyRestorationLabel, $"{islandDisplayName} Restoration: {Mathf.RoundToInt(currentRestoration * 100f)}%");
+        SetLabel(storyRestorationLabel, $"{islandDisplayName} Restoration: {Mathf.RoundToInt(currentRestoration)}%");
 
         // Next objective
         string objective = DetermineNextObjective(gsm, ipm, progression);
@@ -779,13 +779,13 @@ public class QuestJournalUI : MonoBehaviour
         string activeIsland = ipm != null ? ipm.ActiveIslandId : progression[0];
         float restoration = gsm.GetIslandRestorationPercent(activeIsland);
 
-        if (restoration >= 0.999f)
+        if (restoration >= 99.9f)
         {
             // Current island fully restored -- find next un-restored island
             for (int i = 0; i < progression.Count; i++)
             {
                 float r = gsm.GetIslandRestorationPercent(progression[i]);
-                if (r < 0.999f)
+                if (r < 99.9f)
                 {
                     return $"Travel to {FormatIslandName(progression[i])} and restore its balance.";
                 }
@@ -794,9 +794,9 @@ public class QuestJournalUI : MonoBehaviour
         }
 
         string currentName = FormatIslandName(activeIsland);
-        if (restoration < 0.75f)
+        if (restoration < 75f)
         {
-            return $"Restore {currentName} by completing encounters and puzzles. ({Mathf.RoundToInt(restoration * 100f)}% complete)";
+            return $"Restore {currentName} by completing encounters and puzzles. ({Mathf.RoundToInt(restoration)}% complete)";
         }
 
         return $"The final challenge on {currentName} awaits. Push toward full restoration.";

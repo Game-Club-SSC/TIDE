@@ -7,13 +7,13 @@ using UnityEngine;
 public class AcceptanceConversation : MonoBehaviour
 {
     public const string FinalBossIslandId = "island_ego";
-    public const float RestorationThreshold = 0.75f;
+    public const float RestorationThreshold = 75f;
     public const int LineCount = 10;
 
     public static AcceptanceConversation Instance { get; private set; }
 
     [SerializeField] private string finalBossIslandId = FinalBossIslandId;
-    [SerializeField, Range(0f, 1f)] private float restorationThreshold = RestorationThreshold;
+    [SerializeField, Range(0f, 100f)] private float restorationThreshold = RestorationThreshold;
 
     public event Action<int, string> OnAcceptanceLinePresented;
     public event Action OnAcceptanceConversationFinished;

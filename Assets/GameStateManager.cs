@@ -1990,6 +1990,12 @@ public class GameStateManager : MonoBehaviour
             {
                 currentState = GameState.Puzzle;
             }
+
+            if (isFlowControlledCombat)
+            {
+                deferredFlowFromCombat = true;
+                isFlowControlledCombat = false;
+            }
         }
         else if (scene.name == CombatSceneName)
         {

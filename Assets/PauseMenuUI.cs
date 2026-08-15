@@ -333,7 +333,7 @@ public class PauseMenuUI : MonoBehaviour
     public void OnLoadClicked()
     {
         GameStateManager gsm = GameStateManager.Instance;
-        if (gsm == null || !gsm.HasPersistedWorldState)
+        if (gsm == null || !gsm.HasLoadableWorldState())
         {
             SetFeedback("No save data to load.");
             return;
