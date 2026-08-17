@@ -444,7 +444,9 @@ public class QuestJournalUI : MonoBehaviour
 
         // Create a scroll view
         textsContent = CreateScrollView(root.transform, "TextsScroll");
-        textsScrollContent = textsContent.GetComponentInChildren<RectTransform>();
+        // GetComponentInChildren<RectTransform> would return the scroll root's own
+        // RectTransform; we specifically need the ScrollRect's content viewport.
+        textsScrollContent = textsContent.GetComponent<ScrollRect>().content;
 
         return root;
     }
@@ -594,7 +596,7 @@ public class QuestJournalUI : MonoBehaviour
         root.AddComponent<CanvasGroup>();
 
         bondsContent = CreateScrollView(root.transform, "BondsScroll");
-        bondsScrollContent = bondsContent.GetComponentInChildren<RectTransform>();
+        bondsScrollContent = bondsContent.GetComponent<ScrollRect>().content;
 
         return root;
     }
