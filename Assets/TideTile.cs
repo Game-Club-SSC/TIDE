@@ -118,9 +118,9 @@ public class TideTile : MonoBehaviour
             StopCoroutine(activeTransitionCoroutine);
             activeTransitionCoroutine = null;
         }
-        // StartCorruptionTransition() manages the coroutine assignment internally;
-        // calling it as a statement avoids assigning its void return.
-        StartCorruptionTransition();
+
+        // FlashDecay writes the same material colour as the corruption transition.
+        // Run only the flash here so two coroutines cannot fight over the tile.
         StartFlash(FlashDecay());
     }
 
