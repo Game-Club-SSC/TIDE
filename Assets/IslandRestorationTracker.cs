@@ -110,12 +110,15 @@ public class IslandRestorationTracker : MonoBehaviour
             $"Restoration: {state.RestorationPercent:F1}% " +
             $"(Combat: {state.CombatContribution * 100:F0}%, Puzzle: {state.PuzzleContribution * 100:F0}%)");
 
-        OnRestorationChanged?.Invoke(islandId, state.RestorationPercent);
-
-        if (state.IsIslandRestored && previous < 1f)
+        if (!suppressEvents)
         {
-            Debug.Log($"[IslandRestorationTracker] Island '{islandId}' fully restored!");
-            OnIslandRestored?.Invoke(islandId);
+            OnRestorationChanged?.Invoke(islandId, state.RestorationPercent);
+
+            if (state.IsIslandRestored && previous < 1f)
+            {
+                Debug.Log($"[IslandRestorationTracker] Island '{islandId}' fully restored!");
+                OnIslandRestored?.Invoke(islandId);
+            }
         }
 
         if (GameStateManager.Instance != null)
@@ -143,7 +146,11 @@ public class IslandRestorationTracker : MonoBehaviour
 
         IslandRestorationState state = GetOrCreateState(islandId);
         state.Reset();
-        OnRestorationChanged?.Invoke(islandId, 0f);
+
+        if (!suppressEvents)
+        {
+            OnRestorationChanged?.Invoke(islandId, 0f);
+        }
 
         if (GameStateManager.Instance != null)
         {
@@ -379,10 +386,13 @@ public class IslandRestorationTracker : MonoBehaviour
             state.ApplySnapshot(snapshot);
         }
 
-        OnRestorationChanged?.Invoke(scopedIslandId, state.RestorationPercent);
-        if (state.IsIslandRestored)
+        if (!suppressEvents)
         {
-            OnIslandRestored?.Invoke(scopedIslandId);
+            OnRestorationChanged?.Invoke(scopedIslandId, state.RestorationPercent);
+            if (state.IsIslandRestored)
+            {
+                OnIslandRestored?.Invoke(scopedIslandId);
+            }
         }
 
         if (GameStateManager.Instance != null)

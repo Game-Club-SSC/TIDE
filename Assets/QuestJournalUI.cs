@@ -297,14 +297,14 @@ public class QuestJournalUI : MonoBehaviour
 
     private void SetTab(Tab tab)
     {
+        // Capture the previous tab before overwriting activeTab so the
+        // outgoing content is the one the user was actually looking at.
+        Tab previousTab = activeTab;
         activeTab = tab;
         storyTabImage.color = tab == Tab.StoryProgress ? AccentColor : TabInactiveColor;
         textsTabImage.color = tab == Tab.AncientTexts ? AccentColor : TabInactiveColor;
         bondsTabImage.color = tab == Tab.HeroBonds ? AccentColor : TabInactiveColor;
 
-        // Slash-transition the outgoing content out and the incoming content in
-        CanvasGroup outgoing = GetContentGroup(activeTab == Tab.StoryProgress ? Tab.AncientTexts :
-                                               activeTab == Tab.AncientTexts ? Tab.HeroBonds : Tab.StoryProgress);
         CanvasGroup incoming = GetContentGroup(tab);
 
         // Activate incoming immediately for the transition to play
@@ -314,7 +314,6 @@ public class QuestJournalUI : MonoBehaviour
             PersonaUIStyle.ApplySlashTransition(incoming, true, 0.25f);
         }
 
-        // Deactivate old content after its slash-out finishes
         // Stop any previously queued deactivation to prevent it from disabling a tab
         // the user just switched back to during rapid tab switching
         if (deactivateCoroutine != null)
@@ -323,21 +322,37 @@ public class QuestJournalUI : MonoBehaviour
             deactivateCoroutine = null;
         }
 
-        if (outgoing != null && outgoing.gameObject != incoming?.gameObject)
+        GameObject incomingObject = incoming != null ? incoming.gameObject : null;
+
+        // Immediately hide every panel that is neither incoming nor still
+        // animating out, so rapid switching can never leave stale panels visible.
+        for (int i = 0; i < 3; i++)
         {
-            PersonaUIStyle.ApplySlashTransition(outgoing, false, 0.2f);
-            deactivateCoroutine = StartCoroutine(DeactivateAfterDelay(outgoing.gameObject, 0.22f));
+            Tab candidate = (Tab)i;
+            if (candidate == tab || candidate == previousTab)
+            {
+                continue;
+            }
+
+            CanvasGroup other = GetContentGroup(candidate);
+            if (other != null && other.gameObject != incomingObject)
+            {
+                other.gameObject.SetActive(false);
+            }
         }
 
-        // Ensure the selected content is active (fallback if no outgoing)
-        storyContent.SetActive(tab == Tab.StoryProgress || storyContent.activeSelf);
-        textsContent.SetActive(tab == Tab.AncientTexts || textsContent.activeSelf);
-        bondsContent.SetActive(tab == Tab.HeroBonds || bondsContent.activeSelf);
-
-        // Only the correct tab should be active
-        storyContent.SetActive(tab == Tab.StoryProgress);
-        textsContent.SetActive(tab == Tab.AncientTexts);
-        bondsContent.SetActive(tab == Tab.HeroBonds);
+        // Slash-transition the outgoing content out once it has been identified
+        if (previousTab != tab)
+        {
+            CanvasGroup outgoing = GetContentGroup(previousTab);
+            if (outgoing != null
+                && outgoing.gameObject.activeSelf
+                && outgoing.gameObject != incomingObject)
+            {
+                PersonaUIStyle.ApplySlashTransition(outgoing, false, 0.2f);
+                deactivateCoroutine = StartCoroutine(DeactivateAfterDelay(outgoing.gameObject, 0.22f));
+            }
+        }
 
         RefreshAllTabs();
     }
@@ -734,7 +749,9 @@ public class QuestJournalUI : MonoBehaviour
     private System.Collections.IEnumerator DeactivateAfterDelay(GameObject obj, float delay)
     {
         yield return new WaitForSecondsRealtime(delay);
-        if (obj != null)
+        CanvasGroup current = GetContentGroup(activeTab);
+        bool isCurrentTab = current != null && current.gameObject == obj;
+        if (obj != null && !isCurrentTab)
         {
             obj.SetActive(false);
         }

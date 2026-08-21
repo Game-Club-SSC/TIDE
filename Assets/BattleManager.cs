@@ -2826,6 +2826,7 @@ public class BattleManager : MonoBehaviour
         switch (actionType)
         {
             case CombatActionType.Defend:
+                pendingSkillData = null;
                 AssignPlayerAction(actor, CombatActionType.Defend, null);
                 TryAutoConfirmPlayerActions();
                 return true;
@@ -2837,6 +2838,7 @@ public class BattleManager : MonoBehaviour
                     return false;
                 }
 
+                pendingSkillData = null;
                 AssignPlayerAction(actor, CombatActionType.Attack, attackTarget);
                 TryAutoConfirmPlayerActions();
                 return true;
