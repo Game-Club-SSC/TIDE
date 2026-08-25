@@ -11,6 +11,17 @@ fi
 
 cd "$RUNNER_DIR"
 
+pid_file="$RUNNER_DIR/.agy-runner.pid"
+if [[ -f "$pid_file" ]]; then
+  runner_pid="$(cat "$pid_file")"
+  if kill -0 "$runner_pid" 2>/dev/null; then
+    kill "$runner_pid" 2>/dev/null || true
+    sleep 1
+  fi
+  rm -f "$pid_file"
+fi
+
+# Clean up an older service-based install if one exists.
 if [[ -x ./svc.sh ]]; then
   ./svc.sh stop 2>/dev/null || true
   ./svc.sh uninstall 2>/dev/null || true

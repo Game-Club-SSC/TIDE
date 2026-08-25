@@ -62,16 +62,28 @@ else
   echo "Runner is already configured."
 fi
 
-# Install as a per-user LaunchAgent so it survives logout/restart without sudo.
-if ./svc.sh status 2>/dev/null | grep -qiE 'started|running'; then
-  echo "Runner service is already running."
+# Run from the logged-in user session instead of launchd service mode.
+# Antigravity account auth is stored in Apple Keychain and is not readable
+# from the runner LaunchAgent's headless audit session.
+pid_file="$RUNNER_DIR/.agy-runner.pid"
+if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+  echo "Runner process is already running (PID $(cat "$pid_file"))."
 else
-  ./svc.sh install || true
-  ./svc.sh start
+  rm -f "$pid_file"
+  nohup ./run.sh > "$RUNNER_DIR/runner.log" 2>&1 &
+  runner_pid=$!
+  echo "$runner_pid" > "$pid_file"
+  sleep 2
+  if ! kill -0 "$runner_pid" 2>/dev/null; then
+    echo "Runner failed to stay running. See $RUNNER_DIR/runner.log" >&2
+    exit 1
+  fi
 fi
 
 echo
 echo "Runner installed and started: $RUNNER_NAME"
 echo "Directory: $RUNNER_DIR"
+echo "This uses your normal logged-in macOS/Antigravity session."
+echo "After a Mac reboot, run this setup script again to start it."
 echo "To completely undo this later, run from the TIDE repo:"
 echo "  bash scripts/remove-agy-runner.sh"

@@ -91,7 +91,7 @@ jobs:
 
           prompt="${instructions}"$'\n'"$(cat .agy-ci-review.patch)"$'\n''--- END UNTRUSTED DIFF ---'
 
-          launchctl asuser "$(id -u)" "$HOME/.local/bin/agy" -p "$prompt" \
+          agy -p "$prompt" \
             --mode plan \
             --sandbox \
             --effort high \
