@@ -15,49 +15,26 @@ concurrency:
 
 jobs:
   review:
+    # Never execute a fork's code on Andrian's personal self-hosted Mac.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: Antigravity bug review
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, macOS, ARM64, tide-agy]
     timeout-minutes: 20
-    env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check Gemini API key
-        id: gemini
+      - name: Check local AGY environment
         shell: bash
         run: |
-          if [[ -n "${GEMINI_API_KEY:-}" ]]; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "## AGY Bug Review" >> "$GITHUB_STEP_SUMMARY"
-            echo "Skipped: add a repository Actions secret named \`GEMINI_API_KEY\` to enable AGY in CI." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Install Antigravity CLI
-        if: steps.gemini.outputs.configured == 'true'
-        shell: bash
-        run: |
-          curl -fsSL https://antigravity.google/cli/install.sh | bash
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Configure headless Gemini provider
-        if: steps.gemini.outputs.configured == 'true'
-        shell: bash
-        run: |
-          mkdir -p "$HOME/.gemini/antigravity-cli"
-          cat > "$HOME/.gemini/antigravity-cli/settings.json" <<'JSON'
-          {
-            "modelProvider": "gemini"
-          }
-          JSON
+          export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
+          command -v agy
+          agy --version
+          command -v jq
 
       - name: Build review diff
-        if: steps.gemini.outputs.configured == 'true'
         id: diff
         shell: bash
         env:
@@ -79,11 +56,12 @@ jobs:
           echo "Prepared a $bytes-byte diff for review."
 
       - name: Run AGY bug review
-        if: steps.gemini.outputs.configured == 'true' && steps.diff.outputs.bytes != '0'
+        if: steps.diff.outputs.bytes != '0'
         id: agy
         shell: bash
         run: |
           set -euo pipefail
+          export PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 
           max_bytes=750000
           diff_bytes=$(wc -c < .agy-ci-review.patch | tr -d ' ')
@@ -152,7 +130,7 @@ jobs:
           fi
 
       - name: No code changes to review
-        if: steps.gemini.outputs.configured == 'true' && steps.diff.outputs.bytes == '0'
+        if: steps.diff.outputs.bytes == '0'
         run: echo "No diff content; AGY review skipped." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload AGY findings
