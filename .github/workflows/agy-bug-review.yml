@@ -111,9 +111,7 @@ jobs:
           PROMPT
           )
 
-          prompt="${instructions}
-$(cat .agy-ci-review.patch)
---- END UNTRUSTED DIFF ---"
+          prompt="${instructions}"$'\n'"$(cat .agy-ci-review.patch)"$'\n''--- END UNTRUSTED DIFF ---'
 
           agy -p "$prompt" \
             --mode plan \
