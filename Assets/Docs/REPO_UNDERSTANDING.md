@@ -534,8 +534,10 @@ The post-vertical-slice cohort of issues added a fleet of new singletons, servic
 - **Test:** `VerticalSliceRegressionRunner` check #34 returns true.
 
 ### 17.23 Phone web controller auth (VS-35)
-- `PhoneControllerAuthService.cs` — `GenerateToken`, `ValidateToken`, `RegisterToken` (custom lifetime), `GetActiveTokenCount`, `RevokeAllTokens`. 1h default lifetime.
-- **Test:** `VerticalSliceRegressionRunnerTest.cs` (TestPhoneControllerAuth*).
+- `PhoneControllerAuthService.cs` — thread-safe bearer tokens plus a cryptographic six-digit pairing code. Pairing codes expire after five minutes, rotate after use or abuse, and enforce per-peer and global failed-attempt limits.
+- `PhoneWebController.cs` — requires bearer auth for commands and state, accepts only its exact page origin, caps request bodies and worker/command queues, and applies network work off the Unity thread. LAN access over plain HTTP is an explicit, off-by-default `allowInsecureLanAccess` setting; loopback remains the safe default.
+- HTTPS is not enabled in this component. `HttpListener` cannot load and serve a project certificate by itself: each host needs an OS-level certificate binding and trust setup. A portable in-app TLS path needs a different server stack plus certificate creation, storage, renewal, and phone trust handling. Do not turn LAN access on outside a trusted network until that product work is complete.
+- **Test:** `PhoneControllerAuthServiceTest.cs` covers bearer auth, code expiry and rotation, per-peer/global limits, origin checks, and request-body caps. `VerticalSliceRegressionRunnerTest.cs` retains the service check.
 
 ### 17.24 New Game+ (VS-36)
 - `NewGamePlusService.cs` — singleton. `RegisterCompletion`, `CanStartNewGamePlus`, `StartNewGamePlus`, `EndNewGamePlus`. Scaled enemy/xp multipliers via `Mathf.Pow(base, loopIndex)`. `GetCarryOverHeroIds` returns the active party.

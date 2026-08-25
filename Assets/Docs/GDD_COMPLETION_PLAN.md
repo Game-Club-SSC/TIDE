@@ -147,13 +147,16 @@ The combat system is 80% done but critical config surfaces are disconnected. The
 
 ## Phase 3: Narrative Integration
 
-### 3.1 DialogueTreeRunner TODOs
+### 3.1 DialogueTreeRunner integrations
 
-**Why:** 9 TODO markers — 5 conditions and 4 effects that silently no-op.
+**Status (2026-08-24): Complete.** The four service-backed conditions, four
+durable effects, and `requiredStoryAct` filter are implemented. Durable effects
+use the dialogue ledger path so replay does not grant them twice. The matching
+runner and effect verification tests are listed in the completed checklist below.
 
 **Files:** `DialogueTreeRunner.cs`, `StoryProgressionService.cs`, `IslandRestorationTracker.cs` (or similar)
 
-#### Conditions (4 unimplemented):
+#### Conditions (4 implemented):
 
 | Condition | Line | Integration Target |
 |-----------|------|--------------------|
@@ -162,7 +165,7 @@ The combat system is 80% done but critical config surfaces are disconnected. The
 | `HasAncientText` | 478 | `ExpandedAncientTexts.HasText(textId)` or similar |
 | `QuestCompleted` | 482 | `StoryProgressionService.IsQuestCompleted(questId)` |
 
-#### Effects (4 unimplemented):
+#### Effects (4 implemented):
 
 | Effect | Line | Integration Target |
 |--------|------|--------------------|
@@ -173,9 +176,9 @@ The combat system is 80% done but critical config surfaces are disconnected. The
 
 | Task | Detail |
 |------|--------|
-| Implement `EvaluateCondition` branches | Switch on `DialogueConditionType`, query the appropriate service, return bool. |
-| Implement `ApplyEffect` branches | Switch on `DialogueEffectType`, call the appropriate service method. |
-| Add `requiredStoryAct` check | Line 333 — check `StoryProgressionService.GetCurrentAct() >= requiredStoryAct`. |
+| Implement `EvaluateCondition` branches | Complete — each type queries its service and fails closed when the service is absent. |
+| Implement `ApplyEffect` branches | Complete — durable types use `ApplyDurableEffect`; bond changes use `DialogueSystem`. |
+| Add `requiredStoryAct` check | Complete — choices below the required reached act are filtered out. |
 
 **Verification:** `NarrativeSystemsTest`. Manually test: trigger dialogue with condition → verify it gates correctly → verify effects apply.
 

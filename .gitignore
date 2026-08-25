@@ -6,6 +6,7 @@
 venv/
 commits_per_day.txt
 .commandcode/
+.DS_Store
 
 .utmp/
 /[Ll]ibrary/
@@ -46,6 +47,7 @@ commits_per_day.txt
 ExportedObj/
 .consulo/
 *.csproj
+!Verification/PhoneSecurityHarness/PhoneSecurityHarness.csproj
 *.unityproj
 *.sln
 *.suo
@@ -102,6 +104,10 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Standalone verification harness output
+/Verification/**/bin/
+/Verification/**/obj/
 
 # Agent tooling dirs (do not commit)
 .freebuff/
