@@ -105,6 +105,110 @@ public class BattleFlowTestSuite
     }
 
     [Test]
+    public void CriticalAttackAddsConfiguredMomentumBonus()
+    {
+        CombatUnit ally = CreateUnit(unitsRoot.transform, "CritAlly", CombatUnit.UnitType.Ally,
+            speed: 10, attack: 20, defense: 0, hp: 100, element: CombatUnit.Element.Fire);
+        CombatUnit enemy = CreateUnit(unitsRoot.transform, "CritEnemy", CombatUnit.UnitType.Enemy,
+            speed: 8, attack: 10, defense: 0, hp: 100, element: CombatUnit.Element.Fire);
+        ally.CritRate = 1f;
+        ally.CritDamage = 1.5f;
+        manager.RegisterUnit(ally);
+        manager.RegisterUnit(enemy);
+
+        InvokePrivate(manager, "ResolveAttack", ally, enemy);
+
+        Assert.That(manager.Momentum.Value, Is.EqualTo(0.1495f).Within(0.0001f),
+            "A neutral critical hit should add the neutral action shift (0.0495) and crit shift (0.1).");
+    }
+
+    [Test]
+    public void ExplicitSkillElementDrivesDamageMomentum()
+    {
+        CombatUnit caster = CreateUnit(unitsRoot.transform, "FireCaster", CombatUnit.UnitType.Ally,
+            speed: 10, attack: 20, defense: 0, hp: 100, element: CombatUnit.Element.Fire);
+        CombatUnit target = CreateUnit(unitsRoot.transform, "FireTarget", CombatUnit.UnitType.Enemy,
+            speed: 8, attack: 10, defense: 0, hp: 100, element: CombatUnit.Element.Fire);
+        caster.CritRate = 0f;
+        caster.MaxMP = 20;
+        caster.MP = 20;
+        manager.RegisterUnit(caster);
+        manager.RegisterUnit(target);
+
+        SkillData waterSkill = ScriptableObject.CreateInstance<SkillData>();
+        waterSkill.skillName = "Tidal Override";
+        waterSkill.target = SkillTarget.SingleEnemy;
+        waterSkill.element = CombatUnit.Element.Water;
+        waterSkill.damageMultiplier = 1f;
+        waterSkill.mpCost = 0;
+        try
+        {
+            InvokePrivate(manager, "ResolveSkill", caster, target, waterSkill);
+
+            Assert.That(manager.Momentum.Value, Is.EqualTo(0.15f).Within(0.0001f),
+                "Water is strong against Fire, so the skill's explicit element must drive momentum instead of the Fire caster affinity.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(waterSkill);
+        }
+    }
+
+    [Test]
+    public void BalanceConfigMomentumThresholdControlsTideBreakReadiness()
+    {
+        BalanceConfig config = ScriptableObject.CreateInstance<BalanceConfig>();
+        config.momentumThresholdForTideBreak = 5;
+        SetPrivateField(manager, "balanceConfig", config);
+
+        CombatUnit ally = CreateUnit(unitsRoot.transform, "ThresholdAlly", CombatUnit.UnitType.Ally,
+            speed: 10, attack: 10, defense: 0, hp: 100, element: CombatUnit.Element.Fire);
+        try
+        {
+            manager.StartBattle();
+            for (int i = 0; i < 4; i++)
+            {
+                manager.Momentum.ShiftForAction(ally, MatchupResult.Strong);
+            }
+
+            Assert.IsFalse(manager.Momentum.IsPlayerTideBreakReady,
+                "Four strong shifts must not fill a five-shift Tide Break threshold.");
+
+            manager.Momentum.ShiftForAction(ally, MatchupResult.Strong);
+            Assert.IsTrue(manager.Momentum.IsPlayerTideBreakReady,
+                "The configured fifth strong shift should make Tide Break ready.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(config);
+        }
+    }
+
+    [Test]
+    public void TideBreakElementOverridesActorElementForClashes()
+    {
+        CombatUnit actor = CreateUnit(unitsRoot.transform, "TideActor", CombatUnit.UnitType.Ally,
+            speed: 10, attack: 10, defense: 0, hp: 100, element: CombatUnit.Element.Fire);
+        TideBreakData tideBreak = ScriptableObject.CreateInstance<TideBreakData>();
+        tideBreak.abilityName = "Tidal Break";
+        tideBreak.element = (int)CombatUnit.Element.Water;
+        tideBreak.targetType = SkillTarget.SingleEnemy;
+        tideBreak.damageMultiplier = 2f;
+        try
+        {
+            PlannedAction action = new PlannedAction(CombatActionType.TideBreak, actor, null, tideBreak);
+            CombatUnit.Element resolved = (CombatUnit.Element)InvokePrivate(manager, "ResolvePlannedActionElement", action, actor);
+
+            Assert.AreEqual(CombatUnit.Element.Water, resolved,
+                "Clash resolution must use the selected Tide Break element when it is authored explicitly.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(tideBreak);
+        }
+    }
+
+    [Test]
     public void TurnStartDamageSkipsDefeatedActor()
     {
         CombatUnit poisoned = CreateUnit(
@@ -1170,7 +1274,7 @@ public class BattleFlowTestSuite
     {
         Assert.IsNotNull(target, "Reflection target should not be null.");
 
-        MethodInfo method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        MethodInfo method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(method, $"Method '{methodName}' should exist for verification.");
 
         if (target is BattleManager manager && methodName == "TryGetNextActingUnit")

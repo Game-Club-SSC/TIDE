@@ -8,6 +8,7 @@ public sealed class IslandRestorationStateSnapshot
     public string islandId;
     public float combatContribution;
     public float puzzleContribution;
+    public float bossContribution;
     public float totalContribution;
     public int combatEncountersCompleted;
     public int puzzleEncountersCompleted;
@@ -20,6 +21,7 @@ public class IslandRestorationState
     [SerializeField] private string islandId;
     [SerializeField] private float combatContribution;
     [SerializeField] private float puzzleContribution;
+    [SerializeField] private float bossContribution;
     [SerializeField] private float totalContribution;
     [SerializeField] private int combatEncountersCompleted;
     [SerializeField] private int puzzleEncountersCompleted;
@@ -28,6 +30,7 @@ public class IslandRestorationState
     public string IslandId => islandId;
     public float CombatContribution => combatContribution;
     public float PuzzleContribution => puzzleContribution;
+    public float BossContribution => bossContribution;
     public float TotalContribution => totalContribution;
     public int CombatEncountersCompleted => combatEncountersCompleted;
     public int PuzzleEncountersCompleted => puzzleEncountersCompleted;
@@ -40,6 +43,7 @@ public class IslandRestorationState
         this.islandId = islandId;
         combatContribution = 0f;
         puzzleContribution = 0f;
+        bossContribution = 0f;
         totalContribution = 0f;
         combatEncountersCompleted = 0;
         puzzleEncountersCompleted = 0;
@@ -50,9 +54,12 @@ public class IslandRestorationState
         return !string.IsNullOrEmpty(encounterId) && completedEncounterIds.Contains(encounterId);
     }
 
-    public void RecordCompletion(string encounterId, EncounterType type, float value)
+    public void RecordCompletion(string encounterId, EncounterType type, float value, bool isBossEncounter = false)
     {
-        if (string.IsNullOrEmpty(encounterId))
+        if (string.IsNullOrEmpty(encounterId)
+            || value <= 0f
+            || float.IsNaN(value)
+            || float.IsInfinity(value))
         {
             return;
         }
@@ -64,7 +71,22 @@ public class IslandRestorationState
 
         completedEncounterIds.Add(encounterId);
 
-        if (type == EncounterType.Combat)
+        if (isBossEncounter)
+        {
+            // Bosses only become available after the 75% threshold. Keep their
+            // configured completion value separate so the GDD's 50% cap applies
+            // to ordinary island combat without discarding boss restoration.
+            bossContribution = Mathf.Min(1f, bossContribution + value);
+            if (type == EncounterType.Combat)
+            {
+                combatEncountersCompleted++;
+            }
+            else
+            {
+                puzzleEncountersCompleted++;
+            }
+        }
+        else if (type == EncounterType.Combat)
         {
             combatContribution = Mathf.Min(0.5f, combatContribution + value);
             combatEncountersCompleted++;
@@ -75,13 +97,14 @@ public class IslandRestorationState
             puzzleEncountersCompleted++;
         }
 
-        totalContribution = Mathf.Clamp01(combatContribution + puzzleContribution);
+        totalContribution = Mathf.Clamp01(combatContribution + puzzleContribution + bossContribution);
     }
 
     public void Reset()
     {
         combatContribution = 0f;
         puzzleContribution = 0f;
+        bossContribution = 0f;
         totalContribution = 0f;
         combatEncountersCompleted = 0;
         puzzleEncountersCompleted = 0;
@@ -95,6 +118,7 @@ public class IslandRestorationState
             islandId = this.islandId,
             combatContribution = this.combatContribution,
             puzzleContribution = this.puzzleContribution,
+            bossContribution = this.bossContribution,
             totalContribution = this.totalContribution,
             combatEncountersCompleted = this.combatEncountersCompleted,
             puzzleEncountersCompleted = this.puzzleEncountersCompleted,
@@ -116,9 +140,15 @@ public class IslandRestorationState
             islandId = snapshot.islandId;
         }
 
-        combatContribution = float.IsNaN(snapshot.combatContribution) ? 0f : Mathf.Max(0f, snapshot.combatContribution);
-        puzzleContribution = float.IsNaN(snapshot.puzzleContribution) ? 0f : Mathf.Max(0f, snapshot.puzzleContribution);
-        totalContribution = Mathf.Clamp01(combatContribution + puzzleContribution);
+        float snapshotCombat = SanitizeContribution(snapshot.combatContribution);
+        float snapshotBoss = SanitizeContribution(snapshot.bossContribution);
+        float legacyCombatOverflow = snapshotBoss <= 0f
+            ? Mathf.Max(0f, snapshotCombat - 0.5f)
+            : 0f;
+        combatContribution = Mathf.Min(0.5f, snapshotCombat);
+        puzzleContribution = Mathf.Min(1f, SanitizeContribution(snapshot.puzzleContribution));
+        bossContribution = Mathf.Min(1f, snapshotBoss + legacyCombatOverflow);
+        totalContribution = Mathf.Clamp01(combatContribution + puzzleContribution + bossContribution);
         combatEncountersCompleted = Mathf.Max(0, snapshot.combatEncountersCompleted);
         puzzleEncountersCompleted = Mathf.Max(0, snapshot.puzzleEncountersCompleted);
 
@@ -134,5 +164,12 @@ public class IslandRestorationState
                 }
             }
         }
+    }
+
+    private static float SanitizeContribution(float value)
+    {
+        return float.IsNaN(value) || float.IsInfinity(value)
+            ? 0f
+            : Mathf.Max(0f, value);
     }
 }

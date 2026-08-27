@@ -22,6 +22,8 @@ public class RestorationTrackerTest : MonoBehaviour
         TestTypedBuckets();
         TestRestorationPercentCalculation();
         TestThresholdQuery();
+        TestConfiguredBossContributionCompletesIslandPastCombatCap();
+        TestLegacyBossSnapshotMigration();
         TestFullRestorationEvent();
         TestResetIsland();
         TestMultiIslandIsolation();
@@ -388,6 +390,145 @@ public class RestorationTrackerTest : MonoBehaviour
         }
 
         Debug.Log("✓ Full restoration event test passed");
+    }
+
+    private void TestConfiguredBossContributionCompletesIslandPastCombatCap()
+    {
+        Debug.Log("Testing configured boss contribution bypasses ordinary-combat cap...");
+
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossContribution");
+        GameObject trackerObject = tracker.gameObject;
+
+        try
+        {
+            const string islandId = "island_lust";
+            IslandConfig config = IslandThemeRegistry.GetConfig(islandId);
+            Assert.IsNotNull(config, "Lust island config should load for boss restoration verification.");
+            Assert.IsNotNull(config.encounters, "Lust island should define encounters.");
+
+            EncounterDefinition boss = null;
+            for (int i = 0; i < config.encounters.Length; i++)
+            {
+                if (config.encounters[i] != null && config.encounters[i].isBossEncounter)
+                {
+                    boss = config.encounters[i];
+                    break;
+                }
+            }
+
+            Assert.IsNotNull(boss, "Lust island should define a boss encounter.");
+            Assert.Greater(boss.restorationValue, 0f,
+                "Configured boss should contribute restoration after the 75% gate.");
+
+            tracker.RecordEncounterCompletion(islandId, "preboss_combat", EncounterType.Combat, 0.5f);
+            tracker.RecordEncounterCompletion(islandId, "preboss_puzzle", EncounterType.Puzzle, 0.25f);
+            Assert.AreEqual(75f, tracker.GetRestorationPercent(islandId), 0.01f,
+                "Setup should match the GDD boss-unlock threshold.");
+
+            bool recorded = tracker.RecordEncounterCompletion(
+                islandId,
+                boss.encounterId,
+                boss.type,
+                boss.restorationValue);
+
+            IslandRestorationState state = tracker.GetRestorationState(islandId);
+            Assert.IsTrue(recorded, "Configured boss victory should be recorded.");
+            Assert.AreEqual(0.5f, state.CombatContribution, 0.001f,
+                "Ordinary combat should remain capped at 50% after the boss.");
+            Assert.AreEqual(boss.restorationValue, state.BossContribution, 0.001f,
+                "Boss value should be tracked outside the ordinary-combat bucket.");
+            Assert.AreEqual(100f, state.RestorationPercent, 0.01f,
+                "Configured boss victory should complete the island from 75%.");
+            Assert.IsTrue(state.IsIslandRestored,
+                "Configured boss victory should fire the full-restoration progression boundary.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
+
+        Debug.Log("✓ Configured boss contribution test passed");
+    }
+
+    private void TestLegacyBossSnapshotMigration()
+    {
+        Debug.Log("Testing legacy capped boss snapshot migration...");
+
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TestTracker_BossSnapshotMigration");
+        GameObject trackerObject = tracker.gameObject;
+
+        try
+        {
+            const string islandId = "island_lust";
+            IslandConfig config = IslandThemeRegistry.GetConfig(islandId);
+            Assert.IsNotNull(config, "Lust island config should load for save migration verification.");
+            Assert.IsNotNull(config.encounters, "Lust island should define encounters for save migration.");
+
+            IslandRestorationStateSnapshot legacyState = new IslandRestorationStateSnapshot
+            {
+                islandId = islandId,
+                combatContribution = 0.5f,
+                puzzleContribution = 0.25f,
+                bossContribution = 0f,
+                totalContribution = 0.75f,
+                completedEncounterIds = new List<string>()
+            };
+
+            float configuredCombatContribution = 0f;
+            float configuredBossContribution = 0f;
+            for (int i = 0; i < config.encounters.Length; i++)
+            {
+                EncounterDefinition encounter = config.encounters[i];
+                if (encounter == null || string.IsNullOrEmpty(encounter.encounterId))
+                {
+                    continue;
+                }
+
+                legacyState.completedEncounterIds.Add(encounter.encounterId);
+                if (encounter.type == EncounterType.Combat)
+                {
+                    legacyState.combatEncountersCompleted++;
+                    if (encounter.isBossEncounter)
+                    {
+                        configuredBossContribution += encounter.restorationValue;
+                    }
+                    else
+                    {
+                        configuredCombatContribution += encounter.restorationValue;
+                    }
+                }
+                else
+                {
+                    legacyState.puzzleEncountersCompleted++;
+                }
+            }
+
+            Assert.AreEqual(0.5f, configuredCombatContribution, 0.001f,
+                "Lust ordinary combat data should match the GDD 50% cap.");
+            Assert.AreEqual(0.25f, configuredBossContribution, 0.001f,
+                "Lust boss data should supply the final 25% after the 75% gate.");
+
+            IslandRestorationTracker.TrackerSnapshot legacySnapshot =
+                new IslandRestorationTracker.TrackerSnapshot();
+            legacySnapshot.islands.Add(legacyState);
+            tracker.ApplySnapshot(legacySnapshot);
+
+            IslandRestorationState migratedState = tracker.GetRestorationState(islandId);
+            Assert.AreEqual(configuredCombatContribution, migratedState.CombatContribution, 0.001f,
+                "Migration should retain the configured ordinary-combat contribution.");
+            Assert.AreEqual(configuredBossContribution, migratedState.BossContribution, 0.001f,
+                "Migration should recover the completed configured boss contribution.");
+            Assert.AreEqual(100f, migratedState.RestorationPercent, 0.01f,
+                "A cap-era boss-complete save should migrate from 75% to full restoration.");
+            Assert.IsTrue(migratedState.IsIslandRestored,
+                "Migrated boss-complete save should satisfy the island-restored boundary.");
+        }
+        finally
+        {
+            if (trackerObject != null) DestroyImmediate(trackerObject);
+        }
+
+        Debug.Log("✓ Legacy capped boss snapshot migration test passed");
     }
 
     private void TestResetIsland()

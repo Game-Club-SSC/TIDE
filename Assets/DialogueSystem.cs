@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Singleton that manages character dialogue sequences and inter-hero bonding levels.
@@ -59,6 +60,9 @@ public class DialogueSystem : MonoBehaviour
     private DialogueTreeRunner activeTreeRunner;
     private GameObject activeTreeRunnerObj;
     private bool isDialogueActive;
+    private IsometricPlayer movementLockedPlayer;
+    private bool movementLockSnapshot;
+    private bool hasMovementLockSnapshot;
 
     // ------------------------------------------------------------------ //
     //  Dialogue narrative state (issue #297)
@@ -340,6 +344,8 @@ public class DialogueSystem : MonoBehaviour
         public List<string> unlockedTideBreakNames = new List<string>();
         public List<string> grantedRewardKeys = new List<string>();
         public List<DialoguePendingRewardEntry> pendingRewards = new List<DialoguePendingRewardEntry>();
+        public List<string> bondKeys = new List<string>();
+        public List<int> bondLevels = new List<int>();
     }
 
     [Serializable]
@@ -384,6 +390,15 @@ public class DialogueSystem : MonoBehaviour
             saveData.pendingRewards = new List<DialoguePendingRewardEntry>(pendingRewards);
         }
 
+        List<string> sortedBondKeys = new List<string>(bondLevels.Keys);
+        sortedBondKeys.Sort(StringComparer.Ordinal);
+        for (int i = 0; i < sortedBondKeys.Count; i++)
+        {
+            string key = sortedBondKeys[i];
+            saveData.bondKeys.Add(key);
+            saveData.bondLevels.Add(Mathf.Clamp(bondLevels[key], 0, MaxBondLevel));
+        }
+
         return saveData;
     }
 
@@ -392,6 +407,19 @@ public class DialogueSystem : MonoBehaviour
         if (saveData == null)
         {
             return;
+        }
+
+        bondLevels.Clear();
+        if (saveData.bondKeys != null && saveData.bondLevels != null)
+        {
+            int bondCount = Mathf.Min(saveData.bondKeys.Count, saveData.bondLevels.Count);
+            for (int i = 0; i < bondCount; i++)
+            {
+                if (TryNormalizeBondKey(saveData.bondKeys[i], out string key))
+                {
+                    bondLevels[key] = Mathf.Clamp(saveData.bondLevels[i], 0, MaxBondLevel);
+                }
+            }
         }
 
         grantedRewardKeys.Clear();
@@ -466,6 +494,13 @@ public class DialogueSystem : MonoBehaviour
                     continue;
                 }
 
+                string rewardKey = MakeRewardKey(entry.treeId, entry.nodeId, entry.effectIndex);
+                bool isOneShot = entry.effectType != (int)DialogueEffectType.SetFlag;
+                if (isOneShot && grantedRewardKeys.Contains(rewardKey))
+                {
+                    continue;
+                }
+
                 DialogueTreeEffect effect = new DialogueTreeEffect
                 {
                     type = (DialogueEffectType)entry.effectType,
@@ -495,7 +530,7 @@ public class DialogueSystem : MonoBehaviour
             }
         }
 
-        Debug.Log($"[DialogueSystem] Restored dialogue state: {dialogueFlags.Count} flags, {unlockedTideBreakKeys.Count} Tide Break unlocks, {grantedRewardKeys.Count} granted rewards, {pendingRewards.Count} pending.");
+        Debug.Log($"[DialogueSystem] Restored dialogue state: {dialogueFlags.Count} flags, {bondLevels.Count} bonds, {unlockedTideBreakKeys.Count} Tide Break unlocks, {grantedRewardKeys.Count} granted rewards, {pendingRewards.Count} pending.");
     }
 
     public void ResetDialogueStateForDebug()
@@ -504,6 +539,7 @@ public class DialogueSystem : MonoBehaviour
         unlockedTideBreakKeys.Clear();
         grantedRewardKeys.Clear();
         pendingRewards.Clear();
+        bondLevels.Clear();
     }
 
     /// <summary>Fired when a dialogue sequence completes. Passes the list of entries shown.</summary>
@@ -526,12 +562,15 @@ public class DialogueSystem : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        SceneManager.sceneLoaded += HandleSceneLoaded;
     }
 
     private void OnDestroy()
     {
+        RestorePlayerMovement();
         if (Instance == this)
         {
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
             Instance = null;
         }
     }
@@ -705,7 +744,10 @@ public class DialogueSystem : MonoBehaviour
 
         foreach (KeyValuePair<string, int> pair in savedBonds)
         {
-            bondLevels[pair.Key] = Mathf.Clamp(pair.Value, 0, MaxBondLevel);
+            if (TryNormalizeBondKey(pair.Key, out string key))
+            {
+                bondLevels[key] = Mathf.Clamp(pair.Value, 0, MaxBondLevel);
+            }
         }
     }
 
@@ -742,6 +784,27 @@ public class DialogueSystem : MonoBehaviour
         OnDialogueTreeCompleted?.Invoke(treeId);
     }
 
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode loadMode)
+    {
+        if (!isDialogueActive)
+        {
+            return;
+        }
+
+        if (activeTreeRunner != null)
+        {
+            activeTreeRunner.OnTreeCompleted -= HandleTreeCompleted;
+        }
+
+        activeTreeRunner = null;
+        activeTreeRunnerObj = null;
+        activeUI = null;
+        pendingEntries = null;
+        isDialogueActive = false;
+        RestorePlayerMovement();
+        Debug.Log($"[DialogueSystem] Cancelled scene-owned dialogue after loading '{scene.name}'.");
+    }
+
     private DialogueUI EnsureDialogueUI()
     {
         if (activeUI != null)
@@ -762,11 +825,67 @@ public class DialogueSystem : MonoBehaviour
 
     private void LockPlayerMovement(bool locked)
     {
-        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
-        if (player != null)
+        if (locked)
         {
-            player.canMove = !locked;
+            if (hasMovementLockSnapshot)
+            {
+                return;
+            }
+
+            movementLockedPlayer = FindFirstObjectByType<IsometricPlayer>();
+            if (movementLockedPlayer == null)
+            {
+                return;
+            }
+
+            movementLockSnapshot = movementLockedPlayer.canMove;
+            hasMovementLockSnapshot = true;
+            movementLockedPlayer.canMove = false;
+            return;
         }
+
+        RestorePlayerMovement();
+    }
+
+    private void RestorePlayerMovement()
+    {
+        if (!hasMovementLockSnapshot)
+        {
+            return;
+        }
+
+        if (movementLockedPlayer != null)
+        {
+            movementLockedPlayer.canMove = movementLockSnapshot;
+        }
+
+        movementLockedPlayer = null;
+        hasMovementLockSnapshot = false;
+    }
+
+    private static bool TryNormalizeBondKey(string savedKey, out string normalizedKey)
+    {
+        normalizedKey = null;
+        if (string.IsNullOrWhiteSpace(savedKey))
+        {
+            return false;
+        }
+
+        string[] parts = savedKey.Split('|');
+        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+        {
+            return false;
+        }
+
+        string heroA = parts[0].Trim();
+        string heroB = parts[1].Trim();
+        if (string.Equals(heroA, heroB, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        normalizedKey = MakeBondKey(heroA, heroB);
+        return true;
     }
 
     private static string DescribeBondLevel(int level)

@@ -36,6 +36,11 @@ public class TideBreakData : ScriptableObject
 
     public static List<TideBreakData> GetForElement(int elementId, int heroLevel)
     {
+        if (elementId < (int)CombatUnit.Element.Fire || elementId > (int)CombatUnit.Element.Space)
+        {
+            return new List<TideBreakData>();
+        }
+
         if (allCached == null)
         {
             allCached = Resources.LoadAll<TideBreakData>("TideBreakData");
@@ -47,7 +52,11 @@ public class TideBreakData : ScriptableObject
         }
 
         return allCached
-            .Where(tb => tb != null && tb.element == elementId && tb.unlockLevel <= heroLevel)
+            .Where(tb => tb != null
+                && tb.IsValid()
+                && !tb.isHidden
+                && tb.element == elementId
+                && tb.unlockLevel <= Mathf.Max(1, heroLevel))
             .ToList();
     }
 
@@ -59,6 +68,13 @@ public class TideBreakData : ScriptableObject
     public bool IsValid()
     {
         return !string.IsNullOrEmpty(abilityName)
-            && damageMultiplier >= 0f;
+            && !float.IsNaN(damageMultiplier)
+            && !float.IsInfinity(damageMultiplier)
+            && damageMultiplier >= 0f
+            && (int)targetType >= (int)SkillTarget.SingleEnemy
+            && (int)targetType <= (int)SkillTarget.AllAllies
+            && element >= (int)CombatUnit.Element.None
+            && element <= (int)CombatUnit.Element.Space
+            && unlockLevel >= 1;
     }
 }

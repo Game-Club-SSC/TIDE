@@ -26,6 +26,11 @@ public static class ElementMatchup
 
     public static MatchupResult GetResult(CombatUnit.Element attacker, CombatUnit.Element defender)
     {
+        if (!IsDefinedElement(attacker) || !IsDefinedElement(defender))
+        {
+            return MatchupResult.Neutral;
+        }
+
         if (attacker == CombatUnit.Element.None || defender == CombatUnit.Element.None)
         {
             return MatchupResult.Neutral;
@@ -48,6 +53,13 @@ public static class ElementMatchup
         }
 
         return MatchupResult.Weak;
+    }
+
+    private static bool IsDefinedElement(CombatUnit.Element element)
+    {
+        int numericValue = (int)element;
+        return numericValue >= (int)CombatUnit.Element.None
+            && numericValue <= (int)CombatUnit.Element.Space;
     }
 
     public static float GetDamageMultiplier(CombatUnit.Element attacker, CombatUnit.Element defender)

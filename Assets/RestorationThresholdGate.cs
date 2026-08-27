@@ -5,7 +5,8 @@ public class RestorationThresholdGate : MonoBehaviour
 {
     [Header("Threshold")]
     [SerializeField] private string islandId = "island_lust";
-    [SerializeField] [Range(0f, 100f)] private float thresholdPercent = 80f;
+    [SerializeField] [Range(0f, 100f)] private float thresholdPercent =
+        IslandRestorationTracker.DefaultBossUnlockThresholdPercent;
 
     [Header("Targets")]
     [SerializeField] private GameObject objectToEnable;
@@ -64,7 +65,6 @@ public class RestorationThresholdGate : MonoBehaviour
         }
 
         string targetIsland = IslandThemeRegistry.ResolveIslandId(islandId);
-        float percent = tracker.GetRestorationPercent(targetIsland);
         bool nowMet = tracker.IsRestorationAtOrAbove(targetIsland, thresholdPercent);
         bool stateChanged = nowMet != thresholdMet;
 

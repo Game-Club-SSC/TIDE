@@ -15,7 +15,9 @@ public class GearSystemTest : MonoBehaviour
         TestFullSetBonus();
         TestGearWithLevelGrowth();
         TestGearStatBonuses();
+        TestExtendedGearSlotBonusesApplyToCombatStats();
         TestIslandDropRateTiers();
+        TestLootTableDropRateAndInvalidEntries();
         Debug.Log("=== All gear tests passed ===");
     }
 
@@ -43,6 +45,38 @@ public class GearSystemTest : MonoBehaviour
             }
 
             Debug.Log("[GearSystemTest] TestIslandDropRateTiers passed.");
+        }
+        finally
+        {
+            DestroyImmediate(service);
+        }
+    }
+
+    [ContextMenu("Test Loot Table Drop Rate + Invalid Entries")]
+    public void TestLootTableDropRateAndInvalidEntries()
+    {
+        GearDropService service = ScriptableObject.CreateInstance<GearDropService>();
+        try
+        {
+            GearDropService.LootTable table = new GearDropService.LootTable
+            {
+                enemyType = "imp",
+                islandId = "island_greed",
+                dropRate = 0.2f,
+                entries = new[]
+                {
+                    new GearDropService.LootEntry { gearSetId = string.Empty, weight = 100f }
+                }
+            };
+            SetPrivateField(service, "lootTables", new[] { table });
+
+            Assert.AreEqual(0.25f, service.GetEffectiveDropRate("imp", "island_greed"), 0.0001f,
+                "Per-table drop rate should be used before the island tier bonus.");
+
+            table.dropRate = 1f;
+            bool dropped = service.TryRollDrop("imp", "island_greed", out string gearSetId, out _);
+            Assert.IsFalse(dropped, "A loot table containing only empty gear ids must not report a successful drop.");
+            Assert.IsTrue(string.IsNullOrEmpty(gearSetId), "Invalid loot entries must not produce an item id.");
         }
         finally
         {
@@ -239,6 +273,66 @@ public class GearSystemTest : MonoBehaviour
         }
     }
 
+    [ContextMenu("Test Extended Gear Slot Bonuses")]
+    public void TestExtendedGearSlotBonusesApplyToCombatStats()
+    {
+        GameObject managerObject = new GameObject("ExtendedGearManager_Test");
+        GameObject unitObject = new GameObject("ExtendedGearUnit_Test");
+        HeroProgressionManager manager = managerObject.AddComponent<HeroProgressionManager>();
+        HeroData hero = ScriptableObject.CreateInstance<HeroData>();
+
+        try
+        {
+            SetLevelingConfig(manager, CreateDefaultLevelingConfig());
+            GearSetData gearSet = CreateTestGearSet();
+            SetAvailableGearSets(manager, new[] { gearSet });
+
+            hero.heroId = "hero_extended_gear";
+            hero.displayName = "Extended Gear Hero";
+            hero.baseMaxHP = 100;
+            hero.baseMaxMP = 50;
+            hero.baseAttack = 20;
+            hero.baseDefense = 10;
+            hero.baseSpeed = 20;
+            hero.baseCritRate = 0.10f;
+            hero.baseCritDamage = 1.50f;
+
+            GearInstance instance = manager.CreateGearInstance(gearSet);
+            instance.level = instance.MaxLevel;
+            instance.unlockedSlots = new System.Collections.Generic.List<GearSlotBonus>
+            {
+                new GearSlotBonus { statType = GearBonusStatType.MP, percentValue = 0.10f },
+                new GearSlotBonus { statType = GearBonusStatType.Speed, percentValue = 0.10f },
+                new GearSlotBonus { statType = GearBonusStatType.CritRate, percentValue = 0.05f }
+            };
+            manager.EquipGearInstance(hero.heroId, instance);
+
+            CombatUnit unit = unitObject.AddComponent<CombatUnit>();
+            manager.ApplyStatGrowth(unit, hero);
+
+            Assert.AreEqual(55, unit.MaxMP, "A +10% MP slot should increase 50 MP to 55.");
+            Assert.AreEqual(22, unit.Speed, "A +10% Speed slot should increase 20 Speed to 22.");
+            Assert.AreEqual(0.15f, unit.CritRate, 0.0001f, "A +5% Crit Rate slot should add five percentage points.");
+
+            instance.unlockedSlots = new System.Collections.Generic.List<GearSlotBonus>
+            {
+                new GearSlotBonus { statType = GearBonusStatType.CritDamage, percentValue = 0.10f }
+            };
+            manager.ApplyStatGrowth(unit, hero);
+
+            Assert.AreEqual(50, unit.MaxMP, "Removing the MP slot should restore base MP.");
+            Assert.AreEqual(20, unit.Speed, "Removing the Speed slot should restore base Speed.");
+            Assert.AreEqual(0.10f, unit.CritRate, 0.0001f, "Removing the Crit Rate slot should restore base rate.");
+            Assert.AreEqual(1.60f, unit.CritDamage, 0.0001f, "A +10% Crit Damage slot should add ten percentage points.");
+        }
+        finally
+        {
+            DestroyImmediate(hero);
+            DestroyImmediate(unitObject);
+            DestroyImmediate(managerObject);
+        }
+    }
+
     private static GearSetData CreateTestGearSet()
     {
         GearSetData gear = ScriptableObject.CreateInstance<GearSetData>();
@@ -280,5 +374,12 @@ public class GearSystemTest : MonoBehaviour
     {
         FieldInfo field = typeof(HeroProgressionManager).GetField("availableGearSets", BindingFlags.NonPublic | BindingFlags.Instance);
         field.SetValue(manager, gearSets);
+    }
+
+    private static void SetPrivateField(object target, string fieldName, object value)
+    {
+        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.IsNotNull(field, $"Expected private field '{fieldName}'.");
+        field.SetValue(target, value);
     }
 }

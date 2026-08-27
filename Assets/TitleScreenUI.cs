@@ -149,18 +149,12 @@ public class TitleScreenUI : MonoBehaviour
     }
 
     /// <summary>
-    /// True when a save exists that Continue can restore. Checks WorldSaveService
-    /// first (the dedicated save service), then falls back to GameStateManager's
-    /// own persisted key so legacy V1 saves still enable the button.
+    /// True when a save exists that Continue can actually restore through
+    /// GameStateManager. WorldSaveService's V2 envelope is not yet the runtime
+    /// load source, so it must not enable Continue on its own.
     /// </summary>
     internal bool HasPersistedSave()
     {
-        WorldSaveService saveService = WorldSaveService.Instance;
-        if (saveService != null && saveService.HasPersistedData)
-        {
-            return saveService.TryLoadJson(out _);
-        }
-
         GameStateManager gsm = GameStateManager.Instance;
         return gsm != null && gsm.HasLoadableWorldState();
     }

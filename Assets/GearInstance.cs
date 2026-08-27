@@ -13,14 +13,22 @@ public class GearInstance
     {
         GearBonusStatType.ATK,
         GearBonusStatType.DEF,
-        GearBonusStatType.HP
+        GearBonusStatType.HP,
+        GearBonusStatType.MP,
+        GearBonusStatType.Speed,
+        GearBonusStatType.CritRate,
+        GearBonusStatType.CritDamage
     };
 
     private static readonly string[] SlotStatLabels =
     {
         "ATK",
         "DEF",
-        "HP"
+        "HP",
+        "MP",
+        "SPD",
+        "CRIT RATE",
+        "CRIT DMG"
     };
 
     public string instanceId;
@@ -53,7 +61,8 @@ public class GearInstance
             return false;
         }
 
-        currentXp = Mathf.Max(0, currentXp) + amount;
+        long accumulatedXp = (long)Mathf.Max(0, currentXp) + amount;
+        currentXp = accumulatedXp > int.MaxValue ? int.MaxValue : (int)accumulatedXp;
         bool leveledUp = false;
 
         while (level < MaxLevel)
@@ -88,9 +97,13 @@ public class GearInstance
         float total = 0f;
         for (int i = 0; i < unlockedSlots.Count; i++)
         {
-            if (unlockedSlots[i].statType == statType)
+            float value = unlockedSlots[i].percentValue;
+            if (unlockedSlots[i].statType == statType
+                && !float.IsNaN(value)
+                && !float.IsInfinity(value)
+                && value > 0f)
             {
-                total += unlockedSlots[i].percentValue;
+                total += Mathf.Clamp(value, MinBonusPercent, MaxBonusPercent);
             }
         }
 
@@ -113,6 +126,26 @@ public class GearInstance
     {
         float basePercent = template != null ? template.TotalHpPercent : 0f;
         return basePercent + GetBonusForStat(GearBonusStatType.HP);
+    }
+
+    public float GetTotalMpPercent()
+    {
+        return GetBonusForStat(GearBonusStatType.MP);
+    }
+
+    public float GetTotalSpeedPercent()
+    {
+        return GetBonusForStat(GearBonusStatType.Speed);
+    }
+
+    public float GetTotalCritRatePercent()
+    {
+        return GetBonusForStat(GearBonusStatType.CritRate);
+    }
+
+    public float GetTotalCritDamagePercent()
+    {
+        return GetBonusForStat(GearBonusStatType.CritDamage);
     }
 
     public GearInstance Duplicate()
@@ -179,6 +212,11 @@ public class GearInstance
         }
 
         GearSlotBonus slot = unlockedSlots[slotIndex];
+        if (!IsAllowedBonusStat(slot.statType))
+        {
+            return false;
+        }
+
         float rolled = UnityEngine.Random.Range(MinBonusPercent, MaxBonusPercent);
         slot.percentValue = ClampAndRoundPercent(rolled);
         unlockedSlots[slotIndex] = slot;

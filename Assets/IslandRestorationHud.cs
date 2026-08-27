@@ -110,11 +110,16 @@ public class IslandRestorationHud : MonoBehaviour
             header += $" — Vice: {viceName}";
         }
 
+        string bossLine = state.BossContribution > 0f
+            ? $"\nBoss: {state.BossContribution * 100:F0}%"
+            : string.Empty;
+
         restorationLabel.text =
             $"{header}\n" +
             $"Restoration: {percent:F1}%\n" +
             $"Combat: {state.CombatContribution * 100:F0}% ({state.CombatEncountersCompleted} cleared)\n" +
-            $"Puzzle: {state.PuzzleContribution * 100:F0}% ({state.PuzzleEncountersCompleted} solved)";
+            $"Puzzle: {state.PuzzleContribution * 100:F0}% ({state.PuzzleEncountersCompleted} solved)" +
+            bossLine;
 
         if (state.IsIslandRestored)
         {

@@ -62,6 +62,11 @@ public class UIWiringVerificationTest
             UnityEngine.Object.DestroyImmediate(WorldSaveService.Instance.gameObject);
         }
 
+        if (DialogueSystem.Instance != null)
+        {
+            UnityEngine.Object.DestroyImmediate(DialogueSystem.Instance.gameObject);
+        }
+
         if (IslandRestorationTracker.Instance != null)
         {
             UnityEngine.Object.DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
@@ -203,6 +208,26 @@ public class UIWiringVerificationTest
             "HasLoadableWorldState must reject corrupt JSON.");
 
         manager.ClearPersistentWorldStateForDebug(true);
+    }
+
+    [Test]
+    public void ContinueIgnoresOrphanWorldSaveServiceEnvelope()
+    {
+        GameObject titleObject = new GameObject("TitleScreenUI_OrphanV2Test");
+        spawnedObjects.Add(titleObject);
+        TitleScreenUI titleUI = titleObject.AddComponent<TitleScreenUI>();
+        titleUI.EnsureUI();
+
+        GameStateManager manager = CreateIsolatedGameStateManager();
+        manager.ClearPersistentWorldStateForDebug(true);
+        PlayerPrefs.SetString("TIDE_WORLD_STATE_V2", "{\"saveSchemaVersion\":1,\"payload\":{}}");
+        PlayerPrefs.Save();
+
+        titleUI.RefreshContinueButton();
+        Assert.IsFalse(titleUI.ContinueButton.interactable,
+            "An orphan V2 envelope must not enable Continue until the runtime can restore it.");
+        Assert.IsFalse(titleUI.HasPersistedSave(),
+            "Title save availability must follow GameStateManager's real load source.");
     }
 
     [Test]
@@ -377,6 +402,7 @@ public class UIWiringVerificationTest
         spawnedObjects.Add(pauseObject);
         PauseMenuUI pauseUI = pauseObject.AddComponent<PauseMenuUI>();
         pauseUI.EnsureUI();
+        pauseUI.OpenMenu();
 
         pauseUI.LoadButton.onClick.Invoke();
         Assert.IsTrue(pauseUI.ConfirmLoadVisible,
@@ -392,6 +418,29 @@ public class UIWiringVerificationTest
         pauseUI.ConfirmYesButton.onClick.Invoke();
         Assert.IsTrue(pauseUI.DebugLoadConfirmed, "Confirming must trigger the load restore path.");
         Assert.IsFalse(pauseUI.ConfirmLoadVisible, "Confirming must dismiss the prompt.");
+        Assert.IsFalse(pauseUI.IsOpen, "Confirming load must close the pause menu through its normal cleanup path.");
+        Assert.AreEqual(1f, Time.timeScale, "Confirming load must restore scaled time.");
+    }
+
+    [Test]
+    public void PauseLoadRejectsCorruptSaveBeforeConfirmation()
+    {
+        GameObject managerObject = new GameObject("GameStateManager_PauseCorruptLoadTest");
+        spawnedObjects.Add(managerObject);
+        GameStateManager manager = AddGameStateManagerTo(managerObject);
+        PlayerPrefs.SetString("TIDE_WORLD_STATE_V1", "{not valid json");
+        PlayerPrefs.Save();
+
+        GameObject pauseObject = new GameObject("PauseMenuUI_CorruptLoadTest");
+        spawnedObjects.Add(pauseObject);
+        PauseMenuUI pauseUI = pauseObject.AddComponent<PauseMenuUI>();
+        pauseUI.EnsureUI();
+        pauseUI.OnLoadClicked();
+
+        Assert.IsFalse(pauseUI.ConfirmLoadVisible,
+            "Corrupt save data must not open a confirmation that can never load.");
+        Assert.IsFalse(manager.LoadWorldStateAndRestoreScene(),
+            "The shared load entrypoint must fail closed for corrupt data.");
     }
 
     [Test]

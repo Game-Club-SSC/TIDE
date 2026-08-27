@@ -45,6 +45,12 @@ public class PartyManager : MonoBehaviour
 
     public void SetMainCharacterElement(CombatUnit.Element element)
     {
+        if ((int)element <= (int)CombatUnit.Element.None || (int)element > (int)CombatUnit.Element.Space)
+        {
+            Debug.LogWarning($"[PartyManager] Ignored invalid main character element: {element}");
+            return;
+        }
+
         chosenMainCharacterElement = element;
         hasChosenElement = true;
         Debug.Log($"[PartyManager] Main character element set to: {element}");
@@ -77,6 +83,7 @@ public class PartyManager : MonoBehaviour
             return System.Array.Empty<HeroData>();
         }
 
+        partyData.EnsureSlotLayout();
         return (HeroData[])partyData.activeSlots.Clone();
     }
 
@@ -87,6 +94,7 @@ public class PartyManager : MonoBehaviour
             return System.Array.Empty<HeroData>();
         }
 
+        partyData.EnsureSlotLayout();
         return (HeroData[])partyData.reserveSlots.Clone();
     }
 
@@ -178,6 +186,8 @@ public class PartyManager : MonoBehaviour
         unit.Attack = hero.baseAttack;
         unit.Defense = hero.baseDefense;
         unit.Speed = hero.baseSpeed;
+        unit.CritRate = hero.baseCritRate;
+        unit.CritDamage = hero.baseCritDamage;
 
         unit.SetSkills(hero.starterSkills);
 
@@ -186,18 +196,7 @@ public class PartyManager : MonoBehaviour
             HeroProgressionManager.Instance.ApplyStatGrowth(unit, hero);
         }
 
-        int elementId = (int)ResolveElement(hero);
-        if (elementId > 0)
-        {
-            int level = HeroProgressionManager.Instance != null
-                ? HeroProgressionManager.Instance.GetLevel(hero.heroId)
-                : 1;
-            List<TideBreakData> tbs = TideBreakData.GetForElement(elementId, level);
-            if (tbs.Count > 0)
-            {
-                unit.SetTideBreaks(tbs);
-            }
-        }
+        AssignTideBreaks(unit, hero, ResolveElement(hero));
 
         Debug.Log($"[PartyManager] Applied hero '{hero.displayName}' ({unit.ElementType}) to unit.");
     }
@@ -222,6 +221,8 @@ public class PartyManager : MonoBehaviour
         unit.Attack = hero.baseAttack;
         unit.Defense = hero.baseDefense;
         unit.Speed = hero.baseSpeed;
+        unit.CritRate = hero.baseCritRate;
+        unit.CritDamage = hero.baseCritDamage;
 
         unit.SetSkills(hero.starterSkills);
 
@@ -230,18 +231,7 @@ public class PartyManager : MonoBehaviour
             HeroProgressionManager.Instance.ApplyStatGrowth(unit, hero);
         }
 
-        int elementId = (int)hero.element;
-        if (elementId > 0)
-        {
-            int level = HeroProgressionManager.Instance != null
-                ? HeroProgressionManager.Instance.GetLevel(hero.heroId)
-                : 1;
-            List<TideBreakData> tbs = TideBreakData.GetForElement(elementId, level);
-            if (tbs.Count > 0)
-            {
-                unit.SetTideBreaks(tbs);
-            }
-        }
+        AssignTideBreaks(unit, hero, hero.element);
     }
 
     public static void ApplyHeroToUnitWithElement(CombatUnit unit, HeroData hero, CombatUnit.Element element)
@@ -260,6 +250,8 @@ public class PartyManager : MonoBehaviour
         unit.Attack = hero.baseAttack;
         unit.Defense = hero.baseDefense;
         unit.Speed = hero.baseSpeed;
+        unit.CritRate = hero.baseCritRate;
+        unit.CritDamage = hero.baseCritDamage;
 
         unit.SetSkills(hero.starterSkills);
 
@@ -268,16 +260,66 @@ public class PartyManager : MonoBehaviour
             HeroProgressionManager.Instance.ApplyStatGrowth(unit, hero);
         }
 
-        int elementId = (int)element;
-        if (elementId > 0)
+        AssignTideBreaks(unit, hero, element);
+    }
+
+    private static void AssignTideBreaks(CombatUnit unit, HeroData hero, CombatUnit.Element element)
+    {
+        List<TideBreakData> abilities = new List<TideBreakData>();
+        if (unit == null || hero == null
+            || (int)element <= (int)CombatUnit.Element.None
+            || (int)element > (int)CombatUnit.Element.Space)
         {
-            int level = HeroProgressionManager.Instance != null
-                ? HeroProgressionManager.Instance.GetLevel(hero.heroId)
-                : 1;
-            List<TideBreakData> tbs = TideBreakData.GetForElement(elementId, level);
-            if (tbs.Count > 0)
+            unit?.SetTideBreaks(abilities);
+            return;
+        }
+
+        int level = HeroProgressionManager.Instance != null
+            ? HeroProgressionManager.Instance.GetLevel(hero.heroId)
+            : 1;
+
+        AddUniqueTideBreaks(abilities, TideBreakData.GetForElement((int)element, level));
+        AddUniqueTideBreaks(abilities, HeroTideBreakFactory.GetTideBreaksForHero(hero.heroId, element, level));
+
+        TideBreakProgressionManager progression = TideBreakProgressionManager.Instance;
+        if (progression != null)
+        {
+            progression.UnlockAllUpToLevel(hero.heroId, level);
+            AddUniqueTideBreaks(abilities, progression.GetUnlockedTideBreaks(hero.heroId));
+        }
+
+        unit.SetTideBreaks(abilities);
+    }
+
+    private static void AddUniqueTideBreaks(List<TideBreakData> target, IReadOnlyList<TideBreakData> candidates)
+    {
+        if (target == null || candidates == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            TideBreakData candidate = candidates[i];
+            if (candidate == null || !candidate.IsValid())
             {
-                unit.SetTideBreaks(tbs);
+                continue;
+            }
+
+            bool duplicate = false;
+            for (int j = 0; j < target.Count; j++)
+            {
+                if (ReferenceEquals(target[j], candidate)
+                    || string.Equals(target[j].abilityName, candidate.abilityName, System.StringComparison.Ordinal))
+                {
+                    duplicate = true;
+                    break;
+                }
+            }
+
+            if (!duplicate)
+            {
+                target.Add(candidate);
             }
         }
     }

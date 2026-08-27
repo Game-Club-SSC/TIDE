@@ -177,6 +177,35 @@ public class CombatUnitTestSuite
         testUnit.RestoreMp(10);
         Assert.AreEqual(50, testUnit.MP, "MP should remain unchanged when trying to restore while dead");
     }
+
+    [Test]
+    public void InvalidCombatStatsAndSkillCostsAreRejected()
+    {
+        testUnit.CritRate = float.PositiveInfinity;
+        testUnit.CritDamage = float.NaN;
+        testUnit.ShieldHp = float.NegativeInfinity;
+        testUnit.ElementType = (CombatUnit.Element)999;
+        testUnit.XpReward = -50;
+
+        Assert.AreEqual(0f, testUnit.CritRate, "Non-finite crit rate should normalize to zero.");
+        Assert.AreEqual(1f, testUnit.CritDamage, "Non-finite crit damage should normalize to the safe 1x minimum.");
+        Assert.AreEqual(0f, testUnit.ShieldHp, "Non-finite shield HP should normalize to zero.");
+        Assert.AreEqual(CombatUnit.Element.None, testUnit.ElementType, "Undefined elements should normalize to None.");
+        Assert.AreEqual(0, testUnit.XpReward, "Enemy XP rewards must not be negative.");
+
+        SkillData malformedSkill = ScriptableObject.CreateInstance<SkillData>();
+        malformedSkill.skillName = "Malformed";
+        malformedSkill.mpCost = -10;
+        try
+        {
+            Assert.IsFalse(testUnit.CanUseSkill(malformedSkill),
+                "A negative MP cost must not turn malformed skills into free actions.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(malformedSkill);
+        }
+    }
     
     [Test]
     public void DeathState()

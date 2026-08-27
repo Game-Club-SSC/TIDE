@@ -49,9 +49,9 @@ public class CeremonyIntroDirector : MonoBehaviour
 
     private static readonly string[] NarrativeCards = new string[]
     {
-        "Every hundred years, the Tide calls five souls...",
-        "Born as ordinary children, they do not know what they are...",
-        "Until the Ceremony reveals their true nature...",
+        "At seventeen, every island gathers at the water's edge...",
+        "Five ordinary youths step forward, carrying ordinary hopes...",
+        "Then the Ceremony asks the Tide to answer...",
     };
 
     private const string PostFlashText = "You are the Chosen.\nThe Tide is your burden and your gift.";
@@ -65,6 +65,9 @@ public class CeremonyIntroDirector : MonoBehaviour
     private Image fadeImage;
     private Text centreText;
     private bool isPlaying;
+    private IsometricPlayer movementLockedPlayer;
+    private bool movementLockSnapshot;
+    private bool hasMovementLockSnapshot;
 
     /// <summary>Fired when the ceremony intro finishes.</summary>
     public event Action OnIntroFinished;
@@ -162,6 +165,7 @@ public class CeremonyIntroDirector : MonoBehaviour
         MarkIntroCompleted();
         isPlaying = false;
         LockPlayerMovement(false);
+        HideUI();
 
         OnIntroFinished?.Invoke();
     }
@@ -419,11 +423,42 @@ public class CeremonyIntroDirector : MonoBehaviour
 
     private void LockPlayerMovement(bool locked)
     {
-        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
-        if (player != null)
+        if (locked)
         {
-            player.canMove = !locked;
+            if (hasMovementLockSnapshot)
+            {
+                return;
+            }
+
+            movementLockedPlayer = FindFirstObjectByType<IsometricPlayer>();
+            if (movementLockedPlayer == null)
+            {
+                return;
+            }
+
+            movementLockSnapshot = movementLockedPlayer.canMove;
+            hasMovementLockSnapshot = true;
+            movementLockedPlayer.canMove = false;
+            return;
         }
+
+        RestorePlayerMovement();
+    }
+
+    private void RestorePlayerMovement()
+    {
+        if (!hasMovementLockSnapshot)
+        {
+            return;
+        }
+
+        if (movementLockedPlayer != null)
+        {
+            movementLockedPlayer.canMove = movementLockSnapshot;
+        }
+
+        movementLockedPlayer = null;
+        hasMovementLockSnapshot = false;
     }
 
     private void MarkIntroCompleted()
@@ -436,7 +471,7 @@ public class CeremonyIntroDirector : MonoBehaviour
 
     private void OnDestroy()
     {
-        LockPlayerMovement(false);
+        RestorePlayerMovement();
         StopAllCoroutines();
     }
 }

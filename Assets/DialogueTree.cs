@@ -32,6 +32,9 @@ public class DialogueTreeNode
     [Tooltip("Next node when no choices (auto-advance). Ignored if choices.Length > 0.")]
     public string nextNodeId;
 
+    [Tooltip("Optional fallback node when this node's conditions are not met. If empty, nextNodeId is used.")]
+    public string conditionFailureNodeId;
+
     [Tooltip("Conditions that must be met for this node to be available.")]
     public DialogueTreeCondition[] conditions;
 

@@ -9,10 +9,35 @@ public class RestorationThresholdGateTest : MonoBehaviour
     {
         Debug.Log("=== Starting Restoration Threshold Gate Tests ===");
 
+        TestDefaultThresholdMatchesBossUnlockRule();
         TestStartupSyncBelowThreshold();
         TestStartupSyncAboveThreshold();
 
         Debug.Log("=== All Restoration Threshold Gate Tests Passed ===");
+    }
+
+    private void TestDefaultThresholdMatchesBossUnlockRule()
+    {
+        GameObject gateObject = new GameObject("TestGate_DefaultThreshold");
+        gateObject.SetActive(false);
+
+        try
+        {
+            RestorationThresholdGate gate = gateObject.AddComponent<RestorationThresholdGate>();
+            var field = typeof(RestorationThresholdGate).GetField(
+                "thresholdPercent",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.IsNotNull(field, "Restoration threshold field should exist.");
+            Assert.AreEqual(
+                IslandRestorationTracker.DefaultBossUnlockThresholdPercent,
+                (float)field.GetValue(gate),
+                0.001f,
+                "Restoration gates should default to the canonical 75% boss-unlock threshold.");
+        }
+        finally
+        {
+            DestroyImmediate(gateObject);
+        }
     }
 
     private static IslandRestorationTracker CreateIsolatedTracker(string trackerName)

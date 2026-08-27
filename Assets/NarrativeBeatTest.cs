@@ -17,6 +17,8 @@ public class NarrativeBeatTest : MonoBehaviour
         TestBeatIdsExist();
         TestActProgressionLogic();
         TestEndingBranchLogic();
+        TestDialogueUsesCanonicalHeroIds();
+        TestCharacterIntroDefersCycleRevelation();
 
         Debug.Log("=== All Narrative Beat Tests Passed ===");
     }
@@ -92,5 +94,32 @@ public class NarrativeBeatTest : MonoBehaviour
         Assert.AreNotEqual(goodEnding, badEnding, "Good and Bad endings should be different.");
 
         Debug.Log("Ending branch logic: PASS");
+    }
+
+    private void TestDialogueUsesCanonicalHeroIds()
+    {
+        Assert.AreEqual("hero_fire", HeroDialogueContent.HeroEmber);
+        Assert.AreEqual("hero_water", HeroDialogueContent.HeroTidecaller);
+        Assert.AreEqual("hero_earth", HeroDialogueContent.HeroStoneheart);
+        Assert.AreEqual("hero_air", HeroDialogueContent.HeroZephyr);
+        Assert.AreEqual("hero_space", HeroDialogueContent.HeroVoidwalker);
+    }
+
+    private void TestCharacterIntroDefersCycleRevelation()
+    {
+        DialogueTree intro = HeroDialogueContent.CharacterIntroDialogue();
+        Assert.IsNotNull(intro, "The post-ceremony character introduction should exist.");
+
+        for (int i = 0; i < intro.allNodes.Count; i++)
+        {
+            DialogueTreeNode node = intro.allNodes[i];
+            if (node == null) continue;
+
+            string text = (node.entry.dialogueText ?? string.Empty).ToLowerInvariant();
+            Assert.IsFalse(text.Contains("cycle"),
+                "The first party conversation must not reveal the cycle before ancient texts are found.");
+            Assert.IsFalse(text.Contains("past chosen"),
+                "The first party conversation must defer past-Chosen revelations.");
+        }
     }
 }

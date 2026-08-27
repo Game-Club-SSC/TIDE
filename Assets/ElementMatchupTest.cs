@@ -21,6 +21,7 @@ public class ElementMatchupTest : MonoBehaviour
         TestNeutralMatchups();
         TestDamageMultipliers();
         TestSymmetryOfWeakness();
+        TestInvalidElementsAreNeutral();
 
         Debug.Log("=== All Element Matchup Tests Passed ===");
     }
@@ -134,5 +135,17 @@ public class ElementMatchupTest : MonoBehaviour
         Assert.AreEqual(MatchupResult.Weak, fireVsWater, "Fire should be weak vs Water.");
 
         Debug.Log("Symmetry of weakness: PASS");
+    }
+
+    private void TestInvalidElementsAreNeutral()
+    {
+        CombatUnit.Element invalid = (CombatUnit.Element)999;
+
+        Assert.AreEqual(MatchupResult.Neutral,
+            ElementMatchup.GetResult(invalid, CombatUnit.Element.Fire),
+            "Malformed attacker elements must not create an artificial weakness.");
+        Assert.AreEqual(MatchupResult.Neutral,
+            ElementMatchup.GetResult(CombatUnit.Element.Fire, invalid),
+            "Malformed defender elements must not create an artificial advantage.");
     }
 }

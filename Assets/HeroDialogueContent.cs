@@ -16,11 +16,14 @@ public static class HeroDialogueContent
     //  Hero ID Constants
     // ================================================================== //
 
-    public const string HeroEmber = "hero_ember";
-    public const string HeroTidecaller = "hero_tidecaller";
-    public const string HeroStoneheart = "hero_stoneheart";
-    public const string HeroZephyr = "hero_zephyr";
-    public const string HeroVoidwalker = "hero_voidwalker";
+    // These values match the canonical HeroData and progression IDs. The
+    // descriptive constant names remain for source compatibility with the
+    // authored dialogue factories.
+    public const string HeroEmber = "hero_fire";
+    public const string HeroTidecaller = "hero_water";
+    public const string HeroStoneheart = "hero_earth";
+    public const string HeroZephyr = "hero_air";
+    public const string HeroVoidwalker = "hero_space";
 
     // ================================================================== //
     //  Tree ID Constants
@@ -257,9 +260,9 @@ public static class HeroDialogueContent
             new[] { "tidecaller_0", "Tidecaller", "We're not strangers. The Tide chose us together. That has to mean something.", "Happy", HeroTidecaller },
             new[] { "stoneheart_0", "Stoneheart", "Choice implies options. There were none. The tide called. We answered.", "Neutral", HeroStoneheart },
             new[] { "zephyr_0", "Zephyr", "Lighten up, Stone. At least the scenery's nice. Could be worse — could be raining.", "Happy", HeroZephyr },
-            new[] { "voidwalker_0", "Voidwalker", "The texts in the ruins... they mention a cycle. This has happened before.", "Worried", HeroVoidwalker },
-            new[] { "ember_1", "Ember", "What do you mean, before? Like... past Chosen?", "Worried", HeroEmber },
-            new[] { "voidwalker_1", "Voidwalker", "Exactly like that. And the texts say the cycle doesn't always end well.", "Sad", HeroVoidwalker },
+            new[] { "voidwalker_0", "Voidwalker", "Five strangers do not become a team because a ceremony says so. We should decide how we move together.", "Worried", HeroVoidwalker },
+            new[] { "ember_1", "Ember", "Fair. I move fast when I'm nervous. Tell me if I leave anyone behind.", "Worried", HeroEmber },
+            new[] { "voidwalker_1", "Voidwalker", "And I hesitate when I see too many paths. Then we watch for each other.", "Neutral", HeroVoidwalker },
         };
 
         DialogueTreeNode prev = null;
@@ -285,7 +288,7 @@ public static class HeroDialogueContent
             prev = node;
         }
 
-        // Choice: investigate texts or focus on the journey
+        // Choice: establish a plan or build trust through action.
         string choiceNodeId = $"{treeId}_choice";
         DialogueTreeNode choiceNode = new DialogueTreeNode
         {
@@ -301,7 +304,7 @@ public static class HeroDialogueContent
             {
                 new DialogueTreeChoice
                 {
-                    choiceText = "Tell us more about the texts.",
+                    choiceText = "Let's agree on how we protect each other.",
                     nextNodeId = $"{treeId}_texts",
                     increasesBond = true,
                     bondAmount = 5
@@ -319,14 +322,14 @@ public static class HeroDialogueContent
         tree.allNodes.Add(choiceNode);
         if (prev != null) prev.nextNodeId = choiceNodeId;
 
-        // Texts path — bond with Voidwalker
+        // Planning path — bond with Voidwalker
         DialogueTreeNode textsNode = new DialogueTreeNode
         {
             nodeId = $"{treeId}_texts",
             entry = new DialogueSystem.DialogueEntry
             {
                 speakerName = "Voidwalker",
-                dialogueText = "The fragments speak of balance — and what happens when it's lost. There are six seals. Six vices that must be confronted.",
+                dialogueText = "Then no one scouts alone, and no one hides an injury. If one of us calls a halt, the others listen.",
                 emotion = DialogueSystem.Emotion.Determined,
                 relatedHeroId = HeroVoidwalker
             },
@@ -980,6 +983,7 @@ public static class HeroDialogueContent
         };
 
         entryNode.nextNodeId = highBondNode.nodeId; // Runner evaluates conditions
+        highBondNode.conditionFailureNodeId = lowBondNode.nodeId;
         highBondNode.nextNodeId = highConclusion.nodeId;
         lowBondNode.nextNodeId = lowConclusion.nodeId;
 

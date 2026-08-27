@@ -97,6 +97,13 @@ public class IslandProgressionTravelTest : MonoBehaviour
                 "Restoring the current island should unlock the intended next island.");
             Assert.GreaterOrEqual(unlockEvents, 1,
                 "Unlock event should fire when the next island becomes available.");
+            Assert.AreEqual(currentIsland, progression.ActiveIslandId,
+                "Unlocking the next island should not change location before the player travels by boat.");
+
+            Assert.IsTrue(progression.TrySetActiveIslandForTravel(nextIsland),
+                "Boat travel should be able to activate the newly unlocked island.");
+            Assert.AreEqual(nextIsland, progression.ActiveIslandId,
+                "Active island should change only when the travel transition is accepted.");
 
             Debug.Log("  Restoration-driven destination unlock test passed");
         }

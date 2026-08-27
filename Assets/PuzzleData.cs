@@ -120,6 +120,7 @@ public class PuzzleData : ScriptableObject
     public PuzzleWinCondition winCondition = new PuzzleWinCondition();
 
     [Header("Decay")]
+    [Min(0)]
     [Tooltip("Number of tiles above 5 allowed before instability decay kicks in.")]
     public int instabilityThreshold = 3;
 
@@ -191,6 +192,23 @@ public class PuzzleData : ScriptableObject
             }
         }
 
+        // Zero is the serialized sentinel for a sealed/empty slot. Treat it as
+        // part of the sealed map as well as the explicit position lists so the
+        // logic board, traversal, and win condition all agree on tile state.
+        if (tileValues != null && tileValues.LongLength >= cellCount)
+        {
+            for (int row = 0; row < resolvedRows; row++)
+            {
+                for (int col = 0; col < resolvedCols; col++)
+                {
+                    if (tileValues[row * resolvedCols + col] == 0)
+                    {
+                        map[row, col] = true;
+                    }
+                }
+            }
+        }
+
         return map;
     }
 
@@ -242,7 +260,8 @@ public class PuzzleData : ScriptableObject
     }
 
     public bool HasSealedTile => (sealedPositions != null && sealedPositions.Length > 0)
-        || (sealedPosition.x >= 0 && sealedPosition.y >= 0);
+        || (sealedPosition.x >= 0 && sealedPosition.y >= 0)
+        || HasImplicitSealedSlot();
     public bool HasLockedTile => lockedPosition.x >= 0 && lockedPosition.y >= 0;
 
     public Vector2Int GetResolvedGridDimensions()
@@ -267,5 +286,33 @@ public class PuzzleData : ScriptableObject
 
         long expectedValues = (long)dimensions.x * dimensions.y;
         return expectedValues <= int.MaxValue && tileValues.LongLength >= expectedValues;
+    }
+
+    private bool HasImplicitSealedSlot()
+    {
+        if (tileValues == null)
+        {
+            return false;
+        }
+
+        Vector2Int dimensions = GetResolvedGridDimensions();
+        long cellCount = (long)dimensions.x * dimensions.y;
+        if (dimensions.x <= 0
+            || dimensions.y <= 0
+            || cellCount > int.MaxValue
+            || tileValues.LongLength < cellCount)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < (int)cellCount; i++)
+        {
+            if (tileValues[i] == 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

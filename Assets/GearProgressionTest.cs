@@ -15,6 +15,7 @@ public class GearProgressionTest : MonoBehaviour
         TestBattleXpGrantsGearXpToActiveAndReserve();
         TestSmithyDuplicationRequiresFinalizedRolls();
         TestGearSnapshotRoundTrip();
+        TestExtendedBonusStatsSurviveSaveRoundTrip();
         Debug.Log("=== All gear progression tests passed ===");
     }
 
@@ -204,6 +205,33 @@ public class GearProgressionTest : MonoBehaviour
         {
             DestroyImmediate(managerObject);
         }
+    }
+
+    [ContextMenu("Test Extended Bonus Stat Save Round Trip")]
+    public void TestExtendedBonusStatsSurviveSaveRoundTrip()
+    {
+        GearInstanceSaveData saveData = new GearInstanceSaveData
+        {
+            instanceId = System.Guid.NewGuid().ToString(),
+            setId = "iron_guard",
+            level = 4,
+            currentXp = 0,
+            slotStatTypes = new List<int>
+            {
+                (int)GearBonusStatType.MP,
+                (int)GearBonusStatType.Speed,
+                (int)GearBonusStatType.CritDamage
+            },
+            slotPercentValues = new List<float> { 0.04f, 0.06f, 0.08f }
+        };
+
+        GearInstance restored = GearInstance.FromSaveData(saveData, new[] { CreateTestGearSet() });
+
+        Assert.IsNotNull(restored, "Valid extended gear save data should restore.");
+        Assert.AreEqual(3, restored.UnlockedSlotCount, "All three extended bonus slots should survive restore.");
+        Assert.AreEqual(0.04f, restored.GetBonusForStat(GearBonusStatType.MP), 0.0001f);
+        Assert.AreEqual(0.06f, restored.GetBonusForStat(GearBonusStatType.Speed), 0.0001f);
+        Assert.AreEqual(0.08f, restored.GetBonusForStat(GearBonusStatType.CritDamage), 0.0001f);
     }
 
     private static GearInstance CreateFreshInstance()

@@ -16,6 +16,8 @@ public class HeroProgressionTest : MonoBehaviour
         TestActiveVsReserveXp();
         TestMaxLevelCap();
         TestBattleXpIntegration();
+        TestDuplicatePartyEntriesAwardXpOnce();
+        TestMalformedProgressionSnapshotIsClamped();
         Debug.Log("=== All progression tests passed ===");
     }
 
@@ -260,6 +262,71 @@ public class HeroProgressionTest : MonoBehaviour
         {
             DestroyImmediate(unitsRoot);
             DestroyImmediate(battleObject);
+            DestroyImmediate(managerObject);
+        }
+    }
+
+    [ContextMenu("Test Duplicate Party XP Guard")]
+    public void TestDuplicatePartyEntriesAwardXpOnce()
+    {
+        GameObject managerObject = new GameObject("ProgressionDuplicateParty_Test");
+        HeroProgressionManager manager = managerObject.AddComponent<HeroProgressionManager>();
+        HeroData activeHero = ScriptableObject.CreateInstance<HeroData>();
+        HeroData duplicateReserve = ScriptableObject.CreateInstance<HeroData>();
+
+        try
+        {
+            SetConfig(manager, CreateDefaultConfig());
+            activeHero.heroId = "hero_duplicate";
+            activeHero.displayName = "Active Copy";
+            duplicateReserve.heroId = "hero_duplicate";
+            duplicateReserve.displayName = "Reserve Copy";
+
+            manager.GrantBattleXp(50,
+                new[] { activeHero, activeHero },
+                new[] { duplicateReserve });
+
+            Assert.AreEqual(50, manager.GetXp("hero_duplicate"),
+                "Malformed duplicate party slots must not grant the same hero full XP twice or add reserve XP.");
+        }
+        finally
+        {
+            DestroyImmediate(activeHero);
+            DestroyImmediate(duplicateReserve);
+            DestroyImmediate(managerObject);
+        }
+    }
+
+    [ContextMenu("Test Malformed Progression Snapshot Clamping")]
+    public void TestMalformedProgressionSnapshotIsClamped()
+    {
+        GameObject managerObject = new GameObject("ProgressionSnapshotClamp_Test");
+        HeroProgressionManager manager = managerObject.AddComponent<HeroProgressionManager>();
+
+        try
+        {
+            LevelingConfig config = CreateDefaultConfig();
+            config.maxLevel = 3;
+            SetConfig(manager, config);
+
+            HeroProgressionManager.HeroProgressionSnapshot snapshot =
+                new HeroProgressionManager.HeroProgressionSnapshot
+                {
+                    heroIds = new System.Collections.Generic.List<string> { "hero_max", "hero_mid" },
+                    levels = new System.Collections.Generic.List<int> { 999, 2 },
+                    currentXpValues = new System.Collections.Generic.List<int> { int.MaxValue, int.MaxValue }
+                };
+
+            manager.ApplyHeroProgressionSnapshot(snapshot);
+
+            Assert.AreEqual(3, manager.GetLevel("hero_max"), "Loaded hero level should clamp to the configured cap.");
+            Assert.AreEqual(0, manager.GetXp("hero_max"), "Max-level heroes must not retain unusable overflow XP.");
+            Assert.AreEqual(2, manager.GetLevel("hero_mid"));
+            Assert.AreEqual(149, manager.GetXp("hero_mid"),
+                "Current XP should clamp below the 150 XP level-up threshold for level 2.");
+        }
+        finally
+        {
             DestroyImmediate(managerObject);
         }
     }

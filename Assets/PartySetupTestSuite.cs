@@ -135,4 +135,78 @@ public class PartySetupTestSuite
         Assert.AreEqual(3, party.GetActiveCount());
         Assert.AreEqual(2, party.GetReserveCount());
     }
+
+    [Test]
+    public void MalformedSlotArraysNormalizeToThreeActiveAndTwoReserve()
+    {
+        PartyData party = ScriptableObject.CreateInstance<PartyData>();
+        HeroData reserveHero = CreateTestHero("hero_reserve", "Reserve", CombatUnit.Element.Water);
+        party.activeSlots = null;
+        party.reserveSlots = new HeroData[4];
+        party.reserveSlots[0] = reserveHero;
+
+        Assert.AreEqual(0, party.GetActiveCount());
+        Assert.AreEqual(1, party.GetReserveCount());
+        Assert.IsNotNull(party.activeSlots, "Active slots should repair a null serialized array.");
+        Assert.AreEqual(PartyData.ActiveSlotCount, party.activeSlots.Length,
+            "PartyData must preserve the GDD's three active battle slots.");
+        Assert.AreEqual(PartyData.ReserveSlotCount, party.reserveSlots.Length,
+            "PartyData must preserve the two reserve slots for the five-hero roster.");
+        Assert.AreSame(reserveHero, party.reserveSlots[0], "Normalization should preserve in-range heroes.");
+
+        Object.DestroyImmediate(reserveHero);
+        Object.DestroyImmediate(party);
+    }
+
+    [Test]
+    public void ApplyingHeroClearsStaleTideBreaksAndCopiesCritStats()
+    {
+        GameObject unitObject = new GameObject("PartyApplyHero_Test");
+        CombatUnit unit = unitObject.AddComponent<CombatUnit>();
+        HeroData hero = CreateTestHero("hero_none", "No Element", CombatUnit.Element.None);
+        hero.baseCritRate = 0.25f;
+        hero.baseCritDamage = 1.8f;
+        TideBreakData stale = ScriptableObject.CreateInstance<TideBreakData>();
+        stale.abilityName = "Stale Break";
+        stale.damageMultiplier = 2f;
+        stale.unlockLevel = 1;
+        unit.AddTideBreak(stale);
+
+        try
+        {
+            PartyManager.ApplyHeroToUnitWithElement(unit, hero, CombatUnit.Element.None);
+
+            Assert.AreEqual(0, unit.TideBreakAbilities.Count,
+                "Reusing a unit for a hero without an element must clear the prior hero's Tide Breaks.");
+            Assert.AreEqual(0.25f, unit.CritRate, 0.0001f, "Hero crit rate should be copied even without a progression manager.");
+            Assert.AreEqual(1.8f, unit.CritDamage, 0.0001f, "Hero crit damage should be copied even without a progression manager.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(stale);
+            Object.DestroyImmediate(hero);
+            Object.DestroyImmediate(unitObject);
+        }
+    }
+
+    [Test]
+    public void ApplyingHeroIncludesPerHeroTideBreakProgression()
+    {
+        GameObject unitObject = new GameObject("PartyApplyTideBreaks_Test");
+        CombatUnit unit = unitObject.AddComponent<CombatUnit>();
+        HeroData hero = CreateTestHero("hero_fire", "Fire Hero", CombatUnit.Element.Fire);
+
+        try
+        {
+            PartyManager.ApplyHeroToUnitWithElement(unit, hero, CombatUnit.Element.Fire);
+
+            Assert.GreaterOrEqual(unit.TideBreakAbilities.Count, 2,
+                "The fire hero should receive the resource Tide Break plus their level-1 per-hero ability.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(hero);
+            Object.DestroyImmediate(unitObject);
+        }
+    }
 }

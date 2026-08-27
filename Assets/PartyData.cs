@@ -4,14 +4,23 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "PartyData", menuName = "TIDE/Party Data")]
 public class PartyData : ScriptableObject
 {
+    public const int ActiveSlotCount = 3;
+    public const int ReserveSlotCount = 2;
+
     [Header("Active Party (3 in battle)")]
     public HeroData[] activeSlots = new HeroData[3];
 
     [Header("Reserve Party (2 on bench)")]
     public HeroData[] reserveSlots = new HeroData[2];
 
+    private void OnEnable()
+    {
+        EnsureSlotLayout();
+    }
+
     public HeroData[] GetAllHeroes()
     {
+        EnsureSlotLayout();
         List<HeroData> all = new List<HeroData>(5);
         for (int i = 0; i < activeSlots.Length; i++)
         {
@@ -67,6 +76,7 @@ public class PartyData : ScriptableObject
 
     public int GetActiveCount()
     {
+        EnsureSlotLayout();
         int count = 0;
         for (int i = 0; i < activeSlots.Length; i++)
         {
@@ -81,6 +91,7 @@ public class PartyData : ScriptableObject
 
     public int GetReserveCount()
     {
+        EnsureSlotLayout();
         int count = 0;
         for (int i = 0; i < reserveSlots.Length; i++)
         {
@@ -95,6 +106,7 @@ public class PartyData : ScriptableObject
 
     public bool SwapActiveReserve(int activeIndex, int reserveIndex)
     {
+        EnsureSlotLayout();
         if (activeIndex < 0 || activeIndex >= activeSlots.Length)
         {
             Debug.LogWarning($"[PartyData] Invalid active index: {activeIndex}");
@@ -146,6 +158,7 @@ public class PartyData : ScriptableObject
 
     public bool ToggleHeroActive(string heroId)
     {
+        EnsureSlotLayout();
         if (string.IsNullOrEmpty(heroId))
         {
             return false;
@@ -205,7 +218,8 @@ public class PartyData : ScriptableObject
 
     public bool SetActiveParty(string[] heroIds)
     {
-        if (heroIds == null || heroIds.Length != 3)
+        EnsureSlotLayout();
+        if (heroIds == null || heroIds.Length != ActiveSlotCount)
         {
             Debug.LogWarning("[PartyData] SetActiveParty requires exactly 3 hero IDs.");
             return false;
@@ -221,11 +235,11 @@ public class PartyData : ScriptableObject
             }
         }
 
-        HeroData[] newActive = new HeroData[3];
-        HeroData[] newReserve = new HeroData[2];
+        HeroData[] newActive = new HeroData[ActiveSlotCount];
+        HeroData[] newReserve = new HeroData[ReserveSlotCount];
         HashSet<string> usedIds = new HashSet<string>();
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < ActiveSlotCount; i++)
         {
             if (string.IsNullOrEmpty(heroIds[i]) || !heroLookup.ContainsKey(heroIds[i]))
             {
@@ -245,26 +259,54 @@ public class PartyData : ScriptableObject
         int reserveIdx = 0;
         for (int i = 0; i < all.Length; i++)
         {
-            if (all[i] != null && !usedIds.Contains(all[i].heroId) && reserveIdx < 2)
+            if (all[i] != null && !usedIds.Contains(all[i].heroId) && reserveIdx < ReserveSlotCount)
             {
                 newReserve[reserveIdx] = all[i];
                 reserveIdx++;
             }
         }
 
-        for (int i = 0; i < 3; i++) activeSlots[i] = newActive[i];
-        for (int i = 0; i < 2; i++) reserveSlots[i] = newReserve[i];
+        for (int i = 0; i < ActiveSlotCount; i++) activeSlots[i] = newActive[i];
+        for (int i = 0; i < ReserveSlotCount; i++) reserveSlots[i] = newReserve[i];
         return true;
     }
 
     public bool IsHeroActive(string heroId)
     {
+        EnsureSlotLayout();
         return FindActiveIndex(heroId) >= 0;
     }
 
     public bool IsHeroInReserve(string heroId)
     {
+        EnsureSlotLayout();
         return FindReserveIndex(heroId) >= 0;
+    }
+
+    internal void EnsureSlotLayout()
+    {
+        activeSlots = ResizeSlots(activeSlots, ActiveSlotCount);
+        reserveSlots = ResizeSlots(reserveSlots, ReserveSlotCount);
+    }
+
+    private static HeroData[] ResizeSlots(HeroData[] source, int requiredLength)
+    {
+        if (source != null && source.Length == requiredLength)
+        {
+            return source;
+        }
+
+        HeroData[] normalized = new HeroData[requiredLength];
+        if (source != null)
+        {
+            int copyCount = Mathf.Min(source.Length, requiredLength);
+            for (int i = 0; i < copyCount; i++)
+            {
+                normalized[i] = source[i];
+            }
+        }
+
+        return normalized;
     }
 
     private int FindActiveIndex(string heroId)

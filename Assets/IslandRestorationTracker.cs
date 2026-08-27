@@ -61,7 +61,7 @@ public class IslandRestorationTracker : MonoBehaviour
     {
         if (Application.isPlaying)
         {
-            Destroy(gameObject);
+            Destroy(this);
             return;
         }
 
@@ -89,7 +89,7 @@ public class IslandRestorationTracker : MonoBehaviour
             return false;
         }
 
-        if (value <= 0f || float.IsNaN(value))
+        if (value <= 0f || float.IsNaN(value) || float.IsInfinity(value))
         {
             return false;
         }
@@ -103,12 +103,14 @@ public class IslandRestorationTracker : MonoBehaviour
         }
 
         float previous = state.TotalContribution;
-        state.RecordCompletion(encounterId, type, value);
+        bool isBossEncounter = IsConfiguredBossEncounter(islandId, encounterId);
+        state.RecordCompletion(encounterId, type, value, isBossEncounter);
 
         Debug.Log(
-            $"[IslandRestorationTracker] {type} encounter '{encounterId}' complete on '{islandId}'. " +
+            $"[IslandRestorationTracker] {(isBossEncounter ? "Boss" : type.ToString())} encounter '{encounterId}' complete on '{islandId}'. " +
             $"Restoration: {state.RestorationPercent:F1}% " +
-            $"(Combat: {state.CombatContribution * 100:F0}%, Puzzle: {state.PuzzleContribution * 100:F0}%)");
+            $"(Combat: {state.CombatContribution * 100:F0}%, Puzzle: {state.PuzzleContribution * 100:F0}%, " +
+            $"Boss: {state.BossContribution * 100:F0}%)");
 
         OnRestorationChanged?.Invoke(islandId, state.RestorationPercent);
 
@@ -295,6 +297,8 @@ public class IslandRestorationTracker : MonoBehaviour
                     Debug.LogWarning($"[IslandRestorationTracker] Skipping snapshot island with unresolved id '{stateSnapshot.islandId}'.");
                     continue;
                 }
+
+                stateSnapshot = MigrateConfiguredBossContribution(scopedIslandId, stateSnapshot);
                 IslandRestorationState state = new IslandRestorationState(scopedIslandId);
                 state.ApplySnapshot(stateSnapshot);
                 islandStates[scopedIslandId] = state;
@@ -341,6 +345,118 @@ public class IslandRestorationTracker : MonoBehaviour
         return IslandThemeRegistry.ResolveIslandId(islandId);
     }
 
+    private static bool IsConfiguredBossEncounter(string islandId, string encounterId)
+    {
+        if (string.IsNullOrEmpty(islandId) || string.IsNullOrEmpty(encounterId))
+        {
+            return false;
+        }
+
+        IslandConfig config = IslandThemeRegistry.GetConfig(islandId);
+        if (config == null || config.encounters == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < config.encounters.Length; i++)
+        {
+            EncounterDefinition encounter = config.encounters[i];
+            if (encounter != null
+                && encounter.isBossEncounter
+                && string.Equals(encounter.encounterId, encounterId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IslandRestorationStateSnapshot MigrateConfiguredBossContribution(
+        string islandId,
+        IslandRestorationStateSnapshot snapshot)
+    {
+        if (snapshot == null
+            || SanitizeContribution(snapshot.bossContribution) > 0f
+            || snapshot.completedEncounterIds == null
+            || snapshot.completedEncounterIds.Count == 0)
+        {
+            return snapshot;
+        }
+
+        IslandConfig config = IslandThemeRegistry.GetConfig(islandId);
+        if (config == null || config.encounters == null)
+        {
+            return snapshot;
+        }
+
+        HashSet<string> completedEncounterIds = new HashSet<string>(
+            snapshot.completedEncounterIds,
+            StringComparer.Ordinal);
+        float configuredCombatContribution = 0f;
+        float configuredBossContribution = 0f;
+
+        for (int i = 0; i < config.encounters.Length; i++)
+        {
+            EncounterDefinition encounter = config.encounters[i];
+            if (encounter == null
+                || encounter.type != EncounterType.Combat
+                || string.IsNullOrEmpty(encounter.encounterId)
+                || !completedEncounterIds.Contains(encounter.encounterId))
+            {
+                continue;
+            }
+
+            float configuredValue = SanitizeContribution(encounter.restorationValue);
+            if (encounter.isBossEncounter)
+            {
+                configuredBossContribution += configuredValue;
+            }
+            else
+            {
+                configuredCombatContribution += configuredValue;
+            }
+        }
+
+        configuredBossContribution = Mathf.Clamp01(configuredBossContribution);
+        if (configuredBossContribution <= 0f)
+        {
+            return snapshot;
+        }
+
+        float legacyCombatContribution = SanitizeContribution(snapshot.combatContribution);
+        float configuredCombinedContribution = configuredCombatContribution + configuredBossContribution;
+        float unconfiguredCombatContribution = Mathf.Max(
+            0f,
+            legacyCombatContribution - configuredCombinedContribution);
+
+        IslandRestorationStateSnapshot migratedSnapshot = new IslandRestorationStateSnapshot
+        {
+            islandId = islandId,
+            combatContribution = Mathf.Min(0.5f, configuredCombatContribution + unconfiguredCombatContribution),
+            puzzleContribution = snapshot.puzzleContribution,
+            bossContribution = configuredBossContribution,
+            totalContribution = snapshot.totalContribution,
+            combatEncountersCompleted = snapshot.combatEncountersCompleted,
+            puzzleEncountersCompleted = snapshot.puzzleEncountersCompleted,
+            completedEncounterIds = new List<string>(snapshot.completedEncounterIds)
+        };
+
+        Debug.Log(
+            $"[IslandRestorationTracker] Migrated legacy boss restoration progress for '{islandId}' " +
+            $"(Combat: {migratedSnapshot.combatContribution * 100f:F0}%, " +
+            $"Boss: {migratedSnapshot.bossContribution * 100f:F0}%).");
+
+        return migratedSnapshot;
+    }
+
+    private static float SanitizeContribution(float value)
+    {
+        return float.IsNaN(value) || float.IsInfinity(value)
+            ? 0f
+            : Mathf.Max(0f, value);
+    }
+
     public void ResetAllIslandsForDebug()
     {
         IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
@@ -361,15 +477,18 @@ public class IslandRestorationTracker : MonoBehaviour
         IslandRestorationState state = GetOrCreateState(scopedIslandId);
         state.Reset();
 
-        float clampedContribution = Mathf.Clamp01(percent / 100f);
+        float clampedContribution = float.IsNaN(percent) || float.IsInfinity(percent)
+            ? 0f
+            : Mathf.Clamp01(percent / 100f);
         if (clampedContribution > 0f)
         {
             IslandRestorationStateSnapshot snapshot = state.CaptureSnapshot();
-            snapshot.combatContribution = clampedContribution;
-            snapshot.puzzleContribution = 0f;
+            snapshot.combatContribution = Mathf.Min(0.5f, clampedContribution);
+            snapshot.puzzleContribution = Mathf.Max(0f, clampedContribution - snapshot.combatContribution);
+            snapshot.bossContribution = 0f;
             snapshot.totalContribution = clampedContribution;
-            snapshot.combatEncountersCompleted = clampedContribution >= 1f ? 1 : 0;
-            snapshot.puzzleEncountersCompleted = 0;
+            snapshot.combatEncountersCompleted = snapshot.combatContribution > 0f ? 1 : 0;
+            snapshot.puzzleEncountersCompleted = snapshot.puzzleContribution > 0f ? 1 : 0;
             snapshot.completedEncounterIds.Clear();
             if (clampedContribution >= 1f)
             {

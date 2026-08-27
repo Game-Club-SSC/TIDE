@@ -155,12 +155,20 @@ public class CombatUnit : MonoBehaviour
     public int Attack { get => attack; set => attack = Mathf.Max(0, value); }
     public int Defense { get => defense; set => defense = Mathf.Max(0, value); }
     public int Speed { get => speed; set => speed = Mathf.Max(0, value); }
-    public float CritRate { get => critRate; set => critRate = Mathf.Clamp01(value); }
-    public float CritDamage { get => critDamage; set => critDamage = Mathf.Max(1f, value); }
+    public float CritRate
+    {
+        get => critRate;
+        set => critRate = float.IsNaN(value) || float.IsInfinity(value) ? 0f : Mathf.Clamp01(value);
+    }
+    public float CritDamage
+    {
+        get => critDamage;
+        set => critDamage = float.IsNaN(value) || float.IsInfinity(value) ? 1f : Mathf.Max(1f, value);
+    }
     public Element ElementType
     {
         get => element;
-        set => element = value;
+        set => element = IsDefinedElement(value) ? value : Element.None;
     }
     public bool IsAlive => isAlive;
     public string UnitName { get => unitName; set => unitName = value; }
@@ -177,7 +185,7 @@ public class CombatUnit : MonoBehaviour
             return readOnlySkills;
         }
     }
-    public int XpReward { get => xpReward; set => xpReward = value; }
+    public int XpReward { get => xpReward; set => xpReward = Mathf.Max(0, value); }
     public bool IsDefending => isDefending;
 
     /// <summary>
@@ -187,7 +195,7 @@ public class CombatUnit : MonoBehaviour
     public float ShieldHp
     {
         get => shieldHp;
-        set => shieldHp = Mathf.Max(0f, value);
+        set => shieldHp = float.IsNaN(value) || float.IsInfinity(value) ? 0f : Mathf.Max(0f, value);
     }
 
     /// <summary>
@@ -240,7 +248,7 @@ public class CombatUnit : MonoBehaviour
 
     public bool CanUseSkill(SkillData skill)
     {
-        return isAlive && skill != null && mp >= skill.mpCost;
+        return isAlive && skill != null && skill.mpCost >= 0 && mp >= skill.mpCost;
     }
 
     public void SetSkills(SkillData[] newSkills)
@@ -384,7 +392,7 @@ public class CombatUnit : MonoBehaviour
         if (effect.Type == StatusEffectType.Shield)
         {
             // Shield refreshes replace the existing shield value rather than stacking
-            shieldHp = effect.Magnitude * maxHp;
+            ShieldHp = effect.Magnitude * maxHp;
             Debug.Log($"[CombatUnit] {unitName}'s shield HP set to {shieldHp:F0} ({effect.Magnitude:P0} of MaxHP).");
         }
     }
@@ -703,6 +711,12 @@ public class CombatUnit : MonoBehaviour
         if (defense < 0) defense = 0;
         if (speed < 0) speed = 0;
 
+        CritRate = critRate;
+        CritDamage = critDamage;
+        ElementType = element;
+        XpReward = xpReward;
+        ShieldHp = shieldHp;
+
         hp = Mathf.Clamp(hp, 0, maxHp);
         mp = Mathf.Clamp(mp, 0, maxMp);
         EnsureSkillsInitialized();
@@ -723,6 +737,12 @@ public class CombatUnit : MonoBehaviour
         }
 
         return tideBreakAbilities;
+    }
+
+    private static bool IsDefinedElement(Element value)
+    {
+        int numericValue = (int)value;
+        return numericValue >= (int)Element.None && numericValue <= (int)Element.Space;
     }
 
     #endregion

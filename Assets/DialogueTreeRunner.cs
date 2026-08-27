@@ -42,6 +42,9 @@ public class DialogueTreeRunner : MonoBehaviour
     private bool skipRequested;
     private bool waitingForAdvance;
     private Coroutine typewriterRoutine;
+    private IsometricPlayer movementLockedPlayer;
+    private bool movementLockSnapshot;
+    private bool hasMovementLockSnapshot;
 
     /// <summary>Human-readable issues for effects that could not be applied, surfaced in the dialogue panel.</summary>
     private readonly List<string> effectDeliveryIssues = new List<string>();
@@ -210,7 +213,7 @@ public class DialogueTreeRunner : MonoBehaviour
         // Evaluate conditions -- skip node if not met
         if (!EvaluateConditions(node))
         {
-            AdvanceToNextNode();
+            AdvanceAfterConditionFailure(node);
             return;
         }
 
@@ -351,16 +354,18 @@ public class DialogueTreeRunner : MonoBehaviour
             DialogueTreeChoice choice = choices[i];
 
             // Bond requirement
-            if (choice.requiredBondLevel > 0 && sys != null)
+            if (choice.requiredBondLevel > 0)
             {
                 string heroId = currentNode.entry.relatedHeroId;
-                if (!string.IsNullOrEmpty(heroId))
+                if (sys == null || string.IsNullOrEmpty(heroId))
                 {
-                    int bond = sys.GetBondLevel(heroId, "player");
-                    if (bond < choice.requiredBondLevel)
-                    {
-                        continue;
-                    }
+                    continue;
+                }
+
+                int bond = sys.GetBondLevel(heroId, "player");
+                if (bond < choice.requiredBondLevel)
+                {
+                    continue;
                 }
             }
 
@@ -483,6 +488,34 @@ public class DialogueTreeRunner : MonoBehaviour
         CompleteTree();
     }
 
+    private void AdvanceAfterConditionFailure(DialogueTreeNode failedNode)
+    {
+        if (failedNode == null)
+        {
+            CompleteTree();
+            return;
+        }
+
+        string targetNodeId = string.IsNullOrEmpty(failedNode.conditionFailureNodeId)
+            ? failedNode.nextNodeId
+            : failedNode.conditionFailureNodeId;
+
+        if (string.IsNullOrEmpty(targetNodeId))
+        {
+            CompleteTree();
+            return;
+        }
+
+        if (nodeLookup.TryGetValue(targetNodeId, out DialogueTreeNode nextNode))
+        {
+            ShowNode(nextNode);
+            return;
+        }
+
+        Debug.LogWarning($"[DialogueTreeRunner] condition fallback '{targetNodeId}' not found in tree '{tree.treeId}'.");
+        CompleteTree();
+    }
+
     // ------------------------------------------------------------------ //
     //  Conditions
     // ------------------------------------------------------------------ //
@@ -500,11 +533,17 @@ public class DialogueTreeRunner : MonoBehaviour
             switch (cond.type)
             {
                 case DialogueConditionType.BondLevel:
-                    if (sys != null && !string.IsNullOrEmpty(cond.targetId))
+                    if (cond.intValue <= 0)
                     {
-                        int bond = sys.GetBondLevel(cond.targetId, "player");
-                        if (bond < cond.intValue) return false;
+                        break;
                     }
+
+                    if (sys == null || !TryResolveBondPair(cond.targetId, out string heroA, out string heroB))
+                    {
+                        return false;
+                    }
+
+                    if (sys.GetBondLevel(heroA, heroB) < cond.intValue) return false;
                     break;
 
                 case DialogueConditionType.StoryAct:
@@ -557,6 +596,32 @@ public class DialogueTreeRunner : MonoBehaviour
         }
 
         return true;
+    }
+
+    private static bool TryResolveBondPair(string targetId, out string heroA, out string heroB)
+    {
+        heroA = null;
+        heroB = null;
+        if (string.IsNullOrWhiteSpace(targetId))
+        {
+            return false;
+        }
+
+        string[] pair = targetId.Split('|');
+        if (pair.Length == 1)
+        {
+            heroA = pair[0].Trim();
+            heroB = "player";
+        }
+        else if (pair.Length == 2)
+        {
+            heroA = pair[0].Trim();
+            heroB = pair[1].Trim();
+        }
+
+        return !string.IsNullOrEmpty(heroA)
+            && !string.IsNullOrEmpty(heroB)
+            && !string.Equals(heroA, heroB, StringComparison.Ordinal);
     }
 
     // ------------------------------------------------------------------ //
@@ -665,11 +730,47 @@ public class DialogueTreeRunner : MonoBehaviour
 
     private void LockPlayerMovement(bool locked)
     {
-        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
-        if (player != null)
+        if (locked)
         {
-            player.canMove = !locked;
+            if (hasMovementLockSnapshot)
+            {
+                return;
+            }
+
+            movementLockedPlayer = FindFirstObjectByType<IsometricPlayer>();
+            if (movementLockedPlayer == null)
+            {
+                return;
+            }
+
+            movementLockSnapshot = movementLockedPlayer.canMove;
+            hasMovementLockSnapshot = true;
+            movementLockedPlayer.canMove = false;
+            return;
         }
+
+        RestorePlayerMovement();
+    }
+
+    private void RestorePlayerMovement()
+    {
+        if (!hasMovementLockSnapshot)
+        {
+            return;
+        }
+
+        if (movementLockedPlayer != null)
+        {
+            movementLockedPlayer.canMove = movementLockSnapshot;
+        }
+
+        movementLockedPlayer = null;
+        hasMovementLockSnapshot = false;
+    }
+
+    private void OnDestroy()
+    {
+        RestorePlayerMovement();
     }
 
     // ------------------------------------------------------------------ //

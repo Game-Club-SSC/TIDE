@@ -333,7 +333,7 @@ public class PauseMenuUI : MonoBehaviour
     public void OnLoadClicked()
     {
         GameStateManager gsm = GameStateManager.Instance;
-        if (gsm == null || !gsm.HasPersistedWorldState)
+        if (gsm == null || !gsm.HasLoadableWorldState())
         {
             SetFeedback("No save data to load.");
             return;
@@ -363,11 +363,15 @@ public class PauseMenuUI : MonoBehaviour
             return;
         }
 
-        // Restore time before the scene transition so the freshly loaded scene
-        // does not start frozen (the pause canvas dies with the unloaded scene).
-        Time.timeScale = 1f;
-        isOpen = false;
-        SetOpen(false);
+        if (!gsm.HasLoadableWorldState())
+        {
+            SetFeedback("Save data is invalid and cannot be loaded.");
+            return;
+        }
+
+        // Close through the normal path so time, mobile controls, and the
+        // AudioManager menu snapshot are restored before the scene transition.
+        CloseMenu();
 
         DebugLoadConfirmed = true;
         Debug.Log("[PauseMenuUI] Load confirmed; restoring world state.");

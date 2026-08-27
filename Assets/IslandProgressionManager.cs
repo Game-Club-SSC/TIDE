@@ -26,7 +26,8 @@ public class IslandProgressionManager : MonoBehaviour
 
     [Header("Progression")]
     [SerializeField] private string activeIslandId = IslandThemeRegistry.DefaultIslandId;
-    [SerializeField] private bool autoAdvanceOnIslandRestored = true;
+    [Tooltip("Optional legacy behavior. Keep disabled so the player travels to each newly unlocked island by boat.")]
+    [SerializeField] private bool autoAdvanceOnIslandRestored;
 
     public event Action<string> OnActiveIslandChanged;
     public event Action<string> OnIslandUnlocked;

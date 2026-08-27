@@ -348,6 +348,36 @@ public class TideMovementTest
     }
 
     [Test]
+    public void ClearedLockedTileOverridesZeroSentinel()
+    {
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TideMovement_ZeroLockedTracker");
+        GameObject trackerObject = tracker.gameObject;
+        PuzzleData data = CreateLockedTilePuzzleData();
+        data.tileValues[2] = 0;
+
+        try
+        {
+            Assert.IsTrue(data.GetSealedMap()[0, 2],
+                "The serialized zero sentinel should initially mark the locked slot as sealed.");
+
+            tracker.RecordEncounterCompletion("island_lock", "guard_1", EncounterType.Combat, 0.2f);
+            manager.InitializePuzzle(data);
+
+            bool[,] sealedMap = (bool[,])GetPrivateFieldValue("sealedTiles");
+            Assert.IsFalse(sealedMap[0, 2],
+                "A cleared locked encounter must override the zero sentinel and normalize its tile.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(data);
+            if (trackerObject != null)
+            {
+                Object.DestroyImmediate(trackerObject);
+            }
+        }
+    }
+
+    [Test]
     public void LockedTileCountsAfterEncounterCleared()
     {
         IslandRestorationTracker tracker = CreateIsolatedTracker("TideManager_LockedTileTracker_C");
@@ -561,6 +591,53 @@ public class TideMovementTest
     }
 
     [Test]
+    public void ZeroValuedPuzzleSlotsAreSealedEverywhere()
+    {
+        PuzzleData data = ScriptableObject.CreateInstance<PuzzleData>();
+        data.gridRows = 2;
+        data.gridCols = 2;
+        data.tileValues = new[] { 5, 0, 6, 4 };
+        data.sealedPositions = new Vector2Int[0];
+        data.sealedPosition = new Vector2Int(-1, -1);
+
+        try
+        {
+            bool[,] sealedMap = data.GetSealedMap();
+            Assert.IsTrue(sealedMap[0, 1],
+                "A zero-valued serialized slot should be sealed for traversal and interaction.");
+            Assert.IsTrue(data.HasSealedTile,
+                "A zero-valued serialized slot should be reported as a sealed tile.");
+
+            manager.InitializePuzzle(data);
+            bool[,] managerSealedMap = (bool[,])GetPrivateFieldValue("sealedTiles");
+            Assert.IsTrue(managerSealedMap[0, 1],
+                "TideManager should preserve zero-valued slots as sealed tiles.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(data);
+        }
+    }
+
+    [Test]
+    public void LegacyPuzzleInitializationClampsOpenTileValuesToTideRange()
+    {
+        int[,] malformedLayout =
+        {
+            { -4, 5 },
+            { 11, 0 }
+        };
+
+        manager.InitializePuzzle(malformedLayout, new Vector2Int(-1, -1));
+        int[,] values = (int[,])GetPrivateFieldValue("puzzleValues");
+
+        Assert.AreEqual(1, values[0, 0], "Legacy Tide values below 1 should clamp to 1.");
+        Assert.AreEqual(5, values[0, 1], "Valid legacy Tide values should remain unchanged.");
+        Assert.AreEqual(10, values[1, 0], "Legacy Tide values above 10 should clamp to 10.");
+        Assert.AreEqual(1, values[1, 1], "Open legacy slots should never retain the invalid Tide value 0.");
+    }
+
+    [Test]
     public void DecayTriggersAboveThreshold()
     {
 
@@ -684,6 +761,44 @@ public class TideMovementTest
             }
         }
 
+    }
+
+    [Test]
+    public void ClosingOverlayWhileCarryingRestoresSourceWithoutDecay()
+    {
+        int[,] originalValues =
+        {
+            { 8, 7, 6 },
+            { 6, 5, 5 },
+            { 5, 5, 5 }
+        };
+        bool[,] sealedMap = new bool[3, 3];
+        TideTile[,] tiles = CreateActiveTiles(originalValues, sealedMap);
+        TideTile source = tiles[0, 0];
+
+        source.currentTideValue = 5;
+        SetSealedTiles(sealedMap);
+        SetPrivateFieldValue("activeTiles", tiles);
+        SetPrivateFieldValue("instabilityThreshold", 3);
+        SetPrivateFieldValue("overlayMode", true);
+        SetPrivateFieldValue("carryingSource", source);
+        SetPrivateFieldValue("carriedAmount", 3);
+
+        int exitRequests = 0;
+        manager.OverlayExitRequested += () => exitRequests++;
+        manager.RequestOverlayClose();
+
+        Assert.AreEqual(8, tiles[0, 0].CurrentTideValue,
+            "Canceling should return the carried Tide to its source.");
+        Assert.AreEqual(7, tiles[0, 1].CurrentTideValue,
+            "Canceling traversal must not decay other unstable tiles.");
+        Assert.AreEqual(6, tiles[0, 2].CurrentTideValue,
+            "Canceling traversal must not count as a completed placement.");
+        Assert.AreEqual(6, tiles[1, 0].CurrentTideValue,
+            "All above-five tiles should remain unchanged on cancel.");
+        Assert.AreEqual(0, manager.CarriedAmount, "Canceling should clear the carried bundle.");
+        Assert.IsFalse(manager.IsCarrying, "Canceling should leave the manager out of carry mode.");
+        Assert.AreEqual(1, exitRequests, "Overlay close should still be requested exactly once.");
     }
 
     [Test]

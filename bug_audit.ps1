@@ -89,14 +89,36 @@ $totalInstanceAccess = ([regex]::Matches($gsm, 'GameStateManager\.Instance')).Co
 $guardRatio = if ($totalInstanceAccess -gt 0) { $guardedAccess / $totalInstanceAccess } else { 1.0 }
 Bug-Check "GameStateManager.cs" "null-guard ratio on Instance access" ($guardRatio -ge 0.4) "guarded=$guardedAccess total=$totalInstanceAccess ratio=$([math]::Round($guardRatio, 2))"
 
-# ==================== 8. Ensure no ScriptableObject CreateInstance in production paths ====================
+# ==================== 8. Ensure ScriptableObject factories are intentional ====================
+# Runtime-generated data is valid for authored fallback content and transient
+# mirrored/gear/Tide Break definitions. Keep the allowlist explicit so a new,
+# potentially leaking CreateInstance call cannot silently pass this audit.
 $createInRuntime = @(Get-ChildItem "Assets\*.cs" -ErrorAction SilentlyContinue | Where-Object {
-    $_.Name -notmatch 'Test\.cs$' -and $_.Name -notmatch 'TestSuite\.cs$' -and $_.Name -notmatch 'VerificationTest\.cs$'
+    $_.Name -notmatch 'Test\.cs$' -and
+    $_.Name -notmatch 'TestSuite\.cs$' -and
+    $_.Name -notmatch 'VerificationTest\.cs$' -and
+    $_.Name -ne 'RegressionCheckHelpers.cs'
 } | Where-Object {
     (Get-Content $_.FullName -Raw) -match 'ScriptableObject\.CreateInstance'
 })
-$ciCount = @($createInRuntime).Count
-Bug-Check "*.cs" "ScriptableObject.CreateInstance used in production only by intentional runtime bootstrap" ($ciCount -le 1) "production files: $ciCount ($(@($createInRuntime) | ForEach-Object { $_.Name }) -join ', ')"
+$allowedRuntimeFactories = @(
+    'AncientTextAuthoring.cs',
+    'AncientTextSceneBootstrap.cs',
+    'EnvyMirrorService.cs',
+    'GearSetFactory.cs',
+    'HeroTideBreakFactory.cs'
+)
+$unexpectedRuntimeFactories = @($createInRuntime | Where-Object {
+    $_.Name -notin $allowedRuntimeFactories
+})
+$missingRuntimeFactories = @($allowedRuntimeFactories | Where-Object {
+    $_ -notin @($createInRuntime | ForEach-Object { $_.Name })
+})
+$factoryAuditOk = $unexpectedRuntimeFactories.Count -eq 0 -and $missingRuntimeFactories.Count -eq 0
+$factoryDetail = "found=$(@($createInRuntime | ForEach-Object { $_.Name }) -join ', '); " +
+    "unexpected=$(@($unexpectedRuntimeFactories | ForEach-Object { $_.Name }) -join ', '); " +
+    "missing=$($missingRuntimeFactories -join ', ')"
+Bug-Check "*.cs" "ScriptableObject.CreateInstance usage matches intentional runtime factory allowlist" $factoryAuditOk $factoryDetail
 
 # ==================== 9. Singleton ownership releases on destroy ====================
 $onDestroyReleases = @()

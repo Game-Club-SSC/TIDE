@@ -89,6 +89,12 @@ public class NarrativeBeatDirector : MonoBehaviour
 
         if (introQueued && !gsm.IsNarrativeBeatCompleted(IntroBeatId))
         {
+            CeremonyIntroDirector ceremonyDirector = FindFirstObjectByType<CeremonyIntroDirector>();
+            if (ceremonyDirector != null && !gsm.CeremonyIntroCompleted)
+            {
+                return;
+            }
+
             introTimer -= Time.deltaTime;
             if (introTimer <= 0f
                 && (!introRequiresPlayerMovement || HasPlayerMovedAtLeast(minimumPlayerTravelBeforeIntroBeat)))
@@ -161,23 +167,27 @@ public class NarrativeBeatDirector : MonoBehaviour
         gsm.RegisterAncientText(beatId, title, body);
         gsm.DiscoverAncientText(beatId);
 
-        AncientTextLogUI logUi = FindFirstObjectByType<AncientTextLogUI>();
-        if (logUi == null)
+        // Authored party conversations are the primary presentation. Falling
+        // back to the archive rail avoids two simultaneous overlays consuming
+        // the same advance input when a dialogue tree is available.
+        bool playedLinkedDialogue = TryPlayLinkedDialogueTree(beatId);
+        if (!playedLinkedDialogue)
         {
-            GameObject logObject = new GameObject("AncientTextLogUI");
-            logObject.transform.SetParent(transform);
-            logUi = logObject.AddComponent<AncientTextLogUI>();
-        }
+            AncientTextLogUI logUi = FindFirstObjectByType<AncientTextLogUI>();
+            if (logUi == null)
+            {
+                GameObject logObject = new GameObject("AncientTextLogUI");
+                logObject.transform.SetParent(transform);
+                logUi = logObject.AddComponent<AncientTextLogUI>();
+            }
 
-        if (logUi != null)
-        {
-            logUi.ShowEntry(beatId, title, body, true);
+            if (logUi != null)
+            {
+                logUi.ShowEntry(beatId, title, body, true);
+            }
         }
 
         beatCooldownTimer = Mathf.Max(2f, beatRepeatCooldown);
-
-        // Wire dialogue trees to beat triggers
-        TryPlayLinkedDialogueTree(beatId);
 
         return true;
     }
@@ -193,7 +203,7 @@ public class NarrativeBeatDirector : MonoBehaviour
     private static readonly Dictionary<string, System.Func<DialogueTree>> BeatToDialogueMap =
         new Dictionary<string, System.Func<DialogueTree>>
     {
-        { IntroBeatId, HeroDialogueContent.CeremonyDialogue },
+        { IntroBeatId, HeroDialogueContent.CharacterIntroDialogue },
         { PostRestorationBeatId, HeroDialogueContent.AncientTextReactionActI },
         { ActTwoBeatId, HeroDialogueContent.AncientTextReactionActII },
         { ActThreeBeatId, HeroDialogueContent.AncientTextReactionActIII },
@@ -216,21 +226,24 @@ public class NarrativeBeatDirector : MonoBehaviour
     /// <summary>
     /// Attempts to play a dialogue tree linked to the given beat ID.
     /// </summary>
-    private void TryPlayLinkedDialogueTree(string beatId)
+    private bool TryPlayLinkedDialogueTree(string beatId)
     {
         if (DialogueSystem.Instance == null || DialogueSystem.Instance.IsDialogueActive)
         {
-            return;
+            return false;
         }
 
         if (BeatToDialogueMap.TryGetValue(beatId, out System.Func<DialogueTree> treeFactory))
         {
             DialogueTree tree = treeFactory();
-            if (tree != null)
+            if (tree != null && tree.rootNode != null)
             {
                 DialogueSystem.Instance.StartDialogueTree(tree);
+                return true;
             }
         }
+
+        return false;
     }
 
     /// <summary>

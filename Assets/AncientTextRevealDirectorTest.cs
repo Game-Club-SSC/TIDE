@@ -19,9 +19,10 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         TestForceDiscoverFragmentReturnsTrue();
         TestForceDiscoverFragmentDuplicateReturnsFalse();
         TestForceDiscoverFragmentNullIdReturnsFalse();
-        TestTriggerNarrativeBeatForFragmentIsNotNoop();
+        TestFragmentNarrativeBeatDoesNotDuplicateOverlay();
         TestHeroBondingStateTracksBondLevel();
         TestHeroBondingStateAffectsGameplay();
+        TestLegacyBondReconciliation();
         TestGetRevealStageIncrements();
         TestGetOverallNarrativeStateChanges();
         TestSaveDataRoundTrip();
@@ -253,19 +254,21 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         Debug.Log("✓ ForceDiscoverFragment null id test passed");
     }
 
-    private void TestTriggerNarrativeBeatForFragmentIsNotNoop()
+    private void TestFragmentNarrativeBeatDoesNotDuplicateOverlay()
     {
-        Debug.Log("Testing TriggerNarrativeBeatForFragment is not a pure noop...");
+        Debug.Log("Testing fragment narrative beat avoids duplicate overlays...");
 
         string sourceCode = System.IO.File.ReadAllText(
             System.IO.Path.Combine(Application.dataPath, "AncientTextRevealDirector.cs"));
 
-        Assert.IsTrue(sourceCode.Contains("DialogueSystem.Instance"),
-            "TriggerNarrativeBeatForFragment should use DialogueSystem.Instance.");
-        Assert.IsTrue(sourceCode.Contains("StartDialogueTree"),
-            "TriggerNarrativeBeatForFragment should call StartDialogueTree.");
+        Assert.IsTrue(sourceCode.Contains("MarkNarrativeBeatCompleted"),
+            "TriggerNarrativeBeatForFragment should record a durable beat.");
+        Assert.IsFalse(sourceCode.Contains("BuildFragmentDialogue"),
+            "A fragment already shown in AncientTextLogUI must not build a duplicate dialogue overlay.");
+        Assert.IsFalse(sourceCode.Contains("StartDialogueTree"),
+            "AncientTextRevealDirector must not stack an identical dialogue tree over the text rail.");
 
-        Debug.Log("✓ TriggerNarrativeBeatForFragment not noop test passed");
+        Debug.Log("✓ Fragment narrative beat single-overlay test passed");
     }
 
     private void TestHeroBondingStateTracksBondLevel()
@@ -358,6 +361,78 @@ public class AncientTextRevealDirectorTest : MonoBehaviour
         }
 
         Debug.Log("✓ HeroBondingState affects gameplay test passed");
+    }
+
+    private void TestLegacyBondReconciliation()
+    {
+        Debug.Log("Testing legacy fragment bonds reconcile into dialogue bonds...");
+
+        DialogueSystem previousDialogue = DialogueSystem.Instance;
+        Dictionary<string, int> previousBonds = previousDialogue != null
+            ? previousDialogue.GetAllBonds()
+            : null;
+        GameObject dialogueObject = null;
+        DialogueSystem dialogue = previousDialogue;
+        AncientTextRevealDirector director = CreateIsolatedDirector();
+        GameObject directorObject = director.gameObject;
+
+        try
+        {
+            if (dialogue == null)
+            {
+                dialogueObject = new GameObject("DialogueSystem_LegacyBondTest");
+                dialogue = dialogueObject.AddComponent<DialogueSystem>();
+                SetDialogueInstance(dialogue);
+            }
+
+            dialogue.ApplyBondData(new Dictionary<string, int>());
+            director.ApplySaveData(new AncientTextRevealDirector.RevealDirectorSaveData
+            {
+                bondingEntries = new List<AncientTextRevealDirector.HeroBondingSaveEntry>
+                {
+                    new AncientTextRevealDirector.HeroBondingSaveEntry
+                    {
+                        heroId = "hero_space",
+                        bondLevel = 7,
+                        fragmentsDiscovered = 7
+                    }
+                }
+            });
+
+            director.ReconcileDialogueBonds();
+            Assert.AreEqual(7, dialogue.GetBondLevel("hero_space", "player"),
+                "Legacy fragment bond progress must migrate into the canonical dialogue ledger.");
+
+            dialogue.IncreaseBond("hero_space", "player", 10);
+            director.ReconcileDialogueBonds();
+            Assert.AreEqual(17, dialogue.GetBondLevel("hero_space", "player"),
+                "Reconciliation must not lower or double-count a newer, higher dialogue bond.");
+        }
+        finally
+        {
+            CleanupIsolatedDirector(directorObject);
+            if (previousDialogue != null)
+            {
+                previousDialogue.ApplyBondData(previousBonds);
+                SetDialogueInstance(previousDialogue);
+            }
+            else
+            {
+                if (dialogueObject != null) DestroyImmediate(dialogueObject);
+                SetDialogueInstance(null);
+            }
+        }
+
+        Debug.Log("✓ Legacy fragment bond reconciliation test passed");
+    }
+
+    private static void SetDialogueInstance(DialogueSystem value)
+    {
+        System.Reflection.FieldInfo field = typeof(DialogueSystem).GetField(
+            "<Instance>k__BackingField",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        Assert.IsNotNull(field, "DialogueSystem singleton backing field should exist.");
+        field.SetValue(null, value);
     }
 
     private void TestGetRevealStageIncrements()

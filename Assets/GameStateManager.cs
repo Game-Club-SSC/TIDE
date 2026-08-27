@@ -321,6 +321,7 @@ public class GameStateManager : MonoBehaviour
         EnsureRestorationTracker();
         EnsureProgressionManager();
         EnsureGearInventory();
+        EnsureDialogueSystem();
         BindProgressionManagerEvents();
         LoadWorldState();
         IslandProgressionManager.Instance?.ReconcileStateFromRestoration();
@@ -1502,6 +1503,10 @@ public class GameStateManager : MonoBehaviour
                 DialogueSystem.Instance.ApplyDialogueStateSaveData(saveData.dialogueState);
             }
 
+            // Saves created before dialogue bonds were added still carry
+            // fragment-earned relationship progress in the reveal director.
+            AncientTextRevealDirector.Instance?.ReconcileDialogueBonds();
+
             PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
             if (guardSpawner != null)
             {
@@ -2150,6 +2155,17 @@ public class GameStateManager : MonoBehaviour
         }
     }
 
+    private void EnsureDialogueSystem()
+    {
+        if (DialogueSystem.Instance != null)
+        {
+            return;
+        }
+
+        GameObject dialogueObject = new GameObject("DialogueSystem");
+        dialogueObject.AddComponent<DialogueSystem>();
+    }
+
     private void BindProgressionManagerEvents()
     {
         if (IslandProgressionManager.Instance == null)
@@ -2372,6 +2388,14 @@ public class GameStateManager : MonoBehaviour
             ancientTextBootstrap.AddComponent<AncientTextSceneBootstrap>();
         }
 
+        if (FindFirstObjectByType<CeremonyIntroDirector>() == null)
+        {
+            GameObject ceremonyDirector = new GameObject("CeremonyIntroDirector");
+            ceremonyDirector.AddComponent<CeremonyIntroDirector>();
+        }
+
+        EnsureDialogueSystem();
+
         if (FindFirstObjectByType<NarrativeBeatDirector>() == null)
         {
             GameObject narrativeDirector = new GameObject("NarrativeBeatDirector");
@@ -2398,11 +2422,7 @@ public class GameStateManager : MonoBehaviour
     private void EnsureHubSceneRuntimeComponents()
     {
         // Dialogue system backs the hub narrative/NPC stations.
-        if (FindFirstObjectByType<DialogueSystem>() == null)
-        {
-            GameObject dialogueObject = new GameObject("DialogueSystem");
-            dialogueObject.AddComponent<DialogueSystem>();
-        }
+        EnsureDialogueSystem();
 
         EnsureSmithyInteractable();
         EnsureIslandBoatInteractable();
@@ -3516,12 +3536,18 @@ public class GameStateManager : MonoBehaviour
     /// hub, otherwise the main island scene). Used by Continue on the title
     /// screen and by the pause menu's Load action.
     /// </summary>
-    public void LoadWorldStateAndRestoreScene()
+    public bool LoadWorldStateAndRestoreScene()
     {
-        if (isTransitioning)
+        if (isTransitioning || isLoadingWorldState)
         {
-            Debug.Log("[GameStateManager] Load ignored: scene transition in progress.");
-            return;
+            Debug.Log("[GameStateManager] Load ignored: a load or scene transition is already in progress.");
+            return false;
+        }
+
+        if (!HasLoadableWorldState())
+        {
+            Debug.LogError("[GameStateManager] Load ignored: persisted world state is missing or invalid.");
+            return false;
         }
 
         LoadWorldState();
@@ -3530,7 +3556,7 @@ public class GameStateManager : MonoBehaviour
         {
             // Edit-mode verification path: restore state only, no scene load.
             Debug.Log("[GameStateManager] Loaded world state (edit mode: scene transition skipped).");
-            return;
+            return true;
         }
 
         string targetScene = MainSceneName;
@@ -3542,6 +3568,7 @@ public class GameStateManager : MonoBehaviour
 
         Debug.Log($"[GameStateManager] Restoring saved world state in scene '{targetScene}'.");
         StartCoroutine(TransitionToScene(targetScene, GameState.Exploration));
+        return true;
     }
 
     /// <summary>

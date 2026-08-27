@@ -14,6 +14,8 @@ public class DialogueTreeRunnerTest : MonoBehaviour
         TestEvaluateConditionReturnsTrueForEmptyConditions();
         TestEvaluateConditionBondLevelPasses();
         TestEvaluateConditionBondLevelFails();
+        TestBondPairParserSupportsHeroPairs();
+        TestRelationshipVariationWiresLowBondFallback();
         TestEvaluateConditionStoryActChecksService();
         TestEvaluateConditionIslandRestoredChecksTracker();
         TestEvaluateConditionHasAncientTextChecksDefinition();
@@ -168,6 +170,58 @@ public class DialogueTreeRunnerTest : MonoBehaviour
         }
 
         Debug.Log("✓ EvaluateCondition BondLevel fail test passed");
+    }
+
+    private void TestBondPairParserSupportsHeroPairs()
+    {
+        Debug.Log("Testing BondLevel condition pair parsing...");
+
+        MethodInfo method = typeof(DialogueTreeRunner).GetMethod(
+            "TryResolveBondPair", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.IsNotNull(method, "TryResolveBondPair should exist.");
+
+        object[] pairArgs = { "hero_fire|hero_water", null, null };
+        bool pairResult = (bool)method.Invoke(null, pairArgs);
+        Assert.IsTrue(pairResult, "A two-hero bond target should parse.");
+        Assert.AreEqual("hero_fire", pairArgs[1], "First pair member should be preserved.");
+        Assert.AreEqual("hero_water", pairArgs[2], "Second pair member should be preserved.");
+
+        object[] playerArgs = { "hero_space", null, null };
+        bool playerResult = (bool)method.Invoke(null, playerArgs);
+        Assert.IsTrue(playerResult, "A single hero target should resolve against the player.");
+        Assert.AreEqual("hero_space", playerArgs[1], "Single target should be the first pair member.");
+        Assert.AreEqual("player", playerArgs[2], "Single target should use player as the second pair member.");
+
+        Debug.Log("✓ BondLevel pair parsing test passed");
+    }
+
+    private void TestRelationshipVariationWiresLowBondFallback()
+    {
+        Debug.Log("Testing relationship variation low-bond reachability...");
+
+        DialogueTree tree = HeroDialogueContent.RelationshipVariationDialogue("hero_fire", "hero_water");
+        Assert.IsNotNull(tree, "Relationship variation tree should be authored.");
+        Assert.IsNotNull(tree.rootNode, "Relationship variation tree should have a root.");
+
+        DialogueTreeNode highNode = null;
+        DialogueTreeNode lowNode = null;
+        for (int i = 0; i < tree.allNodes.Count; i++)
+        {
+            DialogueTreeNode node = tree.allNodes[i];
+            if (node == null) continue;
+            if (node.nodeId.EndsWith("_high", StringComparison.Ordinal)) highNode = node;
+            if (node.nodeId.EndsWith("_low", StringComparison.Ordinal)) lowNode = node;
+        }
+
+        Assert.IsNotNull(highNode, "High-bond node should exist.");
+        Assert.IsNotNull(lowNode, "Low-bond node should exist.");
+        Assert.AreEqual(lowNode.nodeId, highNode.conditionFailureNodeId,
+            "A failed high-bond condition must branch to the low-bond exchange.");
+        Assert.IsNotNull(highNode.conditions, "High-bond node should have a bond gate.");
+        Assert.AreEqual("hero_fire|hero_water", highNode.conditions[0].targetId,
+            "The high-bond gate must evaluate the two heroes, not a fabricated player pair.");
+
+        Debug.Log("✓ Relationship variation low-bond fallback test passed");
     }
 
     private void TestEvaluateConditionStoryActChecksService()

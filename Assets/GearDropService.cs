@@ -109,14 +109,15 @@ public class GearDropService : ScriptableObject
         gearSetId = null;
         rarity = GearRarity.Common;
 
-        float effectiveDropRate = GetEffectiveDropRate(islandId);
-        if (UnityEngine.Random.value > effectiveDropRate)
+        LootTable table = GetLootTable(enemyType, islandId);
+        if (table == null || table.entries == null || table.entries.Length == 0)
         {
             return false;
         }
 
-        LootTable table = GetLootTable(enemyType, islandId);
-        if (table == null || table.entries == null || table.entries.Length == 0)
+        float effectiveDropRate = GetEffectiveDropRate(enemyType, islandId);
+        if (effectiveDropRate <= 0f
+            || (effectiveDropRate < 1f && UnityEngine.Random.value >= effectiveDropRate))
         {
             return false;
         }
@@ -126,7 +127,7 @@ public class GearDropService : ScriptableObject
         float totalWeight = 0f;
         for (int i = 0; i < table.entries.Length; i++)
         {
-            if (table.entries[i] != null)
+            if (table.entries[i] != null && !string.IsNullOrEmpty(table.entries[i].gearSetId))
             {
                 totalWeight += Mathf.Max(0f, table.entries[i].weight);
             }
@@ -141,7 +142,7 @@ public class GearDropService : ScriptableObject
         float cumulative = 0f;
         for (int i = 0; i < table.entries.Length; i++)
         {
-            if (table.entries[i] == null)
+            if (table.entries[i] == null || string.IsNullOrEmpty(table.entries[i].gearSetId))
             {
                 continue;
             }
@@ -160,13 +161,25 @@ public class GearDropService : ScriptableObject
 
     public float GetEffectiveDropRate(string islandId)
     {
+        return GetEffectiveDropRateForBase(islandId, baseDropRate);
+    }
+
+    public float GetEffectiveDropRate(string enemyType, string islandId)
+    {
+        LootTable table = GetLootTable(enemyType, islandId);
+        float configuredBaseRate = table != null ? table.dropRate : baseDropRate;
+        return GetEffectiveDropRateForBase(islandId, configuredBaseRate);
+    }
+
+    private float GetEffectiveDropRateForBase(string islandId, float configuredBaseRate)
+    {
         int islandIndex = 0;
         if (!string.IsNullOrEmpty(islandId) && IslandIndexByTheme.TryGetValue(islandId, out int idx))
         {
             islandIndex = idx;
         }
 
-        return Mathf.Clamp01(baseDropRate + islandIndex * dropRatePerIsland);
+        return Mathf.Clamp01(configuredBaseRate + islandIndex * Mathf.Max(0f, dropRatePerIsland));
     }
 
     private GearRarity RollRarity()

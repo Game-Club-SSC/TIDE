@@ -253,6 +253,42 @@ public class DialogueEffectVerificationTest
     }
 
     [Test]
+    public void DuplicatePendingRewardsAreDeliveredOnlyOnce()
+    {
+        CreateServices();
+
+        DialogueSystem dialogue = DialogueSystem.Instance;
+        HeroProgressionManager progression = HeroProgressionManager.Instance;
+        Assert.IsNotNull(dialogue, "Setup: DialogueSystem must exist.");
+        Assert.IsNotNull(progression, "Setup: HeroProgressionManager must exist.");
+
+        DialogueSystem.DialoguePendingRewardEntry pending = new DialogueSystem.DialoguePendingRewardEntry
+        {
+            treeId = "tree_duplicate_pending",
+            nodeId = "node_xp",
+            effectIndex = 0,
+            effectType = (int)DialogueEffectType.GrantXP,
+            targetId = "hero_fire",
+            intValue = 50,
+            heroId = "hero_fire"
+        };
+        DialogueSystem.DialogueStateSaveData saveData = new DialogueSystem.DialogueStateSaveData
+        {
+            pendingRewards = new List<DialogueSystem.DialoguePendingRewardEntry> { pending, pending }
+        };
+
+        dialogue.ApplyDialogueStateSaveData(saveData);
+
+        Assert.AreEqual(50, progression.GetXp("hero_fire"),
+            "Duplicate pending entries for one reward key must be delivered once.");
+        DialogueSystem.DialogueStateSaveData captured = dialogue.CaptureDialogueStateSaveData();
+        Assert.AreEqual(0, captured.pendingRewards.Count,
+            "A successfully delivered duplicate must not remain pending.");
+        Assert.IsTrue(captured.grantedRewardKeys.Contains("tree_duplicate_pending|node_xp|0"),
+            "The delivered pending reward must enter the granted ledger.");
+    }
+
+    [Test]
     public void DialogueStateSaveSectionJsonRoundTrips()
     {
         CreateServices();
@@ -266,6 +302,7 @@ public class DialogueEffectVerificationTest
         dialogue.ApplyDialogueEffect(
             new DialogueTreeEffect { type = DialogueEffectType.UnlockTideBreak, targetId = "Inferno Surge", intValue = 1 },
             "hero_fire", "tree_json", "node_tidebreak", 1);
+        dialogue.IncreaseBond("hero_fire", "hero_water", 65);
 
         DialogueSystem.DialogueStateSaveData saveData = dialogue.CaptureDialogueStateSaveData();
         string json = JsonUtility.ToJson(saveData);
@@ -274,6 +311,8 @@ public class DialogueEffectVerificationTest
         StringAssert.Contains("unlockedTideBreakNames", json, "dialogueState must serialize unlock names.");
         StringAssert.Contains("grantedRewardKeys", json, "dialogueState must serialize the granted ledger.");
         StringAssert.Contains("pendingRewards", json, "dialogueState must serialize the pending ledger.");
+        StringAssert.Contains("bondKeys", json, "dialogueState must serialize relationship pair keys.");
+        StringAssert.Contains("bondLevels", json, "dialogueState must serialize relationship levels.");
 
         DialogueSystem.DialogueStateSaveData restored =
             JsonUtility.FromJson<DialogueSystem.DialogueStateSaveData>(json);
@@ -287,6 +326,17 @@ public class DialogueEffectVerificationTest
         Assert.AreEqual("Inferno Surge", restored.unlockedTideBreakNames[0], "Tide Break name must match.");
         Assert.AreEqual("hero_fire", restored.unlockedTideBreakHeroIds[0], "Tide Break hero must match.");
         Assert.AreEqual(0, restored.pendingRewards.Count, "Applied effects must not be pending.");
+        Assert.AreEqual(1, restored.bondKeys.Count, "Relationship keys must round-trip.");
+        Assert.AreEqual(DialogueSystem.MakeBondKey("hero_fire", "hero_water"), restored.bondKeys[0],
+            "Relationship pairs must use the canonical sorted key.");
+        Assert.AreEqual(65, restored.bondLevels[0], "Relationship levels must round-trip.");
+
+        dialogue.ResetDialogueStateForDebug();
+        Assert.AreEqual(0, dialogue.GetBondLevel("hero_fire", "hero_water"),
+            "Reset must clear relationship state before restore.");
+        dialogue.ApplyDialogueStateSaveData(restored);
+        Assert.AreEqual(65, dialogue.GetBondLevel("hero_fire", "hero_water"),
+            "Applying dialogue save data must restore relationship state.");
     }
 
     [Test]
@@ -345,6 +395,10 @@ public class DialogueEffectVerificationTest
             "Legacy saves carry no granted rewards.");
         Assert.AreEqual(0, parsed.dialogueState.pendingRewards.Count,
             "Legacy saves carry no pending rewards.");
+        Assert.AreEqual(0, parsed.dialogueState.bondKeys.Count,
+            "Legacy saves carry no relationship keys.");
+        Assert.AreEqual(0, parsed.dialogueState.bondLevels.Count,
+            "Legacy saves carry no relationship levels.");
 
         // Applying the empty section must be a safe no-op.
         dialogueObject = new GameObject("DialogueSystem_Test");

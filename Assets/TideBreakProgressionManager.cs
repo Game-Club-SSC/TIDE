@@ -103,7 +103,7 @@ public class TideBreakProgressionManager : MonoBehaviour
             return new List<TideBreakData>();
         }
 
-        string heroElement = ResolveHeroElement(heroId);
+        CombatUnit.Element heroElement = ResolveHeroElement(heroId);
         TideBreakData[] all = GetAllTideBreaks();
         List<TideBreakData> result = new List<TideBreakData>();
 
@@ -114,8 +114,7 @@ public class TideBreakProgressionManager : MonoBehaviour
                 continue;
             }
 
-            if (string.IsNullOrEmpty(all[i].requiredHeroElement)
-                || string.Equals(all[i].requiredHeroElement, heroElement, StringComparison.OrdinalIgnoreCase))
+            if (MatchesHeroRequirements(all[i], heroId, heroElement))
             {
                 result.Add(all[i]);
             }
@@ -151,7 +150,7 @@ public class TideBreakProgressionManager : MonoBehaviour
 
         EnsureState(heroId);
         HeroTideBreakState state = heroStates[heroId];
-        string heroElement = ResolveHeroElement(heroId);
+        CombatUnit.Element heroElement = ResolveHeroElement(heroId);
         TideBreakData[] all = GetAllTideBreaks();
 
         for (int i = 0; i < all.Length; i++)
@@ -167,13 +166,7 @@ public class TideBreakProgressionManager : MonoBehaviour
                 continue;
             }
 
-            if (newLevel < tb.unlockLevel)
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrEmpty(tb.requiredHeroElement)
-                && !string.Equals(tb.requiredHeroElement, heroElement, StringComparison.OrdinalIgnoreCase))
+            if (!CanUnlockFromLevel(tb, heroId, heroElement, newLevel))
             {
                 continue;
             }
@@ -202,11 +195,14 @@ public class TideBreakProgressionManager : MonoBehaviour
             return false;
         }
 
+        CombatUnit.Element heroElement = ResolveHeroElement(heroId);
         TideBreakData[] all = GetAllTideBreaks();
         for (int i = 0; i < all.Length; i++)
         {
             if (all[i] != null
                 && all[i].isHidden
+                && all[i].IsValid()
+                && MatchesHeroRequirements(all[i], heroId, heroElement)
                 && string.Equals(all[i].abilityName, abilityName, StringComparison.Ordinal))
             {
                 state.unlockedAbilityNames.Add(abilityName);
@@ -268,24 +264,13 @@ public class TideBreakProgressionManager : MonoBehaviour
         }
 
         EnsureState(heroId);
-        string heroElement = ResolveHeroElement(heroId);
+        CombatUnit.Element heroElement = ResolveHeroElement(heroId);
         TideBreakData[] all = GetAllTideBreaks();
 
         for (int i = 0; i < all.Length; i++)
         {
             TideBreakData tb = all[i];
-            if (tb == null || tb.isHidden)
-            {
-                continue;
-            }
-
-            if (tb.unlockLevel > level)
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrEmpty(tb.requiredHeroElement)
-                && !string.Equals(tb.requiredHeroElement, heroElement, StringComparison.OrdinalIgnoreCase))
+            if (!CanUnlockFromLevel(tb, heroId, heroElement, level))
             {
                 continue;
             }
@@ -361,21 +346,59 @@ public class TideBreakProgressionManager : MonoBehaviour
         }
     }
 
-    private string ResolveHeroElement(string heroId)
+    private CombatUnit.Element ResolveHeroElement(string heroId)
     {
         if (PartyManager.Instance == null)
         {
-            return string.Empty;
+            return CombatUnit.Element.None;
         }
 
         HeroData hero = PartyManager.Instance.GetHero(heroId);
         if (hero == null)
         {
-            return string.Empty;
+            return CombatUnit.Element.None;
         }
 
-        CombatUnit.Element element = PartyManager.Instance.ResolveElement(hero);
-        return element.ToString();
+        return PartyManager.Instance.ResolveElement(hero);
+    }
+
+    internal static bool MatchesHeroRequirements(
+        TideBreakData tideBreak,
+        string heroId,
+        CombatUnit.Element heroElement)
+    {
+        if (tideBreak == null)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(tideBreak.heroId)
+            && !string.Equals(tideBreak.heroId, heroId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (tideBreak.element != (int)CombatUnit.Element.None
+            && tideBreak.element != (int)heroElement)
+        {
+            return false;
+        }
+
+        return string.IsNullOrEmpty(tideBreak.requiredHeroElement)
+            || string.Equals(tideBreak.requiredHeroElement, heroElement.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool CanUnlockFromLevel(
+        TideBreakData tideBreak,
+        string heroId,
+        CombatUnit.Element heroElement,
+        int heroLevel)
+    {
+        return tideBreak != null
+            && tideBreak.IsValid()
+            && !tideBreak.isHidden
+            && heroLevel >= tideBreak.unlockLevel
+            && MatchesHeroRequirements(tideBreak, heroId, heroElement);
     }
 
     private TideBreakData[] GetAllTideBreaks()

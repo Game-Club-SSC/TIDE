@@ -377,7 +377,19 @@ public class BattleManager : MonoBehaviour
     {
         canSwapDuringPlayerInput = true;
         failedFleeAttemptsThisBattle = 0;
+        ConfigureMomentumFromBalance();
         TransitionToPhase(BattlePhase.StartBattle, "StartBattle");
+    }
+
+    private void ConfigureMomentumFromBalance()
+    {
+        if (balanceConfig == null)
+        {
+            return;
+        }
+
+        int threshold = Mathf.Max(1, balanceConfig.momentumThresholdForTideBreak);
+        momentumState.SetShiftAmounts(1f / threshold, 0.5f, 0.33f);
     }
 
     /// <summary>
@@ -1007,9 +1019,38 @@ public class BattleManager : MonoBehaviour
 
     private static CombatUnit.Element ResolveSkillElement(SkillData skill, CombatUnit actor)
     {
-        if (skill != null && skill.element != CombatUnit.Element.None)
+        if (skill != null
+            && (int)skill.element >= (int)CombatUnit.Element.Fire
+            && (int)skill.element <= (int)CombatUnit.Element.Space)
         {
             return skill.element;
+        }
+
+        return actor != null ? actor.ElementType : CombatUnit.Element.None;
+    }
+
+    private static CombatUnit.Element ResolveTideBreakElement(TideBreakData tideBreak, CombatUnit actor)
+    {
+        if (tideBreak != null
+            && tideBreak.element >= (int)CombatUnit.Element.Fire
+            && tideBreak.element <= (int)CombatUnit.Element.Space)
+        {
+            return (CombatUnit.Element)tideBreak.element;
+        }
+
+        return actor != null ? actor.ElementType : CombatUnit.Element.None;
+    }
+
+    private static CombatUnit.Element ResolvePlannedActionElement(PlannedAction action, CombatUnit actor)
+    {
+        if (action.ActionType == CombatActionType.Skill)
+        {
+            return ResolveSkillElement(action.SelectedSkill, actor);
+        }
+
+        if (action.ActionType == CombatActionType.TideBreak)
+        {
+            return ResolveTideBreakElement(action.SelectedTideBreak, actor);
         }
 
         return actor != null ? actor.ElementType : CombatUnit.Element.None;
@@ -1117,8 +1158,10 @@ public class BattleManager : MonoBehaviour
                     continue;
                 }
 
-                MatchupResult matchupA = ElementMatchup.GetResult(unitA.ElementType, unitB.ElementType);
-                MatchupResult matchupB = ElementMatchup.GetResult(unitB.ElementType, unitA.ElementType);
+                CombatUnit.Element actionElementA = ResolvePlannedActionElement(actionA, unitA);
+                CombatUnit.Element actionElementB = ResolvePlannedActionElement(actionB, unitB);
+                MatchupResult matchupA = ElementMatchup.GetResult(actionElementA, actionElementB);
+                MatchupResult matchupB = ElementMatchup.GetResult(actionElementB, actionElementA);
 
                 Debug.Log($"[BattleManager] *** CLASH! {unitA.UnitName} vs {unitB.UnitName}! ***", this);
 
@@ -1625,6 +1668,10 @@ public class BattleManager : MonoBehaviour
         }
 
         momentumState.ShiftForAction(actor, matchup);
+        if (isCrit)
+        {
+            momentumState.ShiftForCrit(actor);
+        }
         OnDamageDealt?.Invoke(actor, isCrit);
         TriggerBattleHitFeedback(actor, target, isCrit, false);
 
@@ -1718,22 +1765,28 @@ public class BattleManager : MonoBehaviour
                 lastPlayerSkill = skill;
             }
 
+            CombatUnit.Element skillElement = ResolveSkillElement(skill, actor);
             float aoeAttackMod = actor.GetAttackModifier();
             int baseDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + aoeAttackMod)));
             float relDmgMult = actor.Type == CombatUnit.UnitType.Ally ? relationshipDamageMultiplier : 1f;
             int totalDmg = 0;
+            bool isAoeCrit = UnityEngine.Random.value < actor.CritRate;
 
             for (int i = 0; i < aoeTargets.Count; i++)
             {
                 CombatUnit aoeTarget = aoeTargets[i];
-                float elemMult = ElementMatchup.GetDamageMultiplier(actor.ElementType, aoeTarget.ElementType);
+                float elemMult = ElementMatchup.GetDamageMultiplier(skillElement, aoeTarget.ElementType);
                 if (balanceConfig != null)
                 {
-                    elemMult = balanceConfig.GetElementMultiplier(ElementMatchup.GetResult(actor.ElementType, aoeTarget.ElementType));
+                    elemMult = balanceConfig.GetElementMultiplier(ElementMatchup.GetResult(skillElement, aoeTarget.ElementType));
                 }
                 float skillMult = elemMult * skill.damageMultiplier * relDmgMult;
                 float variance = UnityEngine.Random.Range(0.8f, 1.2f);
                 float dmgFloat = baseDmg * skillMult * variance;
+                if (isAoeCrit)
+                {
+                    dmgFloat *= actor.CritDamage;
+                }
                 int dmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(dmgFloat));
 
                 if (difficultyService != null)
@@ -1755,9 +1808,13 @@ public class BattleManager : MonoBehaviour
                 TriggerBattleHitFeedback(actor, aoeTarget, false, true);
             }
 
-            MatchupResult aoeMatchup = ElementMatchup.GetResult(actor.ElementType, aoeTargets.Count > 0 ? aoeTargets[0].ElementType : CombatUnit.Element.None);
+            MatchupResult aoeMatchup = ElementMatchup.GetResult(skillElement, aoeTargets.Count > 0 ? aoeTargets[0].ElementType : CombatUnit.Element.None);
             momentumState.ShiftForAction(actor, aoeMatchup);
-            OnDamageDealt?.Invoke(actor, false);
+            if (isAoeCrit)
+            {
+                momentumState.ShiftForCrit(actor);
+            }
+            OnDamageDealt?.Invoke(actor, isAoeCrit);
 
             if (skill.appliedEffectType != StatusEffectType.None)
             {
@@ -1785,12 +1842,13 @@ public class BattleManager : MonoBehaviour
             lastPlayerSkill = skill;
         }
 
+        CombatUnit.Element skillElementSingle = ResolveSkillElement(skill, actor);
         float attackMod = actor.GetAttackModifier();
         int baseDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + attackMod)));
-        MatchupResult matchupForSkillMult = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+        MatchupResult matchupForSkillMult = ElementMatchup.GetResult(skillElementSingle, target.ElementType);
         float multiplier = balanceConfig != null
             ? balanceConfig.GetElementMultiplier(matchupForSkillMult)
-            : ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+            : ElementMatchup.GetDamageMultiplier(skillElementSingle, target.ElementType);
         float skillMultiplierSingle = multiplier * skill.damageMultiplier;
 
         if (actor.Type == CombatUnit.UnitType.Ally)
@@ -1823,7 +1881,7 @@ public class BattleManager : MonoBehaviour
             modifiedDamageSingle = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(modifiedDamageSingle * diffMult));
         }
 
-        MatchupResult matchupSingle = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+        MatchupResult matchupSingle = ElementMatchup.GetResult(skillElementSingle, target.ElementType);
         int hpBeforeSingle = target.HP;
 
         int finalDamageSingle = modifiedDamageSingle;
@@ -1861,6 +1919,10 @@ public class BattleManager : MonoBehaviour
         }
 
         momentumState.ShiftForAction(actor, matchupSingle);
+        if (isCritSingle)
+        {
+            momentumState.ShiftForCrit(actor);
+        }
         TryApplySkillStatusEffect(actor, target, skill);
         OnDamageDealt?.Invoke(actor, isCritSingle);
         TriggerBattleHitFeedback(actor, target, isCritSingle, true);
@@ -2002,6 +2064,7 @@ public class BattleManager : MonoBehaviour
         float damageMultiplier;
         SkillTarget targetType;
 
+        CombatUnit.Element tideBreakElement = ResolveTideBreakElement(tideBreak, actor);
         if (tideBreak != null)
         {
             abilityName = tideBreak.abilityName;
@@ -2044,10 +2107,10 @@ public class BattleManager : MonoBehaviour
             foreach (CombatUnit target in targets)
             {
                 int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
-                MatchupResult tbMatchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+                MatchupResult tbMatchup = ElementMatchup.GetResult(tideBreakElement, target.ElementType);
                 float elementMultiplier = balanceConfig != null
                     ? balanceConfig.GetElementMultiplier(tbMatchup)
-                    : ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+                    : ElementMatchup.GetDamageMultiplier(tideBreakElement, target.ElementType);
                 float variance = UnityEngine.Random.Range(0.8f, 1.2f);
                 int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * damageMultiplier * elementMultiplier * variance));
 
@@ -2118,10 +2181,10 @@ public class BattleManager : MonoBehaviour
             }
 
             int baseDmg = Mathf.Max(GameConstants.MinimumDamage, actor.Attack);
-            MatchupResult tbSingleMatchup = ElementMatchup.GetResult(actor.ElementType, target.ElementType);
+            MatchupResult tbSingleMatchup = ElementMatchup.GetResult(tideBreakElement, target.ElementType);
             float elementMultiplier = balanceConfig != null
                 ? balanceConfig.GetElementMultiplier(tbSingleMatchup)
-                : ElementMatchup.GetDamageMultiplier(actor.ElementType, target.ElementType);
+                : ElementMatchup.GetDamageMultiplier(tideBreakElement, target.ElementType);
             float variance = UnityEngine.Random.Range(0.8f, 1.2f);
             int modifiedDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(baseDmg * damageMultiplier * elementMultiplier * variance));
 
@@ -2983,7 +3046,7 @@ public class BattleManager : MonoBehaviour
 
     public bool IsSkillSupportedForCurrentSlice(SkillData skill)
     {
-        return skill != null && (skill.target == SkillTarget.SingleEnemy
+        return skill != null && skill.IsValid() && (skill.target == SkillTarget.SingleEnemy
             || skill.target == SkillTarget.AllEnemies
             || skill.target == SkillTarget.SingleAlly
             || skill.target == SkillTarget.AllAllies
@@ -3022,11 +3085,11 @@ public class BattleManager : MonoBehaviour
             return false;
         }
 
-        return tideBreak.targetType == SkillTarget.SingleEnemy
+        return tideBreak.IsValid() && (tideBreak.targetType == SkillTarget.SingleEnemy
             || tideBreak.targetType == SkillTarget.AllEnemies
             || tideBreak.targetType == SkillTarget.SingleAlly
             || tideBreak.targetType == SkillTarget.AllAllies
-            || tideBreak.targetType == SkillTarget.Self;
+            || tideBreak.targetType == SkillTarget.Self);
     }
 
     public TideBreakData GetFirstSupportedTideBreakForCurrentSlice(CombatUnit actor)

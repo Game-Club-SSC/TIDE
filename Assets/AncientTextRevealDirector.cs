@@ -202,7 +202,7 @@ public class AncientTextRevealDirector : MonoBehaviour
     /// </summary>
     public int GetRevealStage()
     {
-        return discoveredFragmentIds.Count;
+        return Mathf.Clamp(discoveredFragmentIds.Count, 0, 5);
     }
 
     /// <summary>
@@ -321,8 +321,8 @@ public class AncientTextRevealDirector : MonoBehaviour
                 HeroBondingSaveEntry entry = saveData.bondingEntries[i];
                 if (entry != null && !string.IsNullOrEmpty(entry.heroId))
                 {
-                    heroBondLevels[entry.heroId] = entry.bondLevel;
-                    heroFragmentCounts[entry.heroId] = entry.fragmentsDiscovered;
+                    heroBondLevels[entry.heroId] = Mathf.Clamp(entry.bondLevel, 0, 100);
+                    heroFragmentCounts[entry.heroId] = Mathf.Max(0, entry.fragmentsDiscovered);
                 }
             }
         }
@@ -335,6 +335,35 @@ public class AncientTextRevealDirector : MonoBehaviour
         discoveredFragmentIds.Clear();
         heroBondLevels.Clear();
         heroFragmentCounts.Clear();
+    }
+
+    /// <summary>
+    /// Migrates legacy fragment-bond progress into the canonical dialogue bond
+    /// ledger. Uses a max merge so modern saves that already contain a higher
+    /// relationship level are never incremented twice.
+    /// </summary>
+    public void ReconcileDialogueBonds()
+    {
+        DialogueSystem dialogueSystem = DialogueSystem.Instance;
+        if (dialogueSystem == null)
+        {
+            return;
+        }
+
+        foreach (KeyValuePair<string, int> pair in heroBondLevels)
+        {
+            if (string.IsNullOrEmpty(pair.Key))
+            {
+                continue;
+            }
+
+            int currentLevel = dialogueSystem.GetBondLevel(pair.Key, "player");
+            int targetLevel = Mathf.Clamp(pair.Value, 0, 100);
+            if (targetLevel > currentLevel)
+            {
+                dialogueSystem.IncreaseBond(pair.Key, "player", targetLevel - currentLevel);
+            }
+        }
     }
 
     private void DiscoverFragment(AncientTextFragment fragment)
@@ -393,8 +422,15 @@ public class AncientTextRevealDirector : MonoBehaviour
             currentLevel = 0;
         }
 
-        int newLevel = currentLevel + Mathf.Max(1, bondLevelPerFragment);
+        int increase = Mathf.Max(1, bondLevelPerFragment);
+        int newLevel = Mathf.Clamp(currentLevel + increase, 0, 100);
         heroBondLevels[heroId] = newLevel;
+
+        DialogueSystem dialogueSystem = DialogueSystem.Instance;
+        if (dialogueSystem != null)
+        {
+            dialogueSystem.IncreaseBond(heroId, "player", increase);
+        }
 
         if (heroFragmentCounts.TryGetValue(heroId, out int count))
         {
@@ -423,42 +459,9 @@ public class AncientTextRevealDirector : MonoBehaviour
             gsm.MarkNarrativeBeatCompleted(beatId);
         }
 
-        if (DialogueSystem.Instance == null || DialogueSystem.Instance.IsDialogueActive)
-        {
-            return;
-        }
-
-        DialogueTree tree = BuildFragmentDialogue(fragment);
-        if (tree != null)
-        {
-            DialogueSystem.Instance.StartDialogueTree(tree);
-        }
-    }
-
-    private static DialogueTree BuildFragmentDialogue(AncientTextFragment fragment)
-    {
-        if (fragment == null)
-        {
-            return null;
-        }
-
-        DialogueTree tree = new DialogueTree();
-        tree.treeId = $"dialogue_ancient_{fragment.fragmentId}";
-
-        DialogueTreeNode rootNode = new DialogueTreeNode();
-        rootNode.nodeId = $"{tree.treeId}_root";
-        rootNode.entry = new DialogueSystem.DialogueEntry
-        {
-            speakerName = fragment.title,
-            dialogueText = fragment.body,
-            emotion = DialogueSystem.Emotion.Neutral,
-            relatedHeroId = fragment.relatedHeroId
-        };
-
-        tree.rootNode = rootNode;
-        tree.allNodes.Add(rootNode);
-
-        return tree;
+        // The fragment has already been presented by AncientTextLogUI and
+        // registered in the archive. Starting a second tree with identical
+        // title/body would stack two input-consuming overlays.
     }
 
     private int ResolveIslandIndex(string islandId)

@@ -14,6 +14,8 @@ public class TideBreakUnlockTest : MonoBehaviour
         TestUnlockFilterIncludesExactLevel();
         TestElementFilteringOnlyReturnsMatches();
         TestDataBuilderCachesTideBreaks();
+        TestHeroRequirementFiltering();
+        TestHiddenTideBreaksRequireExplicitReveal();
 
         Debug.Log("=== All Tide Break Unlock Tests Passed ===");
     }
@@ -91,6 +93,58 @@ public class TideBreakUnlockTest : MonoBehaviour
         {
             Assert.IsTrue(data.damageMultiplier > 0f, "Test fixture data should have a positive damage multiplier.");
             Assert.AreEqual(CombatUnit.Element.Earth, (CombatUnit.Element)data.element, "Test fixture element should match.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(data);
+        }
+    }
+
+    private void TestHeroRequirementFiltering()
+    {
+        TideBreakData data = ScriptableObject.CreateInstance<TideBreakData>();
+        data.abilityName = "Hero Flame";
+        data.heroId = "hero_fire";
+        data.element = (int)CombatUnit.Element.Fire;
+        data.unlockLevel = 1;
+        data.damageMultiplier = 2f;
+        data.targetType = SkillTarget.SingleEnemy;
+
+        try
+        {
+            Assert.IsTrue(TideBreakProgressionManager.MatchesHeroRequirements(
+                data, "hero_fire", CombatUnit.Element.Fire));
+            Assert.IsFalse(TideBreakProgressionManager.MatchesHeroRequirements(
+                data, "hero_water", CombatUnit.Element.Water),
+                "Hero-specific Tide Breaks must not leak to a different hero or element.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(data);
+        }
+    }
+
+    private void TestHiddenTideBreaksRequireExplicitReveal()
+    {
+        TideBreakData data = ScriptableObject.CreateInstance<TideBreakData>();
+        data.abilityName = "Hidden Flame";
+        data.heroId = "hero_fire";
+        data.element = (int)CombatUnit.Element.Fire;
+        data.unlockLevel = 1;
+        data.damageMultiplier = 2f;
+        data.targetType = SkillTarget.SingleEnemy;
+        data.isHidden = true;
+
+        try
+        {
+            Assert.IsFalse(TideBreakProgressionManager.CanUnlockFromLevel(
+                data, "hero_fire", CombatUnit.Element.Fire, 99),
+                "Hidden Tide Breaks must never auto-unlock from level alone.");
+
+            data.isHidden = false;
+            Assert.IsTrue(TideBreakProgressionManager.CanUnlockFromLevel(
+                data, "hero_fire", CombatUnit.Element.Fire, 1),
+                "A valid non-hidden Tide Break should unlock at its authored level.");
         }
         finally
         {

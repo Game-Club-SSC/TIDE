@@ -521,6 +521,30 @@ public class HeroProgressionManager : MonoBehaviour
         return setData != null ? setData.TotalHpPercent : 0f;
     }
 
+    public float GetMpBonusPercent(string heroId)
+    {
+        GearInstance instance = GetEquippedGearInstance(heroId);
+        return instance != null ? instance.GetTotalMpPercent() : 0f;
+    }
+
+    public float GetSpeedBonusPercent(string heroId)
+    {
+        GearInstance instance = GetEquippedGearInstance(heroId);
+        return instance != null ? instance.GetTotalSpeedPercent() : 0f;
+    }
+
+    public float GetCritRateBonusPercent(string heroId)
+    {
+        GearInstance instance = GetEquippedGearInstance(heroId);
+        return instance != null ? instance.GetTotalCritRatePercent() : 0f;
+    }
+
+    public float GetCritDamageBonusPercent(string heroId)
+    {
+        GearInstance instance = GetEquippedGearInstance(heroId);
+        return instance != null ? instance.GetTotalCritDamagePercent() : 0f;
+    }
+
     private GearSetData FindGearSet(string setId)
     {
         if (string.IsNullOrEmpty(setId) || availableGearSets == null)
@@ -580,16 +604,20 @@ public class HeroProgressionManager : MonoBehaviour
         float atkPercent = GetAttackBonusPercent(hero.heroId);
         float defPercent = GetDefenseBonusPercent(hero.heroId);
         float hpPercent = GetHpBonusPercent(hero.heroId);
+        float mpPercent = GetMpBonusPercent(hero.heroId);
+        float speedPercent = GetSpeedBonusPercent(hero.heroId);
+        float critRatePercent = GetCritRateBonusPercent(hero.heroId);
+        float critDamagePercent = GetCritDamageBonusPercent(hero.heroId);
 
         unit.MaxHP = levelHp + Mathf.RoundToInt(levelHp * hpPercent);
         unit.HP = unit.MaxHP;
-        unit.MaxMP = levelMp;
+        unit.MaxMP = levelMp + Mathf.RoundToInt(levelMp * mpPercent);
         unit.MP = unit.MaxMP;
         unit.Attack = levelAttack + Mathf.RoundToInt(levelAttack * atkPercent);
         unit.Defense = levelDefense + Mathf.RoundToInt(levelDefense * defPercent);
-        unit.Speed = levelSpeed;
-        unit.CritRate = Mathf.Clamp01(hero.baseCritRate);
-        unit.CritDamage = Mathf.Max(1f, hero.baseCritDamage);
+        unit.Speed = levelSpeed + Mathf.RoundToInt(levelSpeed * speedPercent);
+        unit.CritRate = hero.baseCritRate + critRatePercent;
+        unit.CritDamage = hero.baseCritDamage + critDamagePercent;
 
         GearSetData gear = GetEquippedGearSet(hero.heroId);
         string gearTag = gear != null ? $", Gear={gear.setId}" : "";
@@ -611,7 +639,8 @@ public class HeroProgressionManager : MonoBehaviour
             return false;
         }
 
-        state.currentXp += xpAmount;
+        long accumulatedXp = (long)Mathf.Max(0, state.currentXp) + xpAmount;
+        state.currentXp = accumulatedXp > int.MaxValue ? int.MaxValue : (int)accumulatedXp;
         OnXpGained?.Invoke(heroId, xpAmount);
 
         bool leveledUp = false;
@@ -757,11 +786,15 @@ public class HeroProgressionManager : MonoBehaviour
         int reserveXp = Mathf.RoundToInt(totalXp * levelingConfig.reserveXpMultiplier);
         int reserveGearXp = Mathf.RoundToInt(gearXpPerBattleWin * levelingConfig.reserveXpMultiplier);
 
+        HashSet<string> rewardedHeroIds = new HashSet<string>(StringComparer.Ordinal);
+
         if (activeHeroes != null)
         {
             for (int i = 0; i < activeHeroes.Length; i++)
             {
-                if (activeHeroes[i] != null)
+                if (activeHeroes[i] != null
+                    && !string.IsNullOrEmpty(activeHeroes[i].heroId)
+                    && rewardedHeroIds.Add(activeHeroes[i].heroId))
                 {
                     GrantXp(activeHeroes[i].heroId, totalXp);
                     GrantGearXp(activeHeroes[i].heroId, gearXpPerBattleWin);
@@ -773,7 +806,9 @@ public class HeroProgressionManager : MonoBehaviour
         {
             for (int i = 0; i < reserveHeroes.Length; i++)
             {
-                if (reserveHeroes[i] != null)
+                if (reserveHeroes[i] != null
+                    && !string.IsNullOrEmpty(reserveHeroes[i].heroId)
+                    && rewardedHeroIds.Add(reserveHeroes[i].heroId))
                 {
                     GrantXp(reserveHeroes[i].heroId, reserveXp);
                     GrantGearXp(reserveHeroes[i].heroId, reserveGearXp);
@@ -1039,17 +1074,21 @@ public class HeroProgressionManager : MonoBehaviour
             return 0;
         }
 
-        int total = 0;
+        long total = 0;
         IReadOnlyList<CombatUnit> enemies = battleManager.EnemyUnits;
         for (int i = 0; i < enemies.Count; i++)
         {
             if (enemies[i] != null)
             {
-                total += enemies[i].XpReward;
+                total += Mathf.Max(0, enemies[i].XpReward);
+                if (total >= int.MaxValue)
+                {
+                    return int.MaxValue;
+                }
             }
         }
 
-        return total;
+        return (int)total;
     }
 
     public void ResetProgressionForDebug()
@@ -1138,7 +1177,7 @@ public class HeroProgressionManager : MonoBehaviour
 
     public void ApplyHeroProgressionSnapshot(HeroProgressionSnapshot snapshot)
     {
-        if (snapshot == null || snapshot.heroIds == null)
+        if (snapshot == null || snapshot.heroIds == null || snapshot.levels == null)
         {
             return;
         }
@@ -1156,7 +1195,8 @@ public class HeroProgressionManager : MonoBehaviour
 
             EnsureHero(heroId);
             HeroProgressionState state = heroStates[heroId];
-            state.level = Mathf.Max(1, snapshot.levels[i]);
+            int maxLevel = levelingConfig != null ? Mathf.Max(1, levelingConfig.maxLevel) : int.MaxValue;
+            state.level = Mathf.Clamp(snapshot.levels[i], 1, maxLevel);
             if (i < xpCount)
             {
                 state.currentXp = Mathf.Max(0, snapshot.currentXpValues[i]);
@@ -1164,6 +1204,19 @@ public class HeroProgressionManager : MonoBehaviour
             else
             {
                 state.currentXp = 0;
+            }
+
+            if (levelingConfig != null)
+            {
+                if (state.level >= maxLevel)
+                {
+                    state.currentXp = 0;
+                }
+                else
+                {
+                    int xpToNextLevel = Mathf.Max(1, levelingConfig.GetXpToNextLevel(state.level));
+                    state.currentXp = Mathf.Clamp(state.currentXp, 0, xpToNextLevel - 1);
+                }
             }
         }
     }

@@ -12,7 +12,7 @@ public class TideManager : MonoBehaviour
 
     [Header("Interaction")]
     public LayerMask tileLayer = ~0;
-    [SerializeField] private int maxCarrySteps = 2;
+    [SerializeField] [Range(1, 2)] private int maxCarrySteps = 2;
 
     [Header("Board Generation")]
     [SerializeField] private Vector3 boardCenter = new Vector3(0f, 0.35f, 0f);
@@ -179,12 +179,7 @@ public class TideManager : MonoBehaviour
 
         if (carryingSource != null)
         {
-            carryingSource.ApplyPlace(carriedAmount);
-            ApplyInstabilityDecay();
-            EvaluatePuzzleCompletion();
-            carryingSource = null;
-            carriedAmount = 0;
-            OnCarriedAmountChanged?.Invoke();
+            CancelCarriedTide();
         }
 
         OverlayExitRequested?.Invoke();
@@ -216,7 +211,7 @@ public class TideManager : MonoBehaviour
         {
             for (int col = 0; col < gridCols; col++)
             {
-                puzzleValues[row, col] = layout[row, col];
+                puzzleValues[row, col] = Mathf.Clamp(layout[row, col], 1, 10);
             }
         }
 
@@ -257,7 +252,7 @@ public class TideManager : MonoBehaviour
         puzzleValues = data.GetGrid();
         sealedPosition = data.sealedPosition;
         winCondition = data.winCondition ?? new PuzzleWinCondition();
-        instabilityThreshold = data.instabilityThreshold;
+        instabilityThreshold = Mathf.Max(0, data.instabilityThreshold);
         enableConsumption = data.enableConsumption;
         consumptionAmount = Mathf.Max(1, data.consumptionAmount);
         lockedPosition = data.lockedPosition;
@@ -274,11 +269,13 @@ public class TideManager : MonoBehaviour
         {
             bool lockedCleared = IsLockedEncounterCleared();
 
-            if (!lockedCleared
-                && data.lockedPosition.x >= 0 && data.lockedPosition.x < gridCols
+            if (data.lockedPosition.x >= 0 && data.lockedPosition.x < gridCols
                 && data.lockedPosition.y >= 0 && data.lockedPosition.y < gridRows)
             {
-                sealedTiles[data.lockedPosition.y, data.lockedPosition.x] = true;
+                // A zero value also marks a serialized sealed slot. Explicitly
+                // clear the resolved locked cell after its guard is defeated so
+                // that sentinel cannot keep a combat-cleared tile sealed forever.
+                sealedTiles[data.lockedPosition.y, data.lockedPosition.x] = !lockedCleared;
             }
         }
     }
@@ -855,14 +852,15 @@ public class TideManager : MonoBehaviour
 
         if (carryingSource != null)
         {
-            carryingSource.ApplyPlace(carriedAmount);
-            ApplyInstabilityDecay();
-            EvaluatePuzzleCompletion();
+            // Reset/cancel is not a completed move. Returning Tide to its source
+            // must not trigger placement decay under the GDD move definition.
+            CancelCarriedTide();
         }
-
-        carryingSource = null;
-        carriedAmount = 0;
-        OnCarriedAmountChanged?.Invoke();
+        else
+        {
+            carriedAmount = 0;
+            OnCarriedAmountChanged?.Invoke();
+        }
 
         for (int row = 0; row < gridRows; row++)
         {
@@ -881,6 +879,18 @@ public class TideManager : MonoBehaviour
 
         UpdateUiHeader();
         OnPuzzleReset?.Invoke();
+    }
+
+    private void CancelCarriedTide()
+    {
+        if (carryingSource != null && carriedAmount > 0)
+        {
+            carryingSource.ApplyPlace(carriedAmount);
+        }
+
+        carryingSource = null;
+        carriedAmount = 0;
+        OnCarriedAmountChanged?.Invoke();
     }
 
     private Vector3 GetWorldPosition(int row, int col)
@@ -1401,7 +1411,8 @@ public class TideManager : MonoBehaviour
                 return true;
             }
 
-            if (current.StepsTaken >= maxCarrySteps)
+            int allowedCarrySteps = Mathf.Clamp(maxCarrySteps, 1, 2);
+            if (current.StepsTaken >= allowedCarrySteps)
             {
                 continue;
             }
