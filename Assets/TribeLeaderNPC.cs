@@ -438,7 +438,7 @@ public class TribeLeaderNPC : MonoBehaviour, IPlayerInteractionAssistTarget
 
         // Consider the truth revealed once restoration passes 75%
         float restoration = gsm.GetIslandRestorationPercent(islandId);
-        return restoration >= 0.75f;
+        return restoration >= 75f;
     }
 
     // ------------------------------------------------------------------ //

@@ -386,6 +386,7 @@ public static class PhoneWebPageBuilder
     let joystickX = 0;
     let joystickY = 0;
     let sprintActive = false;
+    let authToken = null;
     let serverBase = window.location.origin;
 
     // ===== DOM Elements =====
@@ -453,6 +454,9 @@ public static class PhoneWebPageBuilder
             });
 
             if (resp.ok) {
+                const data = await resp.json();
+                if (!data.token) throw new Error('Pairing token missing');
+                authToken = data.token;
                 isPaired = true;
                 isConnected = true;
                 showController();
@@ -487,6 +491,7 @@ public static class PhoneWebPageBuilder
         pairingScreen.style.display = 'flex';
         isPaired = false;
         isConnected = false;
+        authToken = null;
         clearInterval(pollInterval);
         clearInterval(statsInterval);
         connDot.classList.add('disconnected');
@@ -499,7 +504,12 @@ public static class PhoneWebPageBuilder
 
     async function checkConnection() {
         try {
-            await fetch(serverBase + '/api/state', { method: 'GET', signal: AbortSignal.timeout(2000) });
+            const resp = await fetch(serverBase + '/api/state', {
+                method: 'GET',
+                headers: { 'Authorization': 'Bearer ' + authToken },
+                signal: AbortSignal.timeout(2000)
+            });
+            if (!resp.ok) throw new Error('Not authorized');
             isConnected = true;
             connDot.classList.remove('disconnected');
             bottomInfo.textContent = 'Connected';
@@ -646,7 +656,10 @@ public static class PhoneWebPageBuilder
         if (!isConnected) return;
         await fetch(serverBase + '/api/command', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + authToken
+            },
             body: JSON.stringify(cmd)
         });
     }
@@ -654,7 +667,11 @@ public static class PhoneWebPageBuilder
     // ===== Game State Polling =====
     async function fetchGameState() {
         if (!isConnected) return;
-        const resp = await fetch(serverBase + '/api/state', { signal: AbortSignal.timeout(2000) });
+        const resp = await fetch(serverBase + '/api/state', {
+            headers: { 'Authorization': 'Bearer ' + authToken },
+            signal: AbortSignal.timeout(2000)
+        });
+        if (!resp.ok) throw new Error('Not authorized');
         const data = await resp.json();
         updateStatsPanel(data);
     }

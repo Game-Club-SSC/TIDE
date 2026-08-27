@@ -115,6 +115,9 @@ public class BattleHud : MonoBehaviour
         {
             if (escapeMenu != null)
                 escapeMenu.ToggleMenu();
+
+            // Re-sample so panels reflect the new menu state this frame
+            isMenuOpen = escapeMenu != null && escapeMenu.IsMenuOpen;
         }
 
         // Hide other UI elements when menu is open

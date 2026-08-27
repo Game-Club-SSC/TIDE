@@ -1738,6 +1738,18 @@ public class BattleManager : MonoBehaviour
             lastPlayerSkill = skill;
         }
 
+        if (skill.target == SkillTarget.SingleAlly || skill.target == SkillTarget.AllAllies)
+        {
+            bool heals = skill.healMultiplier > 0f;
+            bool appliesEffect = skill.appliedEffectType != StatusEffectType.None;
+
+            if (!heals && !appliesEffect)
+            {
+                Debug.LogWarning($"[BattleManager] {skill.skillName} targets {skill.target} but has no heal or status effect configured. Resolving as a no-op.", this);
+                return;
+            }
+        }
+
         actor.SpendMp(skill.mpCost);
 
         if (skill.target == SkillTarget.Self)
@@ -2877,6 +2889,7 @@ public class BattleManager : MonoBehaviour
         switch (actionType)
         {
             case CombatActionType.Defend:
+                pendingSkillData = null;
                 AssignPlayerAction(actor, CombatActionType.Defend, null);
                 TryAutoConfirmPlayerActions();
                 return true;
@@ -2888,6 +2901,7 @@ public class BattleManager : MonoBehaviour
                     return false;
                 }
 
+                pendingSkillData = null;
                 AssignPlayerAction(actor, CombatActionType.Attack, attackTarget);
                 TryAutoConfirmPlayerActions();
                 return true;
@@ -2931,11 +2945,17 @@ public class BattleManager : MonoBehaviour
                     tbData = GetFirstSupportedTideBreakForCurrentSlice(actor);
                 }
 
-                if (tbData != null && !IsTideBreakSupportedForCurrentSlice(tbData))
+                if (tbData == null)
+                {
+                    Debug.LogWarning($"[BattleManager] No TideBreak ability available for {actor.UnitName}. Use a regular action instead.", this);
+                    return false;
+                }
+
+                if (!IsTideBreakSupportedForCurrentSlice(tbData))
                 {
                     return false;
                 }
-                
+
                 // Determine if target is required based on targetType
                 bool targetRequired = TideBreakRequiresExplicitTarget(tbData, actor);
 

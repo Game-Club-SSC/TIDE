@@ -238,6 +238,12 @@ public class IslandFlowController : MonoBehaviour
             encounterId = GetEncounterId(encounter, currentEncounterIndex);
         }
 
+        if (currentEncounterIndex >= islandConfig.encounters.Length)
+        {
+            OnIslandComplete();
+            return;
+        }
+
         if (encounter == null)
         {
             Debug.LogWarning("[IslandFlowController] No remaining encounters after skipping cleared ones.");

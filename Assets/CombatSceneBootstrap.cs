@@ -183,7 +183,10 @@ public class CombatSceneBootstrap : MonoBehaviour
             combatCamera.tag = "MainCamera";
         }
 
-        if (combatCamera.GetComponent<AudioListener>() == null)
+        // Only add a listener when the scene has none anywhere; Unity disables
+        // audio output when two AudioListeners coexist.
+        if (combatCamera.GetComponent<AudioListener>() == null
+            && FindFirstObjectByType<AudioListener>() == null)
         {
             combatCamera.gameObject.AddComponent<AudioListener>();
         }
@@ -329,11 +332,6 @@ public class CombatSceneBootstrap : MonoBehaviour
                     SetUnitColor(unitObject, allyUnitColor);
 
                     ApplyHeroToUnit(unit, activeHeroes[i]);
-
-                    if (!useSpriteBattleVisuals)
-                    {
-                        EnsureBattleElementalAllyVisual(unitObject, null, unit.ElementType);
-                    }
 
                     if (battleManager != null)
                     {
