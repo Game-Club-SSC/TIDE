@@ -23,7 +23,7 @@ MonoBehaviour:
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: a5908c283300d4cfd93242c7e408654b, type: 2}
+    encounterConfig: {fileID: 11400000, guid: d5555555555555555555555555555551, type: 2}
     enemyComposition:
       enemyDataSlots:
       - {fileID: 0}
@@ -37,7 +37,7 @@ MonoBehaviour:
     type: 1
     isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 11400000, guid: 3c2f6e2fb140e466493a6dd02e16af5e, type: 2}
+    encounterConfig: {fileID: 11400000, guid: 458eec242887426a984fca1089f2eb9c, type: 2}
     enemyComposition:
       enemyDataSlots:
       - {fileID: 0}
@@ -46,12 +46,12 @@ MonoBehaviour:
       attackModifiers: 
       defenseModifiers: 
       maxHpModifiers: 
-    puzzleData: {fileID: 11400000, guid: 92e1bb71d67f5406586f6174ed859163, type: 2}
+    puzzleData: {fileID: 11400000, guid: e5555555555555555555555555555551, type: 2}
   - encounterId: ego_c2
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: 204f6d6fec03d4c4bafec81f4fb0667d, type: 2}
+    encounterConfig: {fileID: 11400000, guid: d5555555555555555555555555555552, type: 2}
     enemyComposition:
       enemyDataSlots:
       - {fileID: 0}
@@ -75,12 +75,12 @@ MonoBehaviour:
       attackModifiers: 
       defenseModifiers: 
       maxHpModifiers: 
-    puzzleData: {fileID: 11400000, guid: bbc62810ccdb74972a8174b1271b9486, type: 2}
+    puzzleData: {fileID: 11400000, guid: e5555555555555555555555555555552, type: 2}
   - encounterId: ego_c3
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: 9314276b4d4d84760bb7290061d19c04, type: 2}
+    encounterConfig: {fileID: 11400000, guid: d5555555555555555555555555555553, type: 2}
     enemyComposition:
       enemyDataSlots:
       - {fileID: 0}
@@ -104,12 +104,12 @@ MonoBehaviour:
       attackModifiers: 
       defenseModifiers: 
       maxHpModifiers: 
-    puzzleData: {fileID: 11400000, guid: 9dc8aadd0226c4a0b88a645568058a44, type: 2}
+    puzzleData: {fileID: 11400000, guid: e5555555555555555555555555555553, type: 2}
   - encounterId: ego_c4
     type: 0
     isBossEncounter: 0
     restorationValue: 0.125
-    encounterConfig: {fileID: 11400000, guid: 64bb08fd7596a41e1af2f5cefd4b361d, type: 2}
+    encounterConfig: {fileID: 11400000, guid: d5555555555555555555555555555554, type: 2}
     enemyComposition:
       enemyDataSlots:
       - {fileID: 0}
@@ -125,7 +125,7 @@ MonoBehaviour:
     type: 1
     isBossEncounter: 0
     restorationValue: 0.0625
-    encounterConfig: {fileID: 11400000, guid: c714c5d3e86e048b6b38cd2f6e68593c, type: 2}
+    encounterConfig: {fileID: 11400000, guid: 79af9c852b0e4eff924d98d61a681686, type: 2}
     enemyComposition:
       enemyDataSlots:
       - {fileID: 0}
@@ -134,12 +134,12 @@ MonoBehaviour:
       attackModifiers: 
       defenseModifiers: 
       maxHpModifiers: 
-    puzzleData: {fileID: 11400000, guid: d9cbbcde88e9d4cd88650f65895e9a86, type: 2}
+    puzzleData: {fileID: 11400000, guid: e5555555555555555555555555555554, type: 2}
   - encounterId: ego_boss
     type: 0
     isBossEncounter: 1
     restorationValue: 0.25
-    encounterConfig: {fileID: 11400000, guid: 733d9a941d6074dd99ceb873dd63c274, type: 2}
+    encounterConfig: {fileID: 11400000, guid: d5555555555555555555555555555555, type: 2}
     enemyComposition:
       enemyDataSlots:
       - {fileID: 0}

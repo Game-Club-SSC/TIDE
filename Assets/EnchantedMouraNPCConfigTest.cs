@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -92,3 +93,4 @@ public class EnchantedMouraNPCConfigTest : MonoBehaviour
         return string.Empty;
     }
 }
+#endif

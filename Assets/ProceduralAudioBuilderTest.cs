@@ -10,6 +10,7 @@ public class ProceduralAudioBuilderTest : MonoBehaviour
         Debug.Log("=== Starting Procedural Audio Builder Tests ===");
 
         TestBgmClipsAreLoopsWithNonSilentSamples();
+        TestGeneratedClipsAreWritable();
         TestStingClipsAreShortAndDecay();
         TestBuilderIsDeterministic();
         TestAllCueBuildersReturnClips();
@@ -58,6 +59,19 @@ public class ProceduralAudioBuilderTest : MonoBehaviour
         AudioClip actTransition = ProceduralAudioBuilder.BuildActTransitionSting();
         AssertClipHasAudibleSignal(actTransition, "ActTransitionSting");
         AssertClipsStartsLouderThanItEnds(actTransition, "ActTransitionSting");
+    }
+
+    private void TestGeneratedClipsAreWritable()
+    {
+        AudioClip clip = ProceduralAudioBuilder.BuildAttackHitSfx();
+
+        Assert.IsNotNull(clip, "Generated clips should not be null.");
+        Assert.AreNotEqual(AudioClipLoadType.Streaming, clip.loadType,
+            "Generated clips must not stream because ProceduralAudioBuilder writes sample data into them.");
+
+        float[] samples = new float[1];
+        Assert.IsTrue(clip.GetData(samples, 0),
+            "Generated clips should expose their written sample data.");
     }
 
     private void TestBuilderIsDeterministic()

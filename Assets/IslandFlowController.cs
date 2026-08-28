@@ -9,6 +9,10 @@ public class IslandFlowController : MonoBehaviour
     private bool isActive;
     private bool awaitingEncounterResolution;
     private string activeIslandId;
+    // A combat encounter spends one power point when it first opens.  Keep
+    // the encounter key so a failed or fled battle can be retried without
+    // spending the point again.
+    private string budgetConsumedEncounterId;
     private bool hasLoggedDeadlockWarning;
 
     public string IslandId => activeIslandId;
@@ -19,6 +23,9 @@ public class IslandFlowController : MonoBehaviour
 
     private void Awake()
     {
+        // This controller owns the in-progress encounter while gameplay moves
+        // through the shared exploration, puzzle, and combat scenes.
+        DontDestroyOnLoad(gameObject);
         ResolveTrackerReference();
     }
 
@@ -94,6 +101,7 @@ public class IslandFlowController : MonoBehaviour
 
         isActive = true;
         awaitingEncounterResolution = false;
+        budgetConsumedEncounterId = null;
         hasLoggedDeadlockWarning = false;
 
         currentEncounterIndex = GetNextIncompleteEncounterIndex();
@@ -138,6 +146,9 @@ public class IslandFlowController : MonoBehaviour
             Debug.Log($"[IslandFlowController] Subsection {subsection + 1} {encounter.type} complete. Restoration: {tracker.GetRestorationPercent(activeIslandId):F1}%");
         }
 
+        // The completed encounter is no longer eligible for a retry.  Clear
+        // its budget marker before selecting the next encounter.
+        budgetConsumedEncounterId = null;
         currentEncounterIndex = GetNextIncompleteEncounterIndex();
         if (currentEncounterIndex >= islandConfig.encounters.Length)
         {
@@ -181,11 +192,31 @@ public class IslandFlowController : MonoBehaviour
         AbortFlowAfterFatalError();
     }
 
+    public void ResetForNewGame()
+    {
+        islandConfig = null;
+        currentEncounterIndex = 0;
+        isActive = false;
+        awaitingEncounterResolution = false;
+        activeIslandId = string.Empty;
+        budgetConsumedEncounterId = null;
+        hasLoggedDeadlockWarning = false;
+    }
+
+    public void PauseForHub()
+    {
+        isActive = false;
+        awaitingEncounterResolution = false;
+        budgetConsumedEncounterId = null;
+        hasLoggedDeadlockWarning = false;
+    }
+
     public void AbortFlowAfterFatalError()
     {
         isActive = false;
         awaitingEncounterResolution = false;
         activeIslandId = string.Empty;
+        budgetConsumedEncounterId = null;
         hasLoggedDeadlockWarning = false;
     }
 
@@ -268,34 +299,66 @@ public class IslandFlowController : MonoBehaviour
 
     private void LoadCombatEncounter(EncounterDefinition encounter)
     {
-        PowerBudgetTracker budgetTracker = PowerBudgetTracker.Instance;
-        if (budgetTracker != null && !budgetTracker.TryConsumeBudget(activeIslandId, 1f))
+        GameStateManager gameState = GameStateManager.Instance;
+        if (gameState == null)
         {
-            Debug.Log($"[IslandFlowController] Power budget exhausted for '{activeIslandId}'. Skipping combat encounter.");
-            currentEncounterIndex++;
-            LoadCurrentEncounter();
+            awaitingEncounterResolution = false;
+            Debug.LogError("[IslandFlowController] Cannot load combat encounter without GameStateManager.");
             return;
         }
 
+        if (!gameState.CanEnterCombatScene())
+        {
+            awaitingEncounterResolution = false;
+            Debug.LogWarning($"[IslandFlowController] Combat encounter '{GetEncounterId(encounter, currentEncounterIndex)}' is waiting for the current scene transition to finish.");
+            return;
+        }
+
+        string encounterId = GetEncounterId(encounter, currentEncounterIndex);
+        PowerBudgetTracker budgetTracker = PowerBudgetTracker.Instance;
+        bool budgetAlreadyConsumed = string.Equals(
+            budgetConsumedEncounterId,
+            encounterId,
+            System.StringComparison.Ordinal);
+        if (!budgetAlreadyConsumed
+            && budgetTracker != null
+            && !budgetTracker.TryConsumeBudget(activeIslandId, 1f))
+        {
+            // Do not advance the index.  The encounter is still uncleared and
+            // must remain available if the budget is restored later.
+            awaitingEncounterResolution = false;
+            Debug.LogWarning($"[IslandFlowController] Power budget exhausted for '{activeIslandId}'. Combat encounter '{encounterId}' remains uncleared.");
+            return;
+        }
+
+        if (!budgetAlreadyConsumed)
+        {
+            // Mark the reservation before loading the scene.  A failed or
+            // fled combat returns through LoadCurrentEncounter and reaches
+            // this method again with the same encounter key.
+            budgetConsumedEncounterId = encounterId;
+        }
+
         awaitingEncounterResolution = true;
-        if (GameStateManager.Instance != null)
+        gameState.PendingCombatIslandId = IslandThemeRegistry.ResolveIslandId(activeIslandId);
+        gameState.PendingCombatEncounterId = encounterId;
+        gameState.PendingCombatRestorationValue = Mathf.Max(0.001f, encounter.restorationValue);
+        gameState.PendingEnemyComposition = null;
+        gameState.SetBossDefeatTrackingContext(activeIslandId, IsBossEncounter(encounter));
+
+        if (encounter.encounterConfig != null)
         {
-            GameStateManager.Instance.SetBossDefeatTrackingContext(activeIslandId, IsBossEncounter(encounter));
+            gameState.PendingEnemyComposition = EnemyComposition.FromEncounterConfig(encounter.encounterConfig);
+        }
+        else if (encounter.enemyComposition != null)
+        {
+            gameState.PendingEnemyComposition = encounter.enemyComposition;
         }
 
-        if (encounter.encounterConfig != null && GameStateManager.Instance != null)
-        {
-            GameStateManager.Instance.PendingEnemyComposition = EnemyComposition.FromEncounterConfig(encounter.encounterConfig);
-        }
-        else if (encounter.enemyComposition != null && GameStateManager.Instance != null)
-        {
-            GameStateManager.Instance.PendingEnemyComposition = encounter.enemyComposition;
-        }
-
-        if (GameStateManager.Instance != null)
-        {
-            GameStateManager.Instance.EnterCombatScene();
-        }
+        // EnterCombatScene preserves the context above when this controller
+        // owns the active flow.  CombatSceneBootstrap uses it for enemy tier,
+        // boss presentation, restoration, and reward context.
+        gameState.EnterCombatScene();
     }
 
     private void LoadPuzzleEncounter(EncounterDefinition encounter)

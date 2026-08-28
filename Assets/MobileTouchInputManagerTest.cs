@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -189,3 +190,4 @@ public class MobileTouchInputManagerTest : MonoBehaviour
         return pos - 1;
     }
 }
+#endif

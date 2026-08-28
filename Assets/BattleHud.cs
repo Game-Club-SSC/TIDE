@@ -95,12 +95,18 @@ public class BattleHud : MonoBehaviour
     private bool targetPanelRequestedOpen;
     private bool tideBreakPanelRequestedOpen;
     private bool skillPanelRequestedOpen;
+    private CombatUnit trackedInputUnit;
 
     private void Awake()
     {
         EnsureCanvas();
         TryFindBattleManager();
         TryFindEscapeMenu();
+    }
+
+    private void Start()
+    {
+        SelectDefaultActionButton();
     }
 
     private void Update()
@@ -129,6 +135,8 @@ public class BattleHud : MonoBehaviour
             tideBreakPanel.SetActive(!isMenuOpen && tideBreakPanelRequestedOpen);
         if (skillPanel != null)
             skillPanel.SetActive(!isMenuOpen && skillPanelRequestedOpen);
+
+        SelectDefaultActionButton();
 
         if (battleManager == null)
         {
@@ -765,6 +773,11 @@ public class BattleHud : MonoBehaviour
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
         foreach (StatusEffect effect in effects)
         {
+            if (effect == null || effect.Type == StatusEffectType.None || effect.Duration <= 0)
+            {
+                continue;
+            }
+
             string abbr = "";
             switch (effect.Type)
             {
@@ -775,6 +788,14 @@ public class BattleHud : MonoBehaviour
                 case StatusEffectType.Poison: abbr = "PSN"; break;
                 case StatusEffectType.Slow: abbr = "SLW"; break;
                 case StatusEffectType.Drowsy: abbr = "DRW"; break;
+                case StatusEffectType.Stun: abbr = "STN"; break;
+                case StatusEffectType.Burn: abbr = "BRN"; break;
+                case StatusEffectType.Regeneration: abbr = "REG"; break;
+                case StatusEffectType.Shield: abbr = "SHD"; break;
+                case StatusEffectType.Berserk: abbr = "BRK"; break;
+                case StatusEffectType.Taunt: abbr = "TNT"; break;
+                case StatusEffectType.AccuracyDown: abbr = "ACC-"; break;
+                case StatusEffectType.AccuracyBuff: abbr = "ACC+"; break;
                 default: continue;
             }
             sb.Append($"{abbr}({effect.Duration}) ");
@@ -830,6 +851,7 @@ public class BattleHud : MonoBehaviour
 
         if (!isPlayerInput || isMenuOpen)
         {
+            trackedInputUnit = null;
             targetPanelRequestedOpen = false;
             tideBreakPanelRequestedOpen = false;
             skillPanelRequestedOpen = false;
@@ -850,6 +872,20 @@ public class BattleHud : MonoBehaviour
         }
 
         CombatUnit currentInput = battleManager.GetCurrentInputUnit();
+        bool inputUnitChanged = trackedInputUnit != currentInput;
+        trackedInputUnit = currentInput;
+        if (inputUnitChanged
+            && currentInput != null
+            && !targetPanelRequestedOpen
+            && !skillPanelRequestedOpen
+            && !tideBreakPanelRequestedOpen)
+        {
+            // Each hero starts with Attack selected. This prevents the
+            // EventSystem from repeating the prior hero's Defend/Skill action
+            // when the player presses Return for the next hero.
+            SelectDefaultActionButton(true);
+        }
+
         if (currentInput != null)
         {
             SkillData skill = battleManager.GetFirstSupportedSkillForCurrentSlice(currentInput);
@@ -1147,6 +1183,9 @@ public class BattleHud : MonoBehaviour
             skillButtons.Add(btn);
             visibleIndex++;
         }
+
+        ConfigurePanelButtonNavigation(skillButtons);
+        SelectFirstPanelButton(skillButtons);
     }
 
     private void OnSkillSelected(SkillData skill)
@@ -1238,6 +1277,9 @@ public class BattleHud : MonoBehaviour
             btn.onClick.AddListener(() => OnTideBreakSelected(ability));
             tideBreakButtons.Add(btn);
         }
+
+        ConfigurePanelButtonNavigation(tideBreakButtons);
+        SelectFirstPanelButton(tideBreakButtons);
     }
 
     private void OnTideBreakSelected(TideBreakData ability)
@@ -1346,6 +1388,9 @@ public class BattleHud : MonoBehaviour
                 targetButtons[i].gameObject.SetActive(false);
             }
         }
+
+        ConfigurePanelButtonNavigation(targetButtons);
+        SelectFirstPanelButton(targetButtons);
     }
 
     private void ShowAllySelection(CombatActionType actionType)
@@ -1383,6 +1428,9 @@ public class BattleHud : MonoBehaviour
                 targetButtons[i].gameObject.SetActive(false);
             }
         }
+
+        ConfigurePanelButtonNavigation(targetButtons);
+        SelectFirstPanelButton(targetButtons);
     }
 
     private void OnAllySelected(CombatActionType actionType, CombatUnit target)
@@ -1459,6 +1507,135 @@ public class BattleHud : MonoBehaviour
         Debug.Log("[BattleHud] Created EventSystem for combat scene.");
     }
 
+    private void ConfigureActionNavigation()
+    {
+        Button[] buttons = { attackButton, defendButton, skillButton, tideBreakButton };
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            Button button = buttons[i];
+            if (button == null)
+            {
+                continue;
+            }
+
+            Navigation navigation = button.navigation;
+            navigation.mode = Navigation.Mode.Explicit;
+            navigation.selectOnLeft = buttons[(i + buttons.Length - 1) % buttons.Length];
+            navigation.selectOnRight = buttons[(i + 1) % buttons.Length];
+            navigation.selectOnUp = button;
+            navigation.selectOnDown = button;
+            button.navigation = navigation;
+        }
+    }
+
+    /// <summary>
+    /// Sets explicit navigation for buttons that are created or activated at
+    /// runtime. Unity's automatic navigation can skip inactive entries and
+    /// leave the EventSystem focused on a hidden action button, which makes a
+    /// keyboard Return press resolve the wrong action.
+    /// </summary>
+    private void ConfigurePanelButtonNavigation(IList<Button> buttons)
+    {
+        if (buttons == null)
+        {
+            return;
+        }
+
+        List<Button> activeButtons = new List<Button>();
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            Button button = buttons[i];
+            if (button != null && button.gameObject.activeInHierarchy)
+            {
+                activeButtons.Add(button);
+            }
+        }
+
+        for (int i = 0; i < activeButtons.Count; i++)
+        {
+            Button button = activeButtons[i];
+            Button previous = i > 0 ? activeButtons[i - 1] : button;
+            Button next = i + 1 < activeButtons.Count ? activeButtons[i + 1] : button;
+
+            Navigation navigation = button.navigation;
+            navigation.mode = Navigation.Mode.Explicit;
+            navigation.selectOnUp = previous;
+            navigation.selectOnDown = next;
+            navigation.selectOnLeft = previous;
+            navigation.selectOnRight = next;
+            button.navigation = navigation;
+        }
+    }
+
+    private void SelectFirstPanelButton(IList<Button> buttons)
+    {
+        if (buttons == null)
+        {
+            return;
+        }
+
+        EventSystem eventSystem = EventSystem.current;
+        if (eventSystem == null)
+        {
+            eventSystem = FindFirstObjectByType<EventSystem>();
+        }
+
+        if (eventSystem == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            Button button = buttons[i];
+            if (button == null || !button.gameObject.activeInHierarchy || !button.interactable)
+            {
+                continue;
+            }
+
+            eventSystem.SetSelectedGameObject(button.gameObject);
+            button.Select();
+            return;
+        }
+
+        eventSystem.SetSelectedGameObject(null);
+    }
+
+    private void SelectDefaultActionButton(bool force = false)
+    {
+        if (isMenuOpen
+            || targetPanelRequestedOpen
+            || skillPanelRequestedOpen
+            || tideBreakPanelRequestedOpen
+            || actionPanel == null
+            || !actionPanel.activeInHierarchy
+            || attackButton == null
+            || !attackButton.interactable)
+        {
+            return;
+        }
+
+        EventSystem eventSystem = EventSystem.current;
+        if (eventSystem == null)
+        {
+            eventSystem = FindFirstObjectByType<EventSystem>();
+        }
+
+        if (eventSystem == null)
+        {
+            return;
+        }
+
+        GameObject selected = eventSystem.currentSelectedGameObject;
+        if (!force && selected != null && selected.activeInHierarchy)
+        {
+            return;
+        }
+
+        eventSystem.SetSelectedGameObject(attackButton.gameObject);
+        attackButton.Select();
+    }
+
     private void CreateActionPanel(Transform parent)
     {
         actionPanel = CreatePanel("ActionPanel", parent,
@@ -1470,6 +1647,8 @@ public class BattleHud : MonoBehaviour
         skillButton = CreateActionButton(actionPanel.transform, "Skill", 2, OnSkillClicked);
         tideBreakButton = CreateActionButton(actionPanel.transform, "TIDE BREAK", 3, OnTideBreakClicked);
         tideBreakButton.gameObject.SetActive(false);
+
+        ConfigureActionNavigation();
 
         skillButtonText = skillButton.GetComponentInChildren<Text>();
         tideBreakButtonText = tideBreakButton.GetComponentInChildren<Text>();

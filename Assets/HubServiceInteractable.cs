@@ -150,6 +150,7 @@ public class HubServiceInteractable : MonoBehaviour, IPlayerInteractionAssistTar
             smithyObject.transform.SetParent(transform, false);
             smithyObject.transform.localPosition = Vector3.zero;
             smithyObject.transform.localScale = new Vector3(1.4f, 1.1f, 1.4f);
+            TideRuntimeVisualUtility.EnsureMeshMaterial(smithyObject.GetComponent<Renderer>());
             smithy = smithyObject.AddComponent<SmithyInteractable>();
         }
 
@@ -244,7 +245,7 @@ public class HubServiceInteractable : MonoBehaviour, IPlayerInteractionAssistTar
 
         SpriteRenderer spriteRenderer = spriteObject.AddComponent<SpriteRenderer>();
         spriteRenderer.sprite = GetPromptSprite();
-        spriteRenderer.color = promptTint;
+        TideRuntimeVisualUtility.ApplySpriteColor(spriteRenderer, promptTint);
         spriteRenderer.shadowCastingMode = ShadowCastingMode.Off;
         spriteRenderer.receiveShadows = false;
         spriteRenderer.sortingOrder = 10;

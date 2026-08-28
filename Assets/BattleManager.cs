@@ -100,6 +100,8 @@ public class BattleManager : MonoBehaviour
     [Header("Neutral Clash QTE")]
     [SerializeField] private bool enableNeutralClashQte = true;
     [SerializeField] private bool allowNeutralClashQteFallbackWhenRuntimeMissing = true;
+    [SerializeField] private QTESession neutralClashQteSession;
+    [SerializeField] [Min(0.1f)] private float neutralClashQteTimeWindow = 2f;
 
     [SerializeField] private BattlePhase currentPhase;
 
@@ -121,6 +123,7 @@ public class BattleManager : MonoBehaviour
     public IReadOnlyList<CombatUnit> AllyReserveUnits => allyReserveUnits;
     public IReadOnlyList<CombatUnit> TurnQueue => turnQueue;
     public MomentumState Momentum => momentumState;
+    public bool IsNeutralClashQtePending => neutralClashQtePending;
 
     public struct ClashResult
     {
@@ -266,6 +269,10 @@ public class BattleManager : MonoBehaviour
     private TideBreakData pendingTideBreak;
     private float actionStepTimer;
     private bool actionExecutionActive;
+    private bool neutralClashQtePending;
+    private CombatUnit pendingNeutralClashAlly;
+    private CombatUnit pendingNeutralClashEnemy;
+    private QTESession activeNeutralClashQteSession;
     private BattleHud cachedBattleHud;
     private string debugText = "";
     [Header("Party Swap")]
@@ -283,6 +290,14 @@ public class BattleManager : MonoBehaviour
     private float relationshipClashBonus = 0f;
     private float relationshipTeamUpChance = 0f;
     private float averageBondLevel = 50f;
+
+    // Combat starts at 100% accuracy. Accuracy status effects move that value
+    // down or up through CombatUnit.GetAccuracyModifier(). Keeping the base at
+    // one preserves the existing deterministic behaviour for tests and for
+    // units without an accuracy effect, while AccuracyDown can still create
+    // misses and AccuracyBuff can offset it.
+    private const float BaseHitChance = 1f;
+    private const float DeterministicEditorHitRoll = 0.5f;
 
     [Header("Balance")]
     [SerializeField] private BalanceConfig balanceConfig;
@@ -339,6 +354,11 @@ public class BattleManager : MonoBehaviour
         UpdateDebugText();
     }
 
+    private void OnDisable()
+    {
+        CancelPendingNeutralClashQte();
+    }
+
     private void UpdateDebugText()
     {
 #if UNITY_EDITOR
@@ -375,6 +395,7 @@ public class BattleManager : MonoBehaviour
 
     public void StartBattle()
     {
+        CancelPendingNeutralClashQte();
         canSwapDuringPlayerInput = true;
         failedFleeAttemptsThisBattle = 0;
         ConfigureMomentumFromBalance();
@@ -445,6 +466,12 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        if (neutralClashQtePending)
+        {
+            Debug.Log("[BattleManager] AdvancePhase ignored while a neutral clash QTE is active.", this);
+            return;
+        }
+
         if (IsTerminalPhase(currentPhase))
         {
             Debug.Log($"[BattleManager] AdvancePhase ignored because battle is already in terminal phase {currentPhase}.", this);
@@ -504,6 +531,11 @@ public class BattleManager : MonoBehaviour
 
     private void TransitionToPhase(BattlePhase nextPhase, string transitionSource)
     {
+        if (IsTerminalPhase(nextPhase))
+        {
+            CancelPendingNeutralClashQte();
+        }
+
         string transitionDescription = hasActivePhase
             ? $"{currentPhase} -> {nextPhase}"
             : $"<initial> -> {nextPhase}";
@@ -1093,6 +1125,15 @@ public class BattleManager : MonoBehaviour
 
         ResolveClashes();
 
+        if (neutralClashQtePending)
+        {
+            actionExecutionActive = false;
+            actionStepTimer = 0f;
+            currentActingUnit = null;
+            Debug.Log("[BattleManager] Action execution paused for neutral clash QTE.", this);
+            return;
+        }
+
         actionExecutionActive = true;
         actionStepTimer = 0f;
         currentActingUnit = null;
@@ -1180,6 +1221,12 @@ public class BattleManager : MonoBehaviour
 
                 clashedUnits.Add(unitA);
                 clashedUnits.Add(unitB);
+
+                if (neutralClashQtePending)
+                {
+                    return;
+                }
+
                 break;
             }
         }
@@ -1278,6 +1325,11 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        if (neutralClashQtePending)
+        {
+            return;
+        }
+
         if (!string.Equals(qteResolution, "NotTriggered", StringComparison.Ordinal))
         {
             Debug.Log($"[BattleManager] Neutral clash QTE skipped: {qteResolution}.", this);
@@ -1351,6 +1403,12 @@ public class BattleManager : MonoBehaviour
         }
         else
         {
+            if (TryStartNeutralClashQteSession(ally, enemy))
+            {
+                qteResolution = "SessionPending";
+                return false;
+            }
+
             if (!allowNeutralClashQteFallbackWhenRuntimeMissing)
             {
                 Debug.LogWarning("[BattleManager] Neutral clash QTE requested but runtime was unavailable. Falling back to neutral clash.", this);
@@ -1381,6 +1439,121 @@ public class BattleManager : MonoBehaviour
         string outcome = qteSuccess ? "SUCCESS (momentum toward player)" : "FAIL (momentum toward enemy)";
         Debug.Log($"[BattleManager] Neutral clash QTE resolved via {qteResolution}: {outcome}.", this);
         return true;
+    }
+
+    private bool TryStartNeutralClashQteSession(CombatUnit ally, CombatUnit enemy)
+    {
+        if (!Application.isPlaying || neutralClashQtePending || ally == null || enemy == null)
+        {
+            return false;
+        }
+
+        QTESession session = GetOrCreateNeutralClashQteSession();
+        if (session == null || !session.isActiveAndEnabled)
+        {
+            return false;
+        }
+
+        pendingNeutralClashAlly = ally;
+        pendingNeutralClashEnemy = enemy;
+        activeNeutralClashQteSession = session;
+        neutralClashQtePending = true;
+        session.OnQTEResolved += HandleNeutralClashQteResolved;
+
+        float timeWindow = Mathf.Max(0.1f, neutralClashQteTimeWindow);
+        if (session.ShowQTE(timeWindow))
+        {
+            Debug.Log($"[BattleManager] Neutral clash QTE started for {ally.UnitName} vs {enemy.UnitName}.", this);
+            return true;
+        }
+
+        session.OnQTEResolved -= HandleNeutralClashQteResolved;
+        ClearPendingNeutralClashQte();
+        return false;
+    }
+
+    private QTESession GetOrCreateNeutralClashQteSession()
+    {
+        if (neutralClashQteSession != null)
+        {
+            return neutralClashQteSession;
+        }
+
+        neutralClashQteSession = GetComponentInChildren<QTESession>(true);
+        if (neutralClashQteSession != null || !Application.isPlaying)
+        {
+            return neutralClashQteSession;
+        }
+
+        GameObject sessionObject = new GameObject("NeutralClashQTE");
+        sessionObject.transform.SetParent(transform, false);
+        neutralClashQteSession = sessionObject.AddComponent<QTESession>();
+        return neutralClashQteSession;
+    }
+
+    private void HandleNeutralClashQteResolved(bool qteSuccess)
+    {
+        if (!neutralClashQtePending)
+        {
+            return;
+        }
+
+        CombatUnit ally = pendingNeutralClashAlly;
+        CombatUnit enemy = pendingNeutralClashEnemy;
+        ClearPendingNeutralClashQte();
+
+        if (ally == null || enemy == null || !ally.IsAlive || !enemy.IsAlive)
+        {
+            Debug.LogWarning("[BattleManager] Neutral clash QTE result ignored because a participant is no longer valid.", this);
+            ResumeActionExecutionAfterNeutralClashQte();
+            return;
+        }
+
+        CombatUnit winner = qteSuccess ? ally : enemy;
+        CombatUnit loser = qteSuccess ? enemy : ally;
+        ExecuteClash(winner, loser, true, qteSuccess, "Session");
+
+        if (!CheckBattleOutcome())
+        {
+            ResumeActionExecutionAfterNeutralClashQte();
+        }
+    }
+
+    private void ClearPendingNeutralClashQte()
+    {
+        if (activeNeutralClashQteSession != null)
+        {
+            activeNeutralClashQteSession.OnQTEResolved -= HandleNeutralClashQteResolved;
+        }
+
+        neutralClashQtePending = false;
+        pendingNeutralClashAlly = null;
+        pendingNeutralClashEnemy = null;
+        activeNeutralClashQteSession = null;
+    }
+
+    private void CancelPendingNeutralClashQte()
+    {
+        QTESession session = activeNeutralClashQteSession;
+        ClearPendingNeutralClashQte();
+
+        if (session != null && session.IsQTEActive)
+        {
+            session.CancelQTE();
+        }
+    }
+
+    private void ResumeActionExecutionAfterNeutralClashQte()
+    {
+        if (!hasActivePhase || currentPhase != BattlePhase.ActionExecution || IsTerminalPhase(currentPhase))
+        {
+            return;
+        }
+
+        actionExecutionActive = true;
+        actionStepTimer = 0f;
+        currentActingUnit = null;
+        Debug.Log("[BattleManager] Action execution resumed after neutral clash QTE.", this);
     }
 
     private bool? RequestNeutralClashQteResult(CombatUnit ally, CombatUnit enemy)
@@ -1595,6 +1768,39 @@ public class BattleManager : MonoBehaviour
         return ComputeEnemyAction(actor);
     }
 
+    /// <summary>
+    /// Resolves whether a damaging action lands. Accuracy effects live on the
+    /// acting unit, so AccuracyDown lowers the chance and AccuracyBuff raises
+    /// it through CombatUnit.GetAccuracyModifier(). Edit-mode verification
+    /// uses a fixed roll so existing tests do not become flaky; a live player
+    /// build uses Unity's normal random roll.
+    /// </summary>
+    private bool TryResolveHit(CombatUnit actor, CombatUnit target, string actionName)
+    {
+        if (actor == null || target == null || !actor.IsAlive || !target.IsAlive)
+        {
+            return false;
+        }
+
+        float hitChance = Mathf.Clamp01(BaseHitChance + actor.GetAccuracyModifier());
+        float roll = Application.isPlaying ? UnityEngine.Random.value : DeterministicEditorHitRoll;
+        if (roll < hitChance)
+        {
+            return true;
+        }
+
+        string action = string.IsNullOrEmpty(actionName) ? "attack" : actionName;
+        Debug.Log($"[BattleManager] {actor.UnitName}'s {action} missed {target.UnitName} (accuracy {hitChance:P0}, roll {roll:P0}).", this);
+
+        AudioManager audioManager = AudioManager.Instance;
+        if (audioManager != null)
+        {
+            audioManager.HandleAttackMiss();
+        }
+
+        return false;
+    }
+
     private void ResolveAttack(CombatUnit actor, CombatUnit requestedTarget)
     {
         CombatUnit target = ResolveOpponentTarget(actor, requestedTarget);
@@ -1609,6 +1815,11 @@ public class BattleManager : MonoBehaviour
         {
             lastAttacker = actor;
             lastPlayerSkill = null;
+        }
+
+        if (!TryResolveHit(actor, target, "basic attack"))
+        {
+            return;
         }
 
         float attackMod = actor.GetAttackModifier();
@@ -1687,6 +1898,11 @@ public class BattleManager : MonoBehaviour
                 CombatUnit partner = FindTeamUpPartner(actor);
                 if (partner != null && partner.IsAlive)
                 {
+                    if (!TryResolveHit(partner, target, "team-up attack"))
+                    {
+                        return;
+                    }
+
                     float partnerMod = partner.GetAttackModifier();
                     int partnerBase = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(partner.Attack * (1f + partnerMod)));
                     MatchupResult partnerMatchup = ElementMatchup.GetResult(partner.ElementType, target.ElementType);
@@ -1782,11 +1998,17 @@ public class BattleManager : MonoBehaviour
             int baseDmg = Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(actor.Attack * (1f + aoeAttackMod)));
             float relDmgMult = actor.Type == CombatUnit.UnitType.Ally ? relationshipDamageMultiplier : 1f;
             int totalDmg = 0;
+            List<CombatUnit> aoeHitTargets = new List<CombatUnit>(aoeTargets.Count);
             bool isAoeCrit = UnityEngine.Random.value < actor.CritRate;
 
             for (int i = 0; i < aoeTargets.Count; i++)
             {
                 CombatUnit aoeTarget = aoeTargets[i];
+                if (!TryResolveHit(actor, aoeTarget, skill.skillName))
+                {
+                    continue;
+                }
+
                 float elemMult = ElementMatchup.GetDamageMultiplier(skillElement, aoeTarget.ElementType);
                 if (balanceConfig != null)
                 {
@@ -1817,22 +2039,26 @@ public class BattleManager : MonoBehaviour
                 int hpBefore = aoeTarget.HP;
                 aoeTarget.TakeDamage(dmg);
                 totalDmg += (hpBefore - aoeTarget.HP);
+                aoeHitTargets.Add(aoeTarget);
                 TriggerBattleHitFeedback(actor, aoeTarget, false, true);
             }
 
-            MatchupResult aoeMatchup = ElementMatchup.GetResult(skillElement, aoeTargets.Count > 0 ? aoeTargets[0].ElementType : CombatUnit.Element.None);
-            momentumState.ShiftForAction(actor, aoeMatchup);
-            if (isAoeCrit)
+            if (aoeHitTargets.Count > 0)
             {
-                momentumState.ShiftForCrit(actor);
-            }
-            OnDamageDealt?.Invoke(actor, isAoeCrit);
-
-            if (skill.appliedEffectType != StatusEffectType.None)
-            {
-                for (int j = 0; j < aoeTargets.Count; j++)
+                MatchupResult aoeMatchup = ElementMatchup.GetResult(skillElement, aoeHitTargets[0].ElementType);
+                momentumState.ShiftForAction(actor, aoeMatchup);
+                if (isAoeCrit)
                 {
-                    TryApplySkillStatusEffect(actor, aoeTargets[j], skill);
+                    momentumState.ShiftForCrit(actor);
+                }
+                OnDamageDealt?.Invoke(actor, isAoeCrit);
+
+                if (skill.appliedEffectType != StatusEffectType.None)
+                {
+                    for (int j = 0; j < aoeHitTargets.Count; j++)
+                    {
+                        TryApplySkillStatusEffect(actor, aoeHitTargets[j], skill);
+                    }
                 }
             }
 
@@ -1852,6 +2078,11 @@ public class BattleManager : MonoBehaviour
         {
             lastAttacker = actor;
             lastPlayerSkill = skill;
+        }
+
+        if (!TryResolveHit(actor, target, skill.skillName))
+        {
+            return;
         }
 
         CombatUnit.Element skillElementSingle = ResolveSkillElement(skill, actor);
@@ -2602,7 +2833,9 @@ public class BattleManager : MonoBehaviour
 
         SpriteRenderer renderer = effectObject.AddComponent<SpriteRenderer>();
         renderer.sprite = FuturisticSpriteLibrary.GetHitEffectSprite();
-        renderer.color = Color.Lerp(GetElementFxColor(element), Color.white, isCrit ? 0.4f : 0.2f);
+        TideRuntimeVisualUtility.ApplySpriteColor(
+            renderer,
+            Color.Lerp(GetElementFxColor(element), Color.white, isCrit ? 0.4f : 0.2f));
         renderer.sortingOrder = 48;
         renderer.shadowCastingMode = ShadowCastingMode.Off;
         renderer.receiveShadows = false;

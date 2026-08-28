@@ -82,6 +82,7 @@ public class TideManager : MonoBehaviour
     private TideTile hoveredTile;
     private TideTile carryingSource;
     private int carriedAmount;
+    private int requestedTakeAmount;
     private bool puzzleSolved;
     private bool isStartingSealedTileCombat;
     private bool isClosingBoardUi;
@@ -101,6 +102,7 @@ public class TideManager : MonoBehaviour
 
     public int CarriedAmount => carriedAmount;
     public bool IsCarrying => carriedAmount > 0;
+    public int RequestedTakeAmount => requestedTakeAmount;
 
     public event Action OnCarriedAmountChanged;
     public event Action OnPuzzleReset;
@@ -276,6 +278,12 @@ public class TideManager : MonoBehaviour
                 // clear the resolved locked cell after its guard is defeated so
                 // that sentinel cannot keep a combat-cleared tile sealed forever.
                 sealedTiles[data.lockedPosition.y, data.lockedPosition.x] = !lockedCleared;
+                if (lockedCleared && puzzleValues[data.lockedPosition.y, data.lockedPosition.x] == 0)
+                {
+                    // Zero has no valid open-tile meaning. A guard-cleared slot
+                    // becomes a normal, balanced tile and reset snapshots keep 5.
+                    puzzleValues[data.lockedPosition.y, data.lockedPosition.x] = 5;
+                }
             }
         }
     }
@@ -451,6 +459,8 @@ public class TideManager : MonoBehaviour
             return;
         }
 
+        UpdateRequestedTakeAmountFromKeyboard();
+
         if (!renderBoardAsUi)
         {
             if (carriedAmount > 0)
@@ -503,6 +513,7 @@ public class TideManager : MonoBehaviour
                 tileObject.transform.position = GetWorldPosition(row, col);
                 tileObject.transform.localScale = tileScale;
                 tileObject.layer = gameObject.layer;
+                TideRuntimeVisualUtility.EnsureMeshMaterial(tileObject.GetComponent<Renderer>());
 
                 TideTile tile = tileObject.AddComponent<TideTile>();
                 tile.Configure(new Vector2Int(col, row), puzzleValues[row, col], sealedTiles[row, col]);
@@ -636,6 +647,7 @@ public class TideManager : MonoBehaviour
                 tileObject.transform.position = GetWorldPosition(row, col);
                 tileObject.transform.localScale = tileScale;
                 tileObject.layer = gameObject.layer;
+                TideRuntimeVisualUtility.EnsureMeshMaterial(tileObject.GetComponent<Renderer>());
 
                 TideTile tile = tileObject.AddComponent<TideTile>();
                 tile.Configure(new Vector2Int(col, row), puzzleValues[row, col], sealedTiles[row, col]);
@@ -708,7 +720,7 @@ public class TideManager : MonoBehaviour
         Renderer markerRenderer = marker.GetComponent<Renderer>();
         if (markerRenderer != null)
         {
-            markerRenderer.material.color = new Color(0.89f, 0.22f, 0.18f);
+            TideRuntimeVisualUtility.ApplyMeshColor(markerRenderer, new Color(0.89f, 0.22f, 0.18f));
         }
 
         sealedTileEnemyMarkers.Add(marker);
@@ -940,7 +952,7 @@ public class TideManager : MonoBehaviour
             return;
         }
 
-        int takeAmount = hoveredTile.GetMaxTake();
+        int takeAmount = GetRequestedTakeAmount(hoveredTile);
         if (takeAmount <= 0)
         {
             if (!hoveredTile.IsSealed)
@@ -960,6 +972,48 @@ public class TideManager : MonoBehaviour
         {
             audioManager.HandleTileTake();
         }
+    }
+
+    public void SetRequestedTakeAmount(int amount)
+    {
+        requestedTakeAmount = Mathf.Clamp(amount, 0, 5);
+        UpdateUiHeader();
+    }
+
+    private void UpdateRequestedTakeAmountFromKeyboard()
+    {
+        if (Input.GetKeyDown(KeyCode.Alpha0) || Input.GetKeyDown(KeyCode.Keypad0))
+        {
+            SetRequestedTakeAmount(0);
+            return;
+        }
+
+        for (int amount = 1; amount <= 5; amount++)
+        {
+            KeyCode alphaKey = (KeyCode)((int)KeyCode.Alpha1 + amount - 1);
+            KeyCode keypadKey = (KeyCode)((int)KeyCode.Keypad1 + amount - 1);
+            if (Input.GetKeyDown(alphaKey) || Input.GetKeyDown(keypadKey))
+            {
+                SetRequestedTakeAmount(amount);
+                return;
+            }
+        }
+    }
+
+    private int GetRequestedTakeAmount(TideTile sourceTile)
+    {
+        if (sourceTile == null)
+        {
+            return 0;
+        }
+
+        int maximum = sourceTile.GetMaxTake();
+        if (requestedTakeAmount == 0)
+        {
+            return maximum;
+        }
+
+        return requestedTakeAmount <= maximum ? requestedTakeAmount : 0;
     }
 
     private void TryTriggerSealedTileEncounter(TideTile sealedTile)
@@ -1693,9 +1747,10 @@ public class TideManager : MonoBehaviour
         }
 
         string carryText = carriedAmount > 0 ? $"Carry {carriedAmount}" : "Carry -";
+        string takeText = requestedTakeAmount > 0 ? $"Take {requestedTakeAmount}" : "Take max";
         string targetText = BuildGoalHeaderText();
         string modeText = overlayMode ? "Esc: Exit Overlay" : "Reset available";
-        boardHeaderLabel.text = $"TIDE STABILIZATION\n{targetText}   |   {carryText}   |   {modeText}";
+        boardHeaderLabel.text = $"TIDE STABILIZATION\n{targetText}   |   {carryText}   |   {takeText}\nKeys 1-5: take amount, 0: take max   |   {modeText}";
     }
 
     private string BuildGoalHeaderText()

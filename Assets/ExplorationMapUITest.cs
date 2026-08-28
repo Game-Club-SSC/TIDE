@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -71,3 +72,4 @@ public class ExplorationMapUITest : MonoBehaviour
         return string.Empty;
     }
 }
+#endif

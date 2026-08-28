@@ -8,8 +8,50 @@ public class IslandFlowControllerTest : MonoBehaviour
     [ContextMenu("Run Island Flow Controller Tests")]
     public void RunTests()
     {
+        TestCampaignFlowEnabledByDefault();
+        TestFlowPersistsAcrossGameplayScenes();
+        TestNewGameResetClearsPersistentFlow();
         TestUnlockedBossDoesNotSkipEarlierEncounter();
         Debug.Log("=== All Island Flow Controller Tests Passed ===");
+    }
+
+    private void TestCampaignFlowEnabledByDefault()
+    {
+        string gameStatePath = System.IO.Path.Combine(Application.dataPath, "GameStateManager.cs");
+        string source = System.IO.File.ReadAllText(gameStatePath);
+        Assert.IsTrue(source.Contains("[SerializeField] private bool autoStartIslandFlowOnMainScene = true;"),
+            "A normal New Game must start island flow without the debug-only start command.");
+    }
+
+    private void TestFlowPersistsAcrossGameplayScenes()
+    {
+        string controllerPath = System.IO.Path.Combine(Application.dataPath, "IslandFlowController.cs");
+        string source = System.IO.File.ReadAllText(controllerPath);
+        Assert.IsTrue(source.Contains("DontDestroyOnLoad(gameObject);"),
+            "Island flow must survive the puzzle and combat scene round trips so it can record the completed encounter.");
+    }
+
+    private void TestNewGameResetClearsPersistentFlow()
+    {
+        GameObject controllerObject = new GameObject("TestIslandFlowController_Reset");
+        IslandFlowController controller = controllerObject.AddComponent<IslandFlowController>();
+        try
+        {
+            SetPrivateField(controller, "currentEncounterIndex", 3);
+            SetPrivateField(controller, "isActive", true);
+            SetPrivateField(controller, "awaitingEncounterResolution", true);
+            SetPrivateField(controller, "activeIslandId", "island_lust");
+
+            controller.ResetForNewGame();
+
+            Assert.IsFalse(controller.IsActive, "A new game must not reuse the old island flow.");
+            Assert.AreEqual(string.Empty, controller.IslandId, "A new game must clear the active island ID.");
+            Assert.AreEqual(0, controller.CurrentEncounterIndex, "A new game must restart at the first encounter.");
+        }
+        finally
+        {
+            DestroyImmediate(controllerObject);
+        }
     }
 
     private void TestUnlockedBossDoesNotSkipEarlierEncounter()

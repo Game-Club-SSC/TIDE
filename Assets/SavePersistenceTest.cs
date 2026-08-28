@@ -16,6 +16,8 @@ public class SavePersistenceTest : MonoBehaviour
         TestPersistentSaveDataEnabledByDefault();
         TestExistingWorldStateSaveSchemaExtendsCleanly();
         TestCorruptWorldStateLoadFailsClosed();
+        TestLiveSaveBackupRecoversCorruptRuntimeWorldState();
+        TestSavedEndingResumesAfterContinue();
 
         Debug.Log("=== All Save Persistence Tests Passed ===");
     }
@@ -249,6 +251,69 @@ public class SavePersistenceTest : MonoBehaviour
         }
     }
 
+    private void TestLiveSaveBackupRecoversCorruptRuntimeWorldState()
+    {
+        Debug.Log("Testing live-save backup recovery for a corrupt runtime world state...");
+
+        GameObject serviceObject = null;
+        GameStateManager manager = null;
+        try
+        {
+            Cleanup();
+            PlayerPrefs.DeleteAll();
+            PlayerPrefs.Save();
+
+            serviceObject = new GameObject("TestWorldSaveService_BackupRecovery");
+            WorldSaveService liveSave = serviceObject.AddComponent<WorldSaveService>();
+            string validPayload = "{\"puzzleStates\":[],\"ancientTextStates\":[],\"completedNarrativeBeatIds\":[]}";
+            Assert.IsTrue(liveSave.TryWriteJson(validPayload), "The initial live save should write.");
+            Assert.IsTrue(liveSave.TryWriteJson(validPayload), "The second live save should create a backup.");
+
+            PlayerPrefs.SetString(liveSave.PlayerPrefsKey, "{\"puzzleStates\":[}");
+            PlayerPrefs.SetString("TIDE_WORLD_STATE_V1", "{\"puzzleStates\":[}");
+            PlayerPrefs.Save();
+
+            GameObject managerObject = new GameObject("TestGameStateManager_BackupRecovery");
+            manager = managerObject.AddComponent<GameStateManager>();
+
+            Assert.IsTrue(manager.HasLoadableWorldState(),
+                "A valid live-save backup must recover a corrupt runtime world state.");
+            Assert.DoesNotThrow(manager.LoadWorldState,
+                "Recovery must produce a payload GameStateManager can load.");
+
+            string restoredPayload = PlayerPrefs.GetString("TIDE_WORLD_STATE_V1", string.Empty);
+            Assert.IsTrue(restoredPayload.Contains("\"puzzleStates\""),
+                "Recovery must repair the runtime world-state key.");
+        }
+        finally
+        {
+            if (manager != null)
+            {
+                DestroyImmediate(manager.gameObject);
+            }
+
+            if (serviceObject != null)
+            {
+                DestroyImmediate(serviceObject);
+            }
+
+            Cleanup();
+            PlayerPrefs.DeleteAll();
+            PlayerPrefs.Save();
+        }
+    }
+
+    private void TestSavedEndingResumesAfterContinue()
+    {
+        string gameStatePath = System.IO.Path.Combine(Application.dataPath, "GameStateManager.cs");
+        string source = System.IO.File.ReadAllText(gameStatePath);
+
+        Assert.IsTrue(source.Contains("if (endingTriggered)\n            {\n                SetPlayerMovementLocked(true);\n                PlayEndingSequence(resolvedEndingBranch);"),
+            "A saved ending must resume when Continue restores the main scene.");
+        Assert.IsTrue(source.Contains("SetPlayerMovementLocked(targetState != GameState.Exploration || endingTriggered);"),
+            "The player must stay locked while a resumed ending is playing.");
+    }
+
     private static GameStateManager CreateIsolatedManager(string managerName)
     {
         Cleanup();
@@ -306,6 +371,11 @@ public class SavePersistenceTest : MonoBehaviour
         if (AudioManager.Instance != null)
         {
             DestroyImmediate(AudioManager.Instance.gameObject);
+        }
+
+        if (WorldSaveService.Instance != null)
+        {
+            DestroyImmediate(WorldSaveService.Instance.gameObject);
         }
 
         if (PartyManager.Instance != null)

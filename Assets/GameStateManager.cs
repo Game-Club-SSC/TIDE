@@ -83,6 +83,7 @@ public class GameStateManager : MonoBehaviour
         public string pendingBadEndingThresholdEventIslandId;
         public string endingBranch;
         public bool endingTriggered;
+        public bool fateFinaleUnlocked;
         public List<string> thresholdOnlyBossVictoryIslandIds = new List<string>();
         public List<string> thresholdOnlyProceedIslandIds = new List<string>();
         public List<FinalBossDefeatSaveEntry> finalBossDefeats = new List<FinalBossDefeatSaveEntry>();
@@ -122,6 +123,7 @@ public class GameStateManager : MonoBehaviour
     public const string CombatSceneName = "CombatScene";
     public const string HubSceneName = "HubScene";
     public const string TitleSceneName = "TitleScene";
+    public const string FinalFateEncounterId = "fate_final_boss";
 
     public static GameStateManager Instance { get; private set; }
 
@@ -140,32 +142,7 @@ public class GameStateManager : MonoBehaviour
     /// </summary>
     public bool HasLoadableWorldState()
     {
-        if (!PlayerPrefs.HasKey(WorldStateSaveKey))
-        {
-            return false;
-        }
-
-        string payload = PlayerPrefs.GetString(WorldStateSaveKey, string.Empty);
-        if (string.IsNullOrEmpty(payload))
-        {
-            return false;
-        }
-
-        // Structural pre-check mirrors WorldSaveService.ValidateSaveJson so
-        // obvious corruption never reaches the JSON parser.
-        if (!payload.Contains("{") || !payload.Contains("}") || !payload.Contains("\"puzzleStates\""))
-        {
-            return false;
-        }
-
-        try
-        {
-            return JsonUtility.FromJson<WorldStateSaveData>(payload) != null;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return TryGetLoadableWorldStatePayload(out _);
     }
     public StoryAct CurrentStoryAct => currentStoryAct;
     public StoryAct HighestStoryActReached => highestStoryActReached;
@@ -254,6 +231,8 @@ public class GameStateManager : MonoBehaviour
     private StoryAct highestStoryActReached = StoryAct.ActI;
     private EndingBranch resolvedEndingBranch = EndingBranch.None;
     private bool endingTriggered;
+    private bool fateFinaleUnlocked;
+    private bool fateFinaleStartRequested;
     private bool ceremonyIntroCompleted;
     private string observedActiveIslandId;
     private string pendingBadEndingThresholdEventIslandId;
@@ -264,7 +243,7 @@ public class GameStateManager : MonoBehaviour
     [SerializeField] private bool enableCosmeticProgressionEconomyForCurrentSlice;
     [SerializeField] private bool enablePersistentSaveData = true;
     [SerializeField] private bool enableDeveloperGodMode = true;
-    [SerializeField] private bool autoStartIslandFlowOnMainScene;
+    [SerializeField] private bool autoStartIslandFlowOnMainScene = true;
 
     [Serializable]
     public sealed class FinalBossDefeatSaveEntry
@@ -338,6 +317,14 @@ public class GameStateManager : MonoBehaviour
 
     private void Start()
     {
+        string runtimePayloadBeforeLiveSaveReady = PlayerPrefs.GetString(WorldStateSaveKey, string.Empty);
+        bool hadLoadableRuntimeWorldState = TryParseWorldStatePayload(runtimePayloadBeforeLiveSaveReady, out _);
+        EnsureWorldSaveService();
+        if (!hadLoadableRuntimeWorldState && HasLoadableWorldState())
+        {
+            LoadWorldState();
+        }
+
         if (!hasHandledSceneLoad)
         {
             HandleSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
@@ -443,12 +430,20 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
+        // IslandFlowController supplies the encounter context before calling
+        // this parameterless entry point.  Keep it intact so the combat scene
+        // can apply the right island tier, boss presentation, restoration,
+        // and reward data.  Free-roam combat has no pending context and may
+        // clear any stale values from an earlier encounter.
+        bool preserveFlowCombatContext = HasActiveFlowController
+            && !string.IsNullOrEmpty(PendingCombatIslandId)
+            && !string.IsNullOrEmpty(PendingCombatEncounterId);
         returnToPuzzleAfterCombat = false;
-        PendingCombatIslandId = null;
-        PendingCombatEncounterId = null;
-        PendingCombatRestorationValue = 0f;
-        if (!HasActiveFlowController)
+        if (!preserveFlowCombatContext)
         {
+            PendingCombatIslandId = null;
+            PendingCombatEncounterId = null;
+            PendingCombatRestorationValue = 0f;
             pendingBossIslandIdForDefeatTracking = null;
         }
         CaptureExplorationReturnPosition();
@@ -476,6 +471,45 @@ public class GameStateManager : MonoBehaviour
         CaptureExplorationCameraTransform();
         PlayerGearInventory.Instance?.BeginNewCombat();
         BeginCombatTransition();
+    }
+
+    /// <summary>
+    /// Starts the Fate encounter through the same CombatScene bootstrap used by
+    /// every other battle. Fate is scoped to the final canonical island, but
+    /// does not add restoration after that island has already been cleared.
+    /// </summary>
+    public bool EnterFateCombatScene(EnemyComposition fateComposition)
+    {
+        if (!CanEnterCombatScene())
+        {
+            return false;
+        }
+
+        if (fateComposition == null || fateComposition.Count < 1)
+        {
+            Debug.LogError("[GameStateManager] Fate combat needs one valid enemy composition entry.");
+            return false;
+        }
+
+        string finalIslandId = GetFinalProgressionIslandIdOrEmpty();
+        if (string.IsNullOrEmpty(finalIslandId))
+        {
+            Debug.LogError("[GameStateManager] Fate combat cannot start because the final island is unavailable.");
+            return false;
+        }
+
+        returnToPuzzleAfterCombat = false;
+        PendingEnemyComposition = fateComposition;
+        PendingCombatIslandId = finalIslandId;
+        PendingCombatEncounterId = FinalFateEncounterId;
+        PendingCombatRestorationValue = 0f;
+        pendingBossIslandIdForDefeatTracking = finalIslandId;
+        finalBossDefeatsForBadEndingThreshold = ResolveFinalBossDefeatThreshold(finalIslandId);
+        CaptureExplorationReturnPosition();
+        CaptureExplorationCameraTransform();
+        PlayerGearInventory.Instance?.BeginNewCombat();
+        BeginCombatTransition();
+        return true;
     }
 
     public void EnterCombatSceneFromPuzzle(string islandId, string encounterId, float restorationValue = 0.001f)
@@ -944,6 +978,8 @@ public class GameStateManager : MonoBehaviour
         finalBossDefeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding;
         resolvedEndingBranch = EndingBranch.None;
         endingTriggered = false;
+        fateFinaleUnlocked = false;
+        fateFinaleStartRequested = false;
         ceremonyIntroCompleted = false;
         minimumRestorationBadEndingRuleMode = MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
         pendingBadEndingThresholdEventIslandId = null;
@@ -1103,7 +1139,8 @@ public class GameStateManager : MonoBehaviour
             minimumRestorationRuleMode = (int)minimumRestorationBadEndingRuleMode,
             pendingBadEndingThresholdEventIslandId = pendingBadEndingThresholdEventIslandId,
             endingBranch = resolvedEndingBranch.ToString(),
-            endingTriggered = endingTriggered
+            endingTriggered = endingTriggered,
+            fateFinaleUnlocked = fateFinaleUnlocked
         };
 
         foreach (string islandId in thresholdOnlyBossVictoryIslandIds)
@@ -1136,6 +1173,8 @@ public class GameStateManager : MonoBehaviour
         minimumRestorationBadEndingRuleMode = MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
         resolvedEndingBranch = EndingBranch.None;
         endingTriggered = false;
+        fateFinaleUnlocked = false;
+        fateFinaleStartRequested = false;
         pendingBadEndingThresholdEventIslandId = null;
         thresholdOnlyBossVictoryIslandIds.Clear();
         thresholdOnlyProceedIslandIds.Clear();
@@ -1158,6 +1197,7 @@ public class GameStateManager : MonoBehaviour
             ? null
             : IslandThemeRegistry.ResolveIslandId(saveData.pendingBadEndingThresholdEventIslandId);
         endingTriggered = saveData.endingTriggered;
+        fateFinaleUnlocked = saveData.fateFinaleUnlocked && !endingTriggered;
 
         if (!string.IsNullOrEmpty(saveData.endingBranch)
             && Enum.TryParse(saveData.endingBranch, true, out EndingBranch parsedEndingBranch))
@@ -1212,6 +1252,94 @@ public class GameStateManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    private bool TryGetLoadableWorldStatePayload(out string payload)
+    {
+        payload = PlayerPrefs.GetString(WorldStateSaveKey, string.Empty);
+        if (TryParseWorldStatePayload(payload, out _))
+        {
+            return true;
+        }
+
+        if (!TryGetLiveSaveBackupPayload(out string recoveredPayload))
+        {
+            payload = string.Empty;
+            return false;
+        }
+
+        PlayerPrefs.SetString(WorldStateSaveKey, recoveredPayload);
+        PlayerPrefs.Save();
+        payload = recoveredPayload;
+        Debug.Log("[GameStateManager] Recovered the runtime world save from the live-save backup.");
+        return true;
+    }
+
+    private static bool TryParseWorldStatePayload(string payload, out WorldStateSaveData saveData)
+    {
+        saveData = null;
+        if (string.IsNullOrEmpty(payload)
+            || !payload.Contains("{")
+            || !payload.Contains("}")
+            || !payload.Contains("\"puzzleStates\""))
+        {
+            return false;
+        }
+
+        try
+        {
+            saveData = JsonUtility.FromJson<WorldStateSaveData>(payload);
+            return saveData != null;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetLiveSaveBackupPayload(out string payload)
+    {
+        payload = string.Empty;
+        WorldSaveService liveSaveService = WorldSaveService.Instance;
+        if (liveSaveService == null)
+        {
+            // During scene/bootstrap ordering (and edit-mode verification),
+            // the component may exist before its singleton callback runs.
+            // Find the live service so backup recovery does not depend on
+            // execution order.
+            liveSaveService = FindFirstObjectByType<WorldSaveService>();
+        }
+
+        if (liveSaveService != null && !liveSaveService.EnablePersistentSaveData)
+        {
+            return false;
+        }
+
+        if (liveSaveService != null && liveSaveService.EnablePersistentSaveData
+            && liveSaveService.TryLoadJson(out string livePayload)
+            && TryParseWorldStatePayload(livePayload, out _))
+        {
+            payload = livePayload;
+            return true;
+        }
+
+        // The backup key is stable across the default service instance. Read
+        // it directly when the service is not discoverable yet, which covers
+        // early bootstrap and edit-mode verification.
+        string serviceKey = liveSaveService != null && liveSaveService.EnablePersistentSaveData
+            ? liveSaveService.PlayerPrefsKey
+            : "TIDE_WORLD_STATE_V2";
+        string backupPayload = PlayerPrefs.GetString(serviceKey + "_backup", string.Empty);
+        if (!TryParseWorldStatePayload(backupPayload, out _))
+        {
+            return false;
+        }
+
+        PlayerPrefs.SetString(serviceKey, backupPayload);
+        PlayerPrefs.Save();
+        payload = backupPayload;
+        Debug.Log("[GameStateManager] Recovered the live save from its backup.");
+        return true;
     }
 
     public void SaveWorldState()
@@ -1332,6 +1460,12 @@ public class GameStateManager : MonoBehaviour
             string payload = JsonUtility.ToJson(saveData);
             PlayerPrefs.SetString(WorldStateSaveKey, payload);
             PlayerPrefs.Save();
+
+            WorldSaveService liveSaveService = WorldSaveService.Instance;
+            if (liveSaveService != null && !liveSaveService.TryWriteJson(payload))
+            {
+                Debug.LogWarning("[GameStateManager] Live save mirror failed; the runtime world save remains available.");
+            }
         }
         finally
         {
@@ -1353,25 +1487,17 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
-        if (!PlayerPrefs.HasKey(WorldStateSaveKey))
+        if (!TryGetLoadableWorldStatePayload(out string payload))
         {
+            if (PlayerPrefs.HasKey(WorldStateSaveKey)
+                || (WorldSaveService.Instance != null && WorldSaveService.Instance.HasPersistedData))
+            {
+                Debug.LogError("[GameStateManager] Persisted world state is invalid and cannot be loaded.");
+            }
             return;
         }
 
-        if (!HasLoadableWorldState())
-        {
-            Debug.LogError("[GameStateManager] Persisted world state is invalid and cannot be loaded.");
-            return;
-        }
-
-        string payload = PlayerPrefs.GetString(WorldStateSaveKey, string.Empty);
-        if (string.IsNullOrEmpty(payload))
-        {
-            return;
-        }
-
-        WorldStateSaveData saveData = JsonUtility.FromJson<WorldStateSaveData>(payload);
-        if (saveData == null)
+        if (!TryParseWorldStatePayload(payload, out WorldStateSaveData saveData))
         {
             return;
         }
@@ -1575,22 +1701,29 @@ public class GameStateManager : MonoBehaviour
     {
         string bossTrackedIslandId = ResolvePendingBossIslandId();
         bool isBossEncounter = !string.IsNullOrEmpty(bossTrackedIslandId);
-        bool isFinalBossEncounter = isBossEncounter && IsFinalIslandForEnding(bossTrackedIslandId);
+        bool isFateEncounter = IsFateEncounterId(PendingCombatEncounterId);
+        bool isCanonicalFinalBossEncounter = isBossEncounter
+            && !isFateEncounter
+            && IsFinalIslandForEnding(bossTrackedIslandId);
         float preBossRestorationPercent = isBossEncounter
             ? GetIslandRestorationPercent(bossTrackedIslandId)
             : 0f;
 
-        if (!playerWon && !playerFled)
+        if (!isFateEncounter && !playerWon && !playerFled)
         {
             NotifyBossDefeatAttempt();
         }
 
-        if (playerWon && isBossEncounter)
+        if (playerWon && isBossEncounter && !isFateEncounter)
         {
             TrackBossVictoryThresholdProgress(bossTrackedIslandId, preBossRestorationPercent);
         }
 
-        if (playerWon && IslandRestorationTracker.Instance != null && !string.IsNullOrEmpty(PendingCombatEncounterId) && !string.IsNullOrEmpty(PendingCombatIslandId))
+        if (playerWon
+            && !isFateEncounter
+            && IslandRestorationTracker.Instance != null
+            && !string.IsNullOrEmpty(PendingCombatEncounterId)
+            && !string.IsNullOrEmpty(PendingCombatIslandId))
         {
             string islandId = IslandThemeRegistry.ResolveIslandId(PendingCombatIslandId);
             float contribution = PendingCombatRestorationValue > 0f ? PendingCombatRestorationValue : 0.001f;
@@ -1612,9 +1745,16 @@ public class GameStateManager : MonoBehaviour
 
         SaveWorldState();
 
-        if (playerWon && isFinalBossEncounter)
+        if (isFateEncounter)
         {
-            ResolveFinalEndingAfterBossVictory();
+            FateEncounterDirector.Instance?.OnFateCombatResolved(playerWon);
+            ResolveFateFinaleAfterCombat(playerWon);
+        }
+        else if (playerWon && isCanonicalFinalBossEncounter)
+        {
+            fateFinaleUnlocked = true;
+            SaveWorldState();
+            Debug.Log("[GameStateManager] Final canonical boss defeated. Fate finale will begin after returning to exploration.");
         }
 
         if (playerFled)
@@ -1768,7 +1908,7 @@ public class GameStateManager : MonoBehaviour
         yield return null;
 
         currentState = targetState;
-        SetPlayerMovementLocked(targetState != GameState.Exploration);
+        SetPlayerMovementLocked(targetState != GameState.Exploration || endingTriggered);
 
         yield return FadeCanvas(0f, FadeDuration);
 
@@ -1942,6 +2082,12 @@ public class GameStateManager : MonoBehaviour
             else if (HasActiveFlowController && returnedFromPuzzleScene)
             {
                 deferredFlowFromPuzzle = true;
+            }
+
+            if (endingTriggered)
+            {
+                SetPlayerMovementLocked(true);
+                PlayEndingSequence(resolvedEndingBranch);
             }
         }
         else if (scene.name == HubSceneName)
@@ -2123,6 +2269,23 @@ public class GameStateManager : MonoBehaviour
 
         GameObject trackerObject = new GameObject("IslandRestorationTracker");
         trackerObject.AddComponent<IslandRestorationTracker>();
+    }
+
+    private void EnsureWorldSaveService()
+    {
+        if (WorldSaveService.Instance != null)
+        {
+            return;
+        }
+
+        WorldSaveService sceneService = FindFirstObjectByType<WorldSaveService>();
+        if (sceneService != null)
+        {
+            return;
+        }
+
+        GameObject serviceObject = new GameObject("WorldSaveService");
+        serviceObject.AddComponent<WorldSaveService>();
     }
 
     private void EnsureProgressionManager()
@@ -2316,6 +2479,8 @@ public class GameStateManager : MonoBehaviour
         finalBossDefeatsForBadEndingThreshold = BossEncounterGate.DefaultDefeatsForBadEnding;
         resolvedEndingBranch = EndingBranch.None;
         endingTriggered = false;
+        fateFinaleUnlocked = false;
+        fateFinaleStartRequested = false;
         ceremonyIntroCompleted = false;
         minimumRestorationBadEndingRuleMode = MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
         pendingBadEndingThresholdEventIslandId = null;
@@ -2599,6 +2764,11 @@ public class GameStateManager : MonoBehaviour
             return false;
         }
 
+        if (IslandThemeRegistry.IsHubIslandId(resolvedIslandId))
+        {
+            FlowController?.PauseForHub();
+        }
+
         pendingReturnPosition = safeSpawn;
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = false;
@@ -2861,6 +3031,11 @@ public class GameStateManager : MonoBehaviour
         return encounterId.IndexOf("boss", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
+    private static bool IsFateEncounterId(string encounterId)
+    {
+        return string.Equals(encounterId, FinalFateEncounterId, StringComparison.Ordinal);
+    }
+
     private void LateUpdate()
     {
         if (hasBootstrappedFlowForCurrentScene)
@@ -2878,6 +3053,17 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
+        if (endingTriggered)
+        {
+            PlayEndingSequence(resolvedEndingBranch);
+            return;
+        }
+
+        if (fateFinaleUnlocked && !endingTriggered)
+        {
+            BeginFateFinaleAfterCanonicalBossVictory();
+        }
+
         EnsureIslandFlowController();
         hasBootstrappedFlowForCurrentScene = true;
     }
@@ -2893,6 +3079,7 @@ public class GameStateManager : MonoBehaviour
         smithyObject.name = "SmithyStation";
         smithyObject.transform.position = defaultSmithyPosition;
         smithyObject.transform.localScale = defaultSmithyScale;
+        TideRuntimeVisualUtility.EnsureMeshMaterial(smithyObject.GetComponent<Renderer>());
 
         smithyObject.AddComponent<SmithyInteractable>();
     }
@@ -2912,7 +3099,7 @@ public class GameStateManager : MonoBehaviour
         Renderer renderer = boatObject.GetComponent<Renderer>();
         if (renderer != null)
         {
-            renderer.material.color = new Color(0.18f, 0.36f, 0.52f, 1f);
+            TideRuntimeVisualUtility.ApplyMeshColor(renderer, new Color(0.18f, 0.36f, 0.52f, 1f));
         }
 
         boatObject.AddComponent<IslandBoatInteractable>();
@@ -3037,14 +3224,24 @@ public class GameStateManager : MonoBehaviour
         }
     }
 
-    private void ResolveFinalEndingAfterBossVictory()
+    public void ResolveFateFinaleFromAcceptance()
+    {
+        ResolveFateFinaleAfterCombat(false);
+    }
+
+    private void ResolveFateFinaleAfterCombat(bool playerWon)
     {
         if (endingTriggered)
         {
             return;
         }
 
-        SetEndingBranch(ShouldResolveBadEnding() ? EndingBranch.Bad : EndingBranch.Good);
+        fateFinaleUnlocked = false;
+        fateFinaleStartRequested = false;
+        EndingBranch branch = playerWon && !ShouldResolveBadEnding()
+            ? EndingBranch.Good
+            : EndingBranch.Bad;
+        SetEndingBranch(branch);
 
         if (!endingTriggered)
         {
@@ -3052,6 +3249,70 @@ public class GameStateManager : MonoBehaviour
         }
 
         OnFinalBossDefeated();
+    }
+
+    private void BeginFateFinaleAfterCanonicalBossVictory()
+    {
+        if (!fateFinaleUnlocked || endingTriggered || fateFinaleStartRequested)
+        {
+            return;
+        }
+
+        FateEncounterDirector existingFateDirector = FateEncounterDirector.Instance;
+        if (existingFateDirector != null && existingFateDirector.IsActive)
+        {
+            return;
+        }
+
+        AcceptanceConversation conversation = AcceptanceConversation.Instance;
+        if (conversation == null)
+        {
+            GameObject conversationObject = new GameObject("AcceptanceConversation");
+            conversation = conversationObject.AddComponent<AcceptanceConversation>();
+        }
+
+        conversation.OnAcceptanceConversationFinished -= StartFateEncounterAfterAcceptance;
+        conversation.OnAcceptanceConversationFinished += StartFateEncounterAfterAcceptance;
+        fateFinaleStartRequested = true;
+        SetPlayerMovementLocked(true);
+
+        if (conversation.HasPlayed)
+        {
+            StartFateEncounterAfterAcceptance();
+            return;
+        }
+
+        if (!conversation.PlayAcceptanceConversation())
+        {
+            conversation.OnAcceptanceConversationFinished -= StartFateEncounterAfterAcceptance;
+            fateFinaleStartRequested = false;
+            SetPlayerMovementLocked(false);
+            Debug.LogError("[GameStateManager] Fate finale is ready, but the required acceptance conversation could not start.");
+        }
+    }
+
+    private void StartFateEncounterAfterAcceptance()
+    {
+        AcceptanceConversation conversation = AcceptanceConversation.Instance;
+        if (conversation != null)
+        {
+            conversation.OnAcceptanceConversationFinished -= StartFateEncounterAfterAcceptance;
+        }
+
+        if (!fateFinaleUnlocked || endingTriggered)
+        {
+            fateFinaleStartRequested = false;
+            return;
+        }
+
+        FateEncounterDirector director = FateEncounterDirector.Instance;
+        if (director == null)
+        {
+            GameObject directorObject = new GameObject("FateEncounterDirector");
+            director = directorObject.AddComponent<FateEncounterDirector>();
+        }
+
+        director.StartFateEncounter();
     }
 
     public void OnFinalBossDefeated()
@@ -3491,8 +3752,11 @@ public class GameStateManager : MonoBehaviour
     /// </summary>
     public void ResetWorldStateForNewGame()
     {
+        FlowController?.ResetForNewGame();
         ClearPersistentWorldStateForDebug(true);
         ResetRuntimeWorldStateForDebug();
+        AcceptanceConversation.Instance?.ResetForNewGame();
+        FateEncounterDirector.Instance?.ResetForNewGame();
 
         IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
         if (tracker != null)
@@ -3524,6 +3788,7 @@ public class GameStateManager : MonoBehaviour
             gearInventory.ResetInventoryForDebug();
         }
 
+        EnsureWorldSaveService();
         WorldSaveService saveService = WorldSaveService.Instance;
         if (saveService != null)
         {

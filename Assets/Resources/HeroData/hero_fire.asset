@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: hero_fire
   m_EditorClassIdentifier: 
   heroId: hero_fire
-  displayName: Andrian
+  displayName: Killian
   isMainCharacter: 0
   element: 1
   baseMaxHP: 100
@@ -25,7 +25,12 @@ MonoBehaviour:
   baseCritDamage: 1.5
   starterSkills:
   - {fileID: 11400000, guid: c2fc1a89e81774610bf4b2c2e9ce7a80, type: 2}
-  - {fileID: 11400000, guid: 95dc67bf09dd84aec89d1ead3969e4f6, type: 2}
-  - {fileID: 11400000, guid: 9aa0c4342f2964015922b6443e3f72e8, type: 2}
-  - {fileID: 11400000, guid: 0cb5d0687a07a459fa69b2613c1baee4, type: 2}
-  - {fileID: 11400000, guid: bf48802650fd94019a0023bf9347873b, type: 2}
+  normalSkillUnlocks:
+  - skill: {fileID: 11400000, guid: 95dc67bf09dd84aec89d1ead3969e4f6, type: 2}
+    unlockLevel: 2
+  - skill: {fileID: 11400000, guid: 9aa0c4342f2964015922b6443e3f72e8, type: 2}
+    unlockLevel: 3
+  - skill: {fileID: 11400000, guid: 0cb5d0687a07a459fa69b2613c1baee4, type: 2}
+    unlockLevel: 4
+  - skill: {fileID: 11400000, guid: bf48802650fd94019a0023bf9347873b, type: 2}
+    unlockLevel: 5

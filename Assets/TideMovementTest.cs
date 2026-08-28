@@ -366,6 +366,10 @@ public class TideMovementTest
             bool[,] sealedMap = (bool[,])GetPrivateFieldValue("sealedTiles");
             Assert.IsFalse(sealedMap[0, 2],
                 "A cleared locked encounter must override the zero sentinel and normalize its tile.");
+
+            int[,] values = (int[,])GetPrivateFieldValue("puzzleValues");
+            Assert.AreEqual(5, values[0, 2],
+                "A cleared locked tile must normalize its former zero sentinel to balanced Tide.");
         }
         finally
         {
@@ -412,6 +416,80 @@ public class TideMovementTest
             Object.DestroyImmediate(data);
             Object.DestroyImmediate(trackerObject);
         }
+    }
+
+    [Test]
+    public void ResetKeepsClearedLockedTileOutOfTheZeroState()
+    {
+        IslandRestorationTracker tracker = CreateIsolatedTracker("TideMovement_ResetClearedLockTracker");
+        GameObject trackerObject = tracker.gameObject;
+        PuzzleData data = CreateLockedTilePuzzleData();
+        data.tileValues[2] = 0;
+
+        try
+        {
+            tracker.RecordEncounterCompletion("island_lock", "guard_1", EncounterType.Combat, 0.2f);
+            manager.InitializePuzzle(data);
+            InvokePrivateMethod("GenerateHiddenLogicBoard");
+            InvokePrivateMethod("StoreInitialValues");
+
+            TideTile unlockedTile = ((TideTile[,])GetPrivateFieldValue("activeTiles"))[0, 2];
+            unlockedTile.currentTideValue = 8;
+            manager.ResetPuzzle();
+
+            Assert.IsFalse(unlockedTile.IsSealed, "The cleared locked tile should remain open after reset.");
+            Assert.AreEqual(5, unlockedTile.CurrentTideValue,
+                "Reset must restore a cleared locked tile to its normalized value, never zero.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(data);
+            Object.DestroyImmediate(trackerObject);
+        }
+    }
+
+    [Test]
+    public void RequestedPartialTakeUsesExactAllowedAmount()
+    {
+        bool[,] sealedMap = new bool[3, 3];
+        TideTile[,] tiles = CreateActiveTiles(new int[,]
+        {
+            { 8, 5, 5 },
+            { 5, 5, 5 },
+            { 5, 5, 5 }
+        }, sealedMap);
+
+        SetSealedTiles(sealedMap);
+        SetPrivateFieldValue("activeTiles", tiles);
+        SetPrivateFieldValue("hoveredTile", tiles[0, 0]);
+        manager.SetRequestedTakeAmount(2);
+
+        InvokePrivateMethod("HandleSourceSelection");
+
+        Assert.AreEqual(2, manager.CarriedAmount, "The selected partial amount should be carried exactly.");
+        Assert.AreEqual(6, tiles[0, 0].CurrentTideValue, "A partial take should leave the exact remaining Tide.");
+    }
+
+    [Test]
+    public void RequestedTakeAboveTileLimitIsRejected()
+    {
+        bool[,] sealedMap = new bool[3, 3];
+        TideTile[,] tiles = CreateActiveTiles(new int[,]
+        {
+            { 7, 5, 5 },
+            { 5, 5, 5 },
+            { 5, 5, 5 }
+        }, sealedMap);
+
+        SetSealedTiles(sealedMap);
+        SetPrivateFieldValue("activeTiles", tiles);
+        SetPrivateFieldValue("hoveredTile", tiles[0, 0]);
+        manager.SetRequestedTakeAmount(3);
+
+        InvokePrivateMethod("HandleSourceSelection");
+
+        Assert.AreEqual(0, manager.CarriedAmount, "A player cannot take more Tide than the GDD rule permits.");
+        Assert.AreEqual(7, tiles[0, 0].CurrentTideValue, "An invalid requested take must not change the source tile.");
     }
 
     [Test]

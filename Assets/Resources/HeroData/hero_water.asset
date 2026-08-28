@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: hero_water
   m_EditorClassIdentifier: 
   heroId: hero_water
-  displayName: Ryan
+  displayName: Merrick
   isMainCharacter: 0
   element: 2
   baseMaxHP: 90
@@ -25,7 +25,12 @@ MonoBehaviour:
   baseCritDamage: 1.5
   starterSkills:
   - {fileID: 11400000, guid: 0ed29abab21c44f8d941c17497730a6d, type: 2}
-  - {fileID: 11400000, guid: 5e6770b8dceb142fc812d50c38f01eef, type: 2}
-  - {fileID: 11400000, guid: 2f792c20b08ce44f187c94af28d25f21, type: 2}
-  - {fileID: 11400000, guid: 1852ec2c969f9437e8a6d6ff006309cb, type: 2}
-  - {fileID: 11400000, guid: 5c5ce3a1bdc4b43fe85a75cf19adc314, type: 2}
+  normalSkillUnlocks:
+  - skill: {fileID: 11400000, guid: 5e6770b8dceb142fc812d50c38f01eef, type: 2}
+    unlockLevel: 2
+  - skill: {fileID: 11400000, guid: 2f792c20b08ce44f187c94af28d25f21, type: 2}
+    unlockLevel: 3
+  - skill: {fileID: 11400000, guid: 1852ec2c969f9437e8a6d6ff006309cb, type: 2}
+    unlockLevel: 4
+  - skill: {fileID: 11400000, guid: 5c5ce3a1bdc4b43fe85a75cf19adc314, type: 2}
+    unlockLevel: 5

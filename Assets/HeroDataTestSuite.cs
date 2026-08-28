@@ -37,6 +37,18 @@ public class HeroDataTestSuite
     }
 
     [Test]
+    public void CanonicalHeroNamesMatchNarrativeData()
+    {
+        AssertCoreDataLoaded();
+
+        Assert.AreEqual("Killian", heroDatabase.GetHero("hero_fire").displayName);
+        Assert.AreEqual("Merrick", heroDatabase.GetHero("hero_water").displayName);
+        Assert.AreEqual("Freida", heroDatabase.GetHero("hero_earth").displayName);
+        Assert.AreEqual("Briar", heroDatabase.GetHero("hero_air").displayName);
+        Assert.AreEqual("Aether", heroDatabase.GetHero("hero_space").displayName);
+    }
+
+    [Test]
     public void HeroStatRanges()
     {
         AssertCoreDataLoaded();
@@ -84,7 +96,7 @@ public class HeroDataTestSuite
             }
         }
 
-        Assert.LessOrEqual(mainCharCount, 1, "At most 1 hero should be marked as main character.");
+        Assert.AreEqual(1, mainCharCount, "Exactly 1 hero should be marked as main character.");
     }
 
     [Test]
@@ -104,6 +116,33 @@ public class HeroDataTestSuite
                 Assert.IsFalse(string.IsNullOrEmpty(skill.skillName), $"{hero.displayName}: skill [{s}] must have a name.");
                 Assert.GreaterOrEqual(skill.mpCost, 0, $"{hero.displayName}: skill [{s}] mpCost must be >= 0.");
                 Assert.GreaterOrEqual(skill.damageMultiplier, 0f, $"{hero.displayName}: skill [{s}] damageMultiplier must be >= 0.");
+            }
+        }
+    }
+
+    [Test]
+    public void NormalSkillUnlocksAreValidAndResolveAtTheirLevel()
+    {
+        AssertCoreDataLoaded();
+        for (int i = 0; i < heroDatabase.allHeroes.Length; i++)
+        {
+            HeroData hero = heroDatabase.allHeroes[i];
+            Assert.IsTrue(hero.IsValid(), $"{hero.displayName}: hero data must validate normal skill unlocks.");
+            Assert.IsNotNull(hero.normalSkillUnlocks, $"{hero.displayName}: normalSkillUnlocks must not be null.");
+            Assert.AreEqual(4, hero.normalSkillUnlocks.Length,
+                $"{hero.displayName}: should gain four normal skills between levels 2 and 5.");
+            Assert.AreEqual(1, hero.GetSkillsForLevel(1).Length,
+                $"{hero.displayName}: only its starter skill should be ready at level 1.");
+            Assert.AreEqual(5, hero.GetSkillsForLevel(5).Length,
+                $"{hero.displayName}: all five normal skills should be ready at level 5.");
+
+            for (int unlockIndex = 0; unlockIndex < hero.normalSkillUnlocks.Length; unlockIndex++)
+            {
+                HeroSkillUnlock unlock = hero.normalSkillUnlocks[unlockIndex];
+                Assert.IsNotNull(unlock, $"{hero.displayName}: skill unlock [{unlockIndex}] must not be null.");
+                Assert.IsTrue(unlock.IsValid(), $"{hero.displayName}: skill unlock [{unlockIndex}] must be valid.");
+                Assert.Contains(unlock.skill, hero.GetSkillsForLevel(unlock.unlockLevel),
+                    $"{hero.displayName}: configured skill must resolve at its unlock level.");
             }
         }
     }

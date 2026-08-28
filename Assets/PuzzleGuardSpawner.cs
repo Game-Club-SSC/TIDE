@@ -146,7 +146,7 @@ public class PuzzleGuardSpawner : MonoBehaviour
         Renderer renderer = guardObject.GetComponent<Renderer>();
         if (renderer != null)
         {
-            renderer.material.color = new Color(0.89f, 0.38f, 0.25f);
+            TideRuntimeVisualUtility.ApplyMeshColor(renderer, new Color(0.89f, 0.38f, 0.25f));
         }
 
         Rigidbody body = guardObject.GetComponent<Rigidbody>();

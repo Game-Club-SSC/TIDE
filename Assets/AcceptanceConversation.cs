@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
@@ -21,6 +22,8 @@ public class AcceptanceConversation : MonoBehaviour
     private bool isPlaying;
     private bool hasPlayed;
     private int currentLineIndex;
+    private DialogueSystem activeDialogueSystem;
+    private List<DialogueSystem.DialogueEntry> activeDialogueEntries;
 
     public bool IsPlaying => isPlaying;
     public bool HasPlayed => hasPlayed;
@@ -39,6 +42,8 @@ public class AcceptanceConversation : MonoBehaviour
 
     private void OnDestroy()
     {
+        UnsubscribeFromDialogueSystem();
+
         if (Instance == this)
         {
             Instance = null;
@@ -76,7 +81,7 @@ public class AcceptanceConversation : MonoBehaviour
 
         isPlaying = true;
         currentLineIndex = 0;
-        StartCoroutine(FireLinesRoutine());
+        StartCoroutine(PlayVisibleDialogueRoutine());
         return true;
     }
 
@@ -106,6 +111,13 @@ public class AcceptanceConversation : MonoBehaviour
 
     public void ResetForDebug()
     {
+        ResetForNewGame();
+    }
+
+    public void ResetForNewGame()
+    {
+        StopAllCoroutines();
+        UnsubscribeFromDialogueSystem();
         isPlaying = false;
         hasPlayed = false;
         currentLineIndex = 0;
@@ -123,23 +135,172 @@ public class AcceptanceConversation : MonoBehaviour
         return restoration >= restorationThreshold;
     }
 
-    private IEnumerator FireLinesRoutine()
+    private IEnumerator PlayVisibleDialogueRoutine()
     {
-        string[] lines = BuildDialogueLines();
-        for (int i = 0; i < lines.Length; i++)
+        DialogueSystem dialogueSystem = EnsureDialogueSystem();
+        if (dialogueSystem == null)
         {
-            currentLineIndex = i;
-            OnAcceptanceLinePresented?.Invoke(i, lines[i]);
+            CancelVisibleDialogue("DialogueSystem could not be created.");
+            yield break;
+        }
+
+        while (isPlaying && dialogueSystem.IsDialogueActive)
+        {
             yield return null;
         }
 
+        if (!isPlaying || hasPlayed)
+        {
+            yield break;
+        }
+
+        activeDialogueSystem = dialogueSystem;
+        activeDialogueEntries = BuildDialogueEntries();
+        if (activeDialogueEntries == null || activeDialogueEntries.Count != LineCount)
+        {
+            CancelVisibleDialogue("Acceptance dialogue entries are incomplete.");
+            yield break;
+        }
+
+        for (int i = 0; i < activeDialogueEntries.Count; i++)
+        {
+            currentLineIndex = i;
+            OnAcceptanceLinePresented?.Invoke(i, activeDialogueEntries[i].dialogueText);
+        }
+
+        activeDialogueSystem.OnDialogueCompleted += HandleVisibleDialogueCompleted;
+        activeDialogueSystem.ShowDialogue(activeDialogueEntries);
+
+        if (!isPlaying)
+        {
+            yield break;
+        }
+
+        if (!activeDialogueSystem.IsDialogueActive)
+        {
+            CancelVisibleDialogue("DialogueSystem rejected the acceptance sequence.");
+            yield break;
+        }
+
+        while (isPlaying && activeDialogueSystem != null && activeDialogueSystem.IsDialogueActive)
+        {
+            yield return null;
+        }
+
+        if (isPlaying)
+        {
+            CancelVisibleDialogue("Acceptance dialogue ended before its completion callback.");
+        }
+    }
+
+    private void HandleVisibleDialogueCompleted(List<DialogueSystem.DialogueEntry> completedEntries)
+    {
+        if (activeDialogueEntries == null || !ReferenceEquals(completedEntries, activeDialogueEntries))
+        {
+            return;
+        }
+
+        UnsubscribeFromDialogueSystem();
         isPlaying = false;
         hasPlayed = true;
-        OnAcceptanceConversationFinished?.Invoke();
+        currentLineIndex = LineCount - 1;
 
         if (GameStateManager.Instance != null)
         {
             GameStateManager.Instance.MarkNarrativeBeatCompleted(NarrativeBeatsData.AcceptanceConversationId);
+        }
+
+        OnAcceptanceConversationFinished?.Invoke();
+    }
+
+    private DialogueSystem EnsureDialogueSystem()
+    {
+        if (DialogueSystem.Instance != null)
+        {
+            return DialogueSystem.Instance;
+        }
+
+        GameObject dialogueSystemObject = new GameObject("DialogueSystem");
+        return dialogueSystemObject.AddComponent<DialogueSystem>();
+    }
+
+    private void UnsubscribeFromDialogueSystem()
+    {
+        if (activeDialogueSystem != null)
+        {
+            activeDialogueSystem.OnDialogueCompleted -= HandleVisibleDialogueCompleted;
+        }
+
+        activeDialogueSystem = null;
+        activeDialogueEntries = null;
+    }
+
+    private void CancelVisibleDialogue(string reason)
+    {
+        UnsubscribeFromDialogueSystem();
+        isPlaying = false;
+        currentLineIndex = 0;
+        Debug.LogWarning($"[AcceptanceConversation] {reason}");
+    }
+
+    private List<DialogueSystem.DialogueEntry> BuildDialogueEntries()
+    {
+        string[] lines = BuildDialogueLines();
+        List<DialogueSystem.DialogueEntry> entries = new List<DialogueSystem.DialogueEntry>(lines.Length);
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            entries.Add(new DialogueSystem.DialogueEntry
+            {
+                speakerName = GetSpeakerName(i),
+                dialogueText = lines[i],
+                emotion = GetEmotion(i)
+            });
+        }
+
+        return entries;
+    }
+
+    private static string GetSpeakerName(int lineIndex)
+    {
+        switch (lineIndex)
+        {
+            case 0:
+            case 2:
+                return "MC";
+            case 1:
+            case 7:
+                return "Freida";
+            case 3:
+            case 6:
+                return "Merrick";
+            case 4:
+                return "Briar";
+            case 5:
+                return "Killian";
+            case 8:
+                return "The Five";
+            default:
+                return "Narrator";
+        }
+    }
+
+    private static DialogueSystem.Emotion GetEmotion(int lineIndex)
+    {
+        switch (lineIndex)
+        {
+            case 1:
+            case 3:
+            case 4:
+                return DialogueSystem.Emotion.Worried;
+            case 5:
+            case 6:
+            case 8:
+                return DialogueSystem.Emotion.Determined;
+            case 7:
+                return DialogueSystem.Emotion.Happy;
+            default:
+                return DialogueSystem.Emotion.Neutral;
         }
     }
 

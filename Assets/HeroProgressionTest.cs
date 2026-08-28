@@ -18,6 +18,7 @@ public class HeroProgressionTest : MonoBehaviour
         TestBattleXpIntegration();
         TestDuplicatePartyEntriesAwardXpOnce();
         TestMalformedProgressionSnapshotIsClamped();
+        TestNormalSkillUnlockProgression();
         Debug.Log("=== All progression tests passed ===");
     }
 
@@ -327,6 +328,46 @@ public class HeroProgressionTest : MonoBehaviour
         }
         finally
         {
+            DestroyImmediate(managerObject);
+        }
+    }
+
+    [ContextMenu("Test Normal Skill Unlock Progression")]
+    public void TestNormalSkillUnlockProgression()
+    {
+        GameObject managerObject = new GameObject("ProgressionSkillUnlock_Test");
+        HeroProgressionManager manager = managerObject.AddComponent<HeroProgressionManager>();
+        HeroData hero = ScriptableObject.CreateInstance<HeroData>();
+        SkillData starter = ScriptableObject.CreateInstance<SkillData>();
+        SkillData levelTwo = ScriptableObject.CreateInstance<SkillData>();
+
+        try
+        {
+            SetConfig(manager, CreateDefaultConfig());
+            hero.heroId = "hero_skill_unlock";
+            hero.displayName = "Skill Tester";
+            hero.element = CombatUnit.Element.Fire;
+            starter.skillName = "Starter";
+            levelTwo.skillName = "Level Two";
+            hero.starterSkills = new[] { starter };
+            hero.normalSkillUnlocks = new[]
+            {
+                new HeroSkillUnlock { skill = levelTwo, unlockLevel = 2 }
+            };
+
+            Assert.AreEqual(1, manager.GetUnlockedNormalSkills(hero).Length,
+                "A level-one hero should only have its starter skill.");
+
+            manager.GrantXp(hero.heroId, 100);
+            SkillData[] unlocked = manager.GetUnlockedNormalSkills(hero);
+            Assert.AreEqual(2, unlocked.Length, "Level two should add the configured normal skill.");
+            Assert.AreSame(levelTwo, unlocked[1], "The configured level-two skill should become usable.");
+        }
+        finally
+        {
+            DestroyImmediate(levelTwo);
+            DestroyImmediate(starter);
+            DestroyImmediate(hero);
             DestroyImmediate(managerObject);
         }
     }

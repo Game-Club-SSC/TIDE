@@ -58,6 +58,10 @@ public class CombatSceneBootstrap : MonoBehaviour
     private bool currentEncounterIsBoss;
     private int currentBossSlotIndex;
 
+    private static readonly int BaseColorProperty = Shader.PropertyToID("_BaseColor");
+    private static readonly int LegacyColorProperty = Shader.PropertyToID("_Color");
+    private static Material battleSpriteMaterial;
+
     private void Awake()
     {
         EnsureGameManager();
@@ -150,7 +154,7 @@ public class CombatSceneBootstrap : MonoBehaviour
         Renderer groundRenderer = groundTransform.GetComponent<Renderer>();
         if (groundRenderer != null)
         {
-            groundRenderer.material.color = themedBattlefieldColor;
+            ApplyRuntimeRendererColor(groundRenderer, themedBattlefieldColor);
         }
     }
 
@@ -287,7 +291,53 @@ public class CombatSceneBootstrap : MonoBehaviour
         Renderer markerRenderer = markerTransform.GetComponent<Renderer>();
         if (markerRenderer != null)
         {
-            markerRenderer.material.color = markerColor;
+            ApplyRuntimeRendererColor(markerRenderer, markerColor);
+        }
+    }
+
+    /// <summary>
+    /// CreatePrimitive uses Unity's legacy Standard shader. That shader is not
+    /// supported by the URP player and renders magenta. Replace it with a URP
+    /// shader before setting the colour so runtime-created battlefield pieces
+    /// look the same in the editor and in release builds.
+    /// </summary>
+    private static void ApplyRuntimeRendererColor(Renderer renderer, Color color)
+    {
+        if (renderer == null)
+        {
+            return;
+        }
+
+        Material material = renderer.material;
+        if (material == null)
+        {
+            return;
+        }
+
+        Shader activeShader = material.shader;
+        bool legacyOrMissing = activeShader == null
+            || activeShader.name == "Standard"
+            || activeShader.name.IndexOf("Error", StringComparison.OrdinalIgnoreCase) >= 0;
+        if (legacyOrMissing)
+        {
+            Shader urpShader = Shader.Find("Universal Render Pipeline/Lit")
+                ?? Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Sprites/Default");
+            if (urpShader != null)
+            {
+                material = new Material(urpShader);
+                renderer.material = material;
+            }
+        }
+
+        if (material.HasProperty(BaseColorProperty))
+        {
+            material.SetColor(BaseColorProperty, color);
+        }
+
+        if (material.HasProperty(LegacyColorProperty))
+        {
+            material.SetColor(LegacyColorProperty, color);
         }
     }
 
@@ -314,10 +364,12 @@ public class CombatSceneBootstrap : MonoBehaviour
         {
             string combatIslandId = IslandThemeRegistry.ResolveIslandId(GameStateManager.Instance.PendingCombatIslandId);
             string encounterId = GameStateManager.Instance.PendingCombatEncounterId;
-            bool boss = !string.IsNullOrEmpty(encounterId) && encounterId.IndexOf("boss", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            bool boss = IsBossEncounter(encounterId);
             battleManager.ConfigureEnvyContext(combatIslandId == "island_envy", boss);
-            currentEncounterIsBoss = boss;
-            currentBossSlotIndex = boss ? FuturisticSpriteLibrary.GetBossSlotIndexForIsland(combatIslandId) : 0;
+            currentEncounterIsBoss = ShouldUseIslandBossPresentation(encounterId);
+            currentBossSlotIndex = currentEncounterIsBoss
+                ? FuturisticSpriteLibrary.GetBossSlotIndexForIsland(combatIslandId)
+                : 0;
         }
 
         if (playerSpawnPoints != null)
@@ -517,7 +569,7 @@ public class CombatSceneBootstrap : MonoBehaviour
             return;
         }
 
-        renderer.material.color = color;
+        ApplyRuntimeRendererColor(renderer, color);
     }
 
     private void ResolveViceThemeColors()
@@ -589,6 +641,11 @@ public class CombatSceneBootstrap : MonoBehaviour
         visualTransform.localPosition = new Vector3(0f, 1.08f, 0f);
         visualTransform.localScale = new Vector3(2f, 2f, 1f);
         spriteRenderer.sprite = sprite;
+        Material spriteMaterial = GetBattleSpriteMaterial();
+        if (spriteMaterial != null)
+        {
+            spriteRenderer.sharedMaterial = spriteMaterial;
+        }
         spriteRenderer.flipX = !faceLeft;
         spriteRenderer.sortingOrder = 22;
         spriteRenderer.shadowCastingMode = ShadowCastingMode.Off;
@@ -611,10 +668,36 @@ public class CombatSceneBootstrap : MonoBehaviour
         }
 
         shadowRenderer.sprite = FuturisticSpriteLibrary.GetShadowSprite();
+        if (spriteMaterial != null)
+        {
+            shadowRenderer.sharedMaterial = spriteMaterial;
+        }
         shadowRenderer.color = new Color(0f, 0f, 0f, 0.28f);
         shadowRenderer.sortingOrder = 8;
         shadowRenderer.shadowCastingMode = ShadowCastingMode.Off;
         shadowRenderer.receiveShadows = false;
+    }
+
+    private static Material GetBattleSpriteMaterial()
+    {
+        if (battleSpriteMaterial != null)
+        {
+            return battleSpriteMaterial;
+        }
+
+        Shader spriteShader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default")
+            ?? Shader.Find("Universal Render Pipeline/2D/Sprite-Lit-Default")
+            ?? Shader.Find("Sprites/Default");
+        if (spriteShader == null)
+        {
+            return null;
+        }
+
+        battleSpriteMaterial = new Material(spriteShader)
+        {
+            name = "TIDE Battle Sprite Material"
+        };
+        return battleSpriteMaterial;
     }
 
     private void EnsureBattleElementalAllyVisual(GameObject unitObject, HeroData hero, CombatUnit.Element fallbackElement)
@@ -937,5 +1020,25 @@ public class CombatSceneBootstrap : MonoBehaviour
         introObject.transform.SetParent(transform, false);
         BossIntroDirector director = introObject.AddComponent<BossIntroDirector>();
         director.PlayIntro();
+    }
+
+    /// <summary>
+    /// Fate has its own dialogue and combat route. It must not borrow an
+    /// island boss intro from the final island while it waits for combat.
+    /// </summary>
+    internal static bool IsFateEncounter(string encounterId)
+    {
+        return string.Equals(encounterId, GameStateManager.FinalFateEncounterId, StringComparison.Ordinal);
+    }
+
+    internal static bool ShouldUseIslandBossPresentation(string encounterId)
+    {
+        return IsBossEncounter(encounterId) && !IsFateEncounter(encounterId);
+    }
+
+    private static bool IsBossEncounter(string encounterId)
+    {
+        return !string.IsNullOrEmpty(encounterId)
+            && encounterId.IndexOf("boss", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 }

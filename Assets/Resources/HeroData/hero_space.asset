@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: hero_space
   m_EditorClassIdentifier: 
   heroId: hero_space
-  displayName: Ethan
-  isMainCharacter: 0
+  displayName: Aether
+  isMainCharacter: 1
   element: 5
   baseMaxHP: 95
   baseMaxMP: 55
@@ -25,7 +25,12 @@ MonoBehaviour:
   baseCritDamage: 1.5
   starterSkills:
   - {fileID: 11400000, guid: fe84605bd242e4d01b30a163c1d544db, type: 2}
-  - {fileID: 11400000, guid: e0cd250d64ade40b1b17e003f0472b51, type: 2}
-  - {fileID: 11400000, guid: 9f2b24fbf6b5e42ffa0a312de84a28a9, type: 2}
-  - {fileID: 11400000, guid: 6c423afe971184515a64490f671a0277, type: 2}
-  - {fileID: 11400000, guid: e6dfe9d0378554a3ba70883874f09a5d, type: 2}
+  normalSkillUnlocks:
+  - skill: {fileID: 11400000, guid: e0cd250d64ade40b1b17e003f0472b51, type: 2}
+    unlockLevel: 2
+  - skill: {fileID: 11400000, guid: 9f2b24fbf6b5e42ffa0a312de84a28a9, type: 2}
+    unlockLevel: 3
+  - skill: {fileID: 11400000, guid: 6c423afe971184515a64490f671a0277, type: 2}
+    unlockLevel: 4
+  - skill: {fileID: 11400000, guid: e6dfe9d0378554a3ba70883874f09a5d, type: 2}
+    unlockLevel: 5

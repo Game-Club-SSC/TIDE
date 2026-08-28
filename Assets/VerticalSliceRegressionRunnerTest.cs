@@ -218,9 +218,17 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
 
     private void TestPlayerCustomizationPremiumUnlocks()
     {
-        Assert.IsFalse(PlayerCustomizationCatalog.IsPaletteUnlocked("palette_cosmic"), "Cosmic should start locked.");
-        Assert.IsTrue(PlayerCustomizationCatalog.UnlockPalette("palette_cosmic"), "Should unlock cosmic.");
-        Assert.IsTrue(PlayerCustomizationCatalog.IsPaletteUnlocked("palette_cosmic"), "Cosmic should be unlocked.");
+        PlayerCustomizationCatalog.ResetForDebug();
+        try
+        {
+            Assert.IsFalse(PlayerCustomizationCatalog.IsPaletteUnlocked("palette_cosmic"), "Cosmic should start locked.");
+            Assert.IsTrue(PlayerCustomizationCatalog.UnlockPalette("palette_cosmic"), "Should unlock cosmic.");
+            Assert.IsTrue(PlayerCustomizationCatalog.IsPaletteUnlocked("palette_cosmic"), "Cosmic should be unlocked.");
+        }
+        finally
+        {
+            PlayerCustomizationCatalog.ResetForDebug();
+        }
     }
 
     private void TestPhoneControllerAuthGenerateAndValidate()

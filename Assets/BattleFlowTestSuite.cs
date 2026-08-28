@@ -425,6 +425,52 @@ public class BattleFlowTestSuite
     }
 
     [Test]
+    public void NeutralClashQteSessionResultRoutesIntoClashAndResumesExecution()
+    {
+        CombatUnit ally = CreateUnit(
+            unitsRoot.transform,
+            "AllyQteSession",
+            CombatUnit.UnitType.Ally,
+            speed: 14,
+            attack: 20,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Fire);
+        CombatUnit enemy = CreateUnit(
+            unitsRoot.transform,
+            "EnemyQteSession",
+            CombatUnit.UnitType.Enemy,
+            speed: 10,
+            attack: 18,
+            defense: 0,
+            hp: 100,
+            element: CombatUnit.Element.Fire);
+
+        manager.RegisterUnit(ally);
+        manager.RegisterUnit(enemy);
+        SetPrivateField(manager, "hasActivePhase", true);
+        SetPrivateField(manager, "currentPhase", BattlePhase.ActionExecution);
+        SetPrivateField(manager, "actionExecutionActive", false);
+        SetPrivateField(manager, "neutralClashQtePending", true);
+        SetPrivateField(manager, "pendingNeutralClashAlly", ally);
+        SetPrivateField(manager, "pendingNeutralClashEnemy", enemy);
+
+        BattleManager.ClashResult? resolved = null;
+        manager.OnClashResolved += result => resolved = result;
+
+        InvokePrivate(manager, "HandleNeutralClashQteResolved", true);
+
+        Assert.IsTrue(resolved.HasValue, "A QTE session result should resolve the neutral clash.");
+        BattleManager.ClashResult resultData = resolved.Value;
+        Assert.AreEqual("Session", resultData.NeutralQteResolution, "The result should record the in-game QTE session path.");
+        Assert.IsTrue(resultData.NeutralQteSuccess, "A successful QTE session should favour the ally.");
+        Assert.AreSame(ally, resultData.Winner, "A successful QTE session should make the ally win.");
+        Assert.IsFalse(manager.IsNeutralClashQtePending, "The QTE pending flag must clear after resolution.");
+        Assert.IsTrue((bool)GetPrivateField(manager, "actionExecutionActive"), "Combat should resume after the QTE result.");
+        Assert.That(manager.Momentum.Value, Is.EqualTo(0.15f).Within(0.0001f), "A successful QTE session should shift momentum toward the player.");
+    }
+
+    [Test]
     public void NeutralClashQteFallbackWithoutRuntimeIsDeterministic()
     {
         CombatUnit ally = CreateUnit(
@@ -1294,5 +1340,14 @@ public class BattleFlowTestSuite
         FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.IsNotNull(field, $"Field '{fieldName}' should exist for verification.");
         field.SetValue(target, value);
+    }
+
+    private static object GetPrivateField(object target, string fieldName)
+    {
+        Assert.IsNotNull(target, "Reflection target should not be null.");
+
+        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"Field '{fieldName}' should exist for verification.");
+        return field.GetValue(target);
     }
 }

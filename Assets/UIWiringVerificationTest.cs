@@ -37,6 +37,7 @@ public class UIWiringVerificationTest
         PlayerPrefs.DeleteKey("TIDE_WORLD_STATE_V2");
         PlayerPrefs.DeleteKey("TIDE_WORLD_STATE_V2_backup");
         PlayerPrefs.DeleteKey("TIDE_FINAL_BOSS_DEFEATS_V1");
+        PlayerPrefs.DeleteKey(PartyManager.MainCharacterElementPreferenceKey);
         PlayerPrefs.Save();
     }
 
@@ -250,11 +251,21 @@ public class UIWiringVerificationTest
 
         titleUI.NewGameButton.onClick.Invoke();
 
+        Assert.IsTrue(titleUI.IsChoosingElement,
+            "New Game should ask the player to choose the main character's affinity first.");
+        Assert.AreEqual(5, titleUI.ElementButtons.Length,
+            "The title screen should offer all five GDD elemental affinities.");
+
+        titleUI.ElementButtons[0].onClick.Invoke();
+
         Assert.IsTrue(titleUI.DebugNewGameRequested, "New Game action should have run.");
         Assert.AreEqual(GameStateManager.StoryAct.ActI, manager.CurrentStoryAct,
             "New Game must reset the story act to Act I.");
         Assert.IsFalse(manager.IsNarrativeBeatCompleted("test_beat_294"),
             "New Game must clear completed narrative beats.");
+        Assert.AreEqual((int)CombatUnit.Element.Fire,
+            PlayerPrefs.GetInt(PartyManager.MainCharacterElementPreferenceKey),
+            "New Game must persist the selected main-character element before loading exploration.");
     }
 
     // ------------------------------------------------------------------

@@ -14,6 +14,7 @@ public class BossIntroDirectorTest : MonoBehaviour
         TestSingletonClearsOnDestroy();
         TestPlayBossSpecificSequenceCoversSixIslands();
         TestPlayBossSpecificSequenceMissingGreed();
+        TestFateUsesDedicatedCombatPresentation();
         TestTimeoutIsHardcodedAtEightSeconds();
         TestMobileSkipGatingNotImplemented();
         TestSkipKeyDefaultsToSpace();
@@ -136,6 +137,26 @@ public class BossIntroDirectorTest : MonoBehaviour
             "PlayBossSpecificSequence should have a case for 'island_greed'.");
 
         Debug.Log("✓ Missing greed case confirmed");
+    }
+
+    private void TestFateUsesDedicatedCombatPresentation()
+    {
+        Debug.Log("Testing Fate skips the island boss intro route...");
+
+        Assert.IsTrue(
+            CombatSceneBootstrap.IsFateEncounter(GameStateManager.FinalFateEncounterId),
+            "The final Fate encounter should be recognized by its exact encounter ID.");
+        Assert.IsFalse(
+            CombatSceneBootstrap.ShouldUseIslandBossPresentation(GameStateManager.FinalFateEncounterId),
+            "Fate must not use the final island's boss intro, BGM, or boss sprite route.");
+        Assert.IsTrue(
+            CombatSceneBootstrap.ShouldUseIslandBossPresentation("island_ego_boss"),
+            "Canonical island bosses should continue to use their own intro route.");
+        Assert.IsFalse(
+            CombatSceneBootstrap.ShouldUseIslandBossPresentation("combat_patrol"),
+            "Regular encounters should not use the boss intro route.");
+
+        Debug.Log("✓ Fate presentation route test passed");
     }
 
     private void TestTimeoutIsHardcodedAtEightSeconds()

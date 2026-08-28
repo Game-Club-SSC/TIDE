@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using static CombatUnit;
 
@@ -281,14 +282,27 @@ public class FateEncounterDirector : MonoBehaviour
         }
 
         Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
 
     private void OnDestroy()
     {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
         if (Instance == this)
         {
             Instance = null;
         }
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -392,16 +406,18 @@ public class FateEncounterDirector : MonoBehaviour
         yield return StartCoroutine(FadeToBlack(preCombatFadeDuration));
 
         HideDialogueCanvas();
+        SetFadeAlpha(0f);
 
         GameStateManager gsm = GameStateManager.Instance;
         if (gsm != null)
         {
-            gsm.ForceEndingBranchForDebug(GameStateManager.EndingBranch.Bad);
+            gsm.ResolveFateFinaleFromAcceptance();
         }
 
-        PlayEndingDirectly(GameStateManager.EndingBranch.Bad);
-
-        yield return StartCoroutine(RunNarratorConclusion());
+        if (gsm == null)
+        {
+            PlayEndingDirectly(GameStateManager.EndingBranch.Bad);
+        }
 
         currentPhase = EncounterPhase.Complete;
     }
@@ -426,27 +442,64 @@ public class FateEncounterDirector : MonoBehaviour
 
         HideDialogueCanvas();
 
-        // Spawn the Fate boss and configure combat
-        if (!SpawnFateBoss())
+        yield return StartCoroutine(EnterFateCombatSceneWhenReady());
+    }
+
+    private IEnumerator EnterFateCombatSceneWhenReady()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm == null)
         {
-            Debug.LogError("[FateEncounterDirector] Fate boss could not be spawned. Aborting encounter.");
+            Debug.LogError("[FateEncounterDirector] GameStateManager is required to enter Fate combat.");
             RecoverFromFailedCombatSetup();
             yield break;
         }
 
-        ConfigureFateCombat();
+        const float maxWaitSeconds = 8f;
+        float deadline = Time.unscaledTime + maxWaitSeconds;
+        while (!gsm.CanEnterCombatScene())
+        {
+            if (Time.unscaledTime >= deadline)
+            {
+                Debug.LogError("[FateEncounterDirector] Timed out waiting for exploration before Fate combat.");
+                RecoverFromFailedCombatSetup();
+                yield break;
+            }
+
+            yield return null;
+        }
+
+        currentPhase = EncounterPhase.CombatFadeIn;
+        EnemyComposition fateComposition = BuildFateCombatEnemyComposition();
+        if (!gsm.EnterFateCombatScene(fateComposition))
+        {
+            Debug.LogError("[FateEncounterDirector] GameStateManager rejected the Fate combat transition.");
+            RecoverFromFailedCombatSetup();
+            yield break;
+        }
 
         currentPhase = EncounterPhase.Combat;
+    }
 
-        BattleManager bm = FindFirstObjectByType<BattleManager>();
-        if (bm != null)
+    internal EnemyComposition BuildFateCombatEnemyComposition()
+    {
+        return EnemyComposition.Create(
+            new[] { "Fate, The Inevitable" },
+            new[] { fateBaseElement },
+            new[] { Mathf.Max(0, fateAttack - 10) },
+            new[] { Mathf.Max(0, fateDefense - 5) },
+            new[] { Mathf.Max(0, fateMaxHp - 100) });
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode loadMode)
+    {
+        if (scene.name != GameStateManager.CombatSceneName || currentPhase != EncounterPhase.Combat)
         {
-            bm.StartBattle();
+            return;
         }
-        else
-        {
-            Debug.LogError("[FateEncounterDirector] BattleManager not found. Cannot start combat.");
-        }
+
+        ConfigureFateCombat();
+        SetFadeAlpha(0f);
     }
 
     /// <summary>
@@ -461,28 +514,18 @@ public class FateEncounterDirector : MonoBehaviour
             return;
         }
 
-        currentPhase = EncounterPhase.PostCombatFadeOut;
-
         OnFateCombatComplete?.Invoke(playerWon);
-
         Debug.Log($"[FateEncounterDirector] Combat resolved. Player won: {playerWon}.");
-
-        if (playerWon)
-        {
-            StartCoroutine(RunVictoryEnding());
-        }
-        else
-        {
-            StartCoroutine(RunDefeatEnding());
-        }
+        CleanupFateBoss();
+        SetFadeAlpha(0f);
+        currentPhase = EncounterPhase.Complete;
     }
 
     private IEnumerator RunVictoryEnding()
     {
-        // Good ending: the party defeats fate and fades together.
-        // Combat already went through BattleManager -> GameStateManager.OnCombatEnded,
-        // which calls ResolveFinalEndingAfterBossVictory and triggers the ending.
-        // We only need to wait for the fade and run the narrator conclusion.
+        // Kept for scene-authored extensions that still invoke this local
+        // presentation routine. The normal route resolves through
+        // GameStateManager after CombatScene reports the result.
         yield return StartCoroutine(FadeToBlack(postCombatFadeDuration));
 
         CleanupFateBoss();
@@ -494,8 +537,9 @@ public class FateEncounterDirector : MonoBehaviour
 
     private IEnumerator RunDefeatEnding()
     {
-        // Defeat in combat also leads to bad ending.
-        // Same as victory -- the normal combat pipeline handles the ending.
+        // Kept for scene-authored extensions that still invoke this local
+        // presentation routine. The normal route resolves through
+        // GameStateManager after CombatScene reports the result.
         yield return StartCoroutine(FadeToBlack(postCombatFadeDuration));
 
         CleanupFateBoss();
@@ -879,21 +923,29 @@ public class FateEncounterDirector : MonoBehaviour
 
     private void ConfigureFateCombat()
     {
-        // Configure the BattleManager for a fate encounter
         BattleManager bm = FindFirstObjectByType<BattleManager>();
-        if (bm != null)
+        if (bm == null)
         {
-            bm.ConfigureEnvyContext(true, true);
+            Debug.LogError("[FateEncounterDirector] CombatScene loaded without a BattleManager.");
+            return;
         }
 
-        // Register fate boss if it has a CombatUnit
-        CombatUnit fateUnit = spawnedFateBoss != null
-            ? spawnedFateBoss.GetComponent<CombatUnit>()
-            : null;
-        if (fateUnit != null && bm != null)
+        bm.ConfigureEnvyContext(false, true);
+
+        IReadOnlyList<CombatUnit> enemies = bm.EnemyUnits;
+        for (int i = 0; i < enemies.Count; i++)
         {
-            bm.RegisterUnit(fateUnit);
+            CombatUnit unit = enemies[i];
+            if (unit == null || !string.Equals(unit.UnitName, "Fate, The Inevitable", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            ConfigureFateUnit(unit);
+            return;
         }
+
+        Debug.LogError("[FateEncounterDirector] CombatScene did not create the Fate combat unit.");
     }
 
     private void CleanupFateBoss()
@@ -1166,6 +1218,29 @@ public class FateEncounterDirector : MonoBehaviour
         // that still routes through Good but with different narration
         // handled by the score magnitude in the ending sequence.
         return GameStateManager.EndingBranch.Good;
+    }
+
+    public void ResetForNewGame()
+    {
+        if (activeRoutine != null)
+        {
+            StopCoroutine(activeRoutine);
+            activeRoutine = null;
+        }
+
+        ClearAnswerButtons();
+        HideDialogueCanvas();
+        CleanupFateBoss();
+        SetFadeAlpha(0f);
+        if (narratorConcludingText != null)
+        {
+            narratorConcludingText.gameObject.SetActive(false);
+        }
+
+        currentPhase = EncounterPhase.Idle;
+        dialogueAcceptedFate = false;
+        totalDefianceScore = 0;
+        questionCount = 0;
     }
 
     // ──────────────────────────────────────────────────────────────────

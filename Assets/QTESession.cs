@@ -8,6 +8,7 @@ using UnityEngine.UI;
 /// Shows a shrinking circular indicator that the player must time correctly.
 /// Press Space, click, or tap when the indicator enters the sweet spot (inner 30%).
 /// </summary>
+[DisallowMultipleComponent]
 public class QTESession : MonoBehaviour
 {
     [Header("UI Reference")]
@@ -26,6 +27,7 @@ public class QTESession : MonoBehaviour
     private Image backgroundRing;
     private Image fillRing;
     private Text promptText;
+    private Coroutine activeQteCoroutine;
 
     private bool isActive;
     private bool lastResult;
@@ -70,8 +72,27 @@ public class QTESession : MonoBehaviour
         isActive = true;
         EnsureUI();
         ShowUI();
-        StartCoroutine(RunQTE(timeWindow));
+        activeQteCoroutine = StartCoroutine(RunQTE(timeWindow));
         return true;
+    }
+
+    /// <summary>
+    /// Stops an active QTE and reports a failed result to its listeners.
+    /// </summary>
+    public void CancelQTE()
+    {
+        if (!isActive)
+        {
+            return;
+        }
+
+        if (activeQteCoroutine != null)
+        {
+            StopCoroutine(activeQteCoroutine);
+            activeQteCoroutine = null;
+        }
+
+        CompleteQTE(false);
     }
 
     /// <summary>
@@ -163,11 +184,27 @@ public class QTESession : MonoBehaviour
 
         yield return new WaitForSecondsRealtime(0.4f);
 
+        CompleteQTE(success);
+    }
+
+    private void CompleteQTE(bool success)
+    {
+        if (!isActive && isComplete)
+        {
+            return;
+        }
+
+        activeQteCoroutine = null;
         lastResult = success;
         isComplete = true;
         isActive = false;
         HideUI();
         OnQTEResolved?.Invoke(success);
+    }
+
+    private void OnDisable()
+    {
+        CancelQTE();
     }
 
     #region UI Setup
@@ -179,16 +216,21 @@ public class QTESession : MonoBehaviour
             return;
         }
 
-        // Create CanvasGroup if one was not assigned in the Inspector
-        if (canvasGroup == null)
+        Transform uiParent = GetOrCreateUiParent();
+        if (uiParent == null)
         {
-            canvasGroup = gameObject.AddComponent<CanvasGroup>();
+            Debug.LogError("[QTESession] QTE UI could not create a canvas parent.", this);
+            return;
         }
 
         // Ring container (centered, fixed size)
-        GameObject container = new GameObject("QTERing");
-        container.transform.SetParent(transform, false);
-        RectTransform containerRect = container.AddComponent<RectTransform>();
+        GameObject container = new GameObject("QTERing", typeof(RectTransform));
+        container.transform.SetParent(uiParent, false);
+        RectTransform containerRect = container.GetComponent<RectTransform>();
+        containerRect.anchorMin = new Vector2(0.5f, 0.5f);
+        containerRect.anchorMax = new Vector2(0.5f, 0.5f);
+        containerRect.pivot = new Vector2(0.5f, 0.5f);
+        containerRect.anchoredPosition = Vector2.zero;
         containerRect.sizeDelta = new Vector2(180f, 180f);
 
         // Background ring (always full, dark)
@@ -216,6 +258,36 @@ public class QTESession : MonoBehaviour
         Outline outline = textObj.AddComponent<Outline>();
         outline.effectColor = new Color(0f, 0f, 0f, 0.8f);
         outline.effectDistance = new Vector2(1f, -1f);
+    }
+
+    private Transform GetOrCreateUiParent()
+    {
+        if (canvasGroup != null && canvasGroup.GetComponentInParent<Canvas>() != null)
+        {
+            return canvasGroup.transform;
+        }
+
+        GameObject canvasObject = new GameObject("NeutralClashQTECanvas", typeof(RectTransform));
+        canvasObject.transform.SetParent(transform, false);
+
+        RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
+        canvasRect.anchorMin = Vector2.zero;
+        canvasRect.anchorMax = Vector2.one;
+        canvasRect.offsetMin = Vector2.zero;
+        canvasRect.offsetMax = Vector2.zero;
+
+        Canvas canvas = canvasObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = 300;
+
+        CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        canvasObject.AddComponent<GraphicRaycaster>();
+
+        canvasGroup = canvasObject.AddComponent<CanvasGroup>();
+        return canvasObject.transform;
     }
 
     private static Image CreateRadialImage(RectTransform parent, string name, Color color)

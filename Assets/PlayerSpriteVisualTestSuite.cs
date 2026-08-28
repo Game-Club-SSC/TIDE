@@ -59,6 +59,9 @@ public class PlayerSpriteVisualTestSuite : MonoBehaviour
 
         Transform shadow = player.transform.Find(ElementalCharacterFactory.ShadowQuadName);
         Assert.IsNotNull(shadow, "Shadow quad should be present in sprite mode.");
+        Collider shadowCollider = shadow.GetComponent<Collider>();
+        Assert.IsTrue(shadowCollider == null || !shadowCollider.enabled,
+            "Sprite shadows must not leave an enabled Quad collider on the dynamic player rigidbody.");
 
         Object.DestroyImmediate(player.gameObject);
     }

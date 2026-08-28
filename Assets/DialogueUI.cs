@@ -31,6 +31,7 @@ public class DialogueUI : MonoBehaviour
     private Text speakerText;
     private Text bodyText;
     private Text continuePrompt;
+    private Button advanceButton;
 
     private List<DialogueSystem.DialogueEntry> currentEntries;
     private int currentIndex;
@@ -105,7 +106,15 @@ public class DialogueUI : MonoBehaviour
             || Input.GetKeyDown(KeyCode.KeypadEnter)
             || Input.GetKeyDown(KeyCode.Space);
 
-        if (!pressedAdvance)
+        if (pressedAdvance)
+        {
+            HandleAdvanceRequested();
+        }
+    }
+
+    private void HandleAdvanceRequested()
+    {
+        if (currentEntries == null || currentEntries.Count == 0)
         {
             return;
         }
@@ -263,6 +272,11 @@ public class DialogueUI : MonoBehaviour
         Image panelBg = panelObj.AddComponent<Image>();
         panelBg.color = PersonaUIStyle.DialoguePanel;
 
+        advanceButton = panelObj.AddComponent<Button>();
+        advanceButton.targetGraphic = panelBg;
+        advanceButton.transition = Selectable.Transition.None;
+        advanceButton.onClick.AddListener(HandleAdvanceRequested);
+
         // Persona-style diagonal edge on the dialogue panel
         PersonaUIStyle.AddDiagonalEdge(panelRect, 10f);
 
@@ -276,6 +290,7 @@ public class DialogueUI : MonoBehaviour
         portraitImage.fillMethod = Image.FillMethod.Radial360;
         portraitImage.fillClockwise = true;
         portraitImage.color = PersonaUIStyle.PortraitTint;
+        portraitImage.raycastTarget = false;
 
         RectTransform portraitRect = portraitObj.GetComponent<RectTransform>();
         portraitRect.anchorMin = new Vector2(0f, 0.5f);
@@ -310,6 +325,7 @@ public class DialogueUI : MonoBehaviour
         speakerText.fontSize = 26;
         speakerText.fontStyle = FontStyle.Bold;
         speakerText.color = PersonaUIStyle.BrightBlue;
+        speakerText.raycastTarget = false;
 
         RectTransform speakerRect = speakerObj.GetComponent<RectTransform>();
         speakerRect.anchorMin = new Vector2(0f, 1f);
@@ -328,6 +344,7 @@ public class DialogueUI : MonoBehaviour
         bodyText.horizontalOverflow = HorizontalWrapMode.Wrap;
         bodyText.verticalOverflow = VerticalWrapMode.Overflow;
         bodyText.lineSpacing = 1.15f;
+        bodyText.raycastTarget = false;
 
         RectTransform bodyRect = bodyObj.GetComponent<RectTransform>();
         bodyRect.anchorMin = new Vector2(0f, 0f);
@@ -343,8 +360,9 @@ public class DialogueUI : MonoBehaviour
         continuePrompt.fontSize = 16;
         continuePrompt.fontStyle = FontStyle.Italic;
         continuePrompt.color = new Color(PersonaUIStyle.DimText.r, PersonaUIStyle.DimText.g, PersonaUIStyle.DimText.b, 0.7f);
-        continuePrompt.text = "[Press Enter to continue]";
+        continuePrompt.text = "[Click or press Enter to continue]";
         continuePrompt.alignment = TextAnchor.LowerRight;
+        continuePrompt.raycastTarget = false;
 
         RectTransform promptRect = promptObj.GetComponent<RectTransform>();
         promptRect.anchorMin = new Vector2(0f, 0f);

@@ -215,6 +215,16 @@ public class HeroProgressionManager : MonoBehaviour
         return levelingConfig.GetXpToNextLevel(level);
     }
 
+    public SkillData[] GetUnlockedNormalSkills(HeroData hero)
+    {
+        if (hero == null)
+        {
+            return Array.Empty<SkillData>();
+        }
+
+        return hero.GetSkillsForLevel(GetLevel(hero.heroId));
+    }
+
     public GearInstance CreateGearInstance(GearSetData template)
     {
         if (template == null || !template.IsValid())

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -10,6 +11,8 @@ public class FateEncounterDirectorTest : MonoBehaviour
     {
         TestFateBossHpScaling();
         TestConfigureEnvyContextNotCalledRedundantly();
+        TestFateCombatUsesCombatScenePayload();
+        TestFinaleDirectorsPersistUntilTheEndingCompletes();
         TestPlayEndingDirectlyInitializesEndingSequenceDirector();
         Debug.Log("=== All Fate Encounter Director Tests Passed ===");
     }
@@ -60,8 +63,8 @@ public class FateEncounterDirectorTest : MonoBehaviour
             int envyCallCount = CountOccurrences(source, "ConfigureEnvyContext");
             Assert.AreEqual(1, envyCallCount, "ConfigureEnvyContext should be called exactly once.");
 
-            int inConfigureFateCombat = CountOccurrencesBetween(source, "ConfigureFateCombat", "RunVictoryEnding", "ConfigureEnvyContext");
-            Assert.AreEqual(1, inConfigureFateCombat, "ConfigureEnvyContext should be called inside ConfigureFateCombat.");
+            Assert.IsTrue(source.Contains("bm.ConfigureEnvyContext(false, true)"),
+                "Fate must not enable the Envy-only battle rule.");
 
             Debug.Log("[FateEncounterDirectorTest] TestConfigureEnvyContextNotCalledRedundantly passed.");
         }
@@ -69,6 +72,46 @@ public class FateEncounterDirectorTest : MonoBehaviour
         {
             DestroyImmediate(directorObject);
         }
+    }
+
+    [ContextMenu("Test Fate Combat Uses CombatScene Payload")]
+    public void TestFateCombatUsesCombatScenePayload()
+    {
+        GameObject directorObject = new GameObject("FateDirector_CombatSceneTest");
+        FateEncounterDirector director = directorObject.AddComponent<FateEncounterDirector>();
+        try
+        {
+            EnemyComposition composition = director.BuildFateCombatEnemyComposition();
+            Assert.IsNotNull(composition, "Fate combat needs a pending enemy composition.");
+            Assert.AreEqual(1, composition.Count, "Fate combat should create exactly one enemy.");
+            Assert.AreEqual("Fate, The Inevitable", composition.names[0], "Fate must keep its combat name.");
+            Assert.AreEqual(9999 - 100, composition.maxHpModifiers[0],
+                "Fate payload must raise the standard CombatScene unit to its configured HP.");
+
+            string source = ReadSourceFile("FateEncounterDirector.cs");
+            Assert.IsTrue(source.Contains("EnterFateCombatScene(fateComposition)"),
+                "Defiance must enter Fate through GameStateManager's CombatScene route.");
+            Assert.IsFalse(source.Contains("bm.StartBattle();"),
+                "Fate must not start a battle in the exploration scene.");
+        }
+        finally
+        {
+            DestroyImmediate(directorObject);
+        }
+    }
+
+    [ContextMenu("Test Finale Directors Persist During Scene Change")]
+    public void TestFinaleDirectorsPersistUntilTheEndingCompletes()
+    {
+        string fateSource = ReadSourceFile("FateEncounterDirector.cs");
+        string endingSource = ReadSourceFile("EndingSequenceDirector.cs");
+
+        Assert.IsTrue(fateSource.Contains("DontDestroyOnLoad(gameObject)"),
+            "Fate dialogue must survive the CombatScene transition.");
+        Assert.IsTrue(endingSource.Contains("DontDestroyOnLoad(gameObject)"),
+            "Ending playback must survive the return from CombatScene.");
+        Assert.IsTrue(endingSource.Contains("Destroy(gameObject);"),
+            "The ending director must clean itself up before a later new game.");
     }
 
     [ContextMenu("Test PlayEndingDirectly Initializes EndingSequenceDirector")]
@@ -152,3 +195,4 @@ public class FateEncounterDirectorTest : MonoBehaviour
         return CountOccurrences(section, searchTerm);
     }
 }
+#endif

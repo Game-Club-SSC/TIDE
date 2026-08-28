@@ -15,6 +15,30 @@ public static class GameAssetValidator
     private static readonly List<string> errors = new List<string>();
     private static readonly List<string> infos = new List<string>();
 
+    // Island travel happens inside the shared level_1 scene. The V2 islands
+    // are selected through IslandThemeRegistry and their IslandConfig assets,
+    // not through one Unity scene per island.
+    private static readonly string[] CanonicalV2RuntimeScenes =
+    {
+        "Assets/Scenes/TitleScene.unity",
+        "Assets/Scenes/level_1.unity",
+        "Assets/Scenes/HubScene.unity",
+        "Assets/Scenes/PuzzleScene.unity",
+        "Assets/Scenes/CombatScene.unity"
+    };
+
+    private static readonly string[] CanonicalV2IslandIds =
+    {
+        "island_lust",
+        "island_greed",
+        "island_desire",
+        "island_anger",
+        "island_envy",
+        "island_ego"
+    };
+
+    private const string LegacyGluttonyScene = "Assets/Scenes/level_gluttony.unity";
+
     [MenuItem("TIDE/Validate All Assets")]
     public static void ValidateAll()
     {
@@ -479,35 +503,94 @@ public static class GameAssetValidator
 
     private static void ValidateBuildScenes()
     {
-        var scenes = new List<string>(EditorBuildSettings.scenes.Select(s => s.path));
-        int totalScenes = scenes.Count;
-
-        string[] requiredScenes = {
-            "Assets/Scenes/TitleScene.unity",
-            "Assets/Scenes/level_1.unity",
-            "Assets/Scenes/HubScene.unity",
-            "Assets/Scenes/CombatScene.unity",
-            "Assets/Scenes/PuzzleScene.unity",
-        };
-
-        int missing = 0;
-        foreach (string scene in requiredScenes)
+        List<string> releaseIssues = GetCanonicalV2BuildSceneIssues();
+        foreach (string issue in releaseIssues)
         {
-            if (!scenes.Contains(scene))
+            errors.Add($"[BuildScenes] {issue}");
+        }
+
+        int enabledSceneCount = EditorBuildSettings.scenes.Count(scene => scene != null && scene.enabled);
+        infos.Add($"BuildScenes: {enabledSceneCount} enabled, {CanonicalV2RuntimeScenes.Length} required runtime scenes, {CanonicalV2IslandIds.Length} V2 island configs, {releaseIssues.Count} release blockers");
+    }
+
+    internal static bool HasCanonicalV2BuildSceneSet(out string report)
+    {
+        List<string> issues = GetCanonicalV2BuildSceneIssues();
+        report = string.Join("\n", issues);
+        return issues.Count == 0;
+    }
+
+    private static List<string> GetCanonicalV2BuildSceneIssues()
+    {
+        var issues = new List<string>();
+        EditorBuildSettingsScene[] buildScenes = EditorBuildSettings.scenes;
+
+        foreach (string scenePath in CanonicalV2RuntimeScenes)
+        {
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) == null)
             {
-                warnings.Add($"[BuildScenes] Missing from build: {scene}");
-                missing++;
+                issues.Add($"Required V2 scene asset is missing: {scenePath}");
+                continue;
+            }
+
+            EditorBuildSettingsScene buildScene = buildScenes.FirstOrDefault(scene => scene != null && scene.path == scenePath);
+            if (buildScene == null)
+            {
+                issues.Add($"Required V2 scene is not in Build Settings: {scenePath}");
+            }
+            else if (!buildScene.enabled)
+            {
+                issues.Add($"Required V2 scene is disabled in Build Settings: {scenePath}");
             }
         }
 
-        infos.Add($"BuildScenes: {totalScenes} scenes in build, {missing} missing");
-
-        // Check if CombatScene is enabled
-        var combatScene = EditorBuildSettings.scenes.FirstOrDefault(s => s.path.Contains("CombatScene"));
-        if (combatScene != null && !combatScene.enabled)
+        foreach (string islandId in CanonicalV2IslandIds)
         {
-            warnings.Add("[BuildScenes] CombatScene exists but is DISABLED in build settings");
+            IslandConfig islandConfig = Resources.Load<IslandConfig>($"Islands/{islandId}");
+            if (islandConfig == null)
+            {
+                issues.Add($"Required V2 island config is missing: Resources/Islands/{islandId}");
+            }
+            else if (islandConfig.islandId != islandId)
+            {
+                issues.Add($"V2 island config ID does not match its expected route: {islandId}");
+            }
+            else if (!islandConfig.IsValid())
+            {
+                issues.Add($"V2 island config is invalid: Resources/Islands/{islandId}");
+            }
         }
+
+        foreach (EditorBuildSettingsScene buildScene in buildScenes)
+        {
+            if (buildScene == null)
+            {
+                issues.Add("Build Settings contains a null scene entry.");
+                continue;
+            }
+
+            if (string.IsNullOrEmpty(buildScene.path))
+            {
+                issues.Add("Build Settings contains an empty scene path.");
+                continue;
+            }
+
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(buildScene.path) == null)
+            {
+                issues.Add($"Build Settings references a missing scene asset: {buildScene.path}");
+            }
+
+            if (buildScene.enabled && buildScene.path == LegacyGluttonyScene)
+            {
+                issues.Add($"Legacy Gluttony scene must not be enabled for a V2 release: {LegacyGluttonyScene}");
+            }
+            else if (buildScene.enabled && !CanonicalV2RuntimeScenes.Contains(buildScene.path))
+            {
+                issues.Add($"Unexpected enabled release scene: {buildScene.path}");
+            }
+        }
+
+        return issues;
     }
 
     // ======================================================================

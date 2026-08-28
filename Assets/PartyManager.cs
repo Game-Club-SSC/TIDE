@@ -4,6 +4,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class PartyManager : MonoBehaviour
 {
+    public const string MainCharacterElementPreferenceKey = "TIDE.MainCharacterElement";
+
     public static PartyManager Instance { get; private set; }
 
     [Header("Party Configuration")]
@@ -26,6 +28,7 @@ public class PartyManager : MonoBehaviour
         }
 
         Instance = this;
+        LoadPersistedMainCharacterElement();
         DontDestroyOnLoad(gameObject);
     }
 
@@ -53,7 +56,47 @@ public class PartyManager : MonoBehaviour
 
         chosenMainCharacterElement = element;
         hasChosenElement = true;
+        PlayerPrefs.SetInt(MainCharacterElementPreferenceKey, (int)element);
+        PlayerPrefs.Save();
         Debug.Log($"[PartyManager] Main character element set to: {element}");
+    }
+
+    public static bool PersistMainCharacterElement(CombatUnit.Element element)
+    {
+        if ((int)element <= (int)CombatUnit.Element.None || (int)element > (int)CombatUnit.Element.Space)
+        {
+            return false;
+        }
+
+        PlayerPrefs.SetInt(MainCharacterElementPreferenceKey, (int)element);
+        PlayerPrefs.Save();
+
+        if (Instance != null)
+        {
+            Instance.chosenMainCharacterElement = element;
+            Instance.hasChosenElement = true;
+        }
+
+        return true;
+    }
+
+    public void LoadPersistedMainCharacterElement()
+    {
+        if (!PlayerPrefs.HasKey(MainCharacterElementPreferenceKey))
+        {
+            return;
+        }
+
+        CombatUnit.Element savedElement = (CombatUnit.Element)PlayerPrefs.GetInt(MainCharacterElementPreferenceKey);
+        if ((int)savedElement <= (int)CombatUnit.Element.None || (int)savedElement > (int)CombatUnit.Element.Space)
+        {
+            PlayerPrefs.DeleteKey(MainCharacterElementPreferenceKey);
+            PlayerPrefs.Save();
+            return;
+        }
+
+        chosenMainCharacterElement = savedElement;
+        hasChosenElement = true;
     }
 
     public CombatUnit.Element GetMainCharacterElement()
@@ -189,7 +232,7 @@ public class PartyManager : MonoBehaviour
         unit.CritRate = hero.baseCritRate;
         unit.CritDamage = hero.baseCritDamage;
 
-        unit.SetSkills(hero.starterSkills);
+        unit.SetSkills(GetSkillsForHeroLevel(hero));
 
         if (HeroProgressionManager.Instance != null)
         {
@@ -224,7 +267,7 @@ public class PartyManager : MonoBehaviour
         unit.CritRate = hero.baseCritRate;
         unit.CritDamage = hero.baseCritDamage;
 
-        unit.SetSkills(hero.starterSkills);
+        unit.SetSkills(GetSkillsForHeroLevel(hero));
 
         if (HeroProgressionManager.Instance != null)
         {
@@ -253,7 +296,7 @@ public class PartyManager : MonoBehaviour
         unit.CritRate = hero.baseCritRate;
         unit.CritDamage = hero.baseCritDamage;
 
-        unit.SetSkills(hero.starterSkills);
+        unit.SetSkills(GetSkillsForHeroLevel(hero));
 
         if (HeroProgressionManager.Instance != null)
         {
@@ -289,6 +332,21 @@ public class PartyManager : MonoBehaviour
         }
 
         unit.SetTideBreaks(abilities);
+    }
+
+    private static SkillData[] GetSkillsForHeroLevel(HeroData hero)
+    {
+        if (hero == null)
+        {
+            return System.Array.Empty<SkillData>();
+        }
+
+        if (HeroProgressionManager.Instance != null)
+        {
+            return HeroProgressionManager.Instance.GetUnlockedNormalSkills(hero);
+        }
+
+        return hero.GetSkillsForLevel(1);
     }
 
     private static void AddUniqueTideBreaks(List<TideBreakData> target, IReadOnlyList<TideBreakData> candidates)

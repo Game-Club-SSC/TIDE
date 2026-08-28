@@ -12,8 +12,8 @@ public class StoryProgressionTest : MonoBehaviour
     private static readonly MethodInfo TrackBossVictoryThresholdProgressMethod =
         typeof(GameStateManager).GetMethod("TrackBossVictoryThresholdProgress", BindingFlags.Instance | BindingFlags.NonPublic);
 
-    private static readonly MethodInfo ResolveFinalEndingAfterBossVictoryMethod =
-        typeof(GameStateManager).GetMethod("ResolveFinalEndingAfterBossVictory", BindingFlags.Instance | BindingFlags.NonPublic);
+    private static readonly MethodInfo ResolveFateFinaleAfterCombatMethod =
+        typeof(GameStateManager).GetMethod("ResolveFateFinaleAfterCombat", BindingFlags.Instance | BindingFlags.NonPublic);
 
     private static readonly MethodInfo NotifyBossDefeatAttemptMethod =
         typeof(GameStateManager).GetMethod("NotifyBossDefeatAttempt", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -387,9 +387,9 @@ public class StoryProgressionTest : MonoBehaviour
 
     private static void ResolveEndingAfterFinalBossVictory(GameStateManager manager)
     {
-        Assert.IsNotNull(ResolveFinalEndingAfterBossVictoryMethod,
-            "ResolveFinalEndingAfterBossVictory helper was not found on GameStateManager.");
-        ResolveFinalEndingAfterBossVictoryMethod.Invoke(manager, null);
+        Assert.IsNotNull(ResolveFateFinaleAfterCombatMethod,
+            "ResolveFateFinaleAfterCombat helper was not found on GameStateManager.");
+        ResolveFateFinaleAfterCombatMethod.Invoke(manager, new object[] { true });
     }
 
     private static void NotifyBossDefeatAttempt(GameStateManager manager)

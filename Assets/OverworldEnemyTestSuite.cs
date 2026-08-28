@@ -55,6 +55,18 @@ public class OverworldEnemyTestSuite
             "Puzzle guards should re-engage after the player comes back inside the anchor re-engage radius.");
     }
 
+    [Test]
+    public void KinematicEnemyMovementDoesNotSetLinearVelocity()
+    {
+        Rigidbody body = enemyObject.GetComponent<Rigidbody>();
+        body.isKinematic = true;
+
+        InvokeMoveToward(new Vector3(4f, 0f, 0f), 2f);
+
+        Assert.AreEqual(Vector3.zero, body.linearVelocity,
+            "Kinematic enemies should move with MovePosition instead of assigning linear velocity.");
+    }
+
     private void ConfigureReturningPuzzleGuard(Vector3 enemyPosition, Vector3 playerPosition)
     {
         enemyObject.transform.position = enemyPosition;
@@ -77,6 +89,13 @@ public class OverworldEnemyTestSuite
         MethodInfo method = typeof(OverworldEnemy).GetMethod("ShouldStartChase", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.IsNotNull(method, "ShouldStartChase should exist for puzzle guard chase tests.");
         return (bool)method.Invoke(enemy, null);
+    }
+
+    private void InvokeMoveToward(Vector3 target, float speed)
+    {
+        MethodInfo method = typeof(OverworldEnemy).GetMethod("MoveToward", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(method, "MoveToward should exist for kinematic movement tests.");
+        method.Invoke(enemy, new object[] { target, speed });
     }
 
     private void SetPrivateField(string fieldName, object value)

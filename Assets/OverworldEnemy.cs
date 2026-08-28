@@ -102,6 +102,7 @@ public class OverworldEnemy : MonoBehaviour
     private float puzzleGuardLastReturnDistance;
     private float puzzleGuardReturnLockUntilTime;
     private float puzzleGuardNextFallbackLogTime;
+    private Vector3 planarVelocity;
 
     private void Awake()
     {
@@ -210,7 +211,7 @@ public class OverworldEnemy : MonoBehaviour
     {
         if (!CanOperate())
         {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            StopMovement();
             return;
         }
 
@@ -226,7 +227,7 @@ public class OverworldEnemy : MonoBehaviour
                 FixedReturning();
                 break;
             case EnemyState.Idle:
-                rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+                StopMovement();
                 break;
         }
     }
@@ -304,14 +305,14 @@ public class OverworldEnemy : MonoBehaviour
 
         if (!HasPatrolPoints())
         {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            StopMovement();
             return;
         }
 
         Transform target = patrolPoints[patrolIndex];
         if (target == null)
         {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            StopMovement();
             return;
         }
 
@@ -319,7 +320,7 @@ public class OverworldEnemy : MonoBehaviour
 
         if (distance <= arrivalThreshold)
         {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            StopMovement();
 
             if (stateTimer <= 0f)
             {
@@ -361,7 +362,7 @@ public class OverworldEnemy : MonoBehaviour
     {
         if (playerTransform == null)
         {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            StopMovement();
             return;
         }
 
@@ -414,14 +415,14 @@ public class OverworldEnemy : MonoBehaviour
 
         if (!HasPatrolPoints())
         {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            StopMovement();
             return;
         }
 
         Transform target = patrolPoints[patrolIndex];
         if (target == null)
         {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            StopMovement();
             return;
         }
 
@@ -558,15 +559,44 @@ public class OverworldEnemy : MonoBehaviour
 
         if (direction.sqrMagnitude < 0.0001f)
         {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            StopMovement();
             return;
         }
 
         direction.Normalize();
-        rb.linearVelocity = new Vector3(direction.x * speed, rb.linearVelocity.y, direction.z * speed);
+        planarVelocity = new Vector3(direction.x * speed, 0f, direction.z * speed);
+
+        if (rb.isKinematic)
+        {
+            rb.MovePosition(rb.position + planarVelocity * Time.fixedDeltaTime);
+        }
+        else
+        {
+            rb.linearVelocity = new Vector3(planarVelocity.x, rb.linearVelocity.y, planarVelocity.z);
+        }
 
         Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * 10f);
+    }
+
+    private void StopMovement()
+    {
+        planarVelocity = Vector3.zero;
+
+        if (rb != null && !rb.isKinematic)
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+        }
+    }
+
+    private void ResetMotion()
+    {
+        StopMovement();
+
+        if (rb != null && !rb.isKinematic)
+        {
+            rb.angularVelocity = Vector3.zero;
+        }
     }
 
     // ========== VISUALS ==========
@@ -582,9 +612,7 @@ public class OverworldEnemy : MonoBehaviour
         {
             UpdateBillboard(facingArrowObject.transform);
 
-            Vector3 vel = rb.linearVelocity;
-            vel.y = 0f;
-            if (vel.sqrMagnitude > 0.01f)
+            if (planarVelocity.sqrMagnitude > 0.01f)
             {
                 if (mainCamera == null)
                 {
@@ -639,7 +667,7 @@ public class OverworldEnemy : MonoBehaviour
 
         exclamationRenderer = exclamationObject.AddComponent<SpriteRenderer>();
         exclamationRenderer.sprite = ExclamationMarkSprite.GetSprite();
-        exclamationRenderer.color = alertIndicatorColor;
+        TideRuntimeVisualUtility.ApplySpriteColor(exclamationRenderer, alertIndicatorColor);
         exclamationRenderer.shadowCastingMode = ShadowCastingMode.Off;
         exclamationRenderer.receiveShadows = false;
         exclamationRenderer.sortingOrder = 10;
@@ -849,25 +877,25 @@ public class OverworldEnemy : MonoBehaviour
 
             if (partName.Contains("Head") || partName.Contains("Torso"))
             {
-                renderer.material.color = Color.Lerp(primary, Color.white, 0.12f);
+                TideRuntimeVisualUtility.ApplyMeshColor(renderer, Color.Lerp(primary, Color.white, 0.12f));
             }
             else if (partName.Contains("Visor") || partName.Contains("Eye"))
             {
-                renderer.material.color = eye;
+                TideRuntimeVisualUtility.ApplyMeshColor(renderer, eye);
             }
             else if (partName.Contains("Arm") || partName.Contains("Leg")
                      || partName.Contains("Waist") || partName.Contains("Claw"))
             {
-                renderer.material.color = secondary;
+                TideRuntimeVisualUtility.ApplyMeshColor(renderer, secondary);
             }
             else if (partName.Contains("Horn") || partName.Contains("Chest")
                      || partName.Contains("Boot"))
             {
-                renderer.material.color = Color.Lerp(secondary, Color.black, 0.25f);
+                TideRuntimeVisualUtility.ApplyMeshColor(renderer, Color.Lerp(secondary, Color.black, 0.25f));
             }
             else
             {
-                renderer.material.color = primary;
+                TideRuntimeVisualUtility.ApplyMeshColor(renderer, primary);
             }
         }
     }
@@ -910,7 +938,7 @@ public class OverworldEnemy : MonoBehaviour
 
         arrowRenderer = facingArrowObject.AddComponent<SpriteRenderer>();
         arrowRenderer.sprite = CreateArrowSprite();
-        arrowRenderer.color = enemyColor;
+        TideRuntimeVisualUtility.ApplySpriteColor(arrowRenderer, enemyColor);
         arrowRenderer.shadowCastingMode = ShadowCastingMode.Off;
         arrowRenderer.receiveShadows = false;
         arrowRenderer.sortingOrder = 5;
@@ -1072,7 +1100,7 @@ public class OverworldEnemy : MonoBehaviour
         float distanceToAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
         if (distanceToAnchor <= arrivalThreshold)
         {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            StopMovement();
             puzzleGuardReturnLockUntilTime = Time.time + 0.1f;
             TransitionToState(EnemyState.Roaming);
             return;
@@ -1102,8 +1130,7 @@ public class OverworldEnemy : MonoBehaviour
             }
 
             rb.position = guardAnchorPosition;
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
-            rb.angularVelocity = Vector3.zero;
+            ResetMotion();
             puzzleGuardReturnLockUntilTime = Time.time + Mathf.Max(0.1f, puzzleGuardPostSnapReturnDelay);
             TransitionToState(EnemyState.Roaming);
             return;
@@ -1127,7 +1154,7 @@ public class OverworldEnemy : MonoBehaviour
         float distanceToAnchor = GetPlanarDistance(transform.position, guardAnchorPosition);
         if (distanceToAnchor <= arrivalThreshold)
         {
-            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            StopMovement();
             return;
         }
 

@@ -119,9 +119,9 @@ public class AudioSettingsUI : MonoBehaviour
         // Close button
         GameObject closeBtnObj = new GameObject("CloseButton", typeof(RectTransform), typeof(Image), typeof(Button));
         closeBtnObj.transform.SetParent(content.transform, false);
-        Image closeImg = closeBtnObj.AddComponent<Image>();
+        Image closeImg = closeBtnObj.GetComponent<Image>();
         closeImg.color = PersonaUIStyle.CloseBtnBg;
-        Button closeBtn = closeBtnObj.AddComponent<Button>();
+        Button closeBtn = closeBtnObj.GetComponent<Button>();
         closeBtn.targetGraphic = closeImg;
         closeBtn.onClick.AddListener(() => SetVisible(false));
         LayoutElement closeLe = closeBtnObj.AddComponent<LayoutElement>();

@@ -72,7 +72,14 @@ public static class ElementalCharacterFactory
 
         GameObject shadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
         shadow.name = ShadowQuadName;
-        Object.Destroy(shadow.GetComponent<Collider>());
+        Collider shadowCollider = shadow.GetComponent<Collider>();
+        if (shadowCollider != null)
+        {
+            // Destroy is deferred until the end of the frame. Disable first so a
+            // dynamic player rigidbody never hits a concave Quad collider.
+            shadowCollider.enabled = false;
+            Object.Destroy(shadowCollider);
+        }
         shadow.transform.SetParent(parent, false);
         shadow.transform.localPosition = new Vector3(localOffset.x, 0.04f, localOffset.z);
         shadow.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
@@ -81,9 +88,7 @@ public static class ElementalCharacterFactory
         Renderer shadowRenderer = shadow.GetComponent<Renderer>();
         if (shadowRenderer != null)
         {
-            Material shadowMat = new Material(Shader.Find("Sprites/Default"));
-            shadowMat.color = new Color(0f, 0f, 0f, 0.45f);
-            shadowRenderer.sharedMaterial = shadowMat;
+            TideRuntimeVisualUtility.ApplyMeshColor(shadowRenderer, new Color(0f, 0f, 0f, 0.45f), true);
             shadowRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             shadowRenderer.receiveShadows = false;
         }
@@ -97,7 +102,7 @@ public static class ElementalCharacterFactory
         SpriteRenderer spriteRenderer = spriteObject.AddComponent<SpriteRenderer>();
         Sprite sprite = FuturisticSpriteLibrary.GetPlayerOverworldSprite(styleId);
         spriteRenderer.sprite = sprite;
-        spriteRenderer.color = Color.white;
+        TideRuntimeVisualUtility.ApplySpriteColor(spriteRenderer, Color.white);
         spriteRenderer.sortingOrder = 100;
         spriteRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         spriteRenderer.receiveShadows = false;
@@ -395,10 +400,236 @@ public static class ElementalCharacterFactory
         Renderer renderer = part.GetComponent<Renderer>();
         if (renderer != null)
         {
-            renderer.material.color = color;
+            TideRuntimeVisualUtility.ApplyMeshColor(renderer, color);
             renderer.enabled = true;
         }
 
         return part.transform;
+    }
+}
+
+/// <summary>
+/// Applies materials to meshes and sprites created at runtime. Unity's
+/// CreatePrimitive method still creates materials with the legacy Standard
+/// shader, which renders magenta in a URP player. Keeping the replacement in
+/// one place makes generated visuals use the same shader on every platform.
+/// </summary>
+public static class TideRuntimeVisualUtility
+{
+    private static readonly int BaseColorProperty = Shader.PropertyToID("_BaseColor");
+    private static readonly int LegacyColorProperty = Shader.PropertyToID("_Color");
+    private static readonly int SurfaceProperty = Shader.PropertyToID("_Surface");
+    private static readonly int BlendProperty = Shader.PropertyToID("_Blend");
+    private static readonly int AlphaClipProperty = Shader.PropertyToID("_AlphaClip");
+    private static readonly int SourceBlendProperty = Shader.PropertyToID("_SrcBlend");
+    private static readonly int DestinationBlendProperty = Shader.PropertyToID("_DstBlend");
+    private static readonly int ZWriteProperty = Shader.PropertyToID("_ZWrite");
+
+    private static Shader runtimeMeshShader;
+    private static Shader runtimeSpriteShader;
+    private static Material runtimeSpriteMaterial;
+
+    public static void ApplyMeshColor(Renderer renderer, Color color)
+    {
+        ApplyMeshColor(renderer, color, false);
+    }
+
+    public static void ApplyMeshColor(Renderer renderer, Color color, bool transparent)
+    {
+        Material material = EnsureMeshMaterial(renderer, transparent);
+        if (material == null)
+        {
+            return;
+        }
+
+        ApplyMaterialColor(material, color);
+    }
+
+    public static Material EnsureMeshMaterial(Renderer renderer, bool transparent = false)
+    {
+        if (renderer == null)
+        {
+            return null;
+        }
+
+        Material material = renderer.material;
+        Shader shader = FindRuntimeMeshShader();
+        if (shader != null && (material == null || !IsUrpMeshShader(material.shader)))
+        {
+            material = new Material(shader)
+            {
+                name = "TIDE Runtime URP Mesh Material"
+            };
+            renderer.material = material;
+        }
+
+        if (material != null && transparent)
+        {
+            ConfigureTransparentMaterial(material);
+        }
+
+        return material;
+    }
+
+    public static void ApplySpriteMaterial(SpriteRenderer renderer)
+    {
+        if (renderer == null)
+        {
+            return;
+        }
+
+        Material material = renderer.sharedMaterial;
+        if (material != null && IsUrpSpriteShader(material.shader))
+        {
+            return;
+        }
+
+        Material fallbackMaterial = GetRuntimeSpriteMaterial();
+        if (fallbackMaterial != null)
+        {
+            renderer.sharedMaterial = fallbackMaterial;
+        }
+    }
+
+    public static void ApplySpriteColor(SpriteRenderer renderer, Color color)
+    {
+        if (renderer == null)
+        {
+            return;
+        }
+
+        ApplySpriteMaterial(renderer);
+        renderer.color = color;
+    }
+
+    private static Shader FindRuntimeMeshShader()
+    {
+        if (runtimeMeshShader != null)
+        {
+            return runtimeMeshShader;
+        }
+
+        runtimeMeshShader = Shader.Find("Universal Render Pipeline/Lit")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Unlit/Color")
+            ?? Shader.Find("Sprites/Default");
+        return runtimeMeshShader;
+    }
+
+    private static Shader FindRuntimeSpriteShader()
+    {
+        if (runtimeSpriteShader != null)
+        {
+            return runtimeSpriteShader;
+        }
+
+        runtimeSpriteShader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default")
+            ?? Shader.Find("Universal Render Pipeline/2D/Sprite-Lit-Default")
+            ?? Shader.Find("Sprites/Default");
+        return runtimeSpriteShader;
+    }
+
+    private static Material GetRuntimeSpriteMaterial()
+    {
+        if (runtimeSpriteMaterial != null)
+        {
+            return runtimeSpriteMaterial;
+        }
+
+        Shader shader = FindRuntimeSpriteShader();
+        if (shader == null)
+        {
+            return null;
+        }
+
+        runtimeSpriteMaterial = new Material(shader)
+        {
+            name = "TIDE Runtime URP Sprite Material"
+        };
+        return runtimeSpriteMaterial;
+    }
+
+    private static bool IsUrpMeshShader(Shader shader)
+    {
+        if (shader == null)
+        {
+            return false;
+        }
+
+        string shaderName = shader.name;
+        return shaderName.StartsWith("Universal Render Pipeline/", System.StringComparison.Ordinal)
+            && (shaderName.IndexOf("/Lit", System.StringComparison.Ordinal) >= 0
+                || shaderName.IndexOf("/Unlit", System.StringComparison.Ordinal) >= 0);
+    }
+
+    private static bool IsUrpSpriteShader(Shader shader)
+    {
+        if (shader == null)
+        {
+            return false;
+        }
+
+        string shaderName = shader.name;
+        return shaderName == "Universal Render Pipeline/2D/Sprite-Unlit-Default"
+            || shaderName == "Universal Render Pipeline/2D/Sprite-Lit-Default";
+    }
+
+    private static void ApplyMaterialColor(Material material, Color color)
+    {
+        if (material == null)
+        {
+            return;
+        }
+
+        if (material.HasProperty(BaseColorProperty))
+        {
+            material.SetColor(BaseColorProperty, color);
+        }
+
+        if (material.HasProperty(LegacyColorProperty))
+        {
+            material.SetColor(LegacyColorProperty, color);
+        }
+    }
+
+    private static void ConfigureTransparentMaterial(Material material)
+    {
+        if (material == null)
+        {
+            return;
+        }
+
+        if (material.HasProperty(SurfaceProperty))
+        {
+            material.SetFloat(SurfaceProperty, 1f);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        }
+
+        if (material.HasProperty(BlendProperty))
+        {
+            material.SetFloat(BlendProperty, 0f);
+        }
+
+        if (material.HasProperty(AlphaClipProperty))
+        {
+            material.SetFloat(AlphaClipProperty, 0f);
+        }
+
+        if (material.HasProperty(SourceBlendProperty))
+        {
+            material.SetInt(SourceBlendProperty, (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        }
+
+        if (material.HasProperty(DestinationBlendProperty))
+        {
+            material.SetInt(DestinationBlendProperty, (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        }
+
+        if (material.HasProperty(ZWriteProperty))
+        {
+            material.SetInt(ZWriteProperty, 0);
+        }
+
+        material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
     }
 }

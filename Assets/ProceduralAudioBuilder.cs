@@ -569,7 +569,7 @@ public static class ProceduralAudioBuilder
             float t = (float)n / SampleRate;
             data[n] = Mathf.Clamp(sampleFn(t, n), -1f, 1f);
         }
-        AudioClip clip = AudioClip.Create(name, sampleCount, 1, SampleRate, true);
+        AudioClip clip = AudioClip.Create(name, sampleCount, 1, SampleRate, false);
         clip.SetData(data, 0);
         return clip;
     }

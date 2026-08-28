@@ -95,6 +95,7 @@ public class EndingSequenceDirector : MonoBehaviour
         }
 
         Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
 
     private void OnDestroy()
@@ -333,6 +334,7 @@ public class EndingSequenceDirector : MonoBehaviour
     public void OnReturnToTitlePressed()
     {
         Time.timeScale = 1f;
+        Destroy(gameObject);
         SceneManager.LoadScene(titleSceneName);
     }
 

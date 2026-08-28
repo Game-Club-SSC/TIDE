@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: hero_earth
   m_EditorClassIdentifier: 
   heroId: hero_earth
-  displayName: Clinton
+  displayName: Freida
   isMainCharacter: 0
   element: 3
   baseMaxHP: 120
@@ -25,7 +25,12 @@ MonoBehaviour:
   baseCritDamage: 1.5
   starterSkills:
   - {fileID: 11400000, guid: e3956f1d5ffdb4c9584e3de907c5e5ce, type: 2}
-  - {fileID: 11400000, guid: f58c0b69a7b8c40e395d3af786b22508, type: 2}
-  - {fileID: 11400000, guid: a7abe275b40aa46d09bfaa5718aa6668, type: 2}
-  - {fileID: 11400000, guid: 721648b08836d4c62867614b1f3aed07, type: 2}
-  - {fileID: 11400000, guid: dba82bb9b59074982ab4691388d2bc50, type: 2}
+  normalSkillUnlocks:
+  - skill: {fileID: 11400000, guid: f58c0b69a7b8c40e395d3af786b22508, type: 2}
+    unlockLevel: 2
+  - skill: {fileID: 11400000, guid: a7abe275b40aa46d09bfaa5718aa6668, type: 2}
+    unlockLevel: 3
+  - skill: {fileID: 11400000, guid: 721648b08836d4c62867614b1f3aed07, type: 2}
+    unlockLevel: 4
+  - skill: {fileID: 11400000, guid: dba82bb9b59074982ab4691388d2bc50, type: 2}
+    unlockLevel: 5

@@ -93,7 +93,7 @@ public class AncientTextSceneBootstrap : MonoBehaviour
         Renderer renderer = node.GetComponent<Renderer>();
         if (renderer != null)
         {
-            renderer.material.color = markerColor;
+            TideRuntimeVisualUtility.ApplyMeshColor(renderer, markerColor);
         }
 
         AncientTextInteractable interactable = node.AddComponent<AncientTextInteractable>();

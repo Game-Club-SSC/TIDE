@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -103,3 +104,4 @@ public class PhoneInputBridgeTest : MonoBehaviour
         return count;
     }
 }
+#endif
