@@ -7,7 +7,11 @@ public class LustIslandVerificationTest : MonoBehaviour
     private const string IslandId = "island_lust";
     private const string ExpectedViceName = "Lust";
     private const string ExpectedNextIslandId = "island_greed";
-    private const string SceneRelativePath = "Scenes/level_lust.unity";
+    // Lust is the starting island: its exploration content is hosted by the
+    // main scene (GameStateManager.MainSceneName = "level_1"), which is what
+    // island travel actually loads. A dedicated level_lust.unity has never
+    // existed, so this verifies the scene that really hosts Lust.
+    private const string SceneRelativePath = "Scenes/level_1.unity";
 
     [ContextMenu("Run Lust Island Verification")]
     public void RunTests()

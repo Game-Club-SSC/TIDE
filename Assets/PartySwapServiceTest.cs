@@ -33,8 +33,29 @@ public class PartySwapServiceTest : MonoBehaviour
 
     private void TestTryQueueSwapAcceptsValidRequest()
     {
-        string reason;
-        Assert.IsTrue(PartySwapService.TryQueueSwap("hero_fire", "hero_water", out reason), "Valid swap should be accepted.");
+        // TryQueueSwap requires an initialized HeroProgressionManager. Stand up
+        // an isolated one when none exists; SendMessage runs OnEnable in edit
+        // mode, where AddComponent does not invoke lifecycle callbacks.
+        GameObject host = null;
+        if (HeroProgressionManager.Instance == null)
+        {
+            host = new GameObject("TestPartySwap_Progression");
+            host.AddComponent<HeroProgressionManager>();
+            host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+        }
+
+        try
+        {
+            string reason;
+            Assert.IsTrue(PartySwapService.TryQueueSwap("hero_fire", "hero_water", out reason), "Valid swap should be accepted.");
+        }
+        finally
+        {
+            if (host != null)
+            {
+                DestroyImmediate(host);
+            }
+        }
     }
 
     private void TestGetReservableHeroIdsReturnsEmptyWhenNoManager()

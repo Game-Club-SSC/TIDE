@@ -55,6 +55,8 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
         {
             runner.RunRegression();
             Assert.AreEqual(runner.TotalCount, runner.PassedCount + runner.FailedCount, "All checks should be tallied.");
+            Assert.AreEqual(0, runner.FailedCount,
+                "Every vertical-slice regression check should pass; see [VS-##] FAIL entries in the console for the failing checks.");
         }
         finally
         {

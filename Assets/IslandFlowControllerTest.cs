@@ -71,6 +71,9 @@ public class IslandFlowControllerTest : MonoBehaviour
 
             trackerObject = new GameObject("TestTracker_IslandFlowOrder");
             IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
+            // SendMessage runs OnEnable in edit mode, where AddComponent does
+            // not invoke lifecycle callbacks, so the singleton gets initialized.
+            trackerObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
             Assert.AreSame(tracker, IslandRestorationTracker.Instance,
                 "Test tracker should own the restoration singleton.");
 
@@ -105,6 +108,9 @@ public class IslandFlowControllerTest : MonoBehaviour
 
             SetPrivateField(controller, "islandConfig", config);
             SetPrivateField(controller, "activeIslandId", "island_lust");
+            // Awake resolves this in play mode; assign directly for edit-mode
+            // verification since AddComponent does not invoke Awake here.
+            SetPrivateField(controller, "tracker", tracker);
 
             int nextIndex = (int)InvokePrivate(controller, "GetNextIncompleteEncounterIndex");
             Assert.AreEqual(0, nextIndex,

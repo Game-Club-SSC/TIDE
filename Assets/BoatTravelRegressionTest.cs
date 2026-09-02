@@ -79,12 +79,19 @@ public class BoatTravelRegressionTest : MonoBehaviour
     {
         GameObject trackerObject = null;
         GameObject progressionObject = null;
+        GameObject dockObject = null;
         try
         {
             IslandRestorationTracker tracker = CreateIsolatedTracker("BTR_Tracker");
             trackerObject = tracker.gameObject;
             IslandProgressionManager progression = CreateIsolatedProgressionManager("BTR_Progression");
             progressionObject = progression.gameObject;
+
+            // In-scene island-to-island travel requires a boat dock at the
+            // destination, so register one for the starting island.
+            dockObject = new GameObject("BTR_LustDock");
+            TeleportAnchor dock = dockObject.AddComponent<TeleportAnchor>();
+            dock.Configure("btr_dock_lust", "island_lust", Vector3.zero, true);
 
             for (int i = 0; i < SixIslandProgression.Length; i++)
             {
@@ -99,6 +106,8 @@ public class BoatTravelRegressionTest : MonoBehaviour
         }
         finally
         {
+            if (dockObject != null) DestroyImmediate(dockObject);
+            TeleportAnchor.ClearRegistryForDebug();
             if (progressionObject != null) DestroyImmediate(progressionObject);
             if (trackerObject != null) DestroyImmediate(trackerObject);
         }
@@ -106,7 +115,9 @@ public class BoatTravelRegressionTest : MonoBehaviour
 
     private void TestBoatInteractableCreatesDestinations()
     {
-        GameObject boatObj = new GameObject("TestBoat", typeof(BoxCollider), typeof(Renderer));
+        // Renderer is abstract and cannot be added directly; the boat
+        // interactable needs a concrete renderer type.
+        GameObject boatObj = new GameObject("TestBoat", typeof(BoxCollider), typeof(MeshRenderer));
         try
         {
             IslandBoatInteractable boat = boatObj.AddComponent<IslandBoatInteractable>();
@@ -185,13 +196,33 @@ public class BoatTravelRegressionTest : MonoBehaviour
 
     private IslandRestorationTracker CreateIsolatedTracker(string name)
     {
+        if (IslandRestorationTracker.Instance != null)
+        {
+            DestroyImmediate(IslandRestorationTracker.Instance.gameObject);
+        }
+
         GameObject obj = new GameObject(name);
-        return obj.AddComponent<IslandRestorationTracker>();
+        IslandRestorationTracker tracker = obj.AddComponent<IslandRestorationTracker>();
+        // SendMessage runs OnEnable in edit mode, where AddComponent does not
+        // invoke lifecycle callbacks, so the singleton gets initialized.
+        obj.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+        Assert.AreSame(tracker, IslandRestorationTracker.Instance,
+            "Tracker singleton should reference the isolated test tracker instance.");
+        return tracker;
     }
 
     private IslandProgressionManager CreateIsolatedProgressionManager(string name)
     {
+        if (IslandProgressionManager.Instance != null)
+        {
+            DestroyImmediate(IslandProgressionManager.Instance.gameObject);
+        }
+
         GameObject obj = new GameObject(name);
-        return obj.AddComponent<IslandProgressionManager>();
+        IslandProgressionManager progression = obj.AddComponent<IslandProgressionManager>();
+        obj.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+        Assert.AreSame(progression, IslandProgressionManager.Instance,
+            "Progression singleton should reference the isolated test instance.");
+        return progression;
     }
 }

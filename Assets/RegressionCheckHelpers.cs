@@ -163,9 +163,7 @@ public static class TeleportAnchorCatalog
     {
         GameObject host = new GameObject("Test_Anchor");
         TeleportAnchor anchor = host.AddComponent<TeleportAnchor>();
-        anchor.anchorId = "test_dock";
-        anchor.islandId = "island_test";
-        anchor.isBoatDock = true;
+        anchor.Configure("test_dock", "island_test", Vector3.zero, true);
         try
         {
             return TeleportAnchor.FindBoatDockForIsland("island_test") != null;
@@ -183,7 +181,26 @@ public static class PartySwapServiceGating
     public static bool Ok()
     {
         string reason;
-        return PartySwapService.TryQueueSwap("hero_a", "hero_b", out reason);
+        if (HeroProgressionManager.Instance != null)
+        {
+            return PartySwapService.TryQueueSwap("hero_a", "hero_b", out reason);
+        }
+
+        // TryQueueSwap requires an initialized HeroProgressionManager, so stand
+        // up an isolated one for the duration of the check. SendMessage runs
+        // OnEnable in edit mode, where AddComponent does not invoke lifecycle
+        // callbacks (same pattern as BossEncounterGateTest).
+        GameObject host = new GameObject("Test_PartySwapProgression");
+        host.AddComponent<HeroProgressionManager>();
+        host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+        try
+        {
+            return PartySwapService.TryQueueSwap("hero_a", "hero_b", out reason);
+        }
+        finally
+        {
+            Object.DestroyImmediate(host);
+        }
     }
 }
 

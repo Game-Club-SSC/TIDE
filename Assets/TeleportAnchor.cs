@@ -57,6 +57,26 @@ public class TeleportAnchor : MonoBehaviour
         UnregisterAnchor(this);
     }
 
+    /// <summary>
+    /// Configures the anchor's registration keys and re-registers it.
+    /// Runtime-created anchors must use this instead of assigning fields
+    /// directly: OnEnable registers the anchor before field assignments run
+    /// (play mode) or never runs at all (edit-mode verification), so direct
+    /// field writes leave the registry keyed on stale values.
+    /// </summary>
+    public void Configure(string newAnchorId, string newIslandId, Vector3 newSpawnPosition, bool newIsBoatDock, bool newIsSceneEntrance = true)
+    {
+        UnregisterAnchor(this);
+
+        islandId = string.IsNullOrEmpty(newIslandId) ? IslandThemeRegistry.DefaultIslandId : newIslandId;
+        anchorId = string.IsNullOrEmpty(newAnchorId) ? $"anchor_{islandId}_{GetInstanceID()}" : newAnchorId;
+        spawnPosition = newSpawnPosition;
+        isBoatDock = newIsBoatDock;
+        isSceneEntrance = newIsSceneEntrance;
+
+        RegisterAnchor(this);
+    }
+
     public bool TryTeleport(Transform target)
     {
         if (target == null)
@@ -76,7 +96,21 @@ public class TeleportAnchor : MonoBehaviour
             return null;
         }
 
-        return anchorsById.TryGetValue(anchorId, out TeleportAnchor anchor) ? anchor : null;
+        if (!anchorsById.TryGetValue(anchorId, out TeleportAnchor anchor))
+        {
+            return null;
+        }
+
+        // A destroyed anchor can linger in the registry when its OnDisable never
+        // ran (edit-mode DestroyImmediate). Drop the stale entry instead of
+        // handing out a dead reference.
+        if (anchor == null)
+        {
+            anchorsById.Remove(anchorId);
+            return null;
+        }
+
+        return anchor;
     }
 
     public static TeleportAnchor FindBoatDockForIsland(string islandId)

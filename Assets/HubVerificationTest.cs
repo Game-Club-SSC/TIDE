@@ -318,13 +318,7 @@ public class HubVerificationTest
     {
         GameObject dockObject = new GameObject($"TestDock_{islandId}");
         TeleportAnchor anchor = dockObject.AddComponent<TeleportAnchor>();
-        anchor.islandId = islandId;
-        anchor.spawnPosition = spawnPosition;
-        anchor.isBoatDock = true;
-        MethodInfo onEnable = typeof(TeleportAnchor).GetMethod("OnEnable",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.IsNotNull(onEnable, "TeleportAnchor.OnEnable should exist.");
-        onEnable.Invoke(anchor, null);
+        anchor.Configure(null, islandId, spawnPosition, true);
         anchorObjects.Add(dockObject);
     }
 

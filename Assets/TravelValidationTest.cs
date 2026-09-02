@@ -25,10 +25,7 @@ public class TravelValidationTest : MonoBehaviour
         GameObject go = new GameObject($"TestAnchor_{id}");
         go.transform.position = pos;
         TeleportAnchor anchor = go.AddComponent<TeleportAnchor>();
-        anchor.anchorId = id;
-        anchor.islandId = islandId;
-        anchor.isBoatDock = isDock;
-        anchor.spawnPosition = pos;
+        anchor.Configure(id, islandId, pos, isDock);
         return go;
     }
 
