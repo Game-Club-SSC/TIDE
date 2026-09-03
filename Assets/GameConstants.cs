@@ -24,9 +24,13 @@ public static class GameConstants
     public const string IslandEnvy = "island_envy";
     public const string IslandEgo = "island_ego";
 
-    public const string HeroEmber = "hero_ember";
-    public const string HeroTidecaller = "hero_tidecaller";
-    public const string HeroStoneheart = "hero_stoneheart";
-    public const string HeroZephyr = "hero_zephyr";
-    public const string HeroVoidwalker = "hero_voidwalker";
+    // BUGFIX: Hero IDs corrected from old thematic names to match the actual
+    // runtime heroId values used throughout the codebase (e.g. hero_fire, not
+    // hero_ember). These constants were dead code (not referenced at runtime)
+    // but had incorrect values that could confuse new developers.
+    public const string HeroEmber = "hero_fire";
+    public const string HeroTidecaller = "hero_water";
+    public const string HeroStoneheart = "hero_earth";
+    public const string HeroZephyr = "hero_air";
+    public const string HeroVoidwalker = "hero_space";
 }

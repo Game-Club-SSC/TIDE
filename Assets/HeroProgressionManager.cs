@@ -135,7 +135,14 @@ public class HeroProgressionManager : MonoBehaviour
     public GearSetData GetGearSetForHero(string heroId)
     {
         HeroData hero = HeroDatabase.FindHeroById(heroId);
-        CombatUnit.Element element = hero != null ? hero.element : CombatUnit.Element.Earth;
+        if (hero == null)
+        {
+            return GetGearSetForElement(CombatUnit.Element.Earth);
+        }
+
+        CombatUnit.Element element = PartyManager.Instance != null
+            ? PartyManager.Instance.ResolveElement(hero)
+            : hero.element;
         return GetGearSetForElement(element);
     }
 
@@ -1085,7 +1092,14 @@ public class HeroProgressionManager : MonoBehaviour
         }
 
         long total = 0;
+        // BUGFIX: Guard against null EnemyUnits to prevent NRE when the
+        // battle manager exists but hasn't initialized its enemy list yet.
         IReadOnlyList<CombatUnit> enemies = battleManager.EnemyUnits;
+        if (enemies == null)
+        {
+            return 0;
+        }
+
         for (int i = 0; i < enemies.Count; i++)
         {
             if (enemies[i] != null)

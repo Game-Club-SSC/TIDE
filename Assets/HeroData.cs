@@ -49,13 +49,31 @@ public class HeroData : ScriptableObject
     [Min(0)]
     public int baseSpeed = 10;
 
-    [Range(0f, 1f)]
+    // Backing field for baseCritRate; serialized privately so the inspector
+    // shows the clamped value while the property enforces the 0-1 range.
+    [SerializeField] [Range(0f, 1f)]
     [Tooltip("Base crit rate (0-1). Combined with level scaling at runtime.")]
-    public float baseCritRate = 0.05f;
+    private float baseCritRateValue = 0.05f;
 
-    [Min(0f)]
+    // BUGFIX: property now clamps to [0, 1] on set, matching CombatUnit.CritRate
+    public float baseCritRate
+    {
+        get => baseCritRateValue; // read the raw serialized value
+        set => baseCritRateValue = Mathf.Clamp01(value); // clamp to valid probability range
+    }
+
+    // Backing field for baseCritDamage; serialized privately.
+    [SerializeField] [Min(0f)]
     [Tooltip("Base crit damage multiplier. 1.5 = 150% damage on crit.")]
-    public float baseCritDamage = 1.5f;
+    private float baseCritDamageValue = 1.5f;
+
+    // BUGFIX: property now floors at 0f on set (0 = no crit bonus),
+    // matching the test expectation in CritStatsTest.TestHeroDataCritFieldsClamped
+    public float baseCritDamage
+    {
+        get => baseCritDamageValue; // read the raw serialized value
+        set => baseCritDamageValue = Mathf.Max(0f, value); // floor at 0 (no negative crit multiplier)
+    }
 
     [Header("Visuals")]
     [Tooltip("Portrait sprite shown in HUD, menus, and dialogue.")]

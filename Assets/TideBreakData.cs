@@ -52,10 +52,13 @@ public class TideBreakData : ScriptableObject
         }
 
         return allCached
+            // BUGFIX: Added || tb.element == (int)CombatUnit.Element.None so that
+            // universal Tide Breaks (no element restriction) are included
+            // for every hero, not just heroes whose element matches.
             .Where(tb => tb != null
                 && tb.IsValid()
                 && !tb.isHidden
-                && tb.element == elementId
+                && (tb.element == elementId || tb.element == (int)CombatUnit.Element.None)
                 && tb.unlockLevel <= Mathf.Max(1, heroLevel))
             .ToList();
     }

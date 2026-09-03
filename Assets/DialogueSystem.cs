@@ -191,6 +191,12 @@ public class DialogueSystem : MonoBehaviour
             case DialogueEffectType.GiveItem:
                 return TryApplyGiveItem(effect);
 
+            // BUGFIX: Added IncreaseBond case so that IncreaseBond effects
+            // routed through ApplyDurableEffect can be retried directly via
+            // TryApplyEffectToServices when no DialogueSystem is present.
+            case DialogueEffectType.IncreaseBond:
+                return TryApplyIncreaseBond(effect);
+
             default:
                 return false;
         }
@@ -210,8 +216,12 @@ public class DialogueSystem : MonoBehaviour
             return false;
         }
 
-        progression.GrantXp(effect.targetId, effect.intValue);
-        return true;
+        // BUGFIX: Return the result of GrantXp instead of unconditionally true.
+        // Previously, if HeroProgressionManager existed but had no levelingConfig
+        // (or the hero was at max level), GrantXp returned false but TryApplyGrantXp
+        // returned true — marking the reward as delivered and losing it permanently
+        // since it would never be retried from pendingRewards on load.
+        return progression.GrantXp(effect.targetId, effect.intValue);
     }
 
     private static bool TryApplyUnlockTideBreak(DialogueTreeEffect effect, string heroId)
@@ -303,6 +313,24 @@ public class DialogueSystem : MonoBehaviour
         }
 
         progression.AddCurrency(effect.intValue);
+        return true;
+    }
+
+    private static bool TryApplyIncreaseBond(DialogueTreeEffect effect)
+    {
+        if (string.IsNullOrEmpty(effect.targetId) || effect.intValue <= 0)
+        {
+            return false;
+        }
+
+        DialogueSystem sys = DialogueSystem.Instance;
+        if (sys == null)
+        {
+            LogEffectFailure(effect, null, "DialogueSystem is not available.");
+            return false;
+        }
+
+        sys.IncreaseBond(effect.targetId, "player", effect.intValue);
         return true;
     }
 

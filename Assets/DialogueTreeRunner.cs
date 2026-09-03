@@ -200,16 +200,12 @@ public class DialogueTreeRunner : MonoBehaviour
             return;
         }
 
-        currentNode = node;
+        currentNode = node; // set before ApplyEffects so relatedHeroId is available
 
-        DialogueSystem.DialogueEntry entry = node.entry;
-        if (string.IsNullOrWhiteSpace(entry.speakerName) && string.IsNullOrWhiteSpace(entry.dialogueText))
-        {
-            Debug.LogWarning("[DialogueTreeRunner] Skipping a node with a null or empty dialogue entry.");
-            AdvanceToNextNode();
-            return;
-        }
-
+        // BUGFIX: EvaluateConditions and ApplyEffects are now called BEFORE the
+        // empty-text early return. Previously, silent dialogue nodes (no speaker
+        // or text) would skip condition checks and effect application entirely,
+        // causing rewards to be silently dropped on nodes that advance automatically.
         // Evaluate conditions -- skip node if not met
         if (!EvaluateConditions(node))
         {
@@ -219,6 +215,15 @@ public class DialogueTreeRunner : MonoBehaviour
 
         // Apply effects for reaching this node
         ApplyEffects(node);
+
+        // If the entry has no dialogue text to display, advance without showing UI.
+        DialogueSystem.DialogueEntry entry = node.entry;
+        if (string.IsNullOrWhiteSpace(entry.speakerName) && string.IsNullOrWhiteSpace(entry.dialogueText))
+        {
+            Debug.Log("[DialogueTreeRunner] Node reached with no dialogue text; effects applied, advancing.");
+            AdvanceToNextNode();
+            return;
+        }
 
         // Display the dialogue entry
         ShowEntry(node.entry);
@@ -552,7 +557,10 @@ public class DialogueTreeRunner : MonoBehaviour
                         Debug.LogWarning("[DialogueTreeRunner] StoryProgressionService not available for StoryAct condition.");
                         return false;
                     }
-                    if ((int)StoryProgressionService.Instance.CurrentAct < cond.intValue)
+                    // BUGFIX: Compare against HighestActReached (not CurrentStoryAct)
+                    // so that dialogue branches unlocked in later acts remain
+                    // accessible when the player backtracks to earlier story acts.
+                    if ((int)StoryProgressionService.Instance.HighestActReached < cond.intValue)
                     {
                         return false;
                     }
@@ -640,13 +648,12 @@ public class DialogueTreeRunner : MonoBehaviour
 
             switch (effect.type)
             {
+                // BUGFIX: IncreaseBond is now routed through ApplyDurableEffect
+                // alongside other durable effects. Previously, IncreaseBond was
+                // applied directly and bypassed the replay-protection / pending-
+                // reward ledger, meaning bond rewards could be lost on save/load
+                // or double-applied on tree replay.
                 case DialogueEffectType.IncreaseBond:
-                    if (sys != null && !string.IsNullOrEmpty(effect.targetId))
-                    {
-                        sys.IncreaseBond(effect.targetId, "player", effect.intValue);
-                    }
-                    break;
-
                 case DialogueEffectType.GrantXP:
                 case DialogueEffectType.UnlockTideBreak:
                 case DialogueEffectType.SetFlag:
@@ -689,7 +696,11 @@ public class DialogueTreeRunner : MonoBehaviour
             }
         }
 
-        if (!applied)
+        // BUGFIX: Only record a delivery issue (which tells the player the
+        // reward is queued for next save load) when sys != null. Previously,
+        // !applied alone would fire the "queued" message even when no
+        // DialogueSystem existed to queue anything — an inaccurate error.
+        if (!applied && sys != null)
         {
             RecordEffectDeliveryIssue(effect);
         }
@@ -697,6 +708,8 @@ public class DialogueTreeRunner : MonoBehaviour
 
     private void RecordEffectDeliveryIssue(DialogueTreeEffect effect)
     {
+        // BUGFIX: Added IncreaseBond to the label switch so bond delivery issues
+        // are labeled "bond" instead of the generic "effect" fallback.
         string label;
         switch (effect.type)
         {
@@ -704,6 +717,7 @@ public class DialogueTreeRunner : MonoBehaviour
             case DialogueEffectType.UnlockTideBreak: label = "Tide Break"; break;
             case DialogueEffectType.SetFlag: label = "story flag"; break;
             case DialogueEffectType.GiveItem: label = "item"; break;
+            case DialogueEffectType.IncreaseBond: label = "bond"; break;
             default: label = "effect"; break;
         }
 

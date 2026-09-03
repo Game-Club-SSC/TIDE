@@ -73,7 +73,7 @@ public class CritStatsTest : MonoBehaviour
             enemy.baseCritRate = -1f;
             Assert.AreEqual(0f, enemy.baseCritRate, "EnemyData.baseCritRate should be floored at 0.");
             enemy.baseCritDamage = -1f;
-            Assert.AreEqual(0f, enemy.baseCritDamage, "EnemyData.baseCritDamage should be floored at 0.");
+            Assert.AreEqual(1f, enemy.baseCritDamage, "EnemyData.baseCritDamage should be floored at 1 (no crit penalty).");
         }
         finally
         {

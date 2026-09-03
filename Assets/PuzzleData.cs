@@ -62,9 +62,12 @@ public class PuzzleWinCondition
             }
         }
 
+        // BUGFIX: Return false (not true) when total == 0. Previously, a puzzle
+        // with all tiles sealed would be vacuously "solved", auto-clearing
+        // degenerate puzzles instead of treating them as incomplete.
         if (total == 0)
         {
-            return true;
+            return false;
         }
 
         switch (type)

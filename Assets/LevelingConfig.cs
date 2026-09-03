@@ -72,6 +72,11 @@ public class LevelingConfig : ScriptableObject
             && mpPerLevel >= 0
             && attackPerLevel >= 0
             && defensePerLevel >= 0
-            && speedPerLevel >= 0;
+            && speedPerLevel >= 0
+            // BUGFIX: Added xpPerLevelIncrement >= 0 check. The field has a
+            // [Min(0)] attribute on the serialized property, but IsValid()
+            // was missing this validation, so a corrupted/inspected negative
+            // value could slip through without being caught.
+            && xpPerLevelIncrement >= 0;
     }
 }
