@@ -954,6 +954,14 @@ public class BattleManager : MonoBehaviour
         switch (skill.target)
         {
             case SkillTarget.SingleAlly:
+                if (IsReviveSkill(skill))
+                {
+                    CombatUnit deadAlly = GetDeadAlly(actor);
+                    if (deadAlly != null)
+                    {
+                        return deadAlly;
+                    }
+                }
                 return GetLowestHpAlly(actor);
             case SkillTarget.SingleEnemy:
                 return SelectTargetWithProfile(actor, activeViceProfile);
@@ -1125,6 +1133,11 @@ public class BattleManager : MonoBehaviour
 
         ResolveClashes();
 
+        if (CheckBattleOutcome())
+        {
+            return;
+        }
+
         if (neutralClashQtePending)
         {
             actionExecutionActive = false;
@@ -1143,9 +1156,12 @@ public class BattleManager : MonoBehaviour
 
     private HashSet<CombatUnit> clashedUnits = new HashSet<CombatUnit>();
 
-    private void ResolveClashes()
+    private void ResolveClashes(bool clearClashedUnits = true)
     {
-        clashedUnits.Clear();
+        if (clearClashedUnits)
+        {
+            clashedUnits.Clear();
+        }
 
         List<CombatUnit> allUnits = new List<CombatUnit>(allyUnits);
         allUnits.AddRange(enemyUnits);
@@ -1221,6 +1237,11 @@ public class BattleManager : MonoBehaviour
 
                 clashedUnits.Add(unitA);
                 clashedUnits.Add(unitB);
+
+                if (CheckBattleOutcome())
+                {
+                    return;
+                }
 
                 if (neutralClashQtePending)
                 {
@@ -1502,10 +1523,22 @@ public class BattleManager : MonoBehaviour
         CombatUnit enemy = pendingNeutralClashEnemy;
         ClearPendingNeutralClashQte();
 
+        if (ally != null)
+        {
+            clashedUnits.Add(ally);
+        }
+        if (enemy != null)
+        {
+            clashedUnits.Add(enemy);
+        }
+
         if (ally == null || enemy == null || !ally.IsAlive || !enemy.IsAlive)
         {
             Debug.LogWarning("[BattleManager] Neutral clash QTE result ignored because a participant is no longer valid.", this);
-            ResumeActionExecutionAfterNeutralClashQte();
+            if (!CheckBattleOutcome())
+            {
+                ResolveRemainingClashesAndResume();
+            }
             return;
         }
 
@@ -1515,8 +1548,29 @@ public class BattleManager : MonoBehaviour
 
         if (!CheckBattleOutcome())
         {
-            ResumeActionExecutionAfterNeutralClashQte();
+            ResolveRemainingClashesAndResume();
         }
+    }
+
+    private void ResolveRemainingClashesAndResume()
+    {
+        ResolveClashes(clearClashedUnits: false);
+
+        if (CheckBattleOutcome())
+        {
+            return;
+        }
+
+        if (neutralClashQtePending)
+        {
+            actionExecutionActive = false;
+            actionStepTimer = 0f;
+            currentActingUnit = null;
+            Debug.Log("[BattleManager] Action execution paused for next neutral clash QTE.", this);
+            return;
+        }
+
+        ResumeActionExecutionAfterNeutralClashQte();
     }
 
     private void ClearPendingNeutralClashQte()
@@ -1956,10 +2010,11 @@ public class BattleManager : MonoBehaviour
 
         if (skill.target == SkillTarget.SingleAlly || skill.target == SkillTarget.AllAllies)
         {
-            bool heals = skill.healMultiplier > 0f;
+            bool isRevive = IsReviveSkill(skill);
+            bool heals = skill.healMultiplier > 0f || isRevive;
             bool appliesEffect = skill.appliedEffectType != StatusEffectType.None;
 
-            if (!heals && !appliesEffect)
+            if (!heals && !appliesEffect && !isRevive)
             {
                 Debug.LogWarning($"[BattleManager] {skill.skillName} targets {skill.target} but has no heal or status effect configured. Resolving as a no-op.", this);
                 return;
@@ -2212,10 +2267,16 @@ public class BattleManager : MonoBehaviour
 
     private void ResolveAllyTargetedSkill(CombatUnit actor, CombatUnit requestedTarget, SkillData skill)
     {
-        bool heals = skill.healMultiplier > 0f;
+        if (actor == null || skill == null)
+        {
+            return;
+        }
+
+        bool isRevive = IsReviveSkill(skill);
+        bool heals = skill.healMultiplier > 0f || isRevive;
         bool appliesEffect = skill.appliedEffectType != StatusEffectType.None;
 
-        if (!heals && !appliesEffect)
+        if (!heals && !appliesEffect && !isRevive)
         {
             Debug.LogWarning($"[BattleManager] {skill.skillName} targets {skill.target} but has no heal or status effect configured. Resolving as a no-op.", this);
             return;
@@ -2225,11 +2286,59 @@ public class BattleManager : MonoBehaviour
 
         if (skill.target == SkillTarget.SingleAlly)
         {
-            CombatUnit allyTarget = requestedTarget != null
-                && requestedTarget.IsAlive
-                && requestedTarget.Type == actor.Type
-                    ? requestedTarget
-                    : actor;
+            CombatUnit allyTarget = null;
+            if (isRevive)
+            {
+                if (requestedTarget != null && requestedTarget.Type == actor.Type && !requestedTarget.IsAlive)
+                {
+                    allyTarget = requestedTarget;
+                }
+                else
+                {
+                    allyTarget = GetDeadAlly(actor);
+                    if (allyTarget == null)
+                    {
+                        allyTarget = requestedTarget != null && requestedTarget.Type == actor.Type && requestedTarget.IsAlive
+                            ? requestedTarget
+                            : actor;
+                    }
+                }
+            }
+            else
+            {
+                allyTarget = requestedTarget != null
+                    && requestedTarget.IsAlive
+                    && requestedTarget.Type == actor.Type
+                        ? requestedTarget
+                        : actor;
+            }
+
+            if (allyTarget == null)
+            {
+                return;
+            }
+
+            if (isRevive && !allyTarget.IsAlive)
+            {
+                float revivePercent = skill.healMultiplier > 0f ? skill.healMultiplier : 0.5f;
+                int reviveHp = Mathf.Max(1, Mathf.RoundToInt(allyTarget.MaxHP * revivePercent));
+                allyTarget.Revive(reviveHp);
+                momentumState.ShiftForHeal(actor);
+                Debug.Log($"[BattleManager] {actor.UnitName} revives {allyTarget.UnitName} for {reviveHp} HP via {skill.skillName}.");
+                PlayHealAudio();
+
+                // Apply caster self-damage penalty (e.g. Merrick's Pain Absorption: 30% max HP)
+                int selfDamage = Mathf.Max(1, Mathf.RoundToInt(actor.MaxHP * 0.30f));
+                int actorHpBefore = actor.HP;
+                actor.HP -= selfDamage;
+                Debug.Log($"[BattleManager] {actor.UnitName} takes {selfDamage} recoil damage (30% MaxHP) from {skill.skillName}. HP {actorHpBefore} -> {actor.HP}.");
+
+                if (appliesEffect)
+                {
+                    TryApplySkillStatusEffect(actor, allyTarget, skill);
+                }
+                return;
+            }
 
             if (heals)
             {
@@ -2579,14 +2688,61 @@ public class BattleManager : MonoBehaviour
         return actor.Type != target.Type;
     }
 
-    private bool IsValidTargetForSkill(CombatUnit actor, CombatUnit target, SkillTarget targetType)
+    private CombatUnit GetDeadAlly(CombatUnit actor)
+    {
+        if (actor == null)
+        {
+            return null;
+        }
+
+        List<CombatUnit> list = actor.Type == CombatUnit.UnitType.Ally ? allyUnits : enemyUnits;
+        for (int i = 0; i < list.Count; i++)
+        {
+            CombatUnit unit = list[i];
+            if (unit != null && !unit.IsAlive)
+            {
+                return unit;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsReviveSkill(SkillData skill)
+    {
+        if (skill == null)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(skill.skillName) && skill.skillName.IndexOf("Pain Absorption", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(skill.description) && skill.description.IndexOf("Revive", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool IsValidTargetForSkill(CombatUnit actor, CombatUnit target, SkillTarget targetType, SkillData skill = null)
     {
         if (actor == null || target == null)
         {
             return false;
         }
 
-        if (!actor.IsAlive || !target.IsAlive)
+        if (!actor.IsAlive)
+        {
+            return false;
+        }
+
+        bool isRevive = skill != null && IsReviveSkill(skill);
+
+        if (!target.IsAlive && !isRevive)
         {
             return false;
         }
@@ -3023,11 +3179,33 @@ public class BattleManager : MonoBehaviour
                 GUI.Label(new Rect(panelRect.x + 12f, y, panelRect.width - 24f, 22f), targetPrompt);
                 y += 26f;
 
-                IReadOnlyList<CombatUnit> targets = GetAliveUnits(CombatUnit.UnitType.Enemy);
+                List<CombatUnit> targets = new List<CombatUnit>();
+                if (pendingInputActionType == CombatActionType.Skill && pendingSkillData != null && (pendingSkillData.target == SkillTarget.SingleAlly || pendingSkillData.target == SkillTarget.AllAllies))
+                {
+                    List<CombatUnit> allies = currentInputUnit.Type == CombatUnit.UnitType.Ally ? allyUnits : enemyUnits;
+                    for (int i = 0; i < allies.Count; i++)
+                    {
+                        CombatUnit u = allies[i];
+                        if (u != null && (u.IsAlive || IsReviveSkill(pendingSkillData)))
+                        {
+                            targets.Add(u);
+                        }
+                    }
+                }
+                else
+                {
+                    IReadOnlyList<CombatUnit> enemies = GetAliveUnits(CombatUnit.UnitType.Enemy);
+                    for (int i = 0; i < enemies.Count; i++)
+                    {
+                        targets.Add(enemies[i]);
+                    }
+                }
+
                 for (int i = 0; i < targets.Count; i++)
                 {
                     CombatUnit target = targets[i];
-                    if (GUI.Button(new Rect(panelRect.x + 12f, y, panelRect.width - 24f, 24f), $"{target.UnitName} (HP {target.HP}/{target.MaxHP})"))
+                    string statusDesc = target.IsAlive ? $"HP {target.HP}/{target.MaxHP}" : "DOWNED";
+                    if (GUI.Button(new Rect(panelRect.x + 12f, y, panelRect.width - 24f, 24f), $"{target.UnitName} ({statusDesc})"))
                     {
                         if (pendingInputActionType == CombatActionType.Skill && pendingSkillData != null)
                         {
@@ -3156,12 +3334,27 @@ public class BattleManager : MonoBehaviour
                     return false;
                 }
 
-                if (RequiresExplicitTarget(skill.target) && !IsValidTargetForSkill(actor, target, skill.target))
+                CombatUnit pickedTarget = target;
+                if (pickedTarget == null && RequiresExplicitTarget(skill.target))
+                {
+                    if (skill.target == SkillTarget.SingleAlly)
+                    {
+                        pickedTarget = IsReviveSkill(skill)
+                            ? (GetDeadAlly(actor) ?? actor)
+                            : (GetLowestHpAlly(actor) ?? actor);
+                    }
+                    else if (skill.target == SkillTarget.SingleEnemy)
+                    {
+                        pickedTarget = GetRandomLivingOpponent(actor);
+                    }
+                }
+
+                if (RequiresExplicitTarget(skill.target) && !IsValidTargetForSkill(actor, pickedTarget, skill.target, skill))
                 {
                     return false;
                 }
 
-                AssignPlayerAction(actor, CombatActionType.Skill, target, skill);
+                AssignPlayerAction(actor, CombatActionType.Skill, pickedTarget, skill);
                 pendingSkillData = null;
                 TryAutoConfirmPlayerActions();
                 return true;

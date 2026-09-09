@@ -6,6 +6,8 @@
 venv/
 commits_per_day.txt
 .commandcode/
+.agents/
+ORIGINAL_REQUEST.md
 .DS_Store
 
 .utmp/
@@ -48,6 +50,7 @@ ExportedObj/
 .consulo/
 *.csproj
 !Verification/PhoneSecurityHarness/PhoneSecurityHarness.csproj
+!Verification/PuzzleIslandHarness/PuzzleIslandHarness.csproj
 *.unityproj
 *.sln
 *.suo

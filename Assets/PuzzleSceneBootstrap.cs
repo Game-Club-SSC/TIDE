@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[DisallowMultipleComponent]
 public class PuzzleSceneBootstrap : MonoBehaviour
 {
     [SerializeField] private Color groundColor = new Color(0.22f, 0.24f, 0.28f);

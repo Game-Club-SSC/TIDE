@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+[DisallowMultipleComponent]
 public class PuzzleHud : MonoBehaviour
 {
     private const string CanvasName = "PuzzleHudCanvas";

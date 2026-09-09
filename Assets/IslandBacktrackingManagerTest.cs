@@ -123,7 +123,7 @@ public class IslandBacktrackingManagerTest : MonoBehaviour
 
     private void TestDesireCompletionUnlocksEarlierIslands()
     {
-        Debug.Log("Testing Desire completion unlocks earlier islands (greed, greed, lust)...");
+        Debug.Log("Testing Desire completion unlocks earlier islands (greed, lust)...");
 
         IslandBacktrackingManager manager = CreateIsolatedManager();
         GameObject go = manager.gameObject;
@@ -132,8 +132,6 @@ public class IslandBacktrackingManagerTest : MonoBehaviour
         {
             manager.UnlockBacktracking("island_desire");
 
-            Assert.IsTrue(manager.IsBacktrackingUnlocked("island_greed"),
-                "Desire completion should unlock greed for backtracking.");
             Assert.IsTrue(manager.IsBacktrackingUnlocked("island_greed"),
                 "Desire completion should unlock greed for backtracking.");
             Assert.IsTrue(manager.IsBacktrackingUnlocked("island_lust"),
@@ -149,7 +147,7 @@ public class IslandBacktrackingManagerTest : MonoBehaviour
 
     private void TestEnvyCompletionUnlocksEarlierIslands()
     {
-        Debug.Log("Testing Envy completion unlocks earlier islands (anger, desire, greed, greed, lust)...");
+        Debug.Log("Testing Envy completion unlocks earlier islands (anger, desire, greed, lust)...");
 
         IslandBacktrackingManager manager = CreateIsolatedManager();
         GameObject go = manager.gameObject;
@@ -162,8 +160,6 @@ public class IslandBacktrackingManagerTest : MonoBehaviour
                 "Envy completion should unlock anger for backtracking.");
             Assert.IsTrue(manager.IsBacktrackingUnlocked("island_desire"),
                 "Envy completion should unlock desire for backtracking.");
-            Assert.IsTrue(manager.IsBacktrackingUnlocked("island_greed"),
-                "Envy completion should unlock greed for backtracking.");
             Assert.IsTrue(manager.IsBacktrackingUnlocked("island_greed"),
                 "Envy completion should unlock greed for backtracking.");
             Assert.IsTrue(manager.IsBacktrackingUnlocked("island_lust"),
@@ -179,7 +175,7 @@ public class IslandBacktrackingManagerTest : MonoBehaviour
 
     private void TestEgoCompletionUnlocksEarlierIslands()
     {
-        Debug.Log("Testing Ego completion unlocks earlier islands (envy, anger, desire, greed, greed, lust)...");
+        Debug.Log("Testing Ego completion unlocks earlier islands (envy, anger, desire, greed, lust)...");
 
         IslandBacktrackingManager manager = CreateIsolatedManager();
         GameObject go = manager.gameObject;
@@ -196,8 +192,6 @@ public class IslandBacktrackingManagerTest : MonoBehaviour
                 "Ego completion should unlock desire for backtracking.");
             Assert.IsTrue(manager.IsBacktrackingUnlocked("island_greed"),
                 "Ego completion should unlock greed for backtracking.");
-            Assert.IsTrue(manager.IsBacktrackingUnlocked("island_greed"),
-                "Ego completion should unlock greed for backtracking.");
             Assert.IsTrue(manager.IsBacktrackingUnlocked("island_lust"),
                 "Ego completion should unlock lust for backtracking.");
         }
@@ -211,7 +205,7 @@ public class IslandBacktrackingManagerTest : MonoBehaviour
 
     private void TestAngerCompletionUnlocksEarlierIslands()
     {
-        Debug.Log("Testing Anger completion unlocks earlier islands (desire, greed, greed, lust)...");
+        Debug.Log("Testing Anger completion unlocks earlier islands (desire, greed, lust)...");
 
         IslandBacktrackingManager manager = CreateIsolatedManager();
         GameObject go = manager.gameObject;
@@ -222,8 +216,6 @@ public class IslandBacktrackingManagerTest : MonoBehaviour
 
             Assert.IsTrue(manager.IsBacktrackingUnlocked("island_desire"),
                 "Anger completion should unlock desire for backtracking.");
-            Assert.IsTrue(manager.IsBacktrackingUnlocked("island_greed"),
-                "Anger completion should unlock greed for backtracking.");
             Assert.IsTrue(manager.IsBacktrackingUnlocked("island_greed"),
                 "Anger completion should unlock greed for backtracking.");
             Assert.IsTrue(manager.IsBacktrackingUnlocked("island_lust"),

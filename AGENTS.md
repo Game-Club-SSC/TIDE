@@ -72,7 +72,7 @@ Tests are MonoBehaviour scripts with `[ContextMenu]` methods:
 Vertical slice verification commands:
 - `PostDeferralVerticalSliceRegressionRunner` → `Run Post-Deferral Vertical Slice Regression Matrix`
 - `IslandContentVerificationTest` → `Run Island Content Verification`
-- `GluttonyIslandVerificationTest` → `Run Gluttony Island Verification`
+- `LustIslandVerificationTest` → `Run Lust Island Verification`
 - `RestorationTrackerTest` → `Run Restoration Tracker Tests`
 - `BossEncounterGateTest` → `Run Boss Encounter Gate Tests`
 - `RestorationThresholdGateTest` → `Run Restoration Threshold Gate Tests`

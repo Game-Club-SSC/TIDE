@@ -1719,8 +1719,12 @@ public class GameStateManager : MonoBehaviour
             TrackBossVictoryThresholdProgress(bossTrackedIslandId, preBossRestorationPercent);
         }
 
+        // Flow-controlled island encounters record restoration in IslandFlowController.OnEncounterComplete.
+        // Avoid double-counting combat restoration here when controlled by flow controller.
+        bool flowControlsCombatCompletion = HasActiveFlowController;
         if (playerWon
             && !isFateEncounter
+            && !flowControlsCombatCompletion
             && IslandRestorationTracker.Instance != null
             && !string.IsNullOrEmpty(PendingCombatEncounterId)
             && !string.IsNullOrEmpty(PendingCombatIslandId))

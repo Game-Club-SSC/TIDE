@@ -2,13 +2,14 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 
+[DisallowMultipleComponent]
 [RequireComponent(typeof(Renderer))]
 public class TideTile : MonoBehaviour
 {
     [Header("Tide Properties")]
     [Tooltip("The current amount of Tide on this tile (1-10)")]
     [Range(1, 10)]
-    public int currentTideValue = 5;
+    [SerializeField] private int currentTideValue = 5;
 
     [Header("Tile State")]
     [Tooltip("Check this box if this is an 'X' tile that requires combat to unlock.")]
@@ -30,8 +31,22 @@ public class TideTile : MonoBehaviour
     private static readonly Quaternion LabelTopDownRotation = Quaternion.Euler(90f, 0f, 0f);
 
     public Vector2Int GridPosition => gridPosition;
-    public int CurrentTideValue => currentTideValue;
+    public int CurrentTideValue
+    {
+        get => currentTideValue;
+        set
+        {
+            currentTideValue = Mathf.Clamp(value, 1, 10);
+            StartCorruptionTransition();
+        }
+    }
     public bool IsSealed => isSealed;
+
+    internal int DebugTideValue
+    {
+        get => currentTideValue;
+        set => currentTideValue = value;
+    }
 
     private void Awake()
     {

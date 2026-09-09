@@ -168,11 +168,11 @@ public class PuzzleWinConditionTest : MonoBehaviour
         // Null grid should return false
         Assert.IsFalse(condition.IsMet(null, null), "Null grid should return false.");
 
-        // Empty grid (0 tiles) should return true (vacuously true)
+        // Empty grid (0 tiles) should return false (degenerate puzzle)
         int[,] emptyGrid = new int[0, 0];
-        Assert.IsTrue(condition.IsMet(emptyGrid, null), "Empty grid should return true (vacuously).");
+        Assert.IsFalse(condition.IsMet(emptyGrid, null), "Empty grid should return false (degenerate puzzle).");
 
-        // Grid with all sealed tiles should return true (no tiles to check)
+        // Grid with all sealed tiles should return false (no active tiles to balance)
         int[,] allSealed = {
             { 5, 5, 5 },
             { 5, 5, 5 },
@@ -183,7 +183,7 @@ public class PuzzleWinConditionTest : MonoBehaviour
             { true, true, true },
             { true, true, true }
         };
-        Assert.IsTrue(condition.IsMet(allSealed, allSealedTiles), "All sealed tiles should return true.");
+        Assert.IsFalse(condition.IsMet(allSealed, allSealedTiles), "All sealed tiles should return false.");
 
         Debug.Log("Edge cases: PASS");
     }

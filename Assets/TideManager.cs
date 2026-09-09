@@ -6,6 +6,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+[DisallowMultipleComponent]
 public class TideManager : MonoBehaviour
 {
     private const string ViceIslandPrefix = "island_";
@@ -884,7 +885,7 @@ public class TideManager : MonoBehaviour
                     continue;
                 }
 
-                tile.currentTideValue = initialPuzzleValues[row, col];
+                tile.CurrentTideValue = initialPuzzleValues[row, col];
                 tile.RefreshVisuals();
             }
         }
@@ -893,7 +894,7 @@ public class TideManager : MonoBehaviour
         OnPuzzleReset?.Invoke();
     }
 
-    private void CancelCarriedTide()
+    public void CancelCarriedTide()
     {
         if (carryingSource != null && carriedAmount > 0)
         {
@@ -1164,6 +1165,7 @@ public class TideManager : MonoBehaviour
 
         if (hoveredTile == carryingSource)
         {
+            CancelCarriedTide();
             return;
         }
 

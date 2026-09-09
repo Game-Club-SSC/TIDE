@@ -682,6 +682,24 @@ public class CombatUnit : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Revives the unit, restoring HP and clearing defeated state.
+    /// </summary>
+    /// <param name="reviveHp">Amount of HP to restore upon revival.</param>
+    public virtual void Revive(int reviveHp)
+    {
+        if (reviveHp <= 0)
+        {
+            return;
+        }
+
+        hp = Mathf.Clamp(reviveHp, 1, maxHp);
+        isAlive = true;
+        ClearAllStatusEffects();
+        isDefending = false;
+        Debug.Log($"[CombatUnit] {unitName} was revived with {hp}/{maxHp} HP.");
+    }
+
     #endregion
 
     #region Protected/Virtual Methods

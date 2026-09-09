@@ -85,7 +85,7 @@ public class TideMovementTest
             {
                 bool isSealed = sealedArr != null && sealedArr[row, col];
                 tiles[row, col] = CreateTile(col, row, isSealed);
-                tiles[row, col].currentTideValue = values[row, col];
+                tiles[row, col].DebugTideValue = values[row, col];
             }
         }
 
@@ -120,6 +120,34 @@ public class TideMovementTest
         Assert.AreSame(tracker, IslandRestorationTracker.Instance,
             "Tracker singleton should reference the isolated test tracker instance.");
         return tracker;
+    }
+
+    [Test]
+    public void CurrentTideValue_ClampsBetweenOneAndTen()
+    {
+        TideTile tile = CreateTile(0, 0, false);
+        tile.CurrentTideValue = 7;
+        Assert.AreEqual(7, tile.CurrentTideValue, "CurrentTideValue should accept legal values.");
+
+        tile.CurrentTideValue = 15;
+        Assert.AreEqual(10, tile.CurrentTideValue, "CurrentTideValue should clamp upper bound to 10.");
+
+        tile.CurrentTideValue = -3;
+        Assert.AreEqual(1, tile.CurrentTideValue, "CurrentTideValue should clamp lower bound to 1.");
+
+        tile.CurrentTideValue = 0;
+        Assert.AreEqual(1, tile.CurrentTideValue, "CurrentTideValue of 0 should clamp to 1.");
+    }
+
+    [Test]
+    public void DebugTideValue_AllowsDirectAssignment()
+    {
+        TideTile tile = CreateTile(0, 0, false);
+        tile.DebugTideValue = 0;
+        Assert.AreEqual(0, tile.DebugTideValue, "DebugTideValue should allow setting 0 for test setups.");
+
+        tile.DebugTideValue = 12;
+        Assert.AreEqual(12, tile.DebugTideValue, "DebugTideValue should allow setting 12 for test setups.");
     }
 
     [Test]
@@ -404,7 +432,7 @@ public class TideMovementTest
             Assert.IsFalse((bool)GetPrivateFieldValue("puzzleSolved"),
                 "Unlocked locked tiles should count toward completion while off-target.");
 
-            tiles[0, 2].currentTideValue = 5;
+            tiles[0, 2].DebugTideValue = 5;
             InvokePrivateMethod("EvaluatePuzzleCompletion");
 
             Assert.IsTrue((bool)GetPrivateFieldValue("puzzleSolved"),
@@ -434,7 +462,7 @@ public class TideMovementTest
             InvokePrivateMethod("StoreInitialValues");
 
             TideTile unlockedTile = ((TideTile[,])GetPrivateFieldValue("activeTiles"))[0, 2];
-            unlockedTile.currentTideValue = 8;
+            unlockedTile.DebugTideValue = 8;
             manager.ResetPuzzle();
 
             Assert.IsFalse(unlockedTile.IsSealed, "The cleared locked tile should remain open after reset.");
@@ -733,7 +761,7 @@ public class TideMovementTest
             for (int c = 0; c < 3; c++)
             {
                 tiles[r, c] = CreateTile(c, r, false);
-                tiles[r, c].currentTideValue = values[r, c];
+                tiles[r, c].DebugTideValue = values[r, c];
             }
         }
 
@@ -776,7 +804,7 @@ public class TideMovementTest
             for (int c = 0; c < 3; c++)
             {
                 tiles[r, c] = CreateTile(c, r, false);
-                tiles[r, c].currentTideValue = values[r, c];
+                tiles[r, c].DebugTideValue = values[r, c];
             }
         }
 
@@ -815,7 +843,7 @@ public class TideMovementTest
             for (int c = 0; c < 3; c++)
             {
                 tiles[r, c] = CreateTile(c, r, false);
-                tiles[r, c].currentTideValue = values[r, c];
+                tiles[r, c].DebugTideValue = values[r, c];
             }
         }
 
@@ -854,7 +882,7 @@ public class TideMovementTest
         TideTile[,] tiles = CreateActiveTiles(originalValues, sealedMap);
         TideTile source = tiles[0, 0];
 
-        source.currentTideValue = 5;
+        source.DebugTideValue = 5;
         SetSealedTiles(sealedMap);
         SetPrivateFieldValue("activeTiles", tiles);
         SetPrivateFieldValue("instabilityThreshold", 3);
@@ -877,6 +905,38 @@ public class TideMovementTest
         Assert.AreEqual(0, manager.CarriedAmount, "Canceling should clear the carried bundle.");
         Assert.IsFalse(manager.IsCarrying, "Canceling should leave the manager out of carry mode.");
         Assert.AreEqual(1, exitRequests, "Overlay close should still be requested exactly once.");
+    }
+
+    [Test]
+    public void ClickingSourceTileWhileCarryingCancelsMoveWithoutDecay()
+    {
+        int[,] originalValues =
+        {
+            { 8, 7, 6 },
+            { 6, 5, 5 },
+            { 5, 5, 5 }
+        };
+        bool[,] sealedMap = new bool[3, 3];
+        TideTile[,] tiles = CreateActiveTiles(originalValues, sealedMap);
+        TideTile source = tiles[0, 0];
+
+        source.DebugTideValue = 5;
+        SetSealedTiles(sealedMap);
+        SetPrivateFieldValue("activeTiles", tiles);
+        SetPrivateFieldValue("instabilityThreshold", 3);
+        SetPrivateFieldValue("renderBoardAsUi", true);
+        SetPrivateFieldValue("carryingSource", source);
+        SetPrivateFieldValue("carriedAmount", 3);
+        SetPrivateFieldValue("hoveredTile", source);
+
+        InvokePrivateMethod("HandleDestinationSelection");
+
+        Assert.AreEqual(8, tiles[0, 0].CurrentTideValue,
+            "Clicking source tile while carrying should return the carried Tide to source.");
+        Assert.AreEqual(7, tiles[0, 1].CurrentTideValue,
+            "Canceling by clicking source must not decay other unstable tiles.");
+        Assert.AreEqual(0, manager.CarriedAmount, "Canceling on source should clear carried amount.");
+        Assert.IsFalse(manager.IsCarrying, "Manager should no longer be carrying.");
     }
 
     [Test]
