@@ -22,6 +22,7 @@ internal static class Program
             TestTideTileClampingLogic();
             TestGameStateManagerFlowCoordination();
             TestTideManagerCancelMovementLogic();
+            TestSubsystemAlignmentWithGddV2();
 
             Console.WriteLine($"\n=== Summary: {checksPassed} checks passed, {checksFailed} checks failed ===");
             return checksFailed == 0 ? 0 : 1;
@@ -317,5 +318,378 @@ internal static class Program
             "CancelCarriedTide restores carriedAmount to carryingSource.");
         Check(tmSource.Contains("carryingSource = null;") && tmSource.Contains("carriedAmount = 0;"),
             "CancelCarriedTide resets carryingSource and carriedAmount.");
+    }
+
+    private static void TestSubsystemAlignmentWithGddV2()
+    {
+        Console.WriteLine("\n--- Testing 6 Subsystems Alignment with GDD V2 (Empirical & Deep) ---");
+
+        string asmPath = File.Exists(Path.Combine(projectRoot, "Temp/bin/Debug/Assembly-CSharp.dll"))
+            ? Path.Combine(projectRoot, "Temp/bin/Debug/Assembly-CSharp.dll")
+            : Path.Combine(projectRoot, "Library/ScriptAssemblies/Assembly-CSharp.dll");
+        Assembly gameAssembly = Assembly.LoadFrom(asmPath);
+
+        TestNarrativeFateSubsystem(gameAssembly);
+        TestDialogueSubsystem(gameAssembly);
+        TestSavePersistenceSubsystem(gameAssembly);
+        TestBoatTravelSubsystem(gameAssembly);
+        TestCombatSubsystem(gameAssembly);
+        TestTidePuzzlesSubsystem(gameAssembly);
+    }
+
+    private static void TestNarrativeFateSubsystem(Assembly gameAssembly)
+    {
+        Console.WriteLine("\n  [Subsystem 1: Narrative Fate Mechanics]");
+
+        // AncientTextAuthoring baseline coverage
+        Type authoringType = gameAssembly.GetType("AncientTextAuthoring");
+        Check(authoringType != null, "AncientTextAuthoring type exists.");
+
+        FieldInfo sinsField = authoringType.GetField("BaselineSins", BindingFlags.Static | BindingFlags.NonPublic);
+        string[] baselineSins = (string[])sinsField?.GetValue(null);
+        Check(baselineSins != null && baselineSins.Length == 6,
+            $"AncientTextAuthoring defines 6 baseline sins (actual: {baselineSins?.Length}).");
+
+        string[] requiredSins = { "lust", "greed", "desire", "anger", "envy", "ego" };
+        foreach (string sin in requiredSins)
+        {
+            Check(Array.IndexOf(baselineSins, sin) >= 0, $"Baseline sins include '{sin}'.");
+        }
+
+        // Source verification for 18 unique baseline texts across all 3 acts
+        string authoringSource = File.ReadAllText(Path.Combine(projectRoot, "Assets/AncientTextAuthoring.cs"));
+        Check(authoringSource.Contains("DeriveIslandId"), "AncientTextAuthoring derives islandId per sin.");
+        foreach (string sin in requiredSins)
+        {
+            Check(authoringSource.Contains($"text_{sin}_act1_01"), $"AncientTextAuthoring defines text_{sin}_act1_01.");
+            Check(authoringSource.Contains($"text_{sin}_act2_01"), $"AncientTextAuthoring defines text_{sin}_act2_01.");
+            Check(authoringSource.Contains($"text_{sin}_act3_01"), $"AncientTextAuthoring defines text_{sin}_act3_01.");
+        }
+
+        // BadEndingReactions
+        Type badEndingType = gameAssembly.GetType("BadEndingReactions");
+        Check(badEndingType != null, "BadEndingReactions type exists.");
+
+        MethodInfo getAllReactionsMethod = badEndingType.GetMethod("GetAllReactionsIncludingMC", BindingFlags.Static | BindingFlags.Public);
+        Array reactions = (Array)getAllReactionsMethod.Invoke(null, null);
+        Check(reactions != null && reactions.Length == 5,
+            $"BadEndingReactions defines reactions for all 5 heroes (actual: {reactions?.Length}).");
+
+        string[] expectedHeroNames = { "Freida", "Briar", "Killian", "Merrick", "The Chosen" };
+        List<string> foundNames = new List<string>();
+        for (int i = 0; i < reactions.Length; i++)
+        {
+            object reaction = reactions.GetValue(i);
+            FieldInfo nameField = reaction.GetType().GetField("heroName");
+            FieldInfo finalWordsField = reaction.GetType().GetField("finalWords");
+            string name = (string)nameField.GetValue(reaction);
+            string finalWords = (string)finalWordsField.GetValue(reaction);
+            foundNames.Add(name);
+            Check(!string.IsNullOrEmpty(finalWords), $"Hero '{name}' has non-empty final words for bad ending.");
+        }
+
+        foreach (string expected in expectedHeroNames)
+        {
+            Check(foundNames.Contains(expected), $"BadEndingReactions contains '{expected}'.");
+        }
+
+        // EndingEvaluator outcome evaluation (empirical execution)
+        Type evalType = gameAssembly.GetType("EndingEvaluator");
+        Type snapshotType = gameAssembly.GetType("EndingEvaluatorSnapshot");
+
+        MethodInfo evalSnapshotMethod = evalType.GetMethod("EvaluateOutcomeFromSnapshot", BindingFlags.Static | BindingFlags.Public);
+        Check(evalSnapshotMethod != null, "EndingEvaluator.EvaluateOutcomeFromSnapshot exists.");
+
+        // Case A: final boss defeats >= threshold -> BadEnding
+        object snapBadLoss = Activator.CreateInstance(snapshotType);
+        snapshotType.GetField("hasFinalBossDefeats").SetValue(snapBadLoss, true);
+        snapshotType.GetField("finalBossDefeats").SetValue(snapBadLoss, 4);
+        snapshotType.GetField("finalBossDefeatThreshold").SetValue(snapBadLoss, 4);
+        object outcomeBadLoss = evalSnapshotMethod.Invoke(null, new object[] { snapBadLoss });
+        Check(outcomeBadLoss.ToString() == "BadEnding", "EndingEvaluator: Defeats >= threshold yields BadEnding.");
+
+        // Case B: full/threshold restoration cleared (ratio 1.0f >= 0.75f) -> GoodEnding
+        object snapGood = Activator.CreateInstance(snapshotType);
+        snapshotType.GetField("isMinimumRestorationRuleEnabled").SetValue(snapGood, true);
+        snapshotType.GetField("minimumRestorationClearedRatio").SetValue(snapGood, 1.0f);
+        snapshotType.GetField("minimumRestorationThresholdRatio").SetValue(snapGood, 0.75f);
+        object outcomeGood = evalSnapshotMethod.Invoke(null, new object[] { snapGood });
+        Check(outcomeGood.ToString() == "GoodEnding", "EndingEvaluator: Cleared ratio 1.0f >= 0.75f yields GoodEnding.");
+
+        // Case C: under-restoration (ratio 0.2f < 0.75f) -> BadEnding
+        object snapBadRatio = Activator.CreateInstance(snapshotType);
+        snapshotType.GetField("isMinimumRestorationRuleEnabled").SetValue(snapBadRatio, true);
+        snapshotType.GetField("minimumRestorationClearedRatio").SetValue(snapBadRatio, 0.2f);
+        snapshotType.GetField("minimumRestorationThresholdRatio").SetValue(snapBadRatio, 0.75f);
+        object outcomeBadRatio = evalSnapshotMethod.Invoke(null, new object[] { snapBadRatio });
+        Check(outcomeBadRatio.ToString() == "BadEnding", "EndingEvaluator: Cleared ratio 0.2f < 0.75f yields BadEnding.");
+
+        // Case D: null snapshot -> Unresolved
+        object outcomeNull = evalSnapshotMethod.Invoke(null, new object[] { null });
+        Check(outcomeNull.ToString() == "Unresolved", "EndingEvaluator: Null snapshot yields Unresolved.");
+
+        // FateEncounterDirector
+        Type fateType = gameAssembly.GetType("FateEncounterDirector");
+        Check(fateType != null, "FateEncounterDirector type exists.");
+        MethodInfo startFateMethod = fateType.GetMethod("StartFateEncounter", BindingFlags.Instance | BindingFlags.Public);
+        Check(startFateMethod != null, "FateEncounterDirector.StartFateEncounter public method exists.");
+    }
+
+    private static void TestDialogueSubsystem(Assembly gameAssembly)
+    {
+        Console.WriteLine("\n  [Subsystem 2: Dialogue System]");
+
+        Type effectEnumType = gameAssembly.GetType("DialogueEffectType");
+        Check(effectEnumType != null, "DialogueEffectType enum exists.");
+
+        string[] requiredEffects = { "GrantXP", "UnlockTideBreak", "SetFlag", "GiveItem", "IncreaseBond" };
+        foreach (string eff in requiredEffects)
+        {
+            Check(Enum.IsDefined(effectEnumType, eff), $"DialogueEffectType defines '{eff}'.");
+        }
+
+        Type dialogueSysType = gameAssembly.GetType("DialogueSystem");
+        Check(dialogueSysType != null, "DialogueSystem type exists.");
+        Check(dialogueSysType.GetMethod("ApplyDialogueEffect") != null, "DialogueSystem.ApplyDialogueEffect exists.");
+        Check(dialogueSysType.GetMethod("GetBondLevel") != null, "DialogueSystem.GetBondLevel exists.");
+        Check(dialogueSysType.GetMethod("IncreaseBond") != null, "DialogueSystem.IncreaseBond exists.");
+
+        MethodInfo makeBondKey = dialogueSysType.GetMethod("MakeBondKey", BindingFlags.Static | BindingFlags.Public);
+        if (makeBondKey != null)
+        {
+            string key1 = (string)makeBondKey.Invoke(null, new object[] { "hero_fire", "hero_water" });
+            string key2 = (string)makeBondKey.Invoke(null, new object[] { "hero_water", "hero_fire" });
+            Check(key1 == key2, "DialogueSystem.MakeBondKey is commutative (symmetric relationship keys).");
+        }
+
+        Type treeRunnerType = gameAssembly.GetType("DialogueTreeRunner");
+        Check(treeRunnerType != null, "DialogueTreeRunner type exists.");
+        Check(treeRunnerType.GetMethod("StartTree") != null, "DialogueTreeRunner.StartTree exists.");
+        Check(treeRunnerType.GetMethod("ApplyEffects", BindingFlags.Instance | BindingFlags.NonPublic) != null,
+            "DialogueTreeRunner.ApplyEffects exists.");
+        Check(treeRunnerType.GetMethod("EvaluateConditions", BindingFlags.Instance | BindingFlags.NonPublic) != null,
+            "DialogueTreeRunner.EvaluateConditions exists.");
+    }
+
+    private static void TestSavePersistenceSubsystem(Assembly gameAssembly)
+    {
+        Console.WriteLine("\n  [Subsystem 3: Save Persistence]");
+
+        Type saveServiceType = gameAssembly.GetType("WorldSaveService");
+        Check(saveServiceType != null, "WorldSaveService type exists.");
+
+        FieldInfo prefsKeyField = saveServiceType.GetField("playerPrefsKey", BindingFlags.Instance | BindingFlags.NonPublic);
+        Check(prefsKeyField != null, "WorldSaveService has playerPrefsKey field.");
+
+        Type gsmType = gameAssembly.GetType("GameStateManager");
+        Check(gsmType != null, "GameStateManager type exists.");
+        Check(gsmType.GetMethod("SaveWorldState", BindingFlags.Instance | BindingFlags.Public) != null,
+            "GameStateManager.SaveWorldState exists.");
+        Check(gsmType.GetMethod("LoadWorldState", BindingFlags.Instance | BindingFlags.Public) != null,
+            "GameStateManager.LoadWorldState exists.");
+
+        Type saveDataType = gsmType.GetNestedType("WorldStateSaveData", BindingFlags.Public | BindingFlags.NonPublic);
+        Check(saveDataType != null, "GameStateManager.WorldStateSaveData type exists.");
+
+        string[] requiredSaveSections =
+        {
+            "puzzleStates", "ancientTextStates", "completedNarrativeBeatIds",
+            "restorationSnapshot", "heroProgression", "partyComposition",
+            "hubState", "dialogueState"
+        };
+        foreach (string sec in requiredSaveSections)
+        {
+            FieldInfo f = saveDataType.GetField(sec);
+            Check(f != null, $"WorldStateSaveData includes persistent section '{sec}'.");
+        }
+    }
+
+    private static void TestBoatTravelSubsystem(Assembly gameAssembly)
+    {
+        Console.WriteLine("\n  [Subsystem 4: Boat Travel]");
+
+        Type registryType = gameAssembly.GetType("IslandThemeRegistry");
+        Check(registryType != null, "IslandThemeRegistry type exists.");
+
+        PropertyInfo progOrderProp = registryType.GetProperty("ProgressionOrder", BindingFlags.Static | BindingFlags.Public);
+        System.Collections.ICollection progOrder = (System.Collections.ICollection)progOrderProp.GetValue(null);
+        Check(progOrder != null && progOrder.Count == 6,
+            $"IslandThemeRegistry defines exactly 6 progression islands (actual: {progOrder?.Count}).");
+
+        string[] expectedProgression = { "island_lust", "island_greed", "island_desire", "island_anger", "island_envy", "island_ego" };
+        int idx = 0;
+        foreach (object item in progOrder)
+        {
+            Check((string)item == expectedProgression[idx],
+                $"Island progression [{idx}] is '{expectedProgression[idx]}'.");
+            idx++;
+        }
+
+        FieldInfo hubIdField = registryType.GetField("HubIslandId", BindingFlags.Static | BindingFlags.Public);
+        Check((string)hubIdField.GetValue(null) == "island_hub", "IslandThemeRegistry.HubIslandId is 'island_hub'.");
+
+        FieldInfo aliasesField = registryType.GetField("legacyIslandIdAliases", BindingFlags.Static | BindingFlags.NonPublic);
+        Dictionary<string, string> aliases = (Dictionary<string, string>)aliasesField?.GetValue(null);
+        Check(aliases != null, "IslandThemeRegistry.legacyIslandIdAliases dictionary exists.");
+        Check(aliases["island_1"] == "island_lust", "legacy alias: 'island_1' -> 'island_lust'.");
+        Check(aliases["island_sloth"] == "island_desire", "legacy alias: 'island_sloth' -> 'island_desire'.");
+        Check(aliases["island_wrath"] == "island_anger", "legacy alias: 'island_wrath' -> 'island_anger'.");
+        Check(aliases["island_pride"] == "island_ego", "legacy alias: 'island_pride' -> 'island_ego'.");
+        Check(aliases["island_gluttony"] == "island_greed", "legacy alias: 'island_gluttony' -> 'island_greed'.");
+
+        Type boatType = gameAssembly.GetType("IslandBoatInteractable");
+        Check(boatType != null, "IslandBoatInteractable type exists.");
+        Check(boatType.GetMethod("TryGetSpawnPositionForIsland") != null, "IslandBoatInteractable.TryGetSpawnPositionForIsland exists.");
+    }
+
+    private static void TestCombatSubsystem(Assembly gameAssembly)
+    {
+        Console.WriteLine("\n  [Subsystem 5: Combat System]");
+
+        Type matchupType = gameAssembly.GetType("ElementMatchup");
+        Check(matchupType != null, "ElementMatchup type exists.");
+
+        Type combatUnitType = gameAssembly.GetType("CombatUnit");
+        Type elementEnumType = combatUnitType.GetNestedType("Element");
+        Check(elementEnumType != null, "CombatUnit.Element enum exists.");
+
+        object fire = Enum.Parse(elementEnumType, "Fire");
+        object water = Enum.Parse(elementEnumType, "Water");
+        object earth = Enum.Parse(elementEnumType, "Earth");
+        object air = Enum.Parse(elementEnumType, "Air");
+        object space = Enum.Parse(elementEnumType, "Space");
+        object none = Enum.Parse(elementEnumType, "None");
+
+        MethodInfo getResultMethod = matchupType.GetMethod("GetResult", BindingFlags.Static | BindingFlags.Public);
+        Check(getResultMethod != null, "ElementMatchup.GetResult exists.");
+
+        // Canonical GDD V2 5-element rock-paper-scissors verification:
+        // Fire beats Earth and Air, loses to Water and Space
+        Check(getResultMethod.Invoke(null, new object[] { fire, earth }).ToString() == "Strong", "Fire beats Earth (Strong).");
+        Check(getResultMethod.Invoke(null, new object[] { fire, air }).ToString() == "Strong", "Fire beats Air (Strong).");
+        Check(getResultMethod.Invoke(null, new object[] { fire, water }).ToString() == "Weak", "Fire loses to Water (Weak).");
+        Check(getResultMethod.Invoke(null, new object[] { fire, space }).ToString() == "Weak", "Fire loses to Space (Weak).");
+
+        // Water beats Fire and Space, loses to Earth and Air
+        Check(getResultMethod.Invoke(null, new object[] { water, fire }).ToString() == "Strong", "Water beats Fire (Strong).");
+        Check(getResultMethod.Invoke(null, new object[] { water, space }).ToString() == "Strong", "Water beats Space (Strong).");
+        Check(getResultMethod.Invoke(null, new object[] { water, earth }).ToString() == "Weak", "Water loses to Earth (Weak).");
+        Check(getResultMethod.Invoke(null, new object[] { water, air }).ToString() == "Weak", "Water loses to Air (Weak).");
+
+        // Earth beats Water and Space, loses to Fire and Air
+        Check(getResultMethod.Invoke(null, new object[] { earth, water }).ToString() == "Strong", "Earth beats Water (Strong).");
+        Check(getResultMethod.Invoke(null, new object[] { earth, space }).ToString() == "Strong", "Earth beats Space (Strong).");
+        Check(getResultMethod.Invoke(null, new object[] { earth, fire }).ToString() == "Weak", "Earth loses to Fire (Weak).");
+        Check(getResultMethod.Invoke(null, new object[] { earth, air }).ToString() == "Weak", "Earth loses to Air (Weak).");
+
+        // Air beats Earth and Water, loses to Fire and Space
+        Check(getResultMethod.Invoke(null, new object[] { air, earth }).ToString() == "Strong", "Air beats Earth (Strong).");
+        Check(getResultMethod.Invoke(null, new object[] { air, water }).ToString() == "Strong", "Air beats Water (Strong).");
+        Check(getResultMethod.Invoke(null, new object[] { air, fire }).ToString() == "Weak", "Air loses to Fire (Weak).");
+        Check(getResultMethod.Invoke(null, new object[] { air, space }).ToString() == "Weak", "Air loses to Space (Weak).");
+
+        // Space beats Fire and Air, loses to Water and Earth
+        Check(getResultMethod.Invoke(null, new object[] { space, fire }).ToString() == "Strong", "Space beats Fire (Strong).");
+        Check(getResultMethod.Invoke(null, new object[] { space, air }).ToString() == "Strong", "Space beats Air (Strong).");
+        Check(getResultMethod.Invoke(null, new object[] { space, water }).ToString() == "Weak", "Space loses to Water (Weak).");
+        Check(getResultMethod.Invoke(null, new object[] { space, earth }).ToString() == "Weak", "Space loses to Earth (Weak).");
+
+        // Neutral self matchups
+        Check(getResultMethod.Invoke(null, new object[] { fire, fire }).ToString() == "Neutral", "Fire vs Fire is Neutral.");
+        Check(getResultMethod.Invoke(null, new object[] { water, water }).ToString() == "Neutral", "Water vs Water is Neutral.");
+        Check(getResultMethod.Invoke(null, new object[] { none, fire }).ToString() == "Neutral", "None vs Fire is Neutral.");
+
+        // MomentumState tug-of-war bar
+        Type momentumType = gameAssembly.GetType("MomentumState");
+        Check(momentumType != null, "MomentumState type exists.");
+        object momentum = Activator.CreateInstance(momentumType);
+
+        PropertyInfo valueProp = momentumType.GetProperty("Value");
+        MethodInfo shiftPlayerMethod = momentumType.GetMethod("ShiftTowardPlayer");
+        MethodInfo shiftEnemyMethod = momentumType.GetMethod("ShiftTowardEnemy");
+        MethodInfo resetMethod = momentumType.GetMethod("Reset");
+        PropertyInfo playerTbReady = momentumType.GetProperty("IsPlayerTideBreakReady");
+        PropertyInfo enemyTbReady = momentumType.GetProperty("IsEnemyTideBreakReady");
+
+        Check((float)valueProp.GetValue(momentum) == 0f, "MomentumState initializes at 0 (balanced).");
+        shiftPlayerMethod.Invoke(momentum, new object[] { 0.4f });
+        Check(Math.Abs((float)valueProp.GetValue(momentum) - 0.4f) < 0.001f, "MomentumState shifts +0.4 towards player.");
+        shiftEnemyMethod.Invoke(momentum, new object[] { 0.6f });
+        Check(Math.Abs((float)valueProp.GetValue(momentum) - (-0.2f)) < 0.001f, "MomentumState shifts 0.6 towards enemy.");
+        resetMethod.Invoke(momentum, null);
+        Check((float)valueProp.GetValue(momentum) == 0f, "MomentumState.Reset returns to 0.");
+
+        // Clamping and TideBreak readiness
+        shiftPlayerMethod.Invoke(momentum, new object[] { 5f });
+        Check((float)valueProp.GetValue(momentum) == 1f, "MomentumState clamps to MaxValue (1.0).");
+        Check((bool)playerTbReady.GetValue(momentum), "MomentumState: Player TideBreak ready at +1.0.");
+
+        shiftEnemyMethod.Invoke(momentum, new object[] { 10f });
+        Check((float)valueProp.GetValue(momentum) == -1f, "MomentumState clamps to MinValue (-1.0).");
+        Check((bool)enemyTbReady.GetValue(momentum), "MomentumState: Enemy TideBreak ready at -1.0.");
+    }
+
+    private static void TestTidePuzzlesSubsystem(Assembly gameAssembly)
+    {
+        Console.WriteLine("\n  [Subsystem 6: Tide Puzzles]");
+
+        Type constantsType = gameAssembly.GetType("GameConstants");
+        Check(constantsType != null, "GameConstants type exists.");
+
+        int maxCarrySteps = (int)constantsType.GetField("MaxCarrySteps").GetValue(null);
+        int instabilityThreshold = (int)constantsType.GetField("InstabilityThreshold").GetValue(null);
+        int targetValue = (int)constantsType.GetField("PuzzleTargetValue").GetValue(null);
+        int minValue = (int)constantsType.GetField("PuzzleMinValue").GetValue(null);
+        int maxValue = (int)constantsType.GetField("PuzzleMaxValue").GetValue(null);
+
+        Check(maxCarrySteps == 2, $"GameConstants.MaxCarrySteps is 2 (actual: {maxCarrySteps}).");
+        Check(instabilityThreshold == 3, $"GameConstants.InstabilityThreshold is 3 (actual: {instabilityThreshold}).");
+        Check(targetValue == 5, $"GameConstants.PuzzleTargetValue is 5 (actual: {targetValue}).");
+        Check(minValue == 1, $"GameConstants.PuzzleMinValue is 1 (actual: {minValue}).");
+        Check(maxValue == 10, $"GameConstants.PuzzleMaxValue is 10 (actual: {maxValue}).");
+
+        Type tideManagerType = gameAssembly.GetType("TideManager");
+        Check(tideManagerType != null, "TideManager type exists.");
+        FieldInfo maxCarryField = tideManagerType.GetField("maxCarrySteps", BindingFlags.Instance | BindingFlags.NonPublic);
+        Check(maxCarryField != null, "TideManager has maxCarrySteps field.");
+
+        Type tideTileType = gameAssembly.GetType("TideTile");
+        Check(tideTileType != null, "TideTile type exists.");
+        Check(tideTileType.GetMethod("GetMaxTake") != null, "TideTile.GetMaxTake exists.");
+        Check(tideTileType.GetMethod("CanReceive") != null, "TideTile.CanReceive exists.");
+        Check(tideTileType.GetMethod("ApplyDecay") != null, "TideTile.ApplyDecay exists.");
+
+        // PuzzleWinCondition empirical execution (Early Game: Percentage, Late Game: All 5)
+        Type winConditionType = gameAssembly.GetType("PuzzleWinCondition");
+        Type winConditionEnumType = gameAssembly.GetType("WinConditionType");
+        Check(winConditionType != null, "PuzzleWinCondition type exists.");
+        Check(winConditionEnumType != null, "WinConditionType enum exists.");
+
+        MethodInfo isMetMethod = winConditionType.GetMethod("IsMet", new Type[] { typeof(int[,]), typeof(bool[,]) });
+        Check(isMetMethod != null, "PuzzleWinCondition.IsMet(int[,], bool[,]) exists.");
+
+        object lateGameCond = Activator.CreateInstance(winConditionType);
+        FieldInfo typeField = winConditionType.GetField("type");
+        FieldInfo targetField = winConditionType.GetField("targetValue");
+        FieldInfo requiredPercentField = winConditionType.GetField("requiredPercent");
+
+        typeField.SetValue(lateGameCond, Enum.Parse(winConditionEnumType, "AllEqualToTarget"));
+        targetField.SetValue(lateGameCond, 5);
+        requiredPercentField.SetValue(lateGameCond, 1f);
+
+        int[,] allFives = { { 5, 5 }, { 5, 5 } };
+        int[,] notAllFives = { { 5, 5 }, { 5, 3 } };
+        Check((bool)isMetMethod.Invoke(lateGameCond, new object[] { allFives, null }), "Late Game: All tiles at 5 meets AllEqualToTarget.");
+        Check(!(bool)isMetMethod.Invoke(lateGameCond, new object[] { notAllFives, null }), "Late Game: Any tile not at 5 fails AllEqualToTarget.");
+
+        object earlyGameCond = Activator.CreateInstance(winConditionType);
+        typeField.SetValue(earlyGameCond, Enum.Parse(winConditionEnumType, "PercentageAtTarget"));
+        targetField.SetValue(earlyGameCond, 5);
+        requiredPercentField.SetValue(earlyGameCond, 0.75f);
+
+        int[,] grid75Percent = { { 5, 5 }, { 5, 1 } }; // 3 out of 4 = 75%
+        int[,] grid50Percent = { { 5, 5 }, { 1, 1 } }; // 2 out of 4 = 50%
+        Check((bool)isMetMethod.Invoke(earlyGameCond, new object[] { grid75Percent, null }), "Early Game: 75% of tiles at 5 meets PercentageAtTarget.");
+        Check(!(bool)isMetMethod.Invoke(earlyGameCond, new object[] { grid50Percent, null }), "Early Game: 50% of tiles at 5 fails 75% PercentageAtTarget.");
     }
 }

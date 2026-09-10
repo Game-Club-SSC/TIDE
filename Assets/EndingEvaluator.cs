@@ -137,13 +137,14 @@ public class EndingEvaluator : MonoBehaviour
             }
 
             requiredIslandCount++;
-            if (IsIslandThresholdCleared(ruleMode, islandId, thresholdOnlyBossVictoryIslandIds, thresholdOnlyProceedIslandIds))
+            bool isThresholdCleared = IsIslandThresholdCleared(ruleMode, islandId, thresholdOnlyBossVictoryIslandIds, thresholdOnlyProceedIslandIds);
+            if (isThresholdCleared)
             {
                 satisfiedIslandCount++;
             }
 
             float ratioForIsland = gameState.GetIslandRestorationPercent(islandId) / 100f;
-            if (ratioForIsland >= snapshot.minimumRestorationThresholdRatio)
+            if (ratioForIsland >= snapshot.minimumRestorationThresholdRatio || isThresholdCleared)
             {
                 thresholdClearedRatio += 1f;
             }
@@ -157,7 +158,7 @@ public class EndingEvaluator : MonoBehaviour
         }
         else
         {
-            snapshot.minimumRestorationClearedRatio = Mathf.Clamp01(satisfiedIslandCount / (float)requiredIslandCount);
+            snapshot.minimumRestorationClearedRatio = Mathf.Clamp01(thresholdClearedRatio / (float)requiredIslandCount);
         }
 
         snapshot.islandsClearedAtThreshold.AddRange(thresholdOnlyBossVictoryIslandIds);

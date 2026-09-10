@@ -13,7 +13,7 @@ public class TideManager : MonoBehaviour
 
     [Header("Interaction")]
     public LayerMask tileLayer = ~0;
-    [SerializeField] [Range(1, 2)] private int maxCarrySteps = 2;
+    [SerializeField] [Range(1, 2)] private int maxCarrySteps = GameConstants.MaxCarrySteps;
 
     [Header("Board Generation")]
     [SerializeField] private Vector3 boardCenter = new Vector3(0f, 0.35f, 0f);
@@ -39,7 +39,7 @@ public class TideManager : MonoBehaviour
     [SerializeField] private float completionReturnDelay = 1f;
 
     [Header("Instability Decay")]
-    [SerializeField] private int instabilityThreshold = 3;
+    [SerializeField] private int instabilityThreshold = GameConstants.InstabilityThreshold;
 
     [Header("Greed Consumption")]
     [SerializeField] private bool enableConsumption;
@@ -1467,7 +1467,7 @@ public class TideManager : MonoBehaviour
                 return true;
             }
 
-            int allowedCarrySteps = Mathf.Clamp(maxCarrySteps, 1, 2);
+            int allowedCarrySteps = Mathf.Clamp(maxCarrySteps, 1, GameConstants.MaxCarrySteps);
             if (current.StepsTaken >= allowedCarrySteps)
             {
                 continue;

@@ -108,15 +108,15 @@ public static class AncientTextAuthoring
     {
         List<AncientTextData> list = new List<AncientTextData>();
 
-        // Greed
-        list.Add(MakeText("text_greed_act1_01", "The Hunger at Dawn", "We woke to a table that had not been set. We ate what the tide had not yet claimed. The hunger never left; it only learned new names."));
-        list.Add(MakeText("text_greed_act2_01", "Salt and Memory", "The island kept offering more. Each plate we cleaned carved the next memory out of us. We remembered the feast; we forgot why we came."));
-        list.Add(MakeText("text_greed_act3_01", "Empty Plate", "There is a place set at the long table where no one will sit again. The tide is full; the island is light. We move on lighter too."));
+        // Lust
+        list.Add(MakeText("text_lust_act1_01", "The Enchanted Shore", "The moura sang of futures where no hero must fall. Their voices were sweet as calm water. We lingered too long listening."));
+        list.Add(MakeText("text_lust_act2_01", "Siren Call", "We mistook their promises for sanctuary. The island offered beauty to blind us to the rot underneath. Every blossom hid a thorn."));
+        list.Add(MakeText("text_lust_act3_01", "Shattered Allure", "The song is silent now, and the mirror of desire reflects only our true faces. We walk forward without looking back."));
 
-        // Greed (second set)
-        list.Add(MakeText("text_greed_act1_02", "Counted Sands", "We hoarded the silver sands of the shore, convinced that enough was one more handful. The tide is patient; it took them back at dusk."));
-        list.Add(MakeText("text_greed_act2_02", "The Coin Heart", "A merchant taught us to weigh our courage against our coin. We learned quickly. The coin was always heavier."));
-        list.Add(MakeText("text_greed_act3_02", "Empty Pockets", "We left the island without the silver. The pockets remember the weight. So do we, when we reach for what is no longer there."));
+        // Greed
+        list.Add(MakeText("text_greed_act1_01", "Counted Sands", "We hoarded the silver sands of the shore, convinced that enough was one more handful. The tide is patient; it took them back at dusk."));
+        list.Add(MakeText("text_greed_act2_01", "The Coin Heart", "A merchant taught us to weigh our courage against our coin. We learned quickly. The coin was always heavier."));
+        list.Add(MakeText("text_greed_act3_01", "Empty Pockets", "We left the island without the silver. The pockets remember the weight. So do we, when we reach for what is no longer there."));
 
         // Desire
         list.Add(MakeText("text_desire_act1_01", "Slow Tide", "The tide came in slow. We did not. It filled the bay while we still debated the route. The island does not wait for committees."));
@@ -183,10 +183,29 @@ public static class AncientTextAuthoring
     {
         AncientTextData data = ScriptableObject.CreateInstance<AncientTextData>();
         data.textId = textId;
+        data.islandId = DeriveIslandId(textId);
         data.title = title;
         data.body = body;
         data.name = $"Authored_{textId}";
         return data;
+    }
+
+    private static string DeriveIslandId(string textId)
+    {
+        if (string.IsNullOrEmpty(textId))
+        {
+            return "island_lust";
+        }
+
+        for (int i = 0; i < BaselineSins.Length; i++)
+        {
+            if (textId.IndexOf(BaselineSins[i], System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return $"island_{BaselineSins[i]}";
+            }
+        }
+
+        return "island_lust";
     }
 
     public static void ClearCache()
