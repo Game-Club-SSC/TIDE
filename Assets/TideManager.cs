@@ -110,6 +110,10 @@ public class TideManager : MonoBehaviour
 
     public bool IsPuzzleSolved => puzzleSolved;
     public bool IsOverlayMode => overlayMode;
+
+    /// <summary>True once InitializePuzzle has actually built a board, so
+    /// callers can avoid capturing the unconfigured default grid.</summary>
+    public bool HasActiveBoard { get; private set; }
     public string OverlayPuzzleBoxId => overlayPuzzleBoxId;
     public bool UsesUiBoard => renderBoardAsUi;
 
@@ -138,8 +142,11 @@ public class TideManager : MonoBehaviour
             && (legacyLayout.GetLength(0) != runtimeLayout.GetLength(0)
                 || legacyLayout.GetLength(1) != runtimeLayout.GetLength(1)))
         {
-            Debug.LogError("[TideManager] ConfigureOverlaySession: legacyLayout and runtimeLayout dimensions mismatch.");
-            return;
+            // The saved runtime grid is stale (the puzzle was re-sized since).
+            // Discard it and fall back to the authored layout so the session
+            // still configures and can always be exited with Escape.
+            Debug.LogWarning("[TideManager] ConfigureOverlaySession: stale runtime layout dimensions mismatch; ignoring saved grid.", this);
+            runtimeLayout = null;
         }
 
         overlayMode = true;
@@ -231,6 +238,8 @@ public class TideManager : MonoBehaviour
                 TrySetSealedTile(sealedTile, true);
             }
         }
+
+        HasActiveBoard = true;
     }
 
     public void InitializePuzzle(PuzzleData data)
@@ -287,6 +296,8 @@ public class TideManager : MonoBehaviour
                 }
             }
         }
+
+        HasActiveBoard = true;
     }
 
     private bool IsLockedEncounterCleared()

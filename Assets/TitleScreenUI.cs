@@ -67,6 +67,10 @@ public class TitleScreenUI : MonoBehaviour
             audioManager.HandleMenuBgm();
         }
 
+        // GameStateManager may not have existed during Awake/OnEnable
+        // (script order is not guaranteed); re-sample save availability.
+        RefreshContinueButton();
+
         SelectButton(NewGameButton);
     }
 

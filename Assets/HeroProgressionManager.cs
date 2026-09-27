@@ -1172,6 +1172,7 @@ public class HeroProgressionManager : MonoBehaviour
         public List<string> heroIds = new List<string>();
         public List<int> levels = new List<int>();
         public List<int> currentXpValues = new List<int>();
+        public List<string> unlockedPlayerColorPresetIds = new List<string>();
     }
 
     [Serializable]
@@ -1194,6 +1195,14 @@ public class HeroProgressionManager : MonoBehaviour
             snapshot.heroIds.Add(pair.Key);
             snapshot.levels.Add(Mathf.Max(1, pair.Value.level));
             snapshot.currentXpValues.Add(Mathf.Max(0, pair.Value.currentXp));
+        }
+
+        foreach (string presetId in unlockedPlayerColorPresetIds)
+        {
+            if (!string.IsNullOrEmpty(presetId))
+            {
+                snapshot.unlockedPlayerColorPresetIds.Add(presetId);
+            }
         }
 
         return snapshot;
@@ -1240,6 +1249,18 @@ public class HeroProgressionManager : MonoBehaviour
                 {
                     int xpToNextLevel = Mathf.Max(1, levelingConfig.GetXpToNextLevel(state.level));
                     state.currentXp = Mathf.Clamp(state.currentXp, 0, xpToNextLevel - 1);
+                }
+            }
+        }
+
+        if (snapshot.unlockedPlayerColorPresetIds != null)
+        {
+            unlockedPlayerColorPresetIds.Clear();
+            for (int i = 0; i < snapshot.unlockedPlayerColorPresetIds.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(snapshot.unlockedPlayerColorPresetIds[i]))
+                {
+                    unlockedPlayerColorPresetIds.Add(snapshot.unlockedPlayerColorPresetIds[i]);
                 }
             }
         }

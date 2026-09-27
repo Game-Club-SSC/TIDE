@@ -16,8 +16,11 @@ public class GamepadInputManager : MonoBehaviour
     public static GamepadInputManager Instance { get; private set; }
 
     [Header("Settings")]
+    [Range(0f, 0.9f)]
     [SerializeField] private float stickDeadZone = 0.2f;
     [SerializeField] private float triggerThreshold = 0.5f;
+    [Min(1)]
+    [SerializeField] private int maxTargetCount = 8;
 
     // ----- Movement -----
     public float MoveH { get; private set; }
@@ -233,29 +236,34 @@ public class GamepadInputManager : MonoBehaviour
     // ----- Target Selection -----
     // Left/Right on D-Pad or Left Stick to cycle targets
 
+    private bool lastDpadHorizontalActive;
+
     private void ReadTargetSelection()
     {
         if (!IsGamepadConnected)
         {
+            lastDpadHorizontalActive = false;
+            SelectedTargetIndex = 0;
             return;
         }
 
-        // D-Pad horizontal
+        // D-Pad horizontal (rising edge only; holding the d-pad would
+        // otherwise cycle the index ~60 times per second)
         float dpadH = Input.GetAxisRaw("DPad Horizontal");
-        if (Mathf.Abs(dpadH) > stickDeadZone)
+        bool dpadActive = Mathf.Abs(dpadH) > stickDeadZone;
+        bool dpadPressed = dpadActive && !lastDpadHorizontalActive;
+        lastDpadHorizontalActive = dpadActive;
+
+        if (dpadPressed)
         {
+            int maxTargetCount = Mathf.Max(1, this.maxTargetCount);
             if (dpadH > 0f)
             {
-                SelectedTargetIndex++;
+                SelectedTargetIndex = (SelectedTargetIndex + 1) % maxTargetCount;
             }
-            else if (dpadH < 0f)
+            else
             {
-                SelectedTargetIndex--;
-            }
-
-            if (SelectedTargetIndex < 0)
-            {
-                SelectedTargetIndex = 0;
+                SelectedTargetIndex = (SelectedTargetIndex + maxTargetCount - 1) % maxTargetCount;
             }
         }
     }
@@ -271,7 +279,8 @@ public class GamepadInputManager : MonoBehaviour
 
         // Rescale so the dead zone edge maps to 0 and full tilt maps to 1
         float sign = Mathf.Sign(value);
-        return sign * (Mathf.Abs(value) - stickDeadZone) / (1f - stickDeadZone);
+        float range = Mathf.Max(0.0001f, 1f - stickDeadZone);
+        return sign * (Mathf.Abs(value) - stickDeadZone) / range;
     }
 
     public void ResetTargetIndex()

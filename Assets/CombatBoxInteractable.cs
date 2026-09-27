@@ -175,7 +175,10 @@ public class CombatBoxInteractable : MonoBehaviour, IPlayerInteractionAssistTarg
         Transform walker = current;
         while (walker != null)
         {
-            pathParts.Add($"{walker.name}[{walker.GetSiblingIndex()}]");
+            // Names only: sibling indices shift whenever objects are added or
+            // reordered, which would silently re-key cleared-encounter saves
+            // and revive completed content.
+            pathParts.Add(walker.name);
             walker = walker.parent;
         }
 
@@ -235,8 +238,22 @@ public class CombatBoxInteractable : MonoBehaviour, IPlayerInteractionAssistTarg
 
         BoxCollider solidCollider = gameObject.AddComponent<BoxCollider>();
         solidCollider.isTrigger = false;
-        solidCollider.size = triggerSize;
-        solidCollider.center = Vector3.zero;
+
+        // The blocker must stay strictly smaller than the trigger volume;
+        // identical volumes would physically wall the player off from ever
+        // overlapping the trigger, so the prompt could never appear.
+        Vector3 solidSize = Vector3.Scale(triggerSize, new Vector3(0.4f, 1f, 0.4f));
+        if (cachedRenderer != null)
+        {
+            solidSize = cachedRenderer.localBounds.size;
+        }
+
+        Vector3 maxSolidSize = triggerSize * 0.7f;
+        solidCollider.size = new Vector3(
+            Mathf.Min(solidSize.x, maxSolidSize.x),
+            Mathf.Min(solidSize.y, maxSolidSize.y),
+            Mathf.Min(solidSize.z, maxSolidSize.z));
+        solidCollider.center = cachedRenderer != null ? cachedRenderer.localBounds.center : Vector3.zero;
     }
 
     private void CreatePromptVisual()

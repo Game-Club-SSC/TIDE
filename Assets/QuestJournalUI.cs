@@ -80,7 +80,7 @@ public class QuestJournalUI : MonoBehaviour
     {
         if (isAnimating)
         {
-            canvasGroup.alpha = Mathf.SmoothDamp(canvasGroup.alpha, animTarget, ref animVelocity, AnimDuration);
+            canvasGroup.alpha = Mathf.SmoothDamp(canvasGroup.alpha, animTarget, ref animVelocity, AnimDuration, Mathf.Infinity, Time.unscaledDeltaTime);
             if (Mathf.Abs(canvasGroup.alpha - animTarget) < 0.01f)
             {
                 canvasGroup.alpha = animTarget;
@@ -137,6 +137,11 @@ public class QuestJournalUI : MonoBehaviour
         isAnimating = true;
         animTarget = 0f;
         animVelocity = 0f;
+
+        // Release input immediately so the full-screen backdrop cannot trap
+        // clicks behind it while the fade-out is in flight (especially if
+        // Time.timeScale is 0 from a pause menu).
+        canvasGroup.blocksRaycasts = false;
     }
 
     // ------------------------------------------------------------------
@@ -519,26 +524,35 @@ public class QuestJournalUI : MonoBehaviour
             return;
         }
 
-        // Section header
-        CreateReadOnlyLabel(textsScrollContent, $"Discovered Texts: {allIds.Count}", 22, HeaderColor);
-
+        // Resolve display data first so the header count and card numbering
+        // only reflect entries that will actually render.
+        List<string> shownIds = new List<string>();
+        List<string> shownTitles = new List<string>();
+        List<string> shownBodies = new List<string>();
         for (int i = 0; i < allIds.Count; i++)
         {
             string textId = allIds[i];
-            string title = textId;
-            string body = "";
-            bool discovered = false;
-
-            if (gsm.TryGetAncientTextEntry(textId, out string entryTitle, out string entryBody, out bool entryDiscovered))
+            if (gsm.TryGetAncientTextEntry(textId, out string entryTitle, out string entryBody, out bool entryDiscovered)
+                && entryDiscovered)
             {
-                title = entryTitle;
-                body = entryBody;
-                discovered = entryDiscovered;
+                shownIds.Add(textId);
+                shownTitles.Add(entryTitle);
+                shownBodies.Add(entryBody);
             }
+        }
 
-            if (!discovered) continue;
+        if (shownIds.Count == 0)
+        {
+            CreateReadOnlyLabel(textsScrollContent, "No ancient texts discovered yet.\n\nExplore the islands and restore them to uncover hidden inscriptions.", 20, DimTextColor);
+            return;
+        }
 
-            CreateTextEntry(textsScrollContent, i + 1, title, body, textId);
+        // Section header
+        CreateReadOnlyLabel(textsScrollContent, $"Discovered Texts: {shownIds.Count}", 22, HeaderColor);
+
+        for (int i = 0; i < shownIds.Count; i++)
+        {
+            CreateTextEntry(textsScrollContent, i + 1, shownTitles[i], shownBodies[i], shownIds[i]);
         }
 
         // Add spacing element at bottom
@@ -690,7 +704,7 @@ public class QuestJournalUI : MonoBehaviour
         GameObject fillObj = CreateUIElement("Fill", barContainer.transform);
         RectTransform fillRect = fillObj.GetComponent<RectTransform>();
         fillRect.anchorMin = Vector2.zero;
-        fillRect.anchorMax = new Vector2((float)level / 100f, 1f);
+        fillRect.anchorMax = new Vector2(Mathf.Clamp01((float)level / 100f), 1f);
         fillRect.offsetMin = Vector2.zero;
         fillRect.offsetMax = Vector2.zero;
         Image fillImg = fillObj.AddComponent<Image>();

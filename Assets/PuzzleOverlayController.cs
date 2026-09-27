@@ -99,20 +99,26 @@ public class PuzzleOverlayController : MonoBehaviour
         }
 
         GameStateManager gsm = GameStateManager.Instance;
+        bool effectiveSolved = solved || (activeManager != null && activeManager.IsPuzzleSolved);
         if (gsm != null)
         {
-            if (activeManager != null)
+            if (activeManager != null && activeManager.HasActiveBoard)
             {
                 int[,] grid = activeManager.CaptureCurrentGrid();
-                gsm.SavePuzzleRuntimeState(activeManager.OverlayPuzzleBoxId, grid, solved || activeManager.IsPuzzleSolved);
+                gsm.SavePuzzleRuntimeState(activeManager.OverlayPuzzleBoxId, grid, effectiveSolved);
             }
 
             gsm.ExitPuzzle();
         }
 
-        if (solved && activeBox != null)
+        if (effectiveSolved && activeBox != null)
         {
             activeBox.MarkSolved();
+        }
+
+        if (activeBox != null)
+        {
+            activeBox.NotifyOverlayClosed();
         }
 
         CleanupActiveSession();

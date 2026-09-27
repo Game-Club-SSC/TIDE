@@ -4,6 +4,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class PuzzleGuardSpawner : MonoBehaviour
 {
+    private const string FallbackEncounterId = "encounter_imp_trio";
+
     [Header("Guard Spawn")]
     [SerializeField] private Vector3 spawnOffset = new Vector3(0f, 0.6f, 2.5f);
     [SerializeField] private Vector3 guardScale = new Vector3(0.9f, 1.2f, 0.9f);
@@ -82,15 +84,17 @@ public class PuzzleGuardSpawner : MonoBehaviour
 
             string boxId = box.GetPuzzleBoxId();
             bool isBoxSolved = gsm != null && gsm.IsPuzzleBoxSolved(boxId);
-            if (!box.isActiveAndEnabled && !isBoxSolved)
-            {
-                continue;
-            }
-
             string scopedIslandId = IslandThemeRegistry.ResolveIslandId(islandId);
             string stableBoxId = GetStableBoxIdentifier(box, lockedTilePosition);
             string guardKey = BuildGuardKey(scopedIslandId, encounterId, stableBoxId);
             validGuardKeys.Add(guardKey);
+
+            // A temporarily-deactivated unsolved box still owns its guard;
+            // registering the key above keeps the sweep from deleting it.
+            if (!box.isActiveAndEnabled && !isBoxSolved)
+            {
+                continue;
+            }
 
             if (isBoxSolved)
             {
@@ -134,7 +138,20 @@ public class PuzzleGuardSpawner : MonoBehaviour
 
     private void SpawnGuard(PuzzleBoxInteractable box, Vector2Int lockedTilePosition, string encounterId, string islandId, string guardKey)
     {
-        Vector3 desiredAnchor = box.GetOverlayBoardCenterWorldPosition() + GetTileOffset(lockedTilePosition) + spawnOffset;
+        // Resolve the config first so an unknown encounter id costs nothing
+        // per refresh instead of creating and destroying a capsule each time.
+        EncounterConfig encounterConfig = LoadEncounterById(encounterId);
+        if (encounterConfig == null)
+        {
+            encounterConfig = LoadEncounterById(FallbackEncounterId);
+        }
+
+        if (encounterConfig == null)
+        {
+            return;
+        }
+
+        Vector3 desiredAnchor = box.GetOverlayBoardCenterWorldPosition() + GetTileOffset(lockedTilePosition, GetBoxGridDimensions(box)) + spawnOffset;
         Vector3 anchorPosition = ResolveSpawnAnchor(desiredAnchor);
 
         GameObject guardObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
@@ -157,19 +174,6 @@ public class PuzzleGuardSpawner : MonoBehaviour
 
         body.freezeRotation = true;
         body.isKinematic = true;
-
-        EncounterConfig encounterConfig = LoadEncounterById(encounterId);
-        if (encounterConfig == null)
-        {
-            encounterConfig = LoadEncounterById("encounter_imp_trio");
-        }
-
-        if (encounterConfig == null)
-        {
-            Debug.LogWarning($"[PuzzleGuardSpawner] No encounter config found for id '{encounterId}' or fallback. Destroying guard.");
-            Destroy(guardObject);
-            return;
-        }
 
         OverworldEnemy enemy = guardObject.AddComponent<OverworldEnemy>();
         enemy.ConfigureAsPuzzleGuard(
@@ -291,9 +295,19 @@ public class PuzzleGuardSpawner : MonoBehaviour
         return IslandRestorationTracker.Instance.HasClearedEncounter(scopedIslandId, encounterId);
     }
 
+    private static readonly HashSet<string> missingEncounterConfigIds = new HashSet<string>();
+
     private static EncounterConfig LoadEncounterById(string encounterId)
     {
         if (string.IsNullOrEmpty(encounterId))
+        {
+            return null;
+        }
+
+        // Remember misses so an id with no config does not repeat the full
+        // Resources.LoadAll scan on every refresh. The fallback id is never
+        // cached, otherwise one mistyped box id would disable all guards.
+        if (encounterId != FallbackEncounterId && missingEncounterConfigIds.Contains(encounterId))
         {
             return null;
         }
@@ -312,6 +326,12 @@ public class PuzzleGuardSpawner : MonoBehaviour
             {
                 return candidate;
             }
+        }
+
+        if (encounterId != FallbackEncounterId)
+        {
+            missingEncounterConfigIds.Add(encounterId);
+            Debug.LogWarning($"[PuzzleGuardSpawner] No EncounterConfig found for '{encounterId}'; guard spawning disabled for this id.");
         }
 
         return null;
@@ -380,11 +400,41 @@ public class PuzzleGuardSpawner : MonoBehaviour
         return false;
     }
 
-    private static Vector3 GetTileOffset(Vector2Int tilePosition)
+    private static Vector2Int GetBoxGridDimensions(PuzzleBoxInteractable box)
+    {
+        if (box == null)
+        {
+            return new Vector2Int(3, 3);
+        }
+
+        PuzzleData data = box.GetPuzzleData();
+        if (data != null)
+        {
+            Vector2Int dimensions = data.GetResolvedGridDimensions();
+            if (dimensions.x > 0 && dimensions.y > 0)
+            {
+                return dimensions;
+            }
+        }
+
+        int[,] legacyLayout = box.GetLegacyPuzzleLayout();
+        if (legacyLayout != null && legacyLayout.GetLength(0) > 0 && legacyLayout.GetLength(1) > 0)
+        {
+            return new Vector2Int(legacyLayout.GetLength(1), legacyLayout.GetLength(0));
+        }
+
+        return new Vector2Int(3, 3);
+    }
+
+    // Mirrors TideManager.GetWorldPosition centering so the guard stays on
+    // its locked tile for any grid size (the old literals only matched 3x3).
+    private static Vector3 GetTileOffset(Vector2Int tilePosition, Vector2Int gridDimensions)
     {
         const float tileSpacing = 2.25f;
-        float xOffset = (tilePosition.x - 1) * tileSpacing;
-        float zOffset = (1 - tilePosition.y) * tileSpacing;
+        int gridCols = Mathf.Max(1, gridDimensions.x);
+        int gridRows = Mathf.Max(1, gridDimensions.y);
+        float xOffset = (tilePosition.x - (gridCols - 1) * 0.5f) * tileSpacing;
+        float zOffset = ((gridRows - 1) * 0.5f - tilePosition.y) * tileSpacing;
         return new Vector3(xOffset, 0f, zOffset);
     }
 }

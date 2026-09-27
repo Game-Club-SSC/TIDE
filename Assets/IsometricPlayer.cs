@@ -809,6 +809,18 @@ public class IsometricPlayer : MonoBehaviour
         PlayOneShot(hopClip);
     }
 
+    private void OnDisable()
+    {
+        // The follow camera reads the shared bridge every frame; leaving a
+        // mid-stride look-ahead behind when the player is disabled (combat
+        // entry, respawn, scene unload) offsets the camera permanently.
+        if (cameraPolishBridge != null)
+        {
+            cameraPolishBridge.SetLookAhead(Vector3.zero);
+        }
+        cameraLookAheadCurrent = Vector3.zero;
+    }
+
     private void UpdateCameraPolish()
     {
         if (!useCameraFollowPolish)

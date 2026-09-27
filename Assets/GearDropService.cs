@@ -75,6 +75,17 @@ public class GearDropService : ScriptableObject
         activeInstance = this;
     }
 
+    private void OnDisable()
+    {
+        // Drop tables are ScriptableObjects; clear the static handle on
+        // unload/quit so stale instances from a previous session are never
+        // consulted after scene reloads or with domain reload disabled.
+        if (activeInstance == this)
+        {
+            activeInstance = null;
+        }
+    }
+
     public LootTable GetLootTable(string enemyType, string islandId)
     {
         if (lootTables == null || lootTables.Length == 0)
@@ -142,13 +153,27 @@ public class GearDropService : ScriptableObject
         float cumulative = 0f;
         for (int i = 0; i < table.entries.Length; i++)
         {
-            if (table.entries[i] == null || string.IsNullOrEmpty(table.entries[i].gearSetId))
+            if (table.entries[i] == null || string.IsNullOrEmpty(table.entries[i].gearSetId)
+                || table.entries[i].weight <= 0f)
             {
                 continue;
             }
 
-            cumulative += Mathf.Max(0f, table.entries[i].weight);
-            if (roll <= cumulative)
+            cumulative += table.entries[i].weight;
+            if (roll < cumulative)
+            {
+                gearSetId = table.entries[i].gearSetId;
+                OnGearDropped?.Invoke(gearSetId, rarity);
+                return true;
+            }
+        }
+
+        // Floating-point safety net: Random.value can land at/above the last
+        // cumulative total, in which case the final eligible entry wins.
+        for (int i = table.entries.Length - 1; i >= 0; i--)
+        {
+            if (table.entries[i] != null && !string.IsNullOrEmpty(table.entries[i].gearSetId)
+                && table.entries[i].weight > 0f)
             {
                 gearSetId = table.entries[i].gearSetId;
                 OnGearDropped?.Invoke(gearSetId, rarity);
@@ -207,13 +232,13 @@ public class GearDropService : ScriptableObject
         float cumulative = 0f;
         for (int i = 0; i < rarityWeights.Length; i++)
         {
-            if (rarityWeights[i] == null)
+            if (rarityWeights[i] == null || rarityWeights[i].weight <= 0f)
             {
                 continue;
             }
 
-            cumulative += Mathf.Max(0f, rarityWeights[i].weight);
-            if (roll <= cumulative)
+            cumulative += rarityWeights[i].weight;
+            if (roll < cumulative)
             {
                 return rarityWeights[i].rarity;
             }

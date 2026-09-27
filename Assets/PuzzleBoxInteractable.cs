@@ -109,6 +109,12 @@ public class PuzzleBoxInteractable : MonoBehaviour, IPlayerInteractionAssistTarg
         thisBoxSolved = true;
         SetPromptVisible(false);
 
+        // The trigger is disabled below while potentially still overlapped,
+        // and Unity does not guarantee a self-side OnTriggerExit in that
+        // case; reset the range state explicitly.
+        playerOverlapCount = 0;
+        playerInRange = false;
+
         if (interactionTrigger != null)
         {
             interactionTrigger.enabled = false;
@@ -341,7 +347,39 @@ public class PuzzleBoxInteractable : MonoBehaviour, IPlayerInteractionAssistTarg
             return true;
         }
 
+        PhoneInputBridge phoneBridge = PhoneInputBridge.Instance;
+        if (phoneBridge != null && phoneBridge.IsPaired && phoneBridge.PhoneInteractPressed)
+        {
+            return true;
+        }
+
+        GamepadInputManager gamepad = GamepadInputManager.Instance;
+        if (gamepad != null && gamepad.IsGamepadConnected && gamepad.InteractPressed)
+        {
+            return true;
+        }
+
+        MobileTouchInputManager mobileInput = MobileTouchInputManager.Instance;
+        if (mobileInput != null && mobileInput.IsMobilePlatform && mobileInput.InteractPressed)
+        {
+            return true;
+        }
+
+        if (openWhenInteractHeld && Time.unscaledTime < ignoreHeldInteractUntil)
+        {
+            return false;
+        }
+
         return openWhenInteractHeld && (Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.KeypadEnter));
+    }
+
+    private float ignoreHeldInteractUntil;
+
+    /// <summary>Called when the overlay session ends so a still-held interact
+    /// key cannot immediately re-open the puzzle (open/exit/open loop).</summary>
+    public void NotifyOverlayClosed()
+    {
+        ignoreHeldInteractUntil = Time.unscaledTime + 0.3f;
     }
 
     private void OpenPuzzleOverlay()
@@ -380,8 +418,22 @@ public class PuzzleBoxInteractable : MonoBehaviour, IPlayerInteractionAssistTarg
 
         BoxCollider solidCollider = gameObject.AddComponent<BoxCollider>();
         solidCollider.isTrigger = false;
-        solidCollider.size = triggerSize;
-        solidCollider.center = Vector3.zero;
+
+        // The blocker must stay strictly smaller than the trigger volume;
+        // identical volumes would physically wall the player off from ever
+        // overlapping the trigger, so the prompt could never appear.
+        Vector3 solidSize = Vector3.Scale(triggerSize, new Vector3(0.4f, 1f, 0.4f));
+        if (cachedRenderer != null)
+        {
+            solidSize = cachedRenderer.localBounds.size;
+        }
+
+        Vector3 maxSolidSize = triggerSize * 0.7f;
+        solidCollider.size = new Vector3(
+            Mathf.Min(solidSize.x, maxSolidSize.x),
+            Mathf.Min(solidSize.y, maxSolidSize.y),
+            Mathf.Min(solidSize.z, maxSolidSize.z));
+        solidCollider.center = cachedRenderer != null ? cachedRenderer.localBounds.center : Vector3.zero;
     }
 
     private void CreatePromptVisual()

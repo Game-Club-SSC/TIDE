@@ -81,6 +81,11 @@ public class QTESession : MonoBehaviour
     /// </summary>
     public void CancelQTE()
     {
+        CancelQTE(true);
+    }
+
+    private void CancelQTE(bool reportResult)
+    {
         if (!isActive)
         {
             return;
@@ -92,7 +97,16 @@ public class QTESession : MonoBehaviour
             activeQteCoroutine = null;
         }
 
-        CompleteQTE(false);
+        if (reportResult)
+        {
+            CompleteQTE(false);
+            return;
+        }
+
+        activeQteCoroutine = null;
+        isComplete = true;
+        isActive = false;
+        HideUI();
     }
 
     /// <summary>
@@ -157,6 +171,7 @@ public class QTESession : MonoBehaviour
                     inputReceived = true;
                     success = true;
                     Debug.Log("[QTESession] Player hit the sweet spot!");
+                    break;
                 }
             }
 
@@ -204,7 +219,10 @@ public class QTESession : MonoBehaviour
 
     private void OnDisable()
     {
-        CancelQTE();
+        // Teardown (scene unload / destroy) also lands here; reporting a
+        // gameplay "fail" at that moment fires spurious penalties on
+        // listeners that never earned one.
+        CancelQTE(false);
     }
 
     #region UI Setup

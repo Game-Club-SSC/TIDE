@@ -78,6 +78,7 @@ public class EndingSequenceDirector : MonoBehaviour
         }
 
         IsPlaying = true;
+        lastEndingTriggeredState = true;
         EnsureUI();
         StartCoroutine(RunEndingSequence(branch));
     }
@@ -206,12 +207,14 @@ public class EndingSequenceDirector : MonoBehaviour
                     SetImageColor(heroSilhouettes[i], heroColor);
                 }
             }
-
-            // Fade the panel away to reveal the scene.
-            yield return StartCoroutine(Fade(1f, 0f, 1.0f));
-
-            yield return new WaitForSeconds(0.8f);
         }
+
+        // Fade the panel away to reveal the scene (mirrors the bad ending;
+        // must run even when silhouettes are unavailable so the screen is
+        // not left stuck on black).
+        yield return StartCoroutine(Fade(1f, 0f, 1.0f));
+
+        yield return new WaitForSeconds(0.8f);
 
         // --- Fade heroes away one by one ---
         if (heroSilhouettes != null)
@@ -378,6 +381,7 @@ public class EndingSequenceDirector : MonoBehaviour
         }
 
         fadePanel.gameObject.SetActive(true);
+        fadePanel.alpha = from;
         float elapsed = 0f;
         while (elapsed < duration)
         {

@@ -36,7 +36,6 @@ public static class DevCheatFeatureFlags
     private static bool skipCutscenes;
     private static bool unlockAllCosmetics;
     private static bool enableConsole;
-    private static bool logVerbose;
 
     public static int TotalFlagCount => TotalFlags;
 
@@ -136,9 +135,6 @@ public static class DevCheatFeatureFlags
     public static bool GetEnableConsole() => enableConsole;
     public static void SetEnableConsole(bool v) => enableConsole = v;
 
-    public static bool GetLogVerbose() => logVerbose;
-    public static void SetLogVerbose(bool v) => logVerbose = v;
-
     public static IEnumerable<string> GetAllFlagIds()
     {
         return new[]
@@ -197,6 +193,5 @@ public static class DevCheatFeatureFlags
         skipCutscenes = false;
         unlockAllCosmetics = false;
         enableConsole = false;
-        logVerbose = false;
     }
 }

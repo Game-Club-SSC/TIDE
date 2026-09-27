@@ -85,11 +85,24 @@ public class AncientTextInteractable : MonoBehaviour, IPlayerInteractionAssistTa
 
     private bool CanInteract(GameStateManager gsm)
     {
-        return playerInRange
+        if (playerInRange
             && gsm != null
             && gsm.currentState == GameStateManager.GameState.Exploration
             && !gsm.IsTransitioning
-            && Time.time - playerEnteredRangeAt >= Mathf.Max(0f, interactEntryDelay);
+            && Time.time - playerEnteredRangeAt >= Mathf.Max(0f, interactEntryDelay))
+        {
+            // Dialogue trees consume the same Enter key during exploration;
+            // block the tablet so one press cannot drive two overlays.
+            DialogueSystem dialogue = DialogueSystem.Instance;
+            if (dialogue != null && dialogue.IsDialogueActive)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private void RegisterTextData()

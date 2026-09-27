@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -231,10 +232,27 @@ public static class PersonaUIStyle
         if (panel == null) return;
 
         MonoBehaviour host = panel.GetComponentInParent<MonoBehaviour>();
-        if (host == null) return;
+        if (host == null)
+        {
+            // No coroutine host: snap directly to the requested end state so
+            // the panel is never left invisible from a previous exit slide.
+            panel.alpha = entering ? 1f : 0f;
+            panel.blocksRaycasts = entering;
+            return;
+        }
 
-        host.StartCoroutine(SlashTransitionRoutine(panel, entering, duration));
+        // Stop a transition already in flight on this panel. Otherwise a
+        // second routine captures mid-slide offsets as "original" and leaves
+        // the panel permanently offset after rapid re-entrant switches.
+        if (activeSlashCoroutines.TryGetValue(panel, out Coroutine running) && running != null)
+        {
+            host.StopCoroutine(running);
+        }
+
+        activeSlashCoroutines[panel] = host.StartCoroutine(SlashTransitionRoutine(panel, entering, duration));
     }
+
+    private static readonly Dictionary<CanvasGroup, Coroutine> activeSlashCoroutines = new Dictionary<CanvasGroup, Coroutine>();
 
     private static IEnumerator SlashTransitionRoutine(CanvasGroup panel, bool entering, float duration)
     {

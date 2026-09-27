@@ -570,7 +570,26 @@ public class GearInventoryUI : MonoBehaviour
 
         HeroData[] active = partyManager.GetActiveParty();
         HeroData[] reserve = partyManager.GetReserveParty();
-        int total = (active != null ? active.Length : 0) + (reserve != null ? reserve.Length : 0);
+
+        // Party slot arrays are fixed-length and can contain null holes
+        // (benched slots); count only real heroes so ghosts never render.
+        int total = 0;
+        if (active != null)
+        {
+            for (int i = 0; i < active.Length; i++)
+            {
+                if (active[i] != null && !string.IsNullOrEmpty(active[i].heroId)) total++;
+            }
+        }
+
+        if (reserve != null)
+        {
+            for (int i = 0; i < reserve.Length; i++)
+            {
+                if (reserve[i] != null && !string.IsNullOrEmpty(reserve[i].heroId)) total++;
+            }
+        }
+
         if (total == 0)
         {
             return null;
@@ -582,7 +601,10 @@ public class GearInventoryUI : MonoBehaviour
         {
             for (int i = 0; i < active.Length; i++)
             {
-                heroes[index++] = active[i];
+                if (active[i] != null && !string.IsNullOrEmpty(active[i].heroId))
+                {
+                    heroes[index++] = active[i];
+                }
             }
         }
 
@@ -590,7 +612,10 @@ public class GearInventoryUI : MonoBehaviour
         {
             for (int i = 0; i < reserve.Length; i++)
             {
-                heroes[index++] = reserve[i];
+                if (reserve[i] != null && !string.IsNullOrEmpty(reserve[i].heroId))
+                {
+                    heroes[index++] = reserve[i];
+                }
             }
         }
 

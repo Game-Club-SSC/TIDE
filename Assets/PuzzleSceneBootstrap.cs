@@ -17,8 +17,11 @@ public class PuzzleSceneBootstrap : MonoBehaviour
 
     private void Awake()
     {
-        ResolveViceThemeColors();
+        // GameManager must exist first: vice theme colors consult its
+        // PendingPuzzleIslandId, which is invisible on a cold scene load
+        // when this bootstrap is what creates the manager.
         EnsureGameManager();
+        ResolveViceThemeColors();
         EnsurePuzzleManager();
         EnsureDirectionalLight();
         EnsureGround();

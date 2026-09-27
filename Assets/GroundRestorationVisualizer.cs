@@ -17,7 +17,7 @@ public class GroundRestorationVisualizer : MonoBehaviour
     [SerializeField] private float transitionDuration = 0.5f;
 
     [Tooltip("Island ID to track. Leave empty to track active progression island.")]
-    [SerializeField] private string islandId = "island_lust";
+    [SerializeField] private string islandId = "";
 
     private IslandRestorationTracker tracker;
     private Coroutine activeTransitionCoroutine;
@@ -186,6 +186,7 @@ public class GroundRestorationVisualizer : MonoBehaviour
     {
         if (groundRenderer == null)
         {
+            activeTransitionCoroutine = null;
             yield break;
         }
 
@@ -220,13 +221,16 @@ public class GroundRestorationVisualizer : MonoBehaviour
         return tracker.GetRestorationPercent(targetIsland) / 100f;
     }
 
+    private bool didRefreshOnTrackerDiscovery;
+
     private void Update()
     {
         if (tracker == null)
         {
             TryFindTracker();
-            if (tracker != null)
+            if (tracker != null && !didRefreshOnTrackerDiscovery)
             {
+                didRefreshOnTrackerDiscovery = true;
                 RefreshColor();
             }
         }
