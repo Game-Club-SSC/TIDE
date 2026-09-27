@@ -247,6 +247,54 @@ public class AudioMixingInvariantTest : MonoBehaviour
         }
     }
 
+    [Test]
+    public void AmbientBedKeepsTheIslandProfileScale()
+    {
+        // PlayIslandAudio set the ambient level from the island profile, but
+        // every later volume or mute change rewrote it to a hardcoded half,
+        // discarding the profile. The scale must persist across changes.
+        AudioManager manager = CreateManager();
+        try
+        {
+            SetPrivateField(manager, "activeAmbientVolumeScale", 0.3f);
+            manager.SetBgmVolume(1f);
+
+            AudioSource ambient = GetSource(manager, "ambientSource");
+            Assert.IsNotNull(ambient, "Setup: the ambient source should exist.");
+            Assert.AreEqual(0.3f, ambient.volume, 0.001f,
+                "The ambient bed must keep the island profile's own level, not snap to a hardcoded half.");
+
+            manager.SetMute(true);
+            manager.SetMute(false);
+
+            Assert.AreEqual(0.3f, ambient.volume, 0.001f,
+                "A mute/unmute round trip must not discard the island's ambient level.");
+        }
+        finally
+        {
+            Cleanup();
+        }
+    }
+
+    [Test]
+    public void AmbientBedDefaultsToHalfWhenNoProfileIsLoaded()
+    {
+        // With no island profile the bed keeps its original half-volume mix
+        // rather than jumping to full volume on the first ApplyVolumes.
+        AudioManager manager = CreateManager();
+        try
+        {
+            manager.SetBgmVolume(1f);
+            AudioSource ambient = GetSource(manager, "ambientSource");
+            Assert.AreEqual(0.5f, ambient.volume, 0.001f,
+                "Without an island profile the ambient bed should sit at half the BGM level.");
+        }
+        finally
+        {
+            Cleanup();
+        }
+    }
+
     // ------------------------------------------------------------------ //
     //  Helpers
     // ------------------------------------------------------------------ //

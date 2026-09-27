@@ -428,14 +428,17 @@ public class PlayerCustomizationUI : MonoBehaviour
             player.canMove = false;
         }
 
-        // Capture unconditionally. The pause menu and this panel can be open
-        // at the same time (both are created at runtime and neither defers to
-        // the other), so guarding on hasPausedTimeScale would latch a stale
-        // previousTimeScale of 0 from the other overlay and leave the resume
-        // relying on the fallback below.
-        previousTimeScale = Time.timeScale;
+        // If another overlay already paused the game, there is no gameplay
+        // clock left to restore: it owns the pause. Recording 0 here and
+        // restoring it later would either freeze the game or silently depend
+        // on the fallback, so the ownership is tracked instead.
+        hasPausedTimeScale = Time.timeScale > 0f;
+        if (hasPausedTimeScale)
+        {
+            previousTimeScale = Time.timeScale;
+        }
+
         Time.timeScale = 0f;
-        hasPausedTimeScale = true;
     }
 
     private void ResumeGameplay()
@@ -445,9 +448,12 @@ public class PlayerCustomizationUI : MonoBehaviour
             player.canMove = wasPlayerMoveEnabled;
         }
 
+        // Only restore if this panel is the one that paused the game. If it
+        // merely found the clock already stopped, the other overlay still
+        // holds it and will restore it on its own close.
         if (hasPausedTimeScale)
         {
-            Time.timeScale = previousTimeScale > 0f ? previousTimeScale : 1f;
+            Time.timeScale = previousTimeScale;
             hasPausedTimeScale = false;
         }
     }

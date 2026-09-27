@@ -137,6 +137,13 @@ public class AudioManager : MonoBehaviour
     private AudioSource bgmSource;
     private AudioSource stingSource;
     private AudioSource ambientSource;
+
+    /// <summary>
+    /// The active island profile's ambient level, applied on top of the BGM
+    /// volume. Defaults to half so an unconfigured bed keeps its original mix
+    /// rather than snapping to full volume when the first profile loads.
+    /// </summary>
+    private float activeAmbientVolumeScale = 0.5f;
     private AudioSource sfxSource;
     private AudioCue? activeCue;
     private IslandAudioProfile activeIslandProfile;
@@ -232,7 +239,7 @@ public class AudioManager : MonoBehaviour
             ambientSource = gameObject.AddComponent<AudioSource>();
             ambientSource.loop = true;
             ambientSource.playOnAwake = false;
-            ambientSource.volume = mute ? 0f : bgmVolume * 0.5f;
+            ambientSource.volume = mute ? 0f : bgmVolume * activeAmbientVolumeScale;
             ambientSource.spatialBlend = 0f;
         }
 
@@ -463,7 +470,7 @@ public class AudioManager : MonoBehaviour
 
         if (ambientSource != null && !mute)
         {
-            ambientSource.volume = bgmVolume * 0.5f;
+            ambientSource.volume = bgmVolume * activeAmbientVolumeScale;
         }
 
         PlayerPrefs.SetFloat(BgmVolumeKey, bgmVolume);
@@ -553,7 +560,9 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
         if (profile.ambientLoop != null)
         {
             ambientSource.clip = profile.ambientLoop;
+            activeAmbientVolumeScale = profile.ambientVolume;
             ambientSource.volume = profile.ambientVolume * BgmVolume;
+            ambientSource.mute = mute;
             ambientSource.Play();
         }
         else
@@ -961,7 +970,10 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
 
         if (ambientSource != null)
         {
-            ambientSource.volume = mute ? 0f : bgmVolume * 0.5f;
+            // Scale by the island's own ambient level when one is loaded, so
+            // a later volume or mute change does not discard the profile and
+            // snap the bed back to a hardcoded half-volume.
+            ambientSource.volume = (mute ? 0f : bgmVolume) * activeAmbientVolumeScale;
             ambientSource.mute = mute;
         }
 

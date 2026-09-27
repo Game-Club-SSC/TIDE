@@ -166,7 +166,7 @@ public class BattleHud : MonoBehaviour
 
         if (clashOverlay != null && clashOverlay.activeSelf)
         {
-            clashDisplayTimer -= Time.unscaledDeltaTime;
+            clashDisplayTimer -= Time.deltaTime;
             if (clashDisplayTimer <= 0f)
             {
                 clashOverlay.SetActive(false);
@@ -175,7 +175,7 @@ public class BattleHud : MonoBehaviour
 
         if (critOverlay != null && critOverlay.activeSelf)
         {
-            critDisplayTimer -= Time.unscaledDeltaTime;
+            critDisplayTimer -= Time.deltaTime;
             if (critDisplayTimer <= 0f)
             {
                 critOverlay.SetActive(false);
@@ -184,7 +184,7 @@ public class BattleHud : MonoBehaviour
 
         if (teamDynamicOverlay != null && teamDynamicOverlay.activeSelf)
         {
-            teamDynamicDisplayTimer -= Time.unscaledDeltaTime;
+            teamDynamicDisplayTimer -= Time.deltaTime;
             if (teamDynamicDisplayTimer <= 0f)
             {
                 teamDynamicOverlay.SetActive(false);

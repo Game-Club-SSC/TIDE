@@ -77,7 +77,15 @@ public class TopDownFollowCamera : MonoBehaviour
 
         Vector2 currentPlanar = GetPlanarPosition(transform.position);
         Vector2 desiredPlanar = GetPlanarPosition(desiredPosition);
-        float appliedMaxSpeed = maxFollowSpeed <= 0f ? Mathf.Infinity : maxFollowSpeed;
+        // The smoothing time constant is presentation and must keep settling
+        // while the game is paused, but maxFollowSpeed is a gameplay speed
+        // limit: SmoothDamp applies it against the delta it is given, so
+        // passing the unscaled delta would let the camera close several times
+        // faster than intended under a reduced timeScale. The limit is
+        // therefore scaled to match, keeping the cap in gameplay units.
+        float appliedMaxSpeed = maxFollowSpeed <= 0f
+            ? Mathf.Infinity
+            : maxFollowSpeed * Time.timeScale;
 
         Vector2 nextPlanar = smoothTime <= 0f
             ? desiredPlanar
