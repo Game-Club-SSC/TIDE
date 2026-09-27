@@ -710,6 +710,7 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
 
         float actVolMult = profile.GetActVolumeMultiplier(actNumber);
         bgmSource.volume = BgmVolume * actVolMult;
+        bgmSource.mute = mute;
     }
 
     private void PlayBgm(AudioCue cue, AudioClip clip)
@@ -803,6 +804,12 @@ public void HandleStoryActChanged(GameStateManager.StoryAct act)
         }
 
         bgmSource.volume = targetVolume;
+
+        // The fade writes .volume directly, so it never re-applies the mute
+        // flag. Re-assert it here; otherwise any later change that touches
+        // .mute (or a source re-enabled elsewhere) would unmute a source that
+        // the crossfade had already filled to a non-zero level.
+        bgmSource.mute = mute;
         bgmFadeRoutine = null;
     }
 

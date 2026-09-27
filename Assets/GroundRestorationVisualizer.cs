@@ -199,7 +199,7 @@ public class GroundRestorationVisualizer : MonoBehaviour
 
         while (elapsed < transitionDuration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / transitionDuration);
             float smoothedT = Mathf.SmoothStep(0f, 1f, t);
 

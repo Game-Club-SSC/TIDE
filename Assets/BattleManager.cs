@@ -2904,7 +2904,7 @@ public class BattleManager : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = Mathf.Sin(t * Mathf.PI * 0.5f);
             visualTransform.localPosition = Vector3.Lerp(start, apex, eased);
@@ -2914,7 +2914,7 @@ public class BattleManager : MonoBehaviour
         elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = 1f - Mathf.Pow(1f - t, 2f);
             visualTransform.localPosition = Vector3.Lerp(apex, start, eased);
@@ -2939,7 +2939,7 @@ public class BattleManager : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float damper = 1f - Mathf.Clamp01(elapsed / duration);
             float shakeX = (UnityEngine.Random.value * 2f - 1f) * magnitude * damper;
             float shakeY = (UnityEngine.Random.value * 2f - 1f) * magnitude * 0.55f * damper;
@@ -2965,7 +2965,7 @@ public class BattleManager : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = Mathf.Sin(t * Mathf.PI);
             shadowTransform.localScale = Vector3.Lerp(startScale, expanded, eased);
@@ -3015,7 +3015,7 @@ public class BattleManager : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = 1f - Mathf.Pow(1f - t, 2f);
 

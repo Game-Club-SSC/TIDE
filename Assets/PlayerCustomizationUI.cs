@@ -428,12 +428,14 @@ public class PlayerCustomizationUI : MonoBehaviour
             player.canMove = false;
         }
 
-        if (!hasPausedTimeScale)
-        {
-            previousTimeScale = Time.timeScale;
-            Time.timeScale = 0f;
-            hasPausedTimeScale = true;
-        }
+        // Capture unconditionally. The pause menu and this panel can be open
+        // at the same time (both are created at runtime and neither defers to
+        // the other), so guarding on hasPausedTimeScale would latch a stale
+        // previousTimeScale of 0 from the other overlay and leave the resume
+        // relying on the fallback below.
+        previousTimeScale = Time.timeScale;
+        Time.timeScale = 0f;
+        hasPausedTimeScale = true;
     }
 
     private void ResumeGameplay()

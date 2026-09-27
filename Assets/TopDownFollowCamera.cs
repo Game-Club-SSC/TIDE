@@ -87,7 +87,7 @@ public class TopDownFollowCamera : MonoBehaviour
                 ref currentVelocity,
                 smoothTime,
                 appliedMaxSpeed,
-                Time.deltaTime);
+                Time.unscaledDeltaTime);
 
         ApplyPlanarPosition(nextPlanar);
     }

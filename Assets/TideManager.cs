@@ -452,14 +452,18 @@ public class TideManager : MonoBehaviour
 
     private void Update()
     {
-        if (isClosingBoardUi)
-        {
-            return;
-        }
-
+        // The dismiss animation swallows all board input (blocksRaycasts is
+        // cleared and the panel is the only visible UI), so the escape hatch
+        // has to be handled before that lock, or a stalled animation would
+        // trap the player with no way out.
         if (overlayMode && Input.GetKeyDown(KeyCode.Escape))
         {
             RequestOverlayClose();
+            return;
+        }
+
+        if (isClosingBoardUi)
+        {
             return;
         }
 
@@ -1409,7 +1413,7 @@ public class TideManager : MonoBehaviour
 
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = 1f - Mathf.Pow(1f - t, 3f);
 

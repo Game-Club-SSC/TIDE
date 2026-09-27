@@ -166,7 +166,7 @@ public class BattleHud : MonoBehaviour
 
         if (clashOverlay != null && clashOverlay.activeSelf)
         {
-            clashDisplayTimer -= Time.deltaTime;
+            clashDisplayTimer -= Time.unscaledDeltaTime;
             if (clashDisplayTimer <= 0f)
             {
                 clashOverlay.SetActive(false);
@@ -175,7 +175,7 @@ public class BattleHud : MonoBehaviour
 
         if (critOverlay != null && critOverlay.activeSelf)
         {
-            critDisplayTimer -= Time.deltaTime;
+            critDisplayTimer -= Time.unscaledDeltaTime;
             if (critDisplayTimer <= 0f)
             {
                 critOverlay.SetActive(false);
@@ -184,7 +184,7 @@ public class BattleHud : MonoBehaviour
 
         if (teamDynamicOverlay != null && teamDynamicOverlay.activeSelf)
         {
-            teamDynamicDisplayTimer -= Time.deltaTime;
+            teamDynamicDisplayTimer -= Time.unscaledDeltaTime;
             if (teamDynamicDisplayTimer <= 0f)
             {
                 teamDynamicOverlay.SetActive(false);
@@ -328,7 +328,7 @@ public class BattleHud : MonoBehaviour
                 spriteAnimPhase[visual] = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
             }
 
-            float phase = spriteAnimPhase[visual] + Time.deltaTime * 5.4f;
+            float phase = spriteAnimPhase[visual] + Time.unscaledDeltaTime * 5.4f;
             spriteAnimPhase[visual] = phase;
 
             bool unitIsActive = battleManager.GetCurrentInputUnit() == unit && battleManager.CurrentPhase == BattlePhase.PlayerInput;
@@ -685,7 +685,7 @@ public class BattleHud : MonoBehaviour
         bar.NameLabel.color = unit.IsAlive ? nameColor : Color.gray;
 
         float hpRatio = unit.MaxHP > 0 ? (float)unit.HP / unit.MaxHP : 0f;
-        bar.DisplayedHpRatio = Mathf.MoveTowards(bar.DisplayedHpRatio, hpRatio, Time.deltaTime * 5f);
+        bar.DisplayedHpRatio = Mathf.MoveTowards(bar.DisplayedHpRatio, hpRatio, Time.unscaledDeltaTime * 5f);
         bar.HpFill.fillAmount = bar.DisplayedHpRatio;
 
         int displayedHp = Mathf.Clamp(Mathf.RoundToInt(bar.DisplayedHpRatio * unit.MaxHP), 0, unit.MaxHP);
@@ -935,7 +935,7 @@ public class BattleHud : MonoBehaviour
 
     private void UpdateMomentumBar(float value)
     {
-        displayedMomentumValue = Mathf.MoveTowards(displayedMomentumValue, Mathf.Clamp(value, -1f, 1f), Time.deltaTime * 3f);
+        displayedMomentumValue = Mathf.MoveTowards(displayedMomentumValue, Mathf.Clamp(value, -1f, 1f), Time.unscaledDeltaTime * 3f);
 
         if (momentumFill == null) return;
         float normalized = (displayedMomentumValue + 1f) / 2f;

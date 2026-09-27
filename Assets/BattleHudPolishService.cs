@@ -139,7 +139,7 @@ public static class BattleHudPolishService
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             target.color = Color.Lerp(flashColor, original, t);
             yield return null;
@@ -158,7 +158,7 @@ public static class BattleHudPolishService
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float damper = 1f - Mathf.Clamp01(elapsed / duration);
             float offsetX = Random.Range(-1f, 1f) * magnitude * damper;
             float offsetY = Random.Range(-1f, 1f) * magnitude * damper;
@@ -184,7 +184,7 @@ public static class BattleHudPolishService
             float elapsed = 0f;
             while (elapsed < pulseDuration)
             {
-                elapsed += Time.deltaTime;
+                elapsed += Time.unscaledDeltaTime;
                 float p = Mathf.Clamp01(elapsed / pulseDuration);
                 float scale = Mathf.Lerp(1f, pulseScale, p);
                 t.localScale = originalScale * scale;
@@ -193,7 +193,7 @@ public static class BattleHudPolishService
             }
             while (elapsed > 0f)
             {
-                elapsed -= Time.deltaTime;
+                elapsed -= Time.unscaledDeltaTime;
                 float p = Mathf.Clamp01(elapsed / pulseDuration);
                 float scale = Mathf.Lerp(1f, pulseScale, p);
                 t.localScale = originalScale * scale;
@@ -219,7 +219,7 @@ public static class BattleHudPolishService
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             target.color = Color.Lerp(flash, original, t);
             yield return null;

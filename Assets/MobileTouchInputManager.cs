@@ -289,7 +289,7 @@ public class MobileTouchInputManager : MonoBehaviour
     {
         if (!isDraggingJoystick || joystickTouchId < 0)
         {
-            float decay = joystickSmoothSpeed * Time.deltaTime;
+            float decay = joystickSmoothSpeed * Time.unscaledDeltaTime;
             moveH = Mathf.MoveTowards(moveH, 0f, decay);
             moveV = Mathf.MoveTowards(moveV, 0f, decay);
             return;
@@ -406,13 +406,13 @@ public class MobileTouchInputManager : MonoBehaviour
 
     private void UpdateAutoHide()
     {
-        autoHideTimer -= Time.deltaTime;
+        autoHideTimer -= Time.unscaledDeltaTime;
         if (autoHideTimer <= 0f)
         {
             alphaTarget = AutoHideMinAlpha;
         }
 
-        currentAlpha = Mathf.MoveTowards(currentAlpha, alphaTarget, (1f / FadeDuration) * Time.deltaTime);
+        currentAlpha = Mathf.MoveTowards(currentAlpha, alphaTarget, (1f / FadeDuration) * Time.unscaledDeltaTime);
 
         if (canvasGroup != null)
         {
