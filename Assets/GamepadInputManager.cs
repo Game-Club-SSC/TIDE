@@ -142,10 +142,11 @@ public class GamepadInputManager : MonoBehaviour
         MoveH = ApplyDeadZone(rawH);
         MoveV = ApplyDeadZone(rawV);
 
-        // Left stick click only. Fire3 resolves to "joystick button 2" (X /
-        // Square, already Dash) and button 4 is LB (Swap), so aliasing either
-        // would fire sprint alongside those actions.
-        SprintHeld = Input.GetButton("joystick button 10");
+        // Left stick click (L3). button 6 is L3; button 10 is R3. Fire3
+        // resolves to "joystick button 2" (X/Square, already Dash) and
+        // button 4 is LB (already Swap), so aliasing either would fire sprint
+        // alongside those actions.
+        SprintHeld = Input.GetButton("joystick button 6");
     }
 
     // ----- Exploration Actions -----

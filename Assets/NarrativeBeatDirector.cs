@@ -249,22 +249,28 @@ public class NarrativeBeatDirector : MonoBehaviour
     /// <summary>
     /// Plays the pre-boss dialogue for the given island.
     /// Call from IslandFlowController or DialogueTrigger when approaching a boss.
+    /// Returns true only when a dialogue actually started, so callers can
+    /// safely defer an encounter until it completes.
     /// </summary>
-    public static void PlayPreBossDialogue(string islandId)
+    public static bool PlayPreBossDialogue(string islandId)
     {
         if (DialogueSystem.Instance == null || DialogueSystem.Instance.IsDialogueActive)
         {
-            return;
+            return false;
         }
 
-        if (IslandToPreBossDialogue.TryGetValue(islandId, out System.Func<DialogueTree> treeFactory))
+        if (string.IsNullOrEmpty(islandId) || !IslandToPreBossDialogue.TryGetValue(islandId, out System.Func<DialogueTree> treeFactory))
         {
-            DialogueTree tree = treeFactory();
-            if (tree != null)
-            {
-                DialogueSystem.Instance.StartDialogueTree(tree);
-            }
+            return false;
         }
+
+        DialogueTree tree = treeFactory();
+        if (tree == null)
+        {
+            return false;
+        }
+
+        return DialogueSystem.Instance.StartDialogueTree(tree);
     }
 
     private void CacheExplorationStartPosition()

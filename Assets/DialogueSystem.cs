@@ -645,17 +645,18 @@ public class DialogueSystem : MonoBehaviour
     /// <summary>
     /// Start a branching dialogue tree. Creates a <see cref="DialogueTreeRunner"/>
     /// that walks through nodes, shows choices, and applies effects.
+    /// Returns true only when a tree was actually started.
     /// </summary>
-    public void StartDialogueTree(DialogueTree tree)
+    public bool StartDialogueTree(DialogueTree tree)
     {
         if (tree == null || tree.rootNode == null)
         {
-            return;
+            return false;
         }
 
         if (isDialogueActive)
         {
-            return;
+            return false;
         }
 
         isDialogueActive = true;
@@ -667,6 +668,7 @@ public class DialogueSystem : MonoBehaviour
         activeTreeRunnerObj = runnerObj;
         runner.OnTreeCompleted += HandleTreeCompleted;
         runner.StartTree(tree);
+        return true;
     }
 
     // ------------------------------------------------------------------ //

@@ -284,9 +284,13 @@ public class PartyData : ScriptableObject
     }
 
     /// <summary>
-    /// Restores the default composition (first three heroes active, the rest
-    /// in reserve). Used by the new-game path so a fresh run does not inherit
-    /// the previous run's active/reserve assignment.
+    /// Restores the authored default composition (first three heroes active,
+    /// the rest in reserve). Used by the new-game path so a fresh run does not
+    /// inherit the previous run's active/reserve assignment.
+    /// NOTE: PartyData is a shared Resources ScriptableObject, so this
+    /// mutates the asset instance for the whole editor session. It is
+    /// deliberately a no-op for the shipped asset, whose authored order
+    /// already matches this reconstruction.
     /// </summary>
     public void ResetToDefaults()
     {

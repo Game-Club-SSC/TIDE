@@ -96,6 +96,11 @@ public class IslandFlowController : MonoBehaviour
 
         islandConfig = config;
         activeIslandId = IslandThemeRegistry.ResolveIslandId(islandConfig.islandId);
+
+        // A new island invalidates any pending pre-boss deferral from the
+        // previous one; leaving the flag set would strand the new island.
+        ReleasePreBossDialogueCallback();
+
         if (islandConfig.encounters == null || islandConfig.encounters.Length == 0)
         {
             Debug.LogError($"[IslandFlowController] Island '{islandConfig.viceName}' has no encounters configured.");
@@ -327,9 +332,18 @@ public class IslandFlowController : MonoBehaviour
         string encounterId = GetEncounterId(encounter, currentEncounterIndex);
         if (preBossEncounterInFlight)
         {
-            // A pre-boss conversation is playing; its completion callback
-            // re-enters this method once the tree finishes.
-            return;
+            if (preBossDialogueCallback != null)
+            {
+                // A pre-boss conversation is genuinely playing; its
+                // completion callback re-enters this method once it ends.
+                return;
+            }
+
+            // The dialogue was cancelled (a scene load drops it without
+            // firing OnDialogueTreeCompleted), so the callback can never
+            // arrive. Recover the flag or the boss is unreachable forever.
+            preBossEncounterInFlight = false;
+            preBossEncounterIdPlayed = null;
         }
 
         if (IsBossEncounter(encounter) && TryPlayPreBossDialogue(encounterId))
@@ -406,8 +420,6 @@ public class IslandFlowController : MonoBehaviour
         }
 
         string islandId = IslandThemeRegistry.ResolveIslandId(activeIslandId);
-        preBossEncounterIdPlayed = encounterId;
-        preBossEncounterInFlight = true;
 
         System.Action<string> onCompleted = null;
         onCompleted = treeId =>
@@ -435,7 +447,18 @@ public class IslandFlowController : MonoBehaviour
 
         dialogue.OnDialogueTreeCompleted += onCompleted;
         preBossDialogueCallback = onCompleted;
-        NarrativeBeatDirector.PlayPreBossDialogue(islandId);
+
+        // Only take ownership if a dialogue really started; otherwise the
+        // completion callback could never arrive and the boss would stay
+        // deferred forever.
+        if (!NarrativeBeatDirector.PlayPreBossDialogue(islandId))
+        {
+            ReleasePreBossDialogueCallback();
+            return false;
+        }
+
+        preBossEncounterIdPlayed = encounterId;
+        preBossEncounterInFlight = true;
         return true;
     }
 
@@ -452,6 +475,8 @@ public class IslandFlowController : MonoBehaviour
         }
 
         preBossDialogueCallback = null;
+        preBossEncounterInFlight = false;
+        preBossEncounterIdPlayed = null;
     }
 
     private void LoadPuzzleEncounter(EncounterDefinition encounter)

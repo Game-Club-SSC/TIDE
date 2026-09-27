@@ -1187,6 +1187,9 @@ public class GameStateManager : MonoBehaviour
 
         if (saveData == null)
         {
+            // Still re-sync: the fields reset above must reach the dialogue
+            // act gates even when there was no payload to load.
+            StoryProgressionService.Instance?.SyncFromGameStateManager();
             return;
         }
 
