@@ -59,7 +59,12 @@ public class BossEncounterGate : MonoBehaviour
             return gsm.GetFinalBossDefeatCount(TrackedIslandId);
         }
 
-        return PlayerPrefs.GetInt(GetDefeatsKey(), 0);
+        // The per-island PlayerPrefs key is no longer written by anything; the
+        // count lives in the world state payload. Reading that orphan key
+        // returned 0 whenever no GameStateManager existed yet, silently
+        // restarting the bad-ending threshold counter, so report none rather
+        // than a value from a dead store.
+        return 0;
     }
 
     public bool RecordBossDefeatAttempt(bool playerWon)
@@ -72,14 +77,12 @@ public class BossEncounterGate : MonoBehaviour
         GameStateManager gsm = GameStateManager.Instance;
         if (gsm != null)
         {
-            bool reachedBadEndingFromGameState = gsm.RecordFinalBossDefeatAttempt(TrackedIslandId, DefeatsForBadEndingThreshold);
-            if (reachedBadEndingFromGameState)
-            {
-                Debug.LogWarning($"[BossEncounterGate] Final boss defeat threshold reached ({gsm.GetFinalBossDefeatCount(TrackedIslandId)}/{DefeatsForBadEndingThreshold}).");
-                OnBadEndingThresholdReached?.Invoke();
-            }
-
-            return reachedBadEndingFromGameState;
+            // GameStateManager defers this event: it records the crossing in
+            // pendingBadEndingThresholdEventIslandId and raises it once per
+            // scene load via NotifyPendingBadEndingThresholdEventIfNeeded.
+            // Invoking it here as well played the bad ending twice and left a
+            // second unconsumed notification behind.
+            return gsm.RecordFinalBossDefeatAttempt(TrackedIslandId, DefeatsForBadEndingThreshold);
         }
 
         int defeats = Mathf.Max(0, GetDefeatCount()) + 1;

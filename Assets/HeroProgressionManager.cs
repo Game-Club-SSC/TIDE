@@ -1250,6 +1250,16 @@ public class HeroProgressionManager : MonoBehaviour
 
             EnsureHero(heroId);
             HeroProgressionState state = heroStates[heroId];
+
+            // The cosmetic sentinel stores a balance, not hero XP. Running it
+            // through the hero levelling curve clamped it to a single-level
+            // window, silently destroying funds the player had already earned.
+            if (heroId == CosmeticCurrencyHeroId)
+            {
+                state.currentXp = Mathf.Max(0, i < xpCount ? snapshot.currentXpValues[i] : 0);
+                continue;
+            }
+
             int maxLevel = levelingConfig != null ? Mathf.Max(1, levelingConfig.maxLevel) : int.MaxValue;
             state.level = Mathf.Clamp(snapshot.levels[i], 1, maxLevel);
             if (i < xpCount)
@@ -1362,6 +1372,15 @@ public class HeroProgressionManager : MonoBehaviour
             return slots;
         }
 
+        // Start from the live party so an id that cannot be resolved (a typo
+        // in an old save, or a roster change between builds) leaves the
+        // existing hero in place rather than silently emptying the slot and
+        // dropping the active party below its minimum.
+        for (int i = 0; i < length && i < fallback.Length; i++)
+        {
+            slots[i] = fallback[i];
+        }
+
         for (int i = 0; i < length; i++)
         {
             string id = ids[i];
@@ -1374,6 +1393,10 @@ public class HeroProgressionManager : MonoBehaviour
             if (hero != null)
             {
                 slots[i] = hero;
+            }
+            else
+            {
+                Debug.LogWarning($"[HeroProgressionManager] Saved party id '{id}' could not be resolved; keeping the existing slot.");
             }
         }
 

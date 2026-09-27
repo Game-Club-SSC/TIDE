@@ -30,6 +30,7 @@ public static class GoalVerificationRunner
         RunNUnitSuite<CombatBalanceInvariantTest>(ref passed, ref failed);
         RunNUnitSuite<AudioMixingInvariantTest>(ref passed, ref failed);
         RunNUnitSuite<MobileTouchInputInvariantTest>(ref passed, ref failed);
+        RunNUnitSuite<SaveRestoreInvariantTest>(ref passed, ref failed);
         RunContextSuite<MobileTouchControllerTest>(nameof(MobileTouchControllerTest.RunTests), ref passed, ref failed);
         RunContextSuite<MobileTouchInputManagerTest>(nameof(MobileTouchInputManagerTest.RunAllTests), ref passed, ref failed);
         RunNUnitSuite<HeroDataTestSuite>(ref passed, ref failed);
@@ -86,7 +87,7 @@ public static class GoalVerificationRunner
         }
     }
 
-    private static void RunNUnitSuite<T>(ref int passed, ref int failed) where T : new()
+    private static void RunNUnitSuite<T>(ref int passed, ref int failed) where T : class
     {
         MethodInfo[] methods = typeof(T).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         MethodInfo setUp = FindAttributedMethod<SetUpAttribute>(methods);
@@ -100,7 +101,37 @@ public static class GoalVerificationRunner
                 continue;
             }
 
-            T instance = new T();
+            // A MonoBehaviour fixture needs a real backing GameObject:
+            // `new T()` yields a component with no host, so any access to
+            // gameObject or a component lookup would throw and be misreported
+            // as a test failure. Plain classes are constructed directly.
+            GameObject host = null;
+            T instance;
+            try
+            {
+                if (typeof(MonoBehaviour).IsAssignableFrom(typeof(T)))
+                {
+                    host = new GameObject($"GoalVerification_{typeof(T).Name}_{test.Name}");
+                    instance = (T)(object)host.AddComponent(typeof(T));
+                }
+                else
+                {
+                    instance = Activator.CreateInstance<T>();
+                }
+            }
+            catch (Exception ex)
+            {
+                if (host != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(host);
+                }
+
+                failed++;
+                Exception root = Unwrap(ex);
+                Debug.LogError($"[GoalVerificationRunner] FAIL {typeof(T).Name}.{test.Name}: {root.GetType().Name}: {root.Message}");
+                continue;
+            }
+
             bool tearDownAttempted = false;
             try
             {
@@ -131,6 +162,11 @@ public static class GoalVerificationRunner
                         Exception root = Unwrap(ex);
                         Debug.LogError($"[GoalVerificationRunner] Teardown failed for {typeof(T).Name}.{test.Name}: {root.GetType().Name}: {root.Message}");
                     }
+                }
+
+                if (host != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(host);
                 }
             }
         }

@@ -87,6 +87,14 @@ public class GameStateManager : MonoBehaviour
         public List<string> thresholdOnlyBossVictoryIslandIds = new List<string>();
         public List<string> thresholdOnlyProceedIslandIds = new List<string>();
         public List<FinalBossDefeatSaveEntry> finalBossDefeats = new List<FinalBossDefeatSaveEntry>();
+
+        /// <summary>
+        /// Story/quest flags. StoryProgressionService keeps them in memory
+        /// only, so without this they were lost on every load and quest
+        /// conditions re-evaluated as unmet.
+        /// </summary>
+        public List<string> flagKeys = new List<string>();
+        public List<bool> flagValues = new List<bool>();
     }
 
     public enum GameState
@@ -1167,6 +1175,15 @@ public class GameStateManager : MonoBehaviour
             });
         }
 
+        // Story/quest flags live only in StoryProgressionService's memory, so
+        // they are mirrored here; without this every quest flag was lost on
+        // reload and its condition re-evaluated as unmet.
+        StoryProgressionService storyService = StoryProgressionService.Instance;
+        if (storyService != null)
+        {
+            storyService.CopyFlagsTo(saveData.flagKeys, saveData.flagValues);
+        }
+
         return saveData;
     }
 
@@ -1265,6 +1282,15 @@ public class GameStateManager : MonoBehaviour
         // StoryProgressionService never pulls from us, and syncing earlier
         // would cache the pre-load ending state for the whole session.
         StoryProgressionService.Instance?.SyncFromGameStateManager();
+
+        // Quest/story flags are only mirrored into this save section, so they
+        // must be restored after the act/ending sync (which the service also
+        // owns) or every quest condition would re-evaluate as unmet.
+        StoryProgressionService storyService = StoryProgressionService.Instance;
+        if (storyService != null)
+        {
+            storyService.RestoreFlagsFrom(saveData.flagKeys, saveData.flagValues);
+        }
     }
 
     private bool TryGetLoadableWorldStatePayload(out string payload)

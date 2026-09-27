@@ -135,6 +135,51 @@ public class StoryProgressionService : MonoBehaviour
         return GetFlag(questId);
     }
 
+    /// <summary>
+    /// Mirrors the quest/story flags into parallel save lists, because
+    /// JsonUtility cannot serialize the dictionary directly.
+    /// </summary>
+    public void CopyFlagsTo(List<string> keys, List<bool> values)
+    {
+        if (keys == null || values == null)
+        {
+            return;
+        }
+
+        keys.Clear();
+        values.Clear();
+        foreach (KeyValuePair<string, bool> pair in storyFlags)
+        {
+            if (string.IsNullOrEmpty(pair.Key))
+            {
+                continue;
+            }
+
+            keys.Add(pair.Key);
+            values.Add(pair.Value);
+        }
+    }
+
+    /// <summary>
+    /// Restores flags from parallel save lists, replacing the current set.
+    /// </summary>
+    public void RestoreFlagsFrom(List<string> keys, List<bool> values)
+    {
+        if (keys == null || values == null)
+        {
+            return;
+        }
+
+        int count = Mathf.Min(keys.Count, values.Count);
+        for (int i = 0; i < count; i++)
+        {
+            if (!string.IsNullOrEmpty(keys[i]))
+            {
+                storyFlags[keys[i]] = values[i];
+            }
+        }
+    }
+
     public StoryProgressionSnapshot CaptureSnapshot()
     {
         StoryProgressionSnapshot snapshot = new StoryProgressionSnapshot();
