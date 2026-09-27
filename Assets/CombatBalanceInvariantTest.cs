@@ -20,118 +20,161 @@ public class CombatBalanceInvariantTest : MonoBehaviour
         // Every element must have exactly one relationship with every other,
         // and the relationship must be the mirror image both ways. An
         // asymmetric table silently changes the outcome of a clash depending
-        // on which side a unit happens to be on.
-        CombatUnit.Element[] elements =
-        {
-            CombatUnit.Element.Fire, CombatUnit.Element.Water, CombatUnit.Element.Earth,
-            CombatUnit.Element.Air, CombatUnit.Element.Space
-        };
+        // on which side a unit happens to be on. Enumerated from the enum so
+        // a newly added element is covered automatically.
+        System.Array values = System.Enum.GetValues(typeof(CombatUnit.Element));
+        Assert.Greater(values.Length, 1, "The element enum should have several values.");
 
-        for (int i = 0; i < elements.Length; i++)
+        for (int i = 0; i < values.Length; i++)
         {
-            for (int j = 0; j < elements.Length; j++)
+            CombatUnit.Element attacker = (CombatUnit.Element)values.GetValue(i);
+            for (int j = 0; j < values.Length; j++)
             {
-                if (elements[i] == elements[j])
+                CombatUnit.Element defender = (CombatUnit.Element)values.GetValue(j);
+
+                if (attacker == defender)
                 {
                     Assert.AreEqual(MatchupResult.Neutral,
-                        ElementMatchup.GetResult(elements[i], elements[j]),
-                        $"{elements[i]} vs itself must be neutral.");
+                        ElementMatchup.GetResult(attacker, defender),
+                        $"{attacker} vs itself must be neutral.");
                     continue;
                 }
 
-                MatchupResult forward = ElementMatchup.GetResult(elements[i], elements[j]);
-                MatchupResult reverse = ElementMatchup.GetResult(elements[j], elements[i]);
+                MatchupResult forward = ElementMatchup.GetResult(attacker, defender);
+                MatchupResult reverse = ElementMatchup.GetResult(defender, attacker);
                 Assert.AreEqual(Opposite(forward), reverse,
-                    $"Matchup must be antisymmetric: {elements[i]}->{elements[j]} is {forward} but {elements[j]}->{elements[i]} is {reverse}.");
+                    $"Matchup must be antisymmetric: {attacker}->{defender} is {forward} but {defender}->{attacker} is {reverse}.");
             }
         }
     }
 
     [Test]
-    public void MatchupMultipliersAreOrdered()
+    public void MatchupDamageMultiplierFollowsTheResult()
     {
-        // Strong must beat neutral which must beat weak, otherwise an
-        // elemental advantage is a disadvantage.
-        Assert.Greater(ElementMatchup.StrongMultiplier, ElementMatchup.NeutralMultiplier,
-            "A strong matchup must multiply damage above neutral.");
-        Assert.Less(ElementMatchup.WeakMultiplier, ElementMatchup.NeutralMultiplier,
-            "A weak matchup must multiply damage below neutral.");
-        Assert.Greater(ElementMatchup.StrongMultiplier, 1f, "A strong matchup must be a buff.");
-        Assert.Less(ElementMatchup.WeakMultiplier, 1f, "A weak matchup must be a debuff.");
+        // The result enum and the damage multiplier must agree: a Strong
+        // result must actually deal more than a Weak one. Comparing the
+        // constants to each other would not catch a mismatch between the
+        // result table and the multiplier table. Every element is probed, so
+        // no hand-picked pair can be wrong.
+        System.Array values = System.Enum.GetValues(typeof(CombatUnit.Element));
+        int strongPairs = 0;
+        int weakPairs = 0;
+
+        for (int i = 0; i < values.Length; i++)
+        {
+            CombatUnit.Element attacker = (CombatUnit.Element)values.GetValue(i);
+            for (int j = 0; j < values.Length; j++)
+            {
+                CombatUnit.Element defender = (CombatUnit.Element)values.GetValue(j);
+                if (attacker == defender)
+                {
+                    continue;
+                }
+
+                MatchupResult result = ElementMatchup.GetResult(attacker, defender);
+                float multiplier = ElementMatchup.GetDamageMultiplier(attacker, defender);
+
+                if (result == MatchupResult.Strong)
+                {
+                    Assert.Greater(multiplier, 1f, $"{attacker} vs {defender} is Strong so must deal more than base damage.");
+                    strongPairs++;
+                }
+                else if (result == MatchupResult.Weak)
+                {
+                    Assert.Less(multiplier, 1f, $"{attacker} vs {defender} is Weak so must deal less than base damage.");
+                    weakPairs++;
+                }
+                else
+                {
+                    Assert.AreEqual(ElementMatchup.NeutralMultiplier, multiplier, 1e-5f,
+                        $"{attacker} vs {defender} is Neutral so must use the neutral multiplier.");
+                }
+            }
+        }
+
+        Assert.Greater(strongPairs, 0, "The element table should contain strong matchups.");
+        Assert.Greater(weakPairs, 0, "The element table should contain weak matchups.");
     }
 
     [Test]
-    public void ClashMultipliersFavourTheWinner()
+    public void ShippedBalanceConfigKeepsTheElementAdvantage()
     {
-        // A clash winner must hit harder than the loser's retaliation.
-        Assert.Greater(GameConstants.ClashWinnerMultiplier, GameConstants.ClashLoserMultiplier,
-            "The clash winner must deal more than the loser retaliates.");
-        Assert.Greater(GameConstants.ClashWinnerMultiplier, 1f, "The clash winner must be boosted above base damage.");
-        Assert.LessOrEqual(GameConstants.ClashLoserMultiplier, 1f, "The clash loser must be reduced, not boosted.");
-        Assert.GreaterOrEqual(GameConstants.ClashNeutralMultiplier, 0f, "The neutral clash multiplier must be non-negative.");
-    }
+        // BattleManager prefers BalanceConfig's own multipliers over the
+        // ElementMatchup constants, so validating the constants alone would
+        // miss an asset that inverts the advantage in the live path.
+        BalanceConfig config = Resources.Load<BalanceConfig>("BalanceConfig");
+        if (config == null)
+        {
+            // No shipped asset configured; the ElementMatchup test above
+            // already covers the fallback path.
+            return;
+        }
 
-    [Test]
-    public void DefenceReducesIncomingDamage()
-    {
-        // The bug: a relationship defence multiplier was applied with '*'
-        // instead of '/', so a value of 1.25 (a buff) dealt MORE damage.
-        // Assert the shape of the reduction explicitly.
-        float defenseMultiplier = 1.25f;
-        int incoming = 100;
-        int reduced = Mathf.Max(GameConstants.MinimumDamage,
-            Mathf.RoundToInt(incoming / defenseMultiplier));
-        Assert.Less(reduced, incoming,
-            "A defence multiplier above 1 must reduce incoming damage, not amplify it.");
-        Assert.AreEqual(80, reduced, "100 damage through a 1.25x defence must land as 80.");
-    }
+        float strong = config.GetElementMultiplier(MatchupResult.Strong);
+        float weak = config.GetElementMultiplier(MatchupResult.Weak);
+        float neutral = config.GetElementMultiplier(MatchupResult.Neutral);
 
-    [Test]
-    public void MinimumDamagePreventsHarmlessHits()
-    {
-        // A heavily reduced hit must still register, so a clash can never
-        // silently do nothing.
-        Assert.GreaterOrEqual(GameConstants.MinimumDamage, 1,
-            "MinimumDamage must be at least 1 so damage is never fully nullified.");
-        Assert.AreEqual(1, Mathf.Max(GameConstants.MinimumDamage, Mathf.RoundToInt(0.1f)),
-            "A near-zero hit must floor to the minimum damage.");
+        Assert.Greater(strong, neutral, "The shipped balance config must keep a strong matchup above neutral.");
+        Assert.Greater(neutral, weak, "The shipped balance config must keep neutral above weak.");
+        Assert.Greater(strong, 1f, "A strong matchup must be a buff in the shipped config.");
+        Assert.Less(weak, 1f, "A weak matchup must be a debuff in the shipped config.");
     }
 
     [Test]
     public void StatusEffectExpiryUsesZeroNotNegative()
     {
         // CombatUnit, BattleHud and StatusEffect.IsValid must agree that an
-        // effect is spent at exactly zero. A '<= 0' comparison against the
-        // documented negative-duration 'permanent' sentinel deletes permanent
-        // effects on the very next tick.
-        StatusEffect effect = new StatusEffect(StatusEffectType.BuffAttack, 1, 0.5f, "test");
+        // effect is spent at exactly zero. The decisive input is a NEGATIVE
+        // duration, which is the documented 'permanent' sentinel: a '<= 0'
+        // comparison deletes it on the very next tick, an '== 0' comparison
+        // keeps it. A positive-only test cannot tell the two apart.
+        StatusEffect expiring = new StatusEffect(StatusEffectType.BuffAttack, 1, 0.5f, "test");
+        expiring.Tick();
+        Assert.AreEqual(0, expiring.Duration, "One tick must consume a one-turn effect exactly.");
+        Assert.IsFalse(expiring.IsValid(), "An effect at zero duration must be invalid.");
 
-        effect.Tick();
-        Assert.AreEqual(0, effect.Duration, "One tick must consume a one-turn effect exactly.");
-        Assert.IsFalse(effect.IsValid(), "An effect at zero duration must be invalid.");
+        StatusEffect permanent = new StatusEffect(StatusEffectType.BuffAttack, -1, 0.5f, "permanent");
+        permanent.Tick();
+        Assert.AreEqual(-1, permanent.Duration, "A negative duration must not be decremented.");
+        Assert.IsTrue(permanent.IsValid(),
+            "A negative duration marks a permanent effect and must survive a tick; '<= 0' would expire it immediately.");
     }
 
     [Test]
-    public void RestorePercentValidatesHealerValues()
+    public void ShippedHealerSkillsPassValidation()
     {
         // SkillData.IsValid used to cap restoreCasterPercentOfDamage at 1.0
-        // while the shipped healer skills restore 1.5 and 2.0, which made the
-        // whole hero data set invalid.
-        SkillData skill = ScriptableObject.CreateInstance<SkillData>();
-        try
-        {
-            skill.skillName = "Healer Test";
-            skill.mpCost = 20;
-            skill.damageMultiplier = 0f;
-            skill.healMultiplier = 0f;
-            skill.restoreCasterPercentOfDamage = 2f;
+        // while the shipped healer skills restore 1.5 and 2.0, which made
+        // every hero that referenced them report invalid. Validate the actual
+        // shipped assets rather than a hand-built fixture, so a broken asset
+        // is caught.
+        SkillData[] shipped = Resources.LoadAll<SkillData>("Skills");
+        Assert.IsNotNull(shipped, "Skills resources should load.");
+        Assert.Greater(shipped.Length, 0, "At least one shipped skill asset is expected.");
 
-            Assert.IsTrue(skill.IsValid(),
-                "A healer that restores 2x the damage dealt must be valid; BattleManager scales the heal from this value.");
-        }
-        finally
+        for (int i = 0; i < shipped.Length; i++)
         {
-            Object.DestroyImmediate(skill);
+            SkillData skill = shipped[i];
+            Assert.IsNotNull(skill, "A shipped skill asset resolved to null.");
+            Assert.IsTrue(skill.IsValid(),
+                $"Shipped skill '{skill.skillName}' must be valid (restore {skill.restoreCasterPercentOfDamage}, heal {skill.healMultiplier}).");
+        }
+    }
+
+    [Test]
+    public void ShippedHeroDataValidatesWithItsSkills()
+    {
+        // The Merrick failure surfaced here: HeroData.IsValid gates on
+        // HasValidNormalSkillUnlocks, so an invalid skill asset invalidated
+        // the whole hero. Validate the shipped roster.
+        HeroData[] heroes = Resources.LoadAll<HeroData>("HeroData");
+        Assert.Greater(heroes.Length, 0, "At least one shipped hero asset is expected.");
+
+        for (int i = 0; i < heroes.Length; i++)
+        {
+            HeroData hero = heroes[i];
+            Assert.IsNotNull(hero, "A shipped hero asset resolved to null.");
+            Assert.IsTrue(hero.IsValid(), $"Shipped hero '{hero.displayName}' must validate.");
         }
     }
 

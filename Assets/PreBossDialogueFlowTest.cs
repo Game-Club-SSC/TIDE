@@ -100,20 +100,18 @@ public class PreBossDialogueFlowTest : MonoBehaviour
 
         try
         {
-            DialogueTree tree = HeroDialogueContent.PreBossGreedDialogue();
-            Assert.IsTrue(dialogue.StartDialogueTree(tree), "Setup: the pre-boss tree must start.");
-
             islandConfig = CreateBossIslandConfig();
+            RestoreIslandToBossThreshold(islandConfig.islandId);
             controller.StartIsland(islandConfig);
 
             InvokeLoadCombatEncounter(controller, islandConfig.encounters[0]);
 
-            // A dialogue is already running, so the controller must not also
-            // try to play one and must not enter combat underneath it.
-            Assert.IsFalse(gameState.IsTransitioning,
-                "Combat must not start while a dialogue is already on screen.");
-            Assert.IsFalse(dialogue.IsDialogueActive == false,
-                "The pre-existing dialogue must still be the active one.");
+            // The observable outcome: the pre-boss dialogue is on screen and
+            // the combat context has not been queued yet.
+            Assert.IsTrue(dialogue.IsDialogueActive,
+                "A boss encounter must play its pre-boss dialogue before entering combat.");
+            Assert.IsNull(gameState.PendingCombatEncounterId,
+                "Combat must not be queued while the pre-boss dialogue is still on screen.");
         }
         finally
         {
@@ -124,10 +122,13 @@ public class PreBossDialogueFlowTest : MonoBehaviour
     [Test]
     public void CancelledPreBossDialogueDoesNotStrandTheBoss()
     {
-        // Regression guard for the soft-lock: a scene load cancels the
-        // dialogue WITHOUT firing OnDialogueTreeCompleted. The controller
-        // must recover on the next attempt instead of returning early
-        // forever behind a stale in-flight flag.
+        // Regression guard for the release-blocking soft-lock. A scene load
+        // cancels the dialogue WITHOUT firing OnDialogueTreeCompleted, so the
+        // controller's completion callback never arrives. The retry must
+        // recover and queue the encounter; asserting on a private flag is
+        // not enough, because the field was previously never set in the first
+        // place (the boss was locked below the restoration threshold, so the
+        // pre-boss path was never reached).
         GameStateManager gameState = CreateGameState();
         IslandFlowController controller = CreateController(gameState);
         DialogueSystem dialogue = CreateDialogueSystem();
@@ -135,22 +136,35 @@ public class PreBossDialogueFlowTest : MonoBehaviour
         try
         {
             islandConfig = CreateBossIslandConfig();
+            RestoreIslandToBossThreshold(islandConfig.islandId);
             controller.StartIsland(islandConfig);
 
-            // Play the pre-boss dialogue, then simulate the scene-load
-            // cancellation that fires no completion event.
-            DialogueTree tree = HeroDialogueContent.PreBossGreedDialogue();
-            Assert.IsTrue(dialogue.StartDialogueTree(tree), "Setup: the pre-boss tree must start.");
-
-            InvokeCancelSceneDialogue(dialogue);
-
-            // Retry the boss. It must be allowed through rather than deferred
-            // behind a flag whose callback will never fire.
+            // First attempt: the controller starts the pre-boss dialogue and
+            // defers the encounter, so the pending context is NOT set yet.
             InvokeLoadCombatEncounter(controller, islandConfig.encounters[0]);
 
-            bool inFlight = (bool)GetPrivateField(controller, "preBossEncounterInFlight");
-            Assert.IsFalse(inFlight,
-                "A cancelled dialogue must not leave the boss permanently deferred.");
+            Assert.IsTrue(dialogue.IsDialogueActive,
+                "The first attempt must start the pre-boss dialogue.");
+            Assert.IsNull(gameState.PendingCombatEncounterId,
+                "The encounter must be deferred while the pre-boss dialogue is unresolved.");
+
+            // A scene load cancels the dialogue and fires no completion event.
+            InvokeCancelSceneDialogue(dialogue);
+            Assert.IsFalse(dialogue.IsDialogueActive, "Setup: the scene load must cancel the dialogue.");
+
+            // Retry: the controller must recover.
+            InvokeLoadCombatEncounter(controller, islandConfig.encounters[0]);
+
+            // Recovery restarts the conversation rather than queuing combat
+            // immediately: the player never saw it, so replaying is correct
+            // and combat must still be deferred.
+            Assert.IsTrue(dialogue.IsDialogueActive,
+                "After a cancelled dialogue the retry must restart the pre-boss conversation instead of wedging the boss.");
+            Assert.IsNull(gameState.PendingCombatEncounterId,
+                "Combat must stay deferred while the restarted pre-boss dialogue is on screen.");
+            Assert.AreEqual(islandConfig.encounters[0].encounterId,
+                GetPrivateField(controller, "preBossEncounterIdPlayed"),
+                "The restarted conversation must be tracked against the same boss encounter.");
         }
         finally
         {
@@ -161,25 +175,31 @@ public class PreBossDialogueFlowTest : MonoBehaviour
     [Test]
     public void StartingANewIslandClearsAnyPendingPreBossDeferral()
     {
+        // The deferral must genuinely exist first, otherwise this test cannot
+        // distinguish "StartIsland cleared it" from "there was never one".
         GameStateManager gameState = CreateGameState();
         IslandFlowController controller = CreateController(gameState);
         DialogueSystem dialogue = CreateDialogueSystem();
 
         try
         {
-            IslandConfig first = CreateBossIslandConfig();
-            controller.StartIsland(first);
+            islandConfig = CreateBossIslandConfig();
+            RestoreIslandToBossThreshold(islandConfig.islandId);
+            controller.StartIsland(islandConfig);
 
-            DialogueTree tree = HeroDialogueContent.PreBossGreedDialogue();
-            Assert.IsTrue(dialogue.StartDialogueTree(tree), "Setup: the pre-boss tree must start.");
+            InvokeLoadCombatEncounter(controller, islandConfig.encounters[0]);
+            Assert.IsTrue(dialogue.IsDialogueActive, "Setup: a pre-boss dialogue must be running.");
+            Assert.IsNull(gameState.PendingCombatEncounterId, "Setup: the encounter must be deferred.");
+            Assert.IsNotNull(GetPrivateField(controller, "preBossDialogueCallback"),
+                "Setup: a pending deferral callback should be registered.");
 
             // Move to a different island while the dialogue is unresolved.
             IslandConfig second = CreateBossIslandConfig("island_envy");
+            RestoreIslandToBossThreshold(second.islandId);
             controller.StartIsland(second);
 
-            bool inFlight = (bool)GetPrivateField(controller, "preBossEncounterInFlight");
-            Assert.IsFalse(inFlight,
-                "StartIsland must clear a deferral left over from the previous island.");
+            Assert.IsNull(GetPrivateField(controller, "preBossDialogueCallback"),
+                "StartIsland must release a deferral left over from the previous island.");
         }
         finally
         {
@@ -195,8 +215,47 @@ public class PreBossDialogueFlowTest : MonoBehaviour
     {
         gameStateObject = new GameObject("TestGameStateManager_PreBoss");
         GameStateManager gameState = gameStateObject.AddComponent<GameStateManager>();
-        gameStateObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+
+        // GameStateManager registers in Awake (it has no OnEnable), and its
+        // Awake calls DontDestroyOnLoad, which throws outside play mode.
+        // Invoke it, then ensure the singleton is set so LoadCombatEncounter
+        // does not bail out at its GameStateManager guard.
+        try
+        {
+            InvokePrivate(gameState, "Awake");
+        }
+        catch (System.Exception)
+        {
+            // Expected in edit mode; the property is the fallback.
+        }
+
+        if (GameStateManager.Instance != gameState)
+        {
+            PropertyInfo instance = typeof(GameStateManager).GetProperty(
+                "Instance", BindingFlags.Static | BindingFlags.Public);
+            Assert.IsNotNull(instance, "GameStateManager.Instance should exist.");
+            instance.GetSetMethod(true).Invoke(gameState, new object[] { gameState });
+        }
+
         return gameState;
+    }
+
+    /// <summary>
+    /// Drives the island's restoration to the boss unlock threshold through the
+    /// real tracker, so the boss gate opens and LoadCombatEncounter is actually
+    /// reached. Without this the controller returns at the IsBossUnlocked gate
+    /// before touching the pre-boss path at all, which is why an earlier
+    /// version of this test asserted a field that was never written.
+    /// </summary>
+    private void RestoreIslandToBossThreshold(string islandId)
+    {
+        IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
+        Assert.IsNotNull(tracker, "Setup: the restoration tracker must exist.");
+
+        tracker.SetIslandRestorationPercentForDebug(islandId, 100f);
+        Assert.IsTrue(
+            tracker.IsRestorationAtOrAbove(islandId, IslandRestorationTracker.DefaultBossUnlockThresholdPercent),
+            $"Setup: '{islandId}' should be at or above the boss unlock threshold.");
     }
 
     private IslandFlowController CreateController(GameStateManager gameState)
@@ -208,6 +267,11 @@ public class PreBossDialogueFlowTest : MonoBehaviour
         trackerObject = new GameObject("TestIslandRestorationTracker_PreBoss");
         IslandRestorationTracker tracker = trackerObject.AddComponent<IslandRestorationTracker>();
         trackerObject.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+
+        // EnterCombatScene preserves the pending encounter context only when a
+        // flow controller owns it, and clears it otherwise. Registering here
+        // mirrors the runtime wiring done by IslandFlowController itself.
+        gameState.FlowController = controller;
 
         return controller;
     }

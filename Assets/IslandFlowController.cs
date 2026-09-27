@@ -332,18 +332,23 @@ public class IslandFlowController : MonoBehaviour
         string encounterId = GetEncounterId(encounter, currentEncounterIndex);
         if (preBossEncounterInFlight)
         {
-            if (preBossDialogueCallback != null)
+            // A pre-boss conversation genuinely playing owns the transition;
+            // its completion callback re-enters this method when it ends.
+            //
+            // The callback field alone is not a reliable signal: a scene load
+            // cancels the dialogue WITHOUT firing OnDialogueTreeCompleted, so
+            // the callback stays registered forever while nothing will ever
+            // invoke it. Treating that as "still playing" wedges the boss for
+            // the rest of the session, so the live dialogue state decides.
+            DialogueSystem pendingDialogue = DialogueSystem.Instance;
+            if (preBossDialogueCallback != null && pendingDialogue != null && pendingDialogue.IsDialogueActive)
             {
-                // A pre-boss conversation is genuinely playing; its
-                // completion callback re-enters this method once it ends.
                 return;
             }
 
-            // The dialogue was cancelled (a scene load drops it without
-            // firing OnDialogueTreeCompleted), so the callback can never
-            // arrive. Recover the flag or the boss is unreachable forever.
-            preBossEncounterInFlight = false;
-            preBossEncounterIdPlayed = null;
+            // The dialogue was cancelled, so the callback can never arrive.
+            // Release it and recover, or the boss is unreachable forever.
+            ReleasePreBossDialogueCallback();
         }
 
         if (IsBossEncounter(encounter) && TryPlayPreBossDialogue(encounterId))
