@@ -26,9 +26,24 @@ public static class PartySwapService
             return false;
         }
 
-        if (HeroProgressionManager.Instance == null)
+        PartyManager partyManager = PartyManager.Instance;
+        if (partyManager == null || partyManager.PartyData == null)
         {
-            failureReason = "Hero progression manager not initialized.";
+            failureReason = "Party manager not initialized.";
+            return false;
+        }
+
+        // Validate against the live party so a swap can never be requested
+        // for a hero that is not actually in the given slot.
+        if (!partyManager.PartyData.IsHeroActive(activeHeroId))
+        {
+            failureReason = $"'{activeHeroId}' is not in the active party.";
+            return false;
+        }
+
+        if (!partyManager.PartyData.IsHeroInReserve(reserveHeroId))
+        {
+            failureReason = $"'{reserveHeroId}' is not in the reserve party.";
             return false;
         }
 

@@ -181,25 +181,52 @@ public static class PartySwapServiceGating
     public static bool Ok()
     {
         string reason;
-        if (HeroProgressionManager.Instance != null)
-        {
-            return PartySwapService.TryQueueSwap("hero_a", "hero_b", out reason);
-        }
-
-        // TryQueueSwap requires an initialized HeroProgressionManager, so stand
-        // up an isolated one for the duration of the check. SendMessage runs
-        // OnEnable in edit mode, where AddComponent does not invoke lifecycle
-        // callbacks (same pattern as BossEncounterGateTest).
-        GameObject host = new GameObject("Test_PartySwapProgression");
-        host.AddComponent<HeroProgressionManager>();
-        host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+        GameObject host = null;
+        PartyData data = null;
         try
         {
-            return PartySwapService.TryQueueSwap("hero_a", "hero_b", out reason);
+            // TryQueueSwap validates against the live party, so the check
+            // needs a manager with a real active/reserve split. SendMessage
+            // runs OnEnable in edit mode, where AddComponent does not.
+            PartyData authored = Resources.Load<PartyData>("PartyData/DefaultParty");
+            if (authored == null)
+            {
+                return false;
+            }
+
+            if (PartyManager.Instance == null)
+            {
+                host = new GameObject("Test_PartySwapManager");
+                host.AddComponent<PartyManager>();
+                host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+            }
+
+            data = ScriptableObject.CreateInstance<PartyData>();
+            data.activeSlots = (HeroData[])authored.activeSlots.Clone();
+            data.reserveSlots = (HeroData[])authored.reserveSlots.Clone();
+            PartyManager.Instance.Initialize(data, null);
+
+            if (data.activeSlots[0] == null || data.reserveSlots[0] == null)
+            {
+                return false;
+            }
+
+            // A valid active/reserve pair is accepted, and a reversed pair is
+            // rejected, so the check covers the gate rather than a hardcoded id.
+            return PartySwapService.TryQueueSwap(data.activeSlots[0].heroId, data.reserveSlots[0].heroId, out reason)
+                && !PartySwapService.TryQueueSwap(data.reserveSlots[0].heroId, data.activeSlots[0].heroId, out reason);
         }
         finally
         {
-            Object.DestroyImmediate(host);
+            if (data != null)
+            {
+                Object.DestroyImmediate(data);
+            }
+
+            if (host != null)
+            {
+                Object.DestroyImmediate(host);
+            }
         }
     }
 }

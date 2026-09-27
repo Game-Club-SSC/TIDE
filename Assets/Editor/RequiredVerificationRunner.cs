@@ -9,6 +9,32 @@ public static class RequiredVerificationRunner
     [MenuItem("TIDE/Run Required Verification Suites")]
     public static void RunRequiredVerificationSuites()
     {
+        bool interactive = RunVerification(false);
+        if (interactive)
+        {
+            EditorUtility.DisplayDialog("TIDE Verification", LastSummary, "OK");
+        }
+    }
+
+    /// <summary>
+    /// Batch-mode entry point (-executeMethod). Runs the same suites but
+    /// never opens a dialog, which would block a headless editor.
+    /// </summary>
+    public static void RunRequiredVerificationSuitesBatch()
+    {
+        bool failures = RunVerification(true);
+        if (failures)
+        {
+            // Non-zero exit tells CI the run failed.
+            EditorApplication.Exit(1);
+        }
+    }
+
+    private static string LastSummary = string.Empty;
+
+    /// <summary>Returns true when at least one suite or test failed.</summary>
+    private static bool RunVerification(bool batchMode)
+    {
         int passed = 0;
         int failed = 0;
 
@@ -24,6 +50,7 @@ public static class RequiredVerificationRunner
         RunNUnitSuite<BattleFlowTestSuite>(ref passed, ref failed);
 
         string summary = $"Required verification complete. Suites passed: {passed}. Tests or suites failed: {failed}.";
+        LastSummary = summary;
         if (failed == 0)
         {
             Debug.Log($"[RequiredVerificationRunner] {summary}");
@@ -33,7 +60,7 @@ public static class RequiredVerificationRunner
             Debug.LogError($"[RequiredVerificationRunner] {summary}");
         }
 
-        EditorUtility.DisplayDialog("TIDE Verification", summary, "OK");
+        return failed > 0;
     }
 
     private static void RunContextSuite<T>(string methodName, ref int passed, ref int failed) where T : MonoBehaviour

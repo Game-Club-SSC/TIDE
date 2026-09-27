@@ -33,27 +33,42 @@ public class PartySwapServiceTest : MonoBehaviour
 
     private void TestTryQueueSwapAcceptsValidRequest()
     {
-        // TryQueueSwap requires an initialized HeroProgressionManager. Stand up
-        // an isolated one when none exists; SendMessage runs OnEnable in edit
-        // mode, where AddComponent does not invoke lifecycle callbacks.
-        GameObject host = null;
-        if (HeroProgressionManager.Instance == null)
-        {
-            host = new GameObject("TestPartySwap_Progression");
-            host.AddComponent<HeroProgressionManager>();
-            host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
-        }
-
+        // TryQueueSwap validates the request against the live party, so the
+        // suite stands up a manager with a real active/reserve split. SendMessage
+        // runs OnEnable in edit mode, where AddComponent does not.
+        PartyManager partyManager = null;
+        PartyData data = null;
         try
         {
+            GameObject host = new GameObject("TestPartySwap_Party");
+            partyManager = host.AddComponent<PartyManager>();
+            host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+
+            PartyData authored = Resources.Load<PartyData>("PartyData/DefaultParty");
+            Assert.IsNotNull(authored, "DefaultParty asset must exist.");
+            data = ScriptableObject.CreateInstance<PartyData>();
+            data.activeSlots = (HeroData[])authored.activeSlots.Clone();
+            data.reserveSlots = (HeroData[])authored.reserveSlots.Clone();
+            partyManager.Initialize(data, null);
+
+            string activeHeroId = data.activeSlots[0].heroId;
+            string reserveHeroId = data.reserveSlots[0].heroId;
+
             string reason;
-            Assert.IsTrue(PartySwapService.TryQueueSwap("hero_fire", "hero_water", out reason), "Valid swap should be accepted.");
+            Assert.IsTrue(PartySwapService.TryQueueSwap(activeHeroId, reserveHeroId, out reason), $"Valid swap should be accepted. {reason}");
+            Assert.IsFalse(PartySwapService.TryQueueSwap(reserveHeroId, activeHeroId, out reason), "Swap must not be accepted with the slots reversed.");
+            Assert.IsFalse(PartySwapService.TryQueueSwap("hero_missing", reserveHeroId, out reason), "Unknown hero must be rejected.");
         }
         finally
         {
-            if (host != null)
+            if (data != null)
             {
-                DestroyImmediate(host);
+                DestroyImmediate(data);
+            }
+
+            if (partyManager != null)
+            {
+                DestroyImmediate(partyManager.gameObject);
             }
         }
     }

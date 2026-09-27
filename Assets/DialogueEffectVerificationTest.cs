@@ -124,7 +124,13 @@ public class DialogueEffectVerificationTest
             GameStateManager reloadManager = reloadObject.AddComponent<GameStateManager>();
             try
             {
-                reloadManager.LoadWorldState();
+                // The reload manager is a duplicate when the original GSM still
+                // exists, so load through whichever GameStateManager is live.
+                GameStateManager liveManager = GameStateManager.Instance != null
+                    ? GameStateManager.Instance
+                    : reloadManager;
+                Assert.IsNotNull(liveManager, "A live GameStateManager must exist for the reload.");
+                liveManager.LoadWorldState();
 
                 Assert.AreEqual(50, progression.GetXp("hero_fire"),
                     "XP must survive the save/load round-trip.");
@@ -216,6 +222,13 @@ public class DialogueEffectVerificationTest
     [Test]
     public void PendingRewardsRetriedWhenServicesAppear()
     {
+        // A HeroProgressionManager left over from a previous test registers as
+        // a destroyed Unity object (compares == null) yet still blocks the
+        // singleton, so start from a clean slate. This suite deliberately does
+        // NOT call CreateServices: the point is that the service is absent when
+        // the effect first runs and appears before the save data is applied.
+        CleanupSingletons();
+
         dialogueObject = new GameObject("DialogueSystem_Test");
         DialogueSystem dialogue = dialogueObject.AddComponent<DialogueSystem>();
         InvokeOnEnableIfUnregistered(dialogue, () => DialogueSystem.Instance);
@@ -233,6 +246,7 @@ public class DialogueEffectVerificationTest
             HeroProgressionManager progression = progressionObject.AddComponent<HeroProgressionManager>();
             InvokeOnEnableIfUnregistered(progression, () => HeroProgressionManager.Instance);
             SetLevelingConfig(progression, CreateDefaultLevelingConfig());
+            Assert.IsNotNull(HeroProgressionManager.Instance, "Setup: HeroProgressionManager must be registered.");
 
             dialogue.ApplyDialogueStateSaveData(saveData);
 
@@ -424,10 +438,23 @@ public class DialogueEffectVerificationTest
 
     private void CreateServices()
     {
+        // A GameStateManager auto-creates its own HeroProgressionManager in
+        // Awake, and that one has no levelingConfig, so it rejects every
+        // GrantXp. Clear it before standing up the configured manager.
+        if (GameStateManager.Instance != null)
+        {
+            UnityEngine.Object.DestroyImmediate(GameStateManager.Instance.gameObject);
+        }
+
         progressionObject = new GameObject("HeroProgressionManager_Test");
         HeroProgressionManager progression = progressionObject.AddComponent<HeroProgressionManager>();
         InvokeOnEnableIfUnregistered(progression, () => HeroProgressionManager.Instance);
         SetLevelingConfig(progression, CreateDefaultLevelingConfig());
+
+        // If registration silently failed, effects would be applied to a
+        // different instance than the one this test asserts against.
+        Assert.AreSame(progression, HeroProgressionManager.Instance,
+            "Setup: the configured HeroProgressionManager must be the registered singleton.");
 
         GearSetData gearSet = CreateTestGearSet("iron_guard");
         createdGearSets.Add(gearSet);
@@ -452,6 +479,15 @@ public class DialogueEffectVerificationTest
 
     private void CleanupSingletons()
     {
+        // Destroying a singleton's GameObject runs its OnDestroy, which
+        // clears the static Instance. A destroyed MonoBehaviour still compares
+        // != null, so any manager left behind would be treated as a live
+        // duplicate and would destroy the next one created.
+        if (GameStateManager.Instance != null)
+        {
+            UnityEngine.Object.DestroyImmediate(GameStateManager.Instance.gameObject);
+        }
+
         if (dialogueObject != null)
         {
             UnityEngine.Object.DestroyImmediate(dialogueObject);
@@ -548,11 +584,16 @@ public class DialogueEffectVerificationTest
     /// </summary>
     private static void InvokeOnEnableIfUnregistered(MonoBehaviour component, Func<MonoBehaviour> instanceGetter)
     {
-        if (component == null || instanceGetter() != null)
+        if (component == null)
         {
             return;
         }
 
+        // Always run the lifecycle callback for the component we just created.
+        // A singleton left over from a previous test is a destroyed Unity
+        // object, which still compares != null, so an "is it registered?"
+        // check would skip registration and leave the new manager unregistered
+        // (OnEnable would then destroy it as a duplicate).
         MethodInfo lifecycle = component.GetType().GetMethod("OnEnable", BindingFlags.Instance | BindingFlags.NonPublic);
         if (lifecycle == null)
         {

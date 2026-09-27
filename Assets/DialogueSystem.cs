@@ -216,12 +216,11 @@ public class DialogueSystem : MonoBehaviour
             return false;
         }
 
-        // BUGFIX: Return the result of GrantXp instead of unconditionally true.
-        // Previously, if HeroProgressionManager existed but had no levelingConfig
-        // (or the hero was at max level), GrantXp returned false but TryApplyGrantXp
-        // returned true — marking the reward as delivered and losing it permanently
-        // since it would never be retried from pendingRewards on load.
-        return progression.GrantXp(effect.targetId, effect.intValue);
+        // BUGFIX: Use TryGrantXp, not GrantXp. GrantXp reports "did the hero
+        // level up", so an ordinary grant returned false. The durable ledger
+        // read that as "service unavailable", kept the entry pending, and
+        // re-applied the same XP on the next load, levelling the hero for free.
+        return progression.TryGrantXp(effect.targetId, effect.intValue, out _);
     }
 
     private static bool TryApplyUnlockTideBreak(DialogueTreeEffect effect, string heroId)

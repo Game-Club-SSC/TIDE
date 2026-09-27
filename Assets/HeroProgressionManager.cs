@@ -641,8 +641,25 @@ public class HeroProgressionManager : MonoBehaviour
         Debug.Log($"[HeroProgressionManager] Applied stats for {hero.displayName} (Lv.{level}{gearTag}): HP={unit.MaxHP}, ATK={unit.Attack}, DEF={unit.Defense}");
     }
 
+    /// <summary>
+    /// Adds XP to a hero. Returns true when the hero leveled up as a result.
+    /// </summary>
     public bool GrantXp(string heroId, int xpAmount)
     {
+        TryGrantXp(heroId, xpAmount, out bool leveledUp);
+        return leveledUp;
+    }
+
+    /// <summary>
+    /// Adds XP to a hero. <paramref name="applied"/> reports whether the XP was
+    /// actually granted, which is what durable reward ledgers need: a level-up
+    /// is not required for success, and treating a non-level-up as failure
+    /// makes the ledger re-apply the same reward forever.
+    /// </summary>
+    public bool TryGrantXp(string heroId, int xpAmount, out bool leveledUpOut)
+    {
+        leveledUpOut = false;
+
         if (string.IsNullOrEmpty(heroId) || xpAmount <= 0 || levelingConfig == null)
         {
             return false;
@@ -670,7 +687,6 @@ public class HeroProgressionManager : MonoBehaviour
                 state.level++;
                 leveledUp = true;
                 OnHeroLeveledUp?.Invoke(heroId, state.level);
-                Debug.Log($"[HeroProgressionManager] {heroId} leveled up to {state.level}!");
             }
             else
             {
@@ -683,7 +699,13 @@ public class HeroProgressionManager : MonoBehaviour
             state.currentXp = 0;
         }
 
-        return leveledUp;
+        if (leveledUp)
+        {
+            Debug.Log($"[HeroProgressionManager] {heroId} leveled up to {state.level}!");
+        }
+
+        leveledUpOut = leveledUp;
+        return true;
     }
 
     public int GetCosmeticXp()

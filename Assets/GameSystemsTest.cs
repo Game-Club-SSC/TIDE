@@ -30,10 +30,44 @@ public class GameSystemsTest : MonoBehaviour
     private void TestPartySwapService()
     {
         Debug.Log("Testing PartySwapService...");
-        string reason;
-        Assert.IsTrue(PartySwapService.TryQueueSwap("hero_fire", "hero_water", out reason), "Valid swap should succeed.");
-        Assert.IsFalse(PartySwapService.TryQueueSwap("hero_fire", "hero_fire", out reason), "Self swap should fail.");
-        Assert.IsFalse(PartySwapService.TryQueueSwap("", "", out reason), "Empty ids should fail.");
+
+        PartyManager partyManager = null;
+        try
+        {
+            // TryQueueSwap validates against the live party, so the suite
+            // needs a real active/reserve split rather than empty singletons.
+            GameObject host = new GameObject("Test_PartyManager");
+            partyManager = host.AddComponent<PartyManager>();
+
+            // AddComponent does not run OnEnable in edit mode, so PartyManager
+            // never publishes its Instance without this.
+            host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+
+            PartyData data = ScriptableObject.CreateInstance<PartyData>();
+            PartyData authored = Resources.Load<PartyData>("PartyData/DefaultParty");
+            Assert.IsNotNull(authored, "DefaultParty asset must exist.");
+            data.activeSlots = (HeroData[])authored.activeSlots.Clone();
+            data.reserveSlots = (HeroData[])authored.reserveSlots.Clone();
+            partyManager.Initialize(data, null);
+
+            string activeHeroId = data.activeSlots[0] != null ? data.activeSlots[0].heroId : null;
+            string reserveHeroId = data.reserveSlots[0] != null ? data.reserveSlots[0].heroId : null;
+            Assert.IsNotNull(activeHeroId, "Default party should have an active hero.");
+            Assert.IsNotNull(reserveHeroId, "Default party should have a reserve hero.");
+
+            string reason;
+            Assert.IsTrue(PartySwapService.TryQueueSwap(activeHeroId, reserveHeroId, out reason), $"Valid swap should succeed. {reason}");
+            Assert.IsFalse(PartySwapService.TryQueueSwap(activeHeroId, activeHeroId, out reason), "Self swap should fail.");
+            Assert.IsFalse(PartySwapService.TryQueueSwap("", "", out reason), "Empty ids should fail.");
+            Assert.IsFalse(PartySwapService.TryQueueSwap(reserveHeroId, activeHeroId, out reason), "Reserve-to-active request should fail.");
+            Assert.IsFalse(PartySwapService.TryQueueSwap("hero_does_not_exist", activeHeroId, out reason), "Unknown hero should fail.");
+
+            Object.DestroyImmediate(data);
+        }
+        finally
+        {
+            Cleanup(ref partyManager);
+        }
     }
 
     private void TestMobileTouchController()
@@ -44,6 +78,11 @@ public class GameSystemsTest : MonoBehaviour
         {
             GameObject host = new GameObject("Test_MobileTouch");
             controller = host.AddComponent<MobileTouchController>();
+
+            // AddComponent does not run OnEnable in edit mode, so the
+            // singleton would never be published.
+            host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
+
             Assert.IsNotNull(MobileTouchController.Instance, "Instance should be set.");
             controller.SetDpadInput(new Vector2(2f, 0f));
             Assert.AreEqual(1f, controller.DpadInput.magnitude, 0.001f, "Dpad should clamp to unit.");
@@ -66,6 +105,7 @@ public class GameSystemsTest : MonoBehaviour
         {
             GameObject host = new GameObject("Test_Difficulty");
             service = host.AddComponent<DifficultyModeService>();
+            host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
             Assert.IsNotNull(DifficultyModeService.Instance, "Instance should be set.");
             Assert.AreEqual(DifficultyModeService.Difficulty.Standard, service.CurrentDifficulty, "Default should be Standard.");
             service.SetDifficulty(DifficultyModeService.Difficulty.Hardcore);
@@ -90,6 +130,7 @@ public class GameSystemsTest : MonoBehaviour
         {
             GameObject host = new GameObject("Test_NGPlus");
             service = host.AddComponent<NewGamePlusService>();
+            host.SendMessage("OnEnable", SendMessageOptions.DontRequireReceiver);
             Assert.IsNotNull(NewGamePlusService.Instance, "Instance should be set.");
             Assert.IsFalse(service.CanStartNewGamePlus(), "Should not be allowed before any completions.");
             service.RegisterCompletion();

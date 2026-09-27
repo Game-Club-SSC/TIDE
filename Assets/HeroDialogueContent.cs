@@ -993,6 +993,10 @@ public static class HeroDialogueContent
         tree.allNodes.Add(highConclusion);
         tree.allNodes.Add(lowConclusion);
 
+        // Without a root the tree is unstartable: StartDialogueTree rejects
+        // it and the runner has no entry node.
+        tree.rootNode = entryNode;
+
         return tree;
     }
 
