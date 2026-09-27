@@ -2451,9 +2451,24 @@ public class BattleManager : MonoBehaviour
                 : difficultyService.GetDamageMultiplierForEnemy();
         }
 
+        // Ally support is a player-side ability. Resolving those branches
+        // against actor.Type let an enemy Tide Break spend its charge healing
+        // or shielding its own squad, so an enemy casting one is redirected to
+        // an opponent before the branch is selected.
+        if (actor.Type == CombatUnit.UnitType.Enemy
+            && (targetType == SkillTarget.AllAllies || targetType == SkillTarget.SingleAlly))
+        {
+            Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} cannot use an ally-support Tide Break; targeting an opponent instead.");
+            targetType = SkillTarget.SingleEnemy;
+        }
+
         if (targetType == SkillTarget.AllEnemies)
         {
-            CombatUnit.UnitType targetTypeUnit = actor.Type == CombatUnit.UnitType.Ally ? CombatUnit.UnitType.Enemy : CombatUnit.UnitType.Ally;
+            // "AllEnemies" always means the opposing team. Deriving the side
+            // from the actor instead made an enemy Tide Break (three of the
+            // five shipped abilities are authored AllEnemies) hit the
+            // player's party.
+            CombatUnit.UnitType targetTypeUnit = CombatUnit.UnitType.Enemy;
             List<CombatUnit> targets = GetAliveUnits(targetTypeUnit).ToList();
             int totalDamage = 0;
             foreach (CombatUnit target in targets)
@@ -2482,33 +2497,45 @@ public class BattleManager : MonoBehaviour
         }
         else if (targetType == SkillTarget.SingleAlly)
         {
-            CombatUnit allyTarget = requestedTarget != null && requestedTarget.IsAlive && requestedTarget.Type == actor.Type
-                ? requestedTarget
-                : GetLowestHpAlly(actor);
-            if (allyTarget != null)
             {
-                float reduction = Mathf.Clamp01(damageMultiplier * 0.3f);
-                StatusEffect shield = new StatusEffect(StatusEffectType.Shield, 3, reduction, actor.UnitName);
-                allyTarget.ApplyStatusEffect(shield);
-                Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} grants {allyTarget.UnitName} a shield (-{reduction:P0} damage, 3 turns).", this);
+                CombatUnit allyTarget = requestedTarget != null && requestedTarget.IsAlive && requestedTarget.Type == actor.Type
+                    ? requestedTarget
+                    : GetLowestHpAlly(actor);
+                if (allyTarget != null)
+                {
+                    float reduction = Mathf.Clamp01(damageMultiplier * 0.3f);
+                    StatusEffect shield = new StatusEffect(StatusEffectType.Shield, 3, reduction, actor.UnitName);
+                    allyTarget.ApplyStatusEffect(shield);
+                    Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} grants {allyTarget.UnitName} a shield worth {reduction:P0} of MaxHP for 3 turns.", this);
+                }
+
+                return;
             }
         }
         else if (targetType == SkillTarget.AllAllies)
         {
-            IReadOnlyList<CombatUnit> allies = GetAliveUnits(actor.Type);
-            float relationshipHealMod = actor.Type == CombatUnit.UnitType.Ally ? relationshipHealingMultiplier : 1f;
-            int healBase = Mathf.Max(1, Mathf.RoundToInt(actor.Attack * damageMultiplier * 0.5f * relationshipHealMod));
-            for (int i = 0; i < allies.Count; i++)
+            // Ally support is a player-side ability. Resolving it against
+            // actor.Type let an enemy Tide Break spend its charge healing (or
+            // shielding) its own squad instead of pressuring the player.
             {
-                CombatUnit ally = allies[i];
-                int hpBefore = ally.HP;
-                ally.Heal(healBase);
-                Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} heals {ally.UnitName} for {healBase}. HP {hpBefore} -> {ally.HP}.", this);
-            }
-            AudioManager healAudio = AudioManager.Instance;
-            if (healAudio != null)
-            {
-                healAudio.HandleHeal();
+                IReadOnlyList<CombatUnit> allies = GetAliveUnits(actor.Type);
+                float relationshipHealMod = relationshipHealingMultiplier;
+                int healBase = Mathf.Max(1, Mathf.RoundToInt(actor.Attack * damageMultiplier * 0.5f * relationshipHealMod));
+                for (int i = 0; i < allies.Count; i++)
+                {
+                    CombatUnit ally = allies[i];
+                    int hpBefore = ally.HP;
+                    ally.Heal(healBase);
+                    Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} heals {ally.UnitName} for {healBase}. HP {hpBefore} -> {ally.HP}.", this);
+                }
+
+                AudioManager healAudio = AudioManager.Instance;
+                if (healAudio != null)
+                {
+                    healAudio.HandleHeal();
+                }
+
+                return;
             }
         }
         else if (targetType == SkillTarget.Self)

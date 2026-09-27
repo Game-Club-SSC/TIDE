@@ -31,6 +31,7 @@ public static class GoalVerificationRunner
         RunNUnitSuite<AudioMixingInvariantTest>(ref passed, ref failed);
         RunNUnitSuite<MobileTouchInputInvariantTest>(ref passed, ref failed);
         RunNUnitSuite<SaveRestoreInvariantTest>(ref passed, ref failed);
+        RunNUnitSuite<TideBreakTargetingTest>(ref passed, ref failed);
         RunContextSuite<MobileTouchControllerTest>(nameof(MobileTouchControllerTest.RunTests), ref passed, ref failed);
         RunContextSuite<MobileTouchInputManagerTest>(nameof(MobileTouchInputManagerTest.RunAllTests), ref passed, ref failed);
         RunNUnitSuite<HeroDataTestSuite>(ref passed, ref failed);

@@ -391,9 +391,12 @@ public class CombatUnit : MonoBehaviour
 
         if (effect.Type == StatusEffectType.Shield)
         {
-            // Shield refreshes replace the existing shield value rather than stacking
-            ShieldHp = effect.Magnitude * maxHp;
-            Debug.Log($"[CombatUnit] {unitName}'s shield HP set to {shieldHp:F0} ({effect.Magnitude:P0} of MaxHP).");
+            // Shield refreshes replace the existing shield value rather than
+            // stacking. Never shrink an active shield on refresh, though: a
+            // weaker re-application mid-fight would silently delete the
+            // remaining buffer.
+            ShieldHp = Mathf.Max(ShieldHp, effect.Magnitude * maxHp);
+            Debug.Log($"[CombatUnit] {unitName}'s shield HP set to {ShieldHp:F0} ({ShieldHp / maxHp:P0} of MaxHP).");
         }
     }
 
