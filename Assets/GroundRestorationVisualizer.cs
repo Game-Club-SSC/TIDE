@@ -16,6 +16,9 @@ public class GroundRestorationVisualizer : MonoBehaviour
     [Tooltip("Duration of smooth color transition when restoration changes (seconds).")]
     [SerializeField] private float transitionDuration = 0.5f;
 
+    // Defaults to the active progression island: level_1's visualizer is
+    // explicitly pinned to island_lust, and any instance on a later island
+    // would otherwise silently keep tinting for Lust.
     [Tooltip("Island ID to track. Leave empty to track active progression island.")]
     [SerializeField] private string islandId = "";
 
@@ -25,6 +28,7 @@ public class GroundRestorationVisualizer : MonoBehaviour
 
     private void OnEnable()
     {
+        didRefreshOnTrackerDiscovery = false;
         TryFindTracker();
         SubscribeToGameStateManager();
         if (groundRenderer == null)

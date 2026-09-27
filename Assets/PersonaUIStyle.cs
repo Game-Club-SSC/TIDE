@@ -257,7 +257,11 @@ public static class PersonaUIStyle
     private static IEnumerator SlashTransitionRoutine(CanvasGroup panel, bool entering, float duration)
     {
         RectTransform rt = panel.GetComponent<RectTransform>();
-        if (rt == null) yield break;
+        if (rt == null)
+        {
+            activeSlashCoroutines.Remove(panel);
+            yield break;
+        }
 
         Vector2 originalAnchorMin = rt.anchorMin;
         Vector2 originalAnchorMax = rt.anchorMax;
@@ -326,6 +330,9 @@ public static class PersonaUIStyle
             rt.offsetMin = originalOffsetMin;
             rt.offsetMax = originalOffsetMax;
         }
+
+        // Do not retain destroyed panels as dictionary keys.
+        activeSlashCoroutines.Remove(panel);
     }
 
     // ======================================================================

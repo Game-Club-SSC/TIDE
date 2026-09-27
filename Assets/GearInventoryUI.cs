@@ -283,7 +283,7 @@ public class GearInventoryUI : MonoBehaviour
             return;
         }
 
-        HeroData hero = heroes[selectedHeroIndex];
+        HeroData hero = GetHeroAtSelection(heroes);
         string heroName = hero != null && !string.IsNullOrEmpty(hero.displayName) ? hero.displayName : "Unknown Hero";
         GearInstance equipped = hero != null ? inventory.GetEquipped(hero.heroId) : null;
         string equippedText = equipped != null
@@ -482,7 +482,7 @@ public class GearInventoryUI : MonoBehaviour
             return;
         }
 
-        HeroData hero = heroes[selectedHeroIndex];
+        HeroData hero = GetHeroAtSelection(heroes);
         if (hero == null)
         {
             return;
@@ -505,7 +505,7 @@ public class GearInventoryUI : MonoBehaviour
             return;
         }
 
-        HeroData hero = heroes[selectedHeroIndex];
+        HeroData hero = GetHeroAtSelection(heroes);
         if (hero == null)
         {
             return;
@@ -553,6 +553,25 @@ public class GearInventoryUI : MonoBehaviour
 
         selectedHeroIndex = (selectedHeroIndex + delta + count) % count;
         RebuildPanel();
+    }
+
+    /// <summary>
+    /// Resolves the selected hero defensively: the party can shrink between
+    /// the last panel rebuild and this input frame, so never index blindly.
+    /// </summary>
+    private HeroData GetHeroAtSelection(HeroData[] heroes)
+    {
+        if (heroes == null || heroes.Length == 0)
+        {
+            return null;
+        }
+
+        if (selectedHeroIndex < 0 || selectedHeroIndex >= heroes.Length)
+        {
+            selectedHeroIndex = Mathf.Clamp(selectedHeroIndex, 0, heroes.Length - 1);
+        }
+
+        return heroes[selectedHeroIndex];
     }
 
     private static HeroData[] GetPartyHeroes(HeroProgressionManager progression)

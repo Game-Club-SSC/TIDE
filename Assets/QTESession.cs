@@ -88,6 +88,15 @@ public class QTESession : MonoBehaviour
     {
         if (!isActive)
         {
+            // Teardown can land here with the session already finished; still
+            // settle the state so any ShowQTECoroutine waiter on isComplete
+            // is released instead of spinning forever.
+            if (!reportResult)
+            {
+                isComplete = true;
+                HideUI();
+            }
+
             return;
         }
 
@@ -103,7 +112,6 @@ public class QTESession : MonoBehaviour
             return;
         }
 
-        activeQteCoroutine = null;
         isComplete = true;
         isActive = false;
         HideUI();

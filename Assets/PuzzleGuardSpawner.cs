@@ -305,8 +305,8 @@ public class PuzzleGuardSpawner : MonoBehaviour
         }
 
         // Remember misses so an id with no config does not repeat the full
-        // Resources.LoadAll scan on every refresh. The fallback id is never
-        // cached, otherwise one mistyped box id would disable all guards.
+        // Resources.LoadAll scan on every refresh. The fallback id is excluded
+        // so a single mistyped box id cannot disable the fallback for all guards.
         if (encounterId != FallbackEncounterId && missingEncounterConfigIds.Contains(encounterId))
         {
             return null;
@@ -426,8 +426,10 @@ public class PuzzleGuardSpawner : MonoBehaviour
         return new Vector2Int(3, 3);
     }
 
-    // Mirrors TideManager.GetWorldPosition centering so the guard stays on
-    // its locked tile for any grid size (the old literals only matched 3x3).
+    // Matches the centering formula in TideManager.GetWorldPosition so the
+    // guard stays on its locked tile for any grid size (the old literals
+    // only matched 3x3). Clamped here because the dimensions can come from
+    // unvalidated data.
     private static Vector3 GetTileOffset(Vector2Int tilePosition, Vector2Int gridDimensions)
     {
         const float tileSpacing = 2.25f;
