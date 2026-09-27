@@ -25,6 +25,11 @@ public static class GoalVerificationRunner
         RunContextSuite<RestorationTrackerTest>(nameof(RestorationTrackerTest.RunTests), ref passed, ref failed);
         RunContextSuite<IslandContentVerificationTest>(nameof(IslandContentVerificationTest.RunTests), ref passed, ref failed);
         RunNUnitSuite<DialogueEffectVerificationTest>(ref passed, ref failed);
+        RunNUnitSuite<PreBossDialogueFlowTest>(ref passed, ref failed);
+        RunNUnitSuite<MobileBattleTapTest>(ref passed, ref failed);
+        RunNUnitSuite<CombatBalanceInvariantTest>(ref passed, ref failed);
+        RunContextSuite<MobileTouchControllerTest>(nameof(MobileTouchControllerTest.RunTests), ref passed, ref failed);
+        RunContextSuite<MobileTouchInputManagerTest>(nameof(MobileTouchInputManagerTest.RunAllTests), ref passed, ref failed);
         RunNUnitSuite<HeroDataTestSuite>(ref passed, ref failed);
         RunNUnitSuite<PartySetupTestSuite>(ref passed, ref failed);
         RunNUnitSuite<HeroProgressionTest>(ref passed, ref failed);
