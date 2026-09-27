@@ -3057,9 +3057,14 @@ public class BattleManager : MonoBehaviour
     {
         float value = momentumState.Value;
         int barLength = 20;
-        int filled = Mathf.RoundToInt(Mathf.Abs(value) * barLength);
+        int filled = Mathf.Clamp(Mathf.RoundToInt(Mathf.Abs(value) * barLength), 0, barLength);
         string direction = value >= 0 ? "Player" : "Enemy";
-        string bar = new string('█', filled).PadRight(barLength, '░');
+
+        // Fill from the player's side: enemy-favouring momentum empties the
+        // left edge instead of looking identical to player-favouring.
+        string bar = value >= 0f
+            ? new string('█', filled).PadRight(barLength, '░')
+            : new string('░', barLength - filled) + new string('█', filled);
 
         if (momentumState.IsPlayerTideBreakReady)
         {

@@ -283,6 +283,46 @@ public class PartyData : ScriptableObject
         return FindReserveIndex(heroId) >= 0;
     }
 
+    /// <summary>
+    /// Restores the default composition (first three heroes active, the rest
+    /// in reserve). Used by the new-game path so a fresh run does not inherit
+    /// the previous run's active/reserve assignment.
+    /// </summary>
+    public void ResetToDefaults()
+    {
+        EnsureSlotLayout();
+
+        for (int i = 0; i < activeSlots.Length; i++)
+        {
+            activeSlots[i] = null;
+        }
+
+        for (int i = 0; i < reserveSlots.Length; i++)
+        {
+            reserveSlots[i] = null;
+        }
+
+        HeroData[] all = GetAllHeroes();
+        int activeIndex = 0;
+        int reserveIndex = 0;
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] == null || string.IsNullOrEmpty(all[i].heroId))
+            {
+                continue;
+            }
+
+            if (activeIndex < activeSlots.Length)
+            {
+                activeSlots[activeIndex++] = all[i];
+            }
+            else if (reserveIndex < reserveSlots.Length)
+            {
+                reserveSlots[reserveIndex++] = all[i];
+            }
+        }
+    }
+
     internal void EnsureSlotLayout()
     {
         activeSlots = ResizeSlots(activeSlots, ActiveSlotCount);

@@ -160,8 +160,9 @@ public class TideBreakUnlockUI : MonoBehaviour
         popupCanvasGroup.gameObject.SetActive(true);
         yield return StartCoroutine(FadeCanvasGroup(popupCanvasGroup, 0f, 1f, fadeInDuration));
 
-        // Hold
-        yield return new WaitForSeconds(holdDuration);
+        // Hold (unscaled: the pause menu sets timeScale to 0 and would
+        // otherwise freeze the popup on screen)
+        yield return new WaitForSecondsRealtime(holdDuration);
 
         // Fade out
         yield return StartCoroutine(FadeCanvasGroup(popupCanvasGroup, 1f, 0f, fadeOutDuration));
@@ -177,7 +178,7 @@ public class TideBreakUnlockUI : MonoBehaviour
 
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             cg.alpha = Mathf.Lerp(from, to, t);
             yield return null;

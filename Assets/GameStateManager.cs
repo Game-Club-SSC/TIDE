@@ -1047,6 +1047,11 @@ public class GameStateManager : MonoBehaviour
 
         if (changed)
         {
+            // StoryProgressionService is the source the dialogue act gates
+            // read (DialogueTreeRunner); it never pulls from us on its own,
+            // so every act-gated choice would otherwise stay locked.
+            StoryProgressionService.Instance?.SyncFromGameStateManager();
+
             SaveWorldState();
 
             AudioManager audioManager = AudioManager.Instance;
@@ -1187,6 +1192,7 @@ public class GameStateManager : MonoBehaviour
 
         currentStoryAct = ClampStoryAct((StoryAct)saveData.currentAct);
         highestStoryActReached = ClampStoryAct((StoryAct)Mathf.Max(saveData.highestActReached, saveData.currentAct));
+        StoryProgressionService.Instance?.SyncFromGameStateManager();
         finalBossDefeatsForBadEndingThreshold = Mathf.Max(1, saveData.finalBossDefeatThreshold > 0
             ? saveData.finalBossDefeatThreshold
             : BossEncounterGate.DefaultDefeatsForBadEnding);
@@ -3790,6 +3796,29 @@ public class GameStateManager : MonoBehaviour
         if (gearInventory != null)
         {
             gearInventory.ResetInventoryForDebug();
+        }
+
+        // PartyData is a ScriptableObject that outlives the scene, so a new
+        // game would otherwise keep the previous run's active/reserve
+        // composition.
+        PartyManager partyManager = PartyManager.Instance;
+        if (partyManager != null && partyManager.PartyData != null)
+        {
+            partyManager.PartyData.ResetToDefaults();
+        }
+
+        // These managers persist to their own PlayerPrefs keys and are not
+        // covered by ClearPersistentWorldStateForDebug.
+        RelationshipTracker relationship = RelationshipTracker.Instance;
+        if (relationship != null)
+        {
+            relationship.ResetForDebug();
+        }
+
+        NewGamePlusService ngPlus = NewGamePlusService.Instance;
+        if (ngPlus != null)
+        {
+            ngPlus.ResetForDebug();
         }
 
         EnsureWorldSaveService();

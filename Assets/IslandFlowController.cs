@@ -346,6 +346,14 @@ public class IslandFlowController : MonoBehaviour
         gameState.PendingEnemyComposition = null;
         gameState.SetBossDefeatTrackingContext(activeIslandId, IsBossEncounter(encounter));
 
+        if (IsBossEncounter(encounter))
+        {
+            // Play the island's pre-boss party conversation before the fight.
+            // It is non-blocking: if a dialogue is already running the helper
+            // no-ops and combat proceeds as before.
+            NarrativeBeatDirector.PlayPreBossDialogue(gameState.PendingCombatIslandId);
+        }
+
         if (encounter.encounterConfig != null)
         {
             gameState.PendingEnemyComposition = EnemyComposition.FromEncounterConfig(encounter.encounterConfig);
@@ -500,9 +508,21 @@ public class IslandFlowController : MonoBehaviour
 
     private bool IsBossUnlocked()
     {
-        if (tracker == null || islandConfig == null)
+        if (islandConfig == null)
         {
             return false;
+        }
+
+        if (tracker == null)
+        {
+            // A missing tracker means "not resolved yet", not "locked".
+            // Failing closed here would deadlock the island flow with no
+            // non-boss encounters left to fall back on.
+            ResolveTrackerReference();
+            if (tracker == null)
+            {
+                return true;
+            }
         }
 
         return tracker.IsRestorationAtOrAbove(activeIslandId, IslandRestorationTracker.DefaultBossUnlockThresholdPercent);

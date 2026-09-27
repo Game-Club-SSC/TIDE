@@ -342,8 +342,17 @@ public class MobileTouchInputManager : MonoBehaviour
             return;
         }
 
+        // Only taps actually inside the battle control panel may target a
+        // unit; a stray tap elsewhere must not commit a turn action.
+        RectTransform battlePanelRect = battleTouchPanel != null ? battleTouchPanel.transform as RectTransform : null;
+        if (battlePanelRect == null || !IsInsideRectTransform(touch.position, battlePanelRect))
+        {
+            return;
+        }
+
+        // Close range: tapping a unit must not select one through walls.
         Ray ray = mainCamera.ScreenPointToRay(touch.position);
-        if (!Physics.Raycast(ray, out RaycastHit hit, 200f))
+        if (!Physics.Raycast(ray, out RaycastHit hit, BattleTapRayDistance))
         {
             return;
         }
@@ -362,6 +371,8 @@ public class MobileTouchInputManager : MonoBehaviour
 
         bm.TryAssignActionFromHud(CombatActionType.Attack, targetUnit);
     }
+
+    private const float BattleTapRayDistance = 60f;
 
     private void UpdateBattlePanelVisibility()
     {

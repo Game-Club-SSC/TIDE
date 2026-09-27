@@ -270,6 +270,11 @@ public class TideBreakProgressionManager : MonoBehaviour
         for (int i = 0; i < all.Length; i++)
         {
             TideBreakData tb = all[i];
+            if (tb == null)
+            {
+                continue;
+            }
+
             if (!CanUnlockFromLevel(tb, heroId, heroElement, level))
             {
                 continue;

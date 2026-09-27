@@ -123,18 +123,6 @@ public class AcceptanceConversation : MonoBehaviour
         currentLineIndex = 0;
     }
 
-    private bool HasMetPrerequisites()
-    {
-        string activeId = ResolveActiveIslandId();
-        if (!string.Equals(activeId, finalBossIslandId, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        float restoration = GetActiveIslandRestoration();
-        return restoration >= restorationThreshold;
-    }
-
     private IEnumerator PlayVisibleDialogueRoutine()
     {
         DialogueSystem dialogueSystem = EnsureDialogueSystem();

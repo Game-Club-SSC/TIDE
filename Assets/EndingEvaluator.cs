@@ -119,7 +119,6 @@ public class EndingEvaluator : MonoBehaviour
         HashSet<string> thresholdOnlyProceedIslandIds = ToIdHash(gameState.GetThresholdOnlyProceedIslandIds());
 
         int requiredIslandCount = 0;
-        int satisfiedIslandCount = 0;
         float thresholdClearedRatio = 0f;
 
         for (int i = 0; i < progressionOrder.Count; i++)
@@ -138,10 +137,6 @@ public class EndingEvaluator : MonoBehaviour
 
             requiredIslandCount++;
             bool isThresholdCleared = IsIslandThresholdCleared(ruleMode, islandId, thresholdOnlyBossVictoryIslandIds, thresholdOnlyProceedIslandIds);
-            if (isThresholdCleared)
-            {
-                satisfiedIslandCount++;
-            }
 
             float ratioForIsland = gameState.GetIslandRestorationPercent(islandId) / 100f;
             if (ratioForIsland >= snapshot.minimumRestorationThresholdRatio || isThresholdCleared)

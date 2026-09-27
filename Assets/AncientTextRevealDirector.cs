@@ -124,7 +124,10 @@ public class AncientTextRevealDirector : MonoBehaviour
                 continue;
             }
 
-            if (currentIndex < fragment.requiredIslandIndex)
+            // -1 means "progression manager unavailable", i.e. unknown, not
+            // "earliest island". Gate only on a resolved index so a bootstrap
+            // ordering hiccup cannot suppress every fragment.
+            if (currentIndex >= 0 && currentIndex < fragment.requiredIslandIndex)
             {
                 continue;
             }

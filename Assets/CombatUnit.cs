@@ -454,7 +454,7 @@ public class CombatUnit : MonoBehaviour
             }
 
             effect.Tick();
-            if (effect.Duration <= 0)
+            if (effect.Duration == 0)
             {
                 Debug.Log($"[CombatUnit] {unitName}'s {effect.Type} effect expired.");
                 activeEffects.RemoveAt(i);

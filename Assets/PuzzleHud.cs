@@ -32,6 +32,11 @@ public class PuzzleHud : MonoBehaviour
     private void OnDisable()
     {
         UnsubscribeFromTideManager();
+
+        // Clear the reference too: TryFindTideManager early-returns on a
+        // non-null field, so a HUD toggled off/on would keep a destroyed
+        // manager and never re-subscribe.
+        tideManager = null;
     }
 
     private void Update()

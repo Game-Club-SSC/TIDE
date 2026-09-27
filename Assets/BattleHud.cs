@@ -773,7 +773,7 @@ public class BattleHud : MonoBehaviour
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
         foreach (StatusEffect effect in effects)
         {
-            if (effect == null || effect.Type == StatusEffectType.None || effect.Duration <= 0)
+            if (effect == null || effect.Type == StatusEffectType.None || effect.Duration == 0)
             {
                 continue;
             }

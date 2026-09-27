@@ -18,7 +18,6 @@ public class GamepadInputManager : MonoBehaviour
     [Header("Settings")]
     [Range(0f, 0.9f)]
     [SerializeField] private float stickDeadZone = 0.2f;
-    [SerializeField] private float triggerThreshold = 0.5f;
     [Min(1)]
     [SerializeField] private int maxTargetCount = 8;
 
@@ -143,9 +142,13 @@ public class GamepadInputManager : MonoBehaviour
         MoveH = ApplyDeadZone(rawH);
         MoveV = ApplyDeadZone(rawV);
 
-        // Left stick click or left trigger for sprint
-        SprintHeld = Input.GetButton("joystick button 8") // Left stick click
-                     || Input.GetAxisRaw("Fire3") > triggerThreshold; // Left trigger (alt mapping)
+        // Left stick click (joystick button 10) or a shoulder sprint button.
+        // Fire3 is mapped to a joystick *button* in
+        // ProjectSettings/InputManager.asset, so it must be read with
+        // GetButton, not GetAxisRaw.
+        SprintHeld = Input.GetButton("joystick button 10")
+                     || Input.GetButton("Fire3")
+                     || Input.GetButton("joystick button 4");
     }
 
     // ----- Exploration Actions -----
