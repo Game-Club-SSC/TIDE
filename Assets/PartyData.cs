@@ -292,6 +292,11 @@ public class PartyData : ScriptableObject
     {
         EnsureSlotLayout();
 
+        // Capture the roster BEFORE clearing: GetAllHeroes is sourced from
+        // the slot arrays, so clearing first would empty the roster and wipe
+        // the whole party.
+        HeroData[] all = GetAllHeroes();
+
         for (int i = 0; i < activeSlots.Length; i++)
         {
             activeSlots[i] = null;
@@ -302,7 +307,6 @@ public class PartyData : ScriptableObject
             reserveSlots[i] = null;
         }
 
-        HeroData[] all = GetAllHeroes();
         int activeIndex = 0;
         int reserveIndex = 0;
         for (int i = 0; i < all.Length; i++)

@@ -375,24 +375,6 @@ public class PlayerGearInventory : MonoBehaviour
         if (snapshot.equippedHeroIds != null && snapshot.equippedInstanceIds != null)
         {
             int count = Mathf.Min(snapshot.equippedHeroIds.Count, snapshot.equippedInstanceIds.Count);
-
-            // Equip state must be replaced, not merged: ApplyGearSnapshot has
-            // already cleared the instance registry, so a hero left pointing
-            // at a stale equippedGearInstanceId would silently materialize a
-            // fresh level-1 copy on the next read.
-            HeroProgressionManager.HeroProgressionSnapshot heroes = progression.CaptureHeroProgressionSnapshot();
-            if (heroes != null && heroes.heroIds != null)
-            {
-                for (int i = 0; i < heroes.heroIds.Count; i++)
-                {
-                    string heroId = heroes.heroIds[i];
-                    if (!string.IsNullOrEmpty(heroId))
-                    {
-                        progression.UnequipGearSet(heroId);
-                    }
-                }
-            }
-
             for (int i = 0; i < count; i++)
             {
                 string heroId = snapshot.equippedHeroIds[i];

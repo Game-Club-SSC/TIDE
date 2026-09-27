@@ -1192,7 +1192,6 @@ public class GameStateManager : MonoBehaviour
 
         currentStoryAct = ClampStoryAct((StoryAct)saveData.currentAct);
         highestStoryActReached = ClampStoryAct((StoryAct)Mathf.Max(saveData.highestActReached, saveData.currentAct));
-        StoryProgressionService.Instance?.SyncFromGameStateManager();
         finalBossDefeatsForBadEndingThreshold = Mathf.Max(1, saveData.finalBossDefeatThreshold > 0
             ? saveData.finalBossDefeatThreshold
             : BossEncounterGate.DefaultDefeatsForBadEnding);
@@ -1258,6 +1257,11 @@ public class GameStateManager : MonoBehaviour
                 }
             }
         }
+
+        // Synced last, once the act and ending fields are all restored:
+        // StoryProgressionService never pulls from us, and syncing earlier
+        // would cache the pre-load ending state for the whole session.
+        StoryProgressionService.Instance?.SyncFromGameStateManager();
     }
 
     private bool TryGetLoadableWorldStatePayload(out string payload)
@@ -2520,6 +2524,12 @@ public class GameStateManager : MonoBehaviour
         if (StoryProgressionService.Instance != null)
         {
             StoryProgressionService.Instance.ClearFlagsForDebug();
+
+            // ClearFlagsForDebug deliberately leaves act/ending state alone,
+            // so a new game would otherwise keep the previous run's act in
+            // the dialogue gates. Reset, then re-sync from our fresh ActI.
+            StoryProgressionService.Instance.ResetForDebug();
+            StoryProgressionService.Instance.SyncFromGameStateManager();
         }
     }
 

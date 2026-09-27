@@ -142,13 +142,10 @@ public class GamepadInputManager : MonoBehaviour
         MoveH = ApplyDeadZone(rawH);
         MoveV = ApplyDeadZone(rawV);
 
-        // Left stick click (joystick button 10) or a shoulder sprint button.
-        // Fire3 is mapped to a joystick *button* in
-        // ProjectSettings/InputManager.asset, so it must be read with
-        // GetButton, not GetAxisRaw.
-        SprintHeld = Input.GetButton("joystick button 10")
-                     || Input.GetButton("Fire3")
-                     || Input.GetButton("joystick button 4");
+        // Left stick click only. Fire3 resolves to "joystick button 2" (X /
+        // Square, already Dash) and button 4 is LB (Swap), so aliasing either
+        // would fire sprint alongside those actions.
+        SprintHeld = Input.GetButton("joystick button 10");
     }
 
     // ----- Exploration Actions -----

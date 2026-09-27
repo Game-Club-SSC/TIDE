@@ -342,10 +342,11 @@ public class MobileTouchInputManager : MonoBehaviour
             return;
         }
 
-        // Only taps actually inside the battle control panel may target a
-        // unit; a stray tap elsewhere must not commit a turn action.
+        // The battle panel is a bottom action bar, not a viewport overlay, so
+        // taps must be allowed *outside* it. Only reject taps landing on the
+        // bar itself, which the ATK/SKL/DEF buttons already handle.
         RectTransform battlePanelRect = battleTouchPanel != null ? battleTouchPanel.transform as RectTransform : null;
-        if (battlePanelRect == null || !IsInsideRectTransform(touch.position, battlePanelRect))
+        if (battlePanelRect != null && IsInsideRectTransform(touch.position, battlePanelRect))
         {
             return;
         }

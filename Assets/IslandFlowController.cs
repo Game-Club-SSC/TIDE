@@ -13,6 +13,9 @@ public class IslandFlowController : MonoBehaviour
     // the encounter key so a failed or fled battle can be retried without
     // spending the point again.
     private string budgetConsumedEncounterId;
+    private string preBossEncounterIdPlayed;
+    private bool preBossEncounterInFlight;
+    private System.Action<string> preBossDialogueCallback;
     private bool hasLoggedDeadlockWarning;
 
     public string IslandId => activeIslandId;
@@ -65,6 +68,8 @@ public class IslandFlowController : MonoBehaviour
 
     private void OnDisable()
     {
+        ReleasePreBossDialogueCallback();
+
         if (GameStateManager.Instance != null && GameStateManager.Instance.FlowController == this)
         {
             GameStateManager.Instance.FlowController = null;
@@ -194,20 +199,25 @@ public class IslandFlowController : MonoBehaviour
 
     public void ResetForNewGame()
     {
+        ReleasePreBossDialogueCallback();
         islandConfig = null;
         currentEncounterIndex = 0;
         isActive = false;
         awaitingEncounterResolution = false;
         activeIslandId = string.Empty;
         budgetConsumedEncounterId = null;
+        preBossEncounterIdPlayed = null;
+        preBossEncounterInFlight = false;
         hasLoggedDeadlockWarning = false;
     }
 
     public void PauseForHub()
     {
+        ReleasePreBossDialogueCallback();
         isActive = false;
         awaitingEncounterResolution = false;
         budgetConsumedEncounterId = null;
+        preBossEncounterInFlight = false;
         hasLoggedDeadlockWarning = false;
     }
 
@@ -315,6 +325,21 @@ public class IslandFlowController : MonoBehaviour
         }
 
         string encounterId = GetEncounterId(encounter, currentEncounterIndex);
+        if (preBossEncounterInFlight)
+        {
+            // A pre-boss conversation is playing; its completion callback
+            // re-enters this method once the tree finishes.
+            return;
+        }
+
+        if (IsBossEncounter(encounter) && TryPlayPreBossDialogue(encounterId))
+        {
+            // The dialogue owns the transition: the encounter is queued from
+            // its completion callback so the scene load cannot destroy the
+            // scene-owned dialogue runner mid-conversation.
+            return;
+        }
+
         PowerBudgetTracker budgetTracker = PowerBudgetTracker.Instance;
         bool budgetAlreadyConsumed = string.Equals(
             budgetConsumedEncounterId,
@@ -346,14 +371,6 @@ public class IslandFlowController : MonoBehaviour
         gameState.PendingEnemyComposition = null;
         gameState.SetBossDefeatTrackingContext(activeIslandId, IsBossEncounter(encounter));
 
-        if (IsBossEncounter(encounter))
-        {
-            // Play the island's pre-boss party conversation before the fight.
-            // It is non-blocking: if a dialogue is already running the helper
-            // no-ops and combat proceeds as before.
-            NarrativeBeatDirector.PlayPreBossDialogue(gameState.PendingCombatIslandId);
-        }
-
         if (encounter.encounterConfig != null)
         {
             gameState.PendingEnemyComposition = EnemyComposition.FromEncounterConfig(encounter.encounterConfig);
@@ -367,6 +384,74 @@ public class IslandFlowController : MonoBehaviour
         // owns the active flow.  CombatSceneBootstrap uses it for enemy tier,
         // boss presentation, restoration, and reward context.
         gameState.EnterCombatScene();
+    }
+
+    /// <summary>
+    /// Starts the island's pre-boss conversation and defers the encounter until
+    /// it finishes. Returns false when the caller should proceed immediately
+    /// (no dialogue available, one already running, or a repeat attempt).
+    /// </summary>
+    private bool TryPlayPreBossDialogue(string encounterId)
+    {
+        DialogueSystem dialogue = DialogueSystem.Instance;
+        if (dialogue == null || dialogue.IsDialogueActive)
+        {
+            return false;
+        }
+
+        if (preBossEncounterIdPlayed == encounterId)
+        {
+            // Already shown once for this encounter; do not replay on retry.
+            return false;
+        }
+
+        string islandId = IslandThemeRegistry.ResolveIslandId(activeIslandId);
+        preBossEncounterIdPlayed = encounterId;
+        preBossEncounterInFlight = true;
+
+        System.Action<string> onCompleted = null;
+        onCompleted = treeId =>
+        {
+            preBossEncounterInFlight = false;
+            preBossDialogueCallback = null;
+
+            if (DialogueSystem.Instance != null)
+            {
+                DialogueSystem.Instance.OnDialogueTreeCompleted -= onCompleted;
+            }
+
+            EncounterDefinition queued = islandConfig != null && currentEncounterIndex < islandConfig.encounters.Length
+                ? islandConfig.encounters[currentEncounterIndex]
+                : null;
+
+            if (queued == null
+                || !string.Equals(encounterId, GetEncounterId(queued, currentEncounterIndex), System.StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            LoadCombatEncounter(queued);
+        };
+
+        dialogue.OnDialogueTreeCompleted += onCompleted;
+        preBossDialogueCallback = onCompleted;
+        NarrativeBeatDirector.PlayPreBossDialogue(islandId);
+        return true;
+    }
+
+    /// <summary>
+    /// Detaches the pending pre-boss completion callback. Called when the
+    /// flow is torn down or reset so a later scene change cannot fire a stale
+    /// callback into a dead controller.
+    /// </summary>
+    private void ReleasePreBossDialogueCallback()
+    {
+        if (preBossDialogueCallback != null && DialogueSystem.Instance != null)
+        {
+            DialogueSystem.Instance.OnDialogueTreeCompleted -= preBossDialogueCallback;
+        }
+
+        preBossDialogueCallback = null;
     }
 
     private void LoadPuzzleEncounter(EncounterDefinition encounter)
@@ -515,14 +600,14 @@ public class IslandFlowController : MonoBehaviour
 
         if (tracker == null)
         {
-            // A missing tracker means "not resolved yet", not "locked".
-            // Failing closed here would deadlock the island flow with no
-            // non-boss encounters left to fall back on.
+            // Re-resolve once; a genuinely absent tracker still fails closed
+            // so the restoration gate cannot be bypassed.
             ResolveTrackerReference();
-            if (tracker == null)
-            {
-                return true;
-            }
+        }
+
+        if (tracker == null)
+        {
+            return false;
         }
 
         return tracker.IsRestorationAtOrAbove(activeIslandId, IslandRestorationTracker.DefaultBossUnlockThresholdPercent);
