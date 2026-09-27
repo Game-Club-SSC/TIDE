@@ -92,21 +92,25 @@ public class MobileBattleTapTest : MonoBehaviour
     public void TapBeyondTheBoundedRayDistanceAssignsNothing()
     {
         // The other half of the original bug: the raycast reached 200 units,
-        // so a unit on the far side of the arena could be selected.
+        // so a unit on the far side of the arena could be selected. The
+        // camera the production code caches is Camera.main, so the far camera
+        // must be the live one; the near camera is never created.
         MobileTouchInputManager manager = CreateManager();
-        Camera camera = CreateCamera();
 
         float reach = BattleTapRayDistance();
         Camera farCamera = CreateCameraAt(new Vector3(0f, 6f, -(reach + 20f)));
         SpawnEnemy(new Vector3(0f, 0f, 0f), CombatUnit.UnitType.Enemy);
         CombatUnit actor = SpawnAllyActor();
 
+        float distanceFromCamera = Vector3.Distance(farCamera.transform.position, new Vector3(0f, 0f, 0f));
+        Assert.Greater(distanceFromCamera, reach,
+            $"Setup: the enemy must sit beyond the {reach:0} unit tap reach for this test to mean anything.");
+
         Vector2 tap = ProjectToScreen(farCamera, new Vector3(0f, 1f, 0f));
         CombatUnit assigned = InvokeHandleBattleTouchAndCaptureTarget(manager, tap, actor);
 
         Assert.IsNull(assigned,
-            $"A unit beyond the {reach:0} unit tap reach must not be selectable.");
-        Assert.IsNotNull(camera, "Setup: the near camera should still exist.");
+            $"A unit {distanceFromCamera:0} units away, beyond the {reach:0} unit tap reach, must not be selectable.");
     }
 
     [Test]
