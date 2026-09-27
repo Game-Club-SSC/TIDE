@@ -2453,12 +2453,15 @@ public class BattleManager : MonoBehaviour
 
         // Ally support is a player-side ability. Resolving those branches
         // against actor.Type let an enemy Tide Break spend its charge healing
-        // or shielding its own squad, so an enemy casting one is redirected to
-        // an opponent before the branch is selected.
+        // or shielding its own squad. Self is redirected too, since an enemy
+        // self-buff would make its Tide Break a free damage/HP swing with no
+        // pressure on the player.
         if (actor.Type == CombatUnit.UnitType.Enemy
-            && (targetType == SkillTarget.AllAllies || targetType == SkillTarget.SingleAlly))
+            && (targetType == SkillTarget.AllAllies
+                || targetType == SkillTarget.SingleAlly
+                || targetType == SkillTarget.Self))
         {
-            Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} cannot use an ally-support Tide Break; targeting an opponent instead.");
+            Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} cannot use a support Tide Break; targeting an opponent instead.");
             targetType = SkillTarget.SingleEnemy;
         }
 
@@ -2509,6 +2512,10 @@ public class BattleManager : MonoBehaviour
                     Debug.Log($"[BattleManager] {abilityName}: {actor.UnitName} grants {allyTarget.UnitName} a shield worth {reduction:P0} of MaxHP for 3 turns.", this);
                 }
 
+                // The gauge must be consumed even on the support branches, or
+                // the actor stays permanently Tide Break ready and fires one
+                // every subsequent turn.
+                momentumState.Reset();
                 return;
             }
         }
@@ -2535,6 +2542,9 @@ public class BattleManager : MonoBehaviour
                     healAudio.HandleHeal();
                 }
 
+                // Consume the gauge on the support branches too; leaving it
+                // pinned keeps the actor Tide Break ready every turn.
+                momentumState.Reset();
                 return;
             }
         }

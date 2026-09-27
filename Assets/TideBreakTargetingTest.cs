@@ -33,8 +33,13 @@ public class TideBreakTargetingTest : MonoBehaviour
     [Test]
     public void ShippedTideBreaksThatAreAllEnemiesAreTheCommonCase()
     {
-        // Guards the premise of the tests below: if no shipped ability were
-        // AllEnemies the bug would be unreachable and they would be theatre.
+        // Guards the premise of the tests below. NOTE: these tests are written
+        // against ResolveTideBreak directly and hand-build a TideBreakData,
+        // because no production path currently assigns TideBreaks to enemies
+        // (ApplyEnemyDataToUnit never calls SetTideBreaks). They are therefore
+        // forward-looking hardening rather than a fix for a bug players can
+        // currently hit; this test records that AllEnemies abilities do exist
+        // and would become wrong the moment enemy abilities are authored.
         TideBreakData[] shipped = Resources.LoadAll<TideBreakData>("TideBreakData");
         Assert.Greater(shipped.Length, 0, "Tide Break assets should load.");
 
@@ -106,10 +111,16 @@ public class TideBreakTargetingTest : MonoBehaviour
         TideBreakData singleAlly = CreateTideBreak("TB_SingleAlly_Probe", SkillTarget.SingleAlly);
         RegisterUnits(battle, enemy, enemyAlly, player);
 
+        int playerHpBefore = player.HP;
+
         InvokeResolveTideBreak(battle, enemy, enemyAlly, singleAlly);
 
         Assert.AreEqual(0f, enemyAlly.ShieldHp, 0.001f,
             "An enemy must not be able to shield its own squad with a Tide Break.");
+        Assert.AreEqual(0f, enemy.ShieldHp, 0.001f,
+            "The enemy itself must not be shielded either.");
+        Assert.Less(player.HP, playerHpBefore,
+            "The unsupported ally-support ability must be redirected at the opponent, not silently dropped.");
     }
 
     [Test]

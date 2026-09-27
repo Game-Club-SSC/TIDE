@@ -428,10 +428,11 @@ public class PlayerCustomizationUI : MonoBehaviour
             player.canMove = false;
         }
 
-        // If another overlay already paused the game, there is no gameplay
-        // clock left to restore: it owns the pause. Recording 0 here and
-        // restoring it later would either freeze the game or silently depend
-        // on the fallback, so the ownership is tracked instead.
+        // The clock may already be stopped by the pause menu, by another
+        // overlay, or by a stuck state nobody owns. Record whether a running
+        // clock was actually interrupted, but always resume: if this panel
+        // leaves the game frozen with no overlay open to recover it, that is
+        // worse than restoring a value another overlay also restores.
         hasPausedTimeScale = Time.timeScale > 0f;
         if (hasPausedTimeScale)
         {
@@ -448,9 +449,10 @@ public class PlayerCustomizationUI : MonoBehaviour
             player.canMove = wasPlayerMoveEnabled;
         }
 
-        // Only restore if this panel is the one that paused the game. If it
-        // merely found the clock already stopped, the other overlay still
-        // holds it and will restore it on its own close.
+        // Only restore if this panel is the one that stopped a running clock.
+        // If it found the clock already stopped it did not take ownership, and
+        // another overlay is responsible; restoring here would fight that
+        // overlay's own resume.
         if (hasPausedTimeScale)
         {
             Time.timeScale = previousTimeScale;

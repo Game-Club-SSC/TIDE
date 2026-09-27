@@ -170,6 +170,11 @@ public class StoryProgressionService : MonoBehaviour
             return;
         }
 
+        // Replace, not merge: the save is authoritative. Merging left flags
+        // that the new payload no longer records, so a reload or a rollback
+        // could not clear a quest.
+        storyFlags.Clear();
+
         int count = Mathf.Min(keys.Count, values.Count);
         for (int i = 0; i < count; i++)
         {

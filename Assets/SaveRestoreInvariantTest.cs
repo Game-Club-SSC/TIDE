@@ -108,7 +108,8 @@ public class SaveRestoreInvariantTest : MonoBehaviour
     {
         // ResolveHeroDataSlots used to build a fresh array and leave any
         // unresolvable id null, shrinking the active party below 3 on any save
-        // with a stale hero id.
+        // with a stale hero id. This asserts the unresolved slot specifically:
+        // it is the only one the fallback seeding changes.
         MethodInfo resolve = typeof(HeroProgressionManager).GetMethod(
             "ResolveHeroDataSlots", BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(resolve, "ResolveHeroDataSlots should exist as a static helper.");
@@ -119,10 +120,32 @@ public class SaveRestoreInvariantTest : MonoBehaviour
             new object[] { new List<string> { "hero_does_not_exist", "hero_fire", "hero_water" }, 3, authored });
 
         Assert.IsNotNull(result, "The resolved array must not be null.");
+        Assert.IsNotNull(result[0],
+            "An unresolvable id must keep the existing hero in its slot rather than emptying the party.");
         Assert.IsNotNull(result[1], "A resolvable id must still be applied to its slot.");
         Assert.AreEqual("hero_fire", result[1].heroId, "hero_fire must land in slot 1.");
         Assert.IsNotNull(result[2], "A resolvable id must still be applied to its slot.");
         Assert.AreEqual("hero_water", result[2].heroId, "hero_water must land in slot 2.");
+    }
+
+    [Test]
+    public void PartyRestoreDoesNotResurrectAnEmptySlot()
+    {
+        // The save records a compact list of non-empty slots, so a two-entry
+        // list means the third active slot was empty. Seeding every slot from
+        // the live party would put the benched hero back.
+        MethodInfo resolve = typeof(HeroProgressionManager).GetMethod(
+            "ResolveHeroDataSlots", BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(resolve, "ResolveHeroDataSlots should exist as a static helper.");
+
+        HeroData[] authored = AuthoredParty();
+        HeroData[] result = (HeroData[])resolve.Invoke(
+            null,
+            new object[] { new List<string> { "hero_fire", "hero_water" }, 3, authored });
+
+        Assert.IsNotNull(result, "The resolved array must not be null.");
+        Assert.AreEqual(2, CountNonNull(result),
+            "Only the two recorded ids may occupy slots; a slot the save left empty must stay empty.");
     }
 
     /// <summary>
@@ -142,6 +165,20 @@ public class SaveRestoreInvariantTest : MonoBehaviour
 
         Assert.IsTrue(copy[0] != null, "Setup: the authored party should have an active hero.");
         return copy;
+    }
+
+    private static int CountNonNull(HeroData[] slots)
+    {
+        int count = 0;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] != null)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     // ------------------------------------------------------------------ //

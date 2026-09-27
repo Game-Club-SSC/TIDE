@@ -1369,16 +1369,14 @@ public class HeroProgressionManager : MonoBehaviour
         HeroData[] slots = new HeroData[length];
         if (ids == null)
         {
-            return slots;
-        }
+            // No saved ids at all: keep the live party as-is rather than
+            // emptying it.
+            for (int i = 0; i < length && i < fallback.Length; i++)
+            {
+                slots[i] = fallback[i];
+            }
 
-        // Start from the live party so an id that cannot be resolved (a typo
-        // in an old save, or a roster change between builds) leaves the
-        // existing hero in place rather than silently emptying the slot and
-        // dropping the active party below its minimum.
-        for (int i = 0; i < length && i < fallback.Length; i++)
-        {
-            slots[i] = fallback[i];
+            return slots;
         }
 
         for (int i = 0; i < length; i++)
@@ -1386,6 +1384,17 @@ public class HeroProgressionManager : MonoBehaviour
             string id = ids[i];
             if (string.IsNullOrEmpty(id))
             {
+                // The save records a compact list of non-empty slots, so a
+                // short list legitimately means "this slot was empty". Seed
+                // from the live party so an unresolvable id cannot silently
+                // shrink the active party below its minimum, but do NOT seed
+                // past the ids the save actually recorded: that would
+                // resurrect a hero the player benched.
+                if (i < fallback.Length)
+                {
+                    slots[i] = fallback[i];
+                }
+
                 continue;
             }
 
@@ -1397,6 +1406,10 @@ public class HeroProgressionManager : MonoBehaviour
             else
             {
                 Debug.LogWarning($"[HeroProgressionManager] Saved party id '{id}' could not be resolved; keeping the existing slot.");
+                if (i < fallback.Length)
+                {
+                    slots[i] = fallback[i];
+                }
             }
         }
 
