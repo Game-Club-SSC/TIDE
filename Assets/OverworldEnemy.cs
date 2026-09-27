@@ -1117,7 +1117,7 @@ public class OverworldEnemy : MonoBehaviour
         }
         else
         {
-            puzzleGuardReturnStuckTimer += Time.unscaledDeltaTime;
+            puzzleGuardReturnStuckTimer += Time.deltaTime;
         }
         puzzleGuardLastReturnDistance = distanceToAnchor;
 

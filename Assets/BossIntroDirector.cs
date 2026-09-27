@@ -409,7 +409,7 @@ public class BossIntroDirector : MonoBehaviour
                 break;
             }
 
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }

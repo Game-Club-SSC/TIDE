@@ -158,9 +158,122 @@ public class AudioMixingInvariantTest : MonoBehaviour
             "No audio fade may advance on the scaled clock, or it would stall mid-fade while the game is paused.");
     }
 
+    [Test]
+    public void CrossfadeReassertsMuteOnTheSourceItFills()
+    {
+        // The actual defect this commit fixed. CrossfadeBgm writes
+        // bgmSource.volume directly and never re-applied the mute flag, so a
+        // fade that ran while muted left the source filled to a non-zero
+        // level with .mute still true — any later write to .mute, or a
+        // source re-enabled elsewhere, would then play at full volume.
+        //
+        // The coroutine is driven directly with a real clip so the fade body
+        // (not the test's setup) is what fills the source.
+        AudioManager manager = CreateManager();
+        try
+        {
+            SetPrivateField(manager, "bgmFadeSeconds", 0.01f);
+            manager.SetMute(true);
+
+            AudioSource bgm = GetSource(manager, "bgmSource");
+            bgm.clip = null;
+            bgm.volume = 0f;
+
+            AudioClip clip = AudioClip.Create("TestFadeClip", 44100, 1, 44100, false);
+            try
+            {
+                // The scenario the re-assert exists for: the manager is muted,
+                // and the source's mute flag is out of sync (a pooled or
+                // re-enabled source, or a direct property write). The fade is
+                // the last thing to touch this source and it owns .volume, so
+                // it must leave the flag consistent with the manager's state.
+                //
+                // Clearing the flag BEFORE the fade is what makes this
+                // discriminating: with the re-assert removed, nothing puts it
+                // back, whereas SetMute's own write happened long before and
+                // cannot mask the difference.
+                bgm.mute = false;
+                Assert.IsFalse(bgm.mute, "Setup: the source starts un-flagged while the manager is muted.");
+
+                System.Collections.IEnumerator fade = InvokeCrossfade(manager, clip);
+                int guard = 0;
+                while (fade != null && fade.MoveNext() && guard++ < 500)
+                {
+                    // Drive the loop to completion on the real clock.
+                }
+
+                Assert.IsNotNull(bgm.clip,
+                    "Setup: the fade should have installed the new clip, proving the fade body actually ran.");
+
+                // The fade targets BgmVolume, which is 0 while muted, so the
+                // source correctly ends silent. The defect guarded here is the
+                // stale flag: without the re-assert the source stays
+                // un-flagged, so a later SetMute(false) would leave it playing
+                // at whatever the fade wrote.
+                Assert.AreEqual(0f, bgm.volume, 0.001f,
+                    "A fade that runs while muted must settle on a silent source, since BgmVolume is 0 while muted.");
+                Assert.IsTrue(bgm.mute,
+                    "The crossfade owns the source's volume, so it must also leave the mute flag consistent with the manager; otherwise a later un-mute would resume a source the fade had already set to a non-zero level.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(clip);
+            }
+        }
+        finally
+        {
+            Cleanup();
+        }
+    }
+
+    [Test]
+    public void ActToneShiftReassertsMute()
+    {
+        // Same defect on the per-act pitch/volume path, which also writes
+        // bgmSource.volume directly.
+        AudioManager manager = CreateManager();
+        try
+        {
+            manager.SetMute(true);
+            InvokePrivateIfPresent(manager, "ApplyActToneShift", new object[] { null });
+
+            AudioSource bgm = GetSource(manager, "bgmSource");
+            Assert.IsTrue(bgm.mute,
+                "The act tone shift must leave the source flagged muted after writing its volume.");
+        }
+        finally
+        {
+            Cleanup();
+        }
+    }
+
     // ------------------------------------------------------------------ //
     //  Helpers
     // ------------------------------------------------------------------ //
+
+    private static System.Collections.IEnumerator InvokeCrossfade(AudioManager manager, AudioClip clip)
+    {
+        MethodInfo method = typeof(AudioManager).GetMethod(
+            "CrossfadeBgm", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(method, "AudioManager.CrossfadeBgm should exist.");
+        return (System.Collections.IEnumerator)method.Invoke(manager, new object[] { clip });
+    }
+
+    private static void InvokePrivateIfPresent(object target, string methodName, object[] args)
+    {
+        MethodInfo method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        if (method != null)
+        {
+            method.Invoke(target, args);
+        }
+    }
+
+    private static void SetPrivateField(object target, string fieldName, object value)
+    {
+        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(field, $"AudioManager.{fieldName} should exist.");
+        field.SetValue(target, value);
+    }
 
     private AudioManager CreateManager()
     {

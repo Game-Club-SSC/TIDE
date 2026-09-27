@@ -182,7 +182,7 @@ public class TideTile : MonoBehaviour
                 cachedMaterial.color = Color.Lerp(original, flash, pingPong);
             }
             transform.localScale = Vector3.Lerp(originalScale, originalScale * 0.85f, pingPong);
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
 
@@ -203,7 +203,7 @@ public class TideTile : MonoBehaviour
             {
                 cachedMaterial.color = Color.Lerp(original, flashColor, pingPong);
             }
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
 
@@ -305,7 +305,7 @@ private void StartCorruptionTransition()
 
         while (elapsed < corruptionTransitionDuration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / corruptionTransitionDuration);
             float smoothedT = Mathf.SmoothStep(0f, 1f, t);
 
