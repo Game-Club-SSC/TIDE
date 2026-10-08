@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/DialogueSystem.cs" Link="Product/DialogueSystem.cs" />
+    <Compile Include="../../Assets/DialogueTree.cs" Link="Product/DialogueTree.cs" />
+    <Compile Include="../../Assets/DialogueTreeRunner.cs" Link="Product/DialogueTreeRunner.cs" />
+    <Compile Include="../../Assets/DialogueUI.cs" Link="Product/DialogueUI.cs" />
+    <Compile Include="../../Assets/HeroDialogueContent.cs" Link="Product/HeroDialogueContent.cs" />
+    <Compile Include="../../Assets/NarrativeBeatDirector.cs" Link="Product/NarrativeBeatDirector.cs" />
+    <Compile Include="../../Assets/StoryProgressionService.cs" Link="Product/StoryProgressionService.cs" />
+    <Compile Include="../../Assets/RelationshipTracker.cs" Link="Product/RelationshipTracker.cs" />
+    <Compile Include="../../Assets/EndingEvaluator.cs" Link="Product/EndingEvaluator.cs" />
+    <Compile Include="../../Assets/IslandThemeRegistry.cs" Link="Product/IslandThemeRegistry.cs" />
+    <Compile Include="../../Assets/SaveJsonValidator.cs" Link="Product/SaveJsonValidator.cs" />
+    <Compile Include="../../Assets/RelationshipCombatEffects.cs" Link="Product/RelationshipCombatEffects.cs" />
+    <Compile Include="../../Assets/DialogueTrigger.cs" Link="Product/DialogueTrigger.cs" />
+  </ItemGroup>
+</Project>

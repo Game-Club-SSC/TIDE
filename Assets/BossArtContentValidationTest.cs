@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -71,3 +72,4 @@ public class BossArtContentValidationTest : MonoBehaviour
         Debug.Log("Boss overworld sprites validated for all 6 slots.");
     }
 }
+#endif

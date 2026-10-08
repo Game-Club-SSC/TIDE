@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -188,3 +189,4 @@ public class PuzzleWinConditionTest : MonoBehaviour
         Debug.Log("Edge cases: PASS");
     }
 }
+#endif

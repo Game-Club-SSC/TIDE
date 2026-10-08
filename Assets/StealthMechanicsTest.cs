@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -87,3 +88,4 @@ public class StealthMechanicsTest : MonoBehaviour
         Debug.Log($"Aggro range multiplier test passed: fast={effectiveRangeFast:F2}, slow={effectiveRangeSlow:F2}.");
     }
 }
+#endif

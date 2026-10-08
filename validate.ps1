@@ -1,7 +1,8 @@
 # TIDE Island Validation - Full evidence capture
 # Validates against the EXACT assertions in the Unity verification test files
 
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = "Stop"
+Set-Location -LiteralPath $PSScriptRoot
 $script:allChecks = New-Object System.Collections.Generic.List[object]
 $script:failCount = 0
 $script:passCount = 0
@@ -50,13 +51,12 @@ Write-Host "Resource asset map: $($resourceMap.Count) entries"
 
 # Per the IslandThemeRegistry progression order and aliases
 $islands = @(
-    @{ id = "island_lust";     file = "island_lust";    vice = "Lust";     bossId = "lust_boss";     puzzlePrefix = "lust";     encPrefix = "lust" }
-    @{ id = "island_gluttony"; file = "island_gluttony";vice = "Gluttony"; bossId = "gluttony_boss"; puzzlePrefix = "gluttony"; encPrefix = "gluttony" }
-    @{ id = "island_greed";    file = "island_greed";   vice = "Greed";    bossId = "greed_boss";    puzzlePrefix = "greed";    encPrefix = "greed" }
-    @{ id = "island_sloth";    file = "island_desire";  vice = "Sloth";    bossId = "desire_boss";   puzzlePrefix = "desire";   encPrefix = "desire" }
-    @{ id = "island_wrath";    file = "island_anger";   vice = "Wrath";    bossId = "anger_boss";    puzzlePrefix = "anger";    encPrefix = "anger" }
-    @{ id = "island_envy";     file = "island_envy";    vice = "Envy";     bossId = "envy_boss";     puzzlePrefix = "envy";     encPrefix = "envy" }
-    @{ id = "island_pride";    file = "island_ego";     vice = "Pride";    bossId = "ego_boss";      puzzlePrefix = "ego";      encPrefix = "ego" }
+    @{ id = "island_lust"; file = "island_lust"; vice = "Lust"; puzzlePrefix = "lust" }
+    @{ id = "island_greed"; file = "island_greed"; vice = "Greed"; puzzlePrefix = "greed" }
+    @{ id = "island_desire"; file = "island_desire"; vice = "Desire"; puzzlePrefix = "desire" }
+    @{ id = "island_anger"; file = "island_anger"; vice = "Anger"; puzzlePrefix = "anger" }
+    @{ id = "island_envy"; file = "island_envy"; vice = "Envy"; puzzlePrefix = "envy" }
+    @{ id = "island_ego"; file = "island_ego"; vice = "Ego"; puzzlePrefix = "ego" }
 )
 
 function Get-ResourceAsset {
@@ -75,7 +75,12 @@ foreach ($island in $islands) {
         $configsFound += $island.id
     }
 }
-Record-Check "ALL" "VSR-001/TestLoadExactIslandSet" "7 configs present" ($configsFound.Count -eq 7) "$($configsFound.Count) found"
+$actualConfigs = @(Get-ChildItem "Assets/Resources/Islands/island_*.asset" | Where-Object { $_.BaseName -ne "island_hub" })
+Record-Check "ALL" "VSR-001/TestLoadExactIslandSet" "exact six canonical corrupted configs present" ($configsFound.Count -eq 6 -and $actualConfigs.Count -eq 6) "$($configsFound.Count) expected found; $($actualConfigs.Count) total corrupted configs"
+$registry = Get-Content "Assets/IslandThemeRegistry.cs" -Raw
+foreach ($island in $islands) {
+    Record-Check $island.id "VSR-001" "canonical ID in progression registry" ($registry.Contains('"' + $island.id + '"')) ""
+}
 
 # Per-island validation
 $bossGuidsList = @()
@@ -151,7 +156,7 @@ foreach ($island in $islands) {
     Record-Check $island.id "VSR-001" "boss has EncounterConfig" $boss.HasEncounterConfig ""
     Record-Check $island.id "VSR-001" "boss restoration=0.25" ([math]::Abs($boss.Rv - 0.25) -lt 0.001) "rv=$($boss.Rv)"
 
-    if ($island.id -eq "island_gluttony") {
+    if ($island.id -eq "island_greed") {
         $combatExpected = 0.375
         $puzzleExpected = 0.375
     } else {
@@ -205,8 +210,9 @@ foreach ($island in $islands) {
     $textValid = $false
     if (Test-Path $textPath) {
         $t = Get-Content $textPath -Raw
-        $expectedTextId = "$($island.puzzlePrefix)_intro_fragment"
-        $textValid = ($t -match "textId:\s+$expectedTextId") -and ($t -match "title:") -and ($t -match "body:")
+        # Match the Unity suite: nonempty ID/title/body and a vice-specific ID prefix.
+        $prefix = [regex]::Escape($island.puzzlePrefix)
+        $textValid = ($t -match "textId:\s+${prefix}_\S+") -and ($t -match 'title:\s+\S') -and ($t -match 'body:\s+\S')
     }
     Record-Check $island.id "VSR-001/TestAncientTextsPerIslandVice" "ancient text $textPath valid" $textValid ""
 
@@ -228,7 +234,7 @@ foreach ($island in $islands) {
         Record-Check $island.id "VSR-011/TestEncounterLayout" "4 puzzle encounters" ($puzzleCount -eq 4) "count=$puzzleCount"
     }
     # Sloth/Wrath/Envy/Pride generic tests
-    if ($island.id -in @("island_sloth", "island_wrath", "island_envy", "island_pride")) {
+    if ($island.id -in @("island_desire", "island_anger", "island_envy", "island_ego")) {
         $combatCount = 0
         $puzzleCount = 0
         foreach ($e in $encounterInfo) {
@@ -262,74 +268,9 @@ $uniqueBoss = ($bossGuidsList | Sort-Object -Unique | Measure-Object).Count
 $expectedUnique = $bossGuidsList.Count
 Record-Check "ALL" "VSR-001/TestBossEncounterUniqueness" "boss EncounterConfigs unique" ($uniqueBoss -eq $expectedUnique) "$expectedUnique expected, $uniqueBoss actual"
 
-# ==================== VSR-010: Gluttony specific ====================
-Write-Host ""
-Write-Host "=== VSR-010: GluttonyIslandVerificationTest ==="
-$gluttonyBossGuid = $null
-foreach ($island in $islands) {
-    if ($island.id -eq "island_gluttony") {
-        $cfg = Get-Content "Assets/Resources/Islands/$($island.file).asset" -Raw
-        $entries = $cfg -split '(?m)(?=^\s*-\s+encounterId:)'
-        $filtered = @()
-        foreach ($t in $entries) { if ($t -match 'encounterId:') { $filtered += ,$t } }
-        $entries = $filtered
-        $bossEnc = $entries[8]
-        $b = [regex]::Match($bossEnc, 'encounterConfig:\s*\{fileID: 11400000, guid:\s+([a-f0-9]{32})')
-        $gluttonyBossGuid = $b.Groups[1].Value
-    }
-}
-
-if ($gluttonyBossGuid) {
-    $bossPath = Get-ResourceAsset $gluttonyBossGuid
-    if ($bossPath -and (Test-Path $bossPath)) {
-        $bossEnc = Get-Content $bossPath -Raw
-        $hasEnemies = $bossEnc -match 'enemies:\s*\n\s*-\s*\{fileID: 11400000'
-        Record-Check "island_gluttony" "VSR-010/TestGluttonyBossUsesDevourSkill" "boss encounter has enemies" $hasEnemies ""
-
-        $e1 = [regex]::Match($bossEnc, 'enemies:\s*\n\s*-\s*\{fileID: 11400000, guid:\s+([a-f0-9]{32})')
-        $enemyGuid = $e1.Groups[1].Value
-        $enemyPath = Get-ResourceAsset $enemyGuid
-        if ($enemyPath -and (Test-Path $enemyPath)) {
-            $enemy = Get-Content $enemyPath -Raw
-            $displayMatch = [regex]::Match($enemy, 'displayName:\s+(.+)')
-            $displayName = if ($displayMatch.Success) { $displayMatch.Groups[1].Value.Trim() } else { "" }
-            Record-Check "island_gluttony" "VSR-010/TestGluttonyBossUsesDevourSkill" "boss displayName = The Devourer" ($displayName -eq "The Devourer") "actual='$displayName'"
-
-            $hasLifestealReal = $false
-            $skillsMatch = [regex]::Match($enemy, '(?ms)skills:\s*\n(?<skills>(?:\s*-\s*\{fileID: 11400000, guid:\s+[a-f0-9]+[^\n]*\n)+)')
-            if ($skillsMatch.Success) {
-                $sguids = [regex]::Matches($skillsMatch.Value, 'guid:\s+([a-f0-9]{32})')
-                foreach ($sg in $sguids) {
-                    $skillPath = Get-ResourceAsset $sg.Groups[1].Value
-                    if ($skillPath -and (Test-Path $skillPath)) {
-                        $sk = Get-Content $skillPath -Raw
-                        if ($sk -match 'restoreCasterPercentOfDamage:\s+([\d.]+)') {
-                            if ([double]$matches[1] -gt 0) {
-                                $hasLifestealReal = $true
-                            }
-                        }
-                    }
-                }
-            }
-            Record-Check "island_gluttony" "VSR-010/TestGluttonyBossUsesDevourSkill" "boss has lifesteal skill (restoreCasterPercentOfDamage > 0)" $hasLifestealReal ""
-        } else {
-            Record-Check "island_gluttony" "VSR-010" "boss enemy asset resolvable" $false "guid $enemyGuid not found in Resources"
-        }
-    } else {
-        Record-Check "island_gluttony" "VSR-010" "boss encounter asset resolvable" $false "guid $gluttonyBossGuid not found in Resources"
-    }
-}
-
-# Gluttony consumption puzzles
-$gluttonyPuzzles = Get-ChildItem "Assets/Resources/Puzzles/puzzle_gluttony_p*.asset"
-$consumptionCount = 0
-foreach ($p in $gluttonyPuzzles) {
-    $pc = Get-Content $p.FullName -Raw
-    $hasCons = ($pc -match 'enableConsumption:\s+1')
-    $amt = [regex]::Match($pc, 'consumptionAmount:\s+(\d+)').Groups[1].Value
-    if ($hasCons -and ($amt -as [int]) -ge 1) { $consumptionCount++ }
-}
-Record-Check "island_gluttony" "VSR-010/TestGluttonyPuzzlesUseConsumption" ">=3 puzzles use consumption" ($consumptionCount -ge 3) "actual=$consumptionCount"
+# Gluttony is a legacy save alias, not a seventh corrupted island in GDD V2.
+# Verify compatibility instead of inventing content absent from the canonical roster.
+Record-Check "LEGACY" "IslandThemeRegistry" "Gluttony saves map to Greed" ($registry -match '\{\s*"island_gluttony",\s*"island_greed"\s*\}') ""
 
 # ==================== VSR-016: Sloth status effect ====================
 Write-Host ""

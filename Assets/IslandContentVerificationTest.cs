@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -381,3 +382,4 @@ public class IslandContentVerificationTest : MonoBehaviour
             && Mathf.Abs(a.b - b.b) < epsilon;
     }
 }
+#endif

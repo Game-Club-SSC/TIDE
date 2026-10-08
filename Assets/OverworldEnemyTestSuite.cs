@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -105,3 +106,4 @@ public class OverworldEnemyTestSuite
         field.SetValue(enemy, value);
     }
 }
+#endif

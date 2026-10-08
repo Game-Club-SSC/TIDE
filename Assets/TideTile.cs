@@ -92,29 +92,29 @@ public class TideTile : MonoBehaviour
 
     public bool CanReceive(int amount)
     {
-        return !isSealed && amount > 0 && currentTideValue + amount <= 10;
+        return !isSealed && amount > 0 && amount <= 10 - currentTideValue;
     }
 
     public void ApplyTake(int amount)
     {
-        if (amount <= 0)
+        if (amount <= 0 || isSealed)
         {
             return;
         }
 
-        currentTideValue -= amount;
+        currentTideValue -= Mathf.Min(amount, currentTideValue - 1);
         currentTideValue = Mathf.Clamp(currentTideValue, 1, 10);
         StartCorruptionTransition();
     }
 
     public void ApplyPlace(int amount)
     {
-        if (amount <= 0)
+        if (amount <= 0 || isSealed)
         {
             return;
         }
 
-        currentTideValue += amount;
+        currentTideValue += Mathf.Min(amount, 10 - currentTideValue);
         currentTideValue = Mathf.Clamp(currentTideValue, 1, 10);
         StartCorruptionTransition();
     }
@@ -151,6 +151,11 @@ public class TideTile : MonoBehaviour
 
     private void StartFlash(IEnumerator routine)
     {
+        if (activeTransitionCoroutine != null)
+        {
+            StopCoroutine(activeTransitionCoroutine);
+            activeTransitionCoroutine = null;
+        }
         if (activeFlashCoroutine != null)
         {
             StopCoroutine(activeFlashCoroutine);
@@ -280,22 +285,28 @@ public class TideTile : MonoBehaviour
         }
     }
 
-private void StartCorruptionTransition()
-{
-    EnsureLabel();
-    if (valueLabel != null)
+    private void StartCorruptionTransition()
     {
-        valueLabel.text = isSealed ? "X" : currentTideValue.ToString();
-        valueLabel.color = isSealed ? new Color(0.9f, 0.9f, 0.9f) : new Color(0.1f, 0.1f, 0.1f);
-    }
+        if (activeFlashCoroutine != null)
+        {
+            StopCoroutine(activeFlashCoroutine);
+            activeFlashCoroutine = null;
+            transform.localScale = baseScale;
+        }
+        EnsureLabel();
+        if (valueLabel != null)
+        {
+            valueLabel.text = isSealed ? "X" : currentTideValue.ToString();
+            valueLabel.color = isSealed ? new Color(0.9f, 0.9f, 0.9f) : new Color(0.1f, 0.1f, 0.1f);
+        }
 
-    if (activeTransitionCoroutine != null)
-    {
-        StopCoroutine(activeTransitionCoroutine);
-    }
+        if (activeTransitionCoroutine != null)
+        {
+            StopCoroutine(activeTransitionCoroutine);
+        }
 
-    activeTransitionCoroutine = StartCoroutine(TransitionCorruptionColor());
-}
+        activeTransitionCoroutine = StartCoroutine(TransitionCorruptionColor());
+    }
 
     private IEnumerator TransitionCorruptionColor()
     {

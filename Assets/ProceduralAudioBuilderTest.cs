@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -208,3 +209,4 @@ public class ProceduralAudioBuilderTest : MonoBehaviour
         return sum / Mathf.Max(1, samples.Length);
     }
 }
+#endif

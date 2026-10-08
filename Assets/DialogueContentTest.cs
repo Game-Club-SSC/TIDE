@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using System.Collections.Generic;
 using System.Reflection;
@@ -246,3 +247,4 @@ public class DialogueContentTest : MonoBehaviour
         }
     }
 }
+#endif

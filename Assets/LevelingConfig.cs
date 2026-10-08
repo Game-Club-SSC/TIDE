@@ -39,19 +39,22 @@ public class LevelingConfig : ScriptableObject
 
     public int GetXpToNextLevel(int currentLevel)
     {
-        if (currentLevel >= maxLevel) return 0;
-        return baseXpToLevel + (currentLevel - 1) * xpPerLevelIncrement;
+        int normalizedLevel = Mathf.Max(1, currentLevel);
+        if (normalizedLevel >= maxLevel) return 0;
+        long required = (long)Mathf.Max(1, baseXpToLevel)
+            + (long)(normalizedLevel - 1) * Mathf.Max(0, xpPerLevelIncrement);
+        return (int)System.Math.Min(int.MaxValue, required);
     }
 
     public int GetTotalXpForLevel(int level)
     {
-        if (level <= 1) return 0;
-        int total = 0;
-        for (int i = 2; i <= level; i++)
-        {
-            total += GetXpToNextLevel(i - 1);
-        }
-        return total;
+        // Sum the authored arithmetic curve without walking an untrusted level
+        // count. Levels above the cap cannot require additional XP.
+        int normalizedLevel = Mathf.Clamp(level, 1, Mathf.Max(1, maxLevel));
+        decimal steps = normalizedLevel - 1;
+        decimal total = steps * Mathf.Max(1, baseXpToLevel)
+            + steps * (steps - 1) / 2 * Mathf.Max(0, xpPerLevelIncrement);
+        return (int)System.Math.Min(int.MaxValue, total);
     }
 
     public int GetExpectedStatGrowth(int currentLevel, int targetLevel)
@@ -60,8 +63,10 @@ public class LevelingConfig : ScriptableObject
         {
             return 0;
         }
-        int levelSpan = Mathf.Max(0, targetLevel - currentLevel);
-        return levelSpan * (hpPerLevel + attackPerLevel + defensePerLevel + speedPerLevel + mpPerLevel);
+        long levelSpan = (long)targetLevel - currentLevel;
+        decimal perLevel = (long)Mathf.Max(0, hpPerLevel) + Mathf.Max(0, attackPerLevel)
+            + Mathf.Max(0, defensePerLevel) + Mathf.Max(0, speedPerLevel) + Mathf.Max(0, mpPerLevel);
+        return (int)System.Math.Min(int.MaxValue, levelSpan * perLevel);
     }
 
     public bool IsValid()
@@ -77,6 +82,8 @@ public class LevelingConfig : ScriptableObject
             // [Min(0)] attribute on the serialized property, but IsValid()
             // was missing this validation, so a corrupted/inspected negative
             // value could slip through without being caught.
-            && xpPerLevelIncrement >= 0;
+            && xpPerLevelIncrement >= 0
+            && !float.IsNaN(reserveXpMultiplier) && !float.IsInfinity(reserveXpMultiplier)
+            && reserveXpMultiplier >= 0f && reserveXpMultiplier <= 1f;
     }
 }

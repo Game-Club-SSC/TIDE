@@ -47,6 +47,7 @@ public class GameStateManager : MonoBehaviour
     [Serializable]
     public sealed class WorldStateSaveData
     {
+        public int saveSchemaVersion = SaveJsonValidator.CurrentSchemaVersion;
         public List<PuzzleRuntimeSaveEntry> puzzleStates = new List<PuzzleRuntimeSaveEntry>();
         public List<AncientTextRuntimeSaveEntry> ancientTextStates = new List<AncientTextRuntimeSaveEntry>();
         public List<string> completedNarrativeBeatIds = new List<string>();
@@ -62,6 +63,8 @@ public class GameStateManager : MonoBehaviour
         public AncientTextRevealDirector.RevealDirectorSaveData ancientTextReveal;
         public HubStateSaveData hubState;
         public DialogueSystem.DialogueStateSaveData dialogueState;
+        public RelationshipAffinitySnapshot relationshipSnapshot;
+        public NewGamePlusService.RunSnapshot newGamePlusSnapshot;
     }
 
     [Serializable]
@@ -139,6 +142,7 @@ public class GameStateManager : MonoBehaviour
     public bool PuzzleSolved { get; private set; }
     public bool IsTransitioning => isTransitioning;
     public bool HasLoadedWorldState => hasLoadedWorldState;
+    public bool LastWorldSaveSucceeded { get; private set; }
     public bool HasPersistedWorldState => PlayerPrefs.HasKey(WorldStateSaveKey);
 
     /// <summary>
@@ -175,7 +179,9 @@ public class GameStateManager : MonoBehaviour
     private const float FadeDuration = 0.2f;
     private const float ExplorationPositionSyncInterval = 0.2f;
     private const float RestorationThresholdEpsilon = 0.01f;
+    private const int MaximumSavedPuzzleDimension = 256;
     private const string WorldStateSaveKey = "TIDE_WORLD_STATE_V1";
+    private const string WorldStateBackupKey = WorldStateSaveKey + "_backup";
 
     [Header("Default Spawn Positions")]
     [SerializeField] private Vector3 defaultSmithyPosition = new Vector3(15f, 31.54f, 2.69f);
@@ -206,6 +212,7 @@ public class GameStateManager : MonoBehaviour
     public string PendingPuzzleIslandId { get; set; }
     public string PendingPuzzleEncounterId { get; set; }
     public float PendingPuzzleRestorationValue { get; set; }
+    public string PendingPuzzleBoxId => pendingSolvedPuzzleBoxId;
     public string PendingCombatIslandId { get; set; }
     public string PendingCombatEncounterId { get; set; }
     public float PendingCombatRestorationValue { get; set; }
@@ -219,7 +226,12 @@ public class GameStateManager : MonoBehaviour
     private bool deferredFlowFromCombat;
     private bool hasDeferredFlowFromCombatResult;
     private bool deferredFlowFromCombatResult;
+    private bool deferredFlowCombatFled;
     private bool deferredFlowFromPuzzle;
+    private bool deferredFlowPuzzleSolved;
+    private bool combatOutcomeHandled;
+    private Coroutine combatReturnRoutine;
+    private bool isResolvingCombatOutcome;
     private string pendingSolvedPuzzleBoxId;
     private bool returnToPuzzleAfterCombat;
     private bool hasPendingCombatReturnPosition;
@@ -309,6 +321,7 @@ public class GameStateManager : MonoBehaviour
         EnsureProgressionManager();
         EnsureGearInventory();
         EnsureDialogueSystem();
+        EnsureWorldSaveService();
         BindProgressionManagerEvents();
         LoadWorldState();
         IslandProgressionManager.Instance?.ReconcileStateFromRestoration();
@@ -427,6 +440,7 @@ public class GameStateManager : MonoBehaviour
 
     public void EnterCombat()
     {
+        combatOutcomeHandled = false;
         currentState = GameState.Combat;
         SetPlayerMovementLocked(true);
     }
@@ -551,9 +565,13 @@ public class GameStateManager : MonoBehaviour
 
     private void BeginCombatTransition()
     {
-        isFlowControlledCombat = HasActiveFlowController;
+        // Guard battles belong to the open puzzle, not to the island's
+        // combat encounter. Winning one must never complete that puzzle.
+        isFlowControlledCombat = HasActiveFlowController && !returnToPuzzleAfterCombat;
+        combatOutcomeHandled = false;
         hasDeferredFlowFromCombatResult = false;
         deferredFlowFromCombatResult = false;
+        deferredFlowCombatFled = false;
 
         if (!isFlowControlledCombat && currentState != GameState.Puzzle)
         {
@@ -612,7 +630,8 @@ public class GameStateManager : MonoBehaviour
 
     public void SavePuzzleRuntimeState(string puzzleBoxId, int[,] grid, bool solved)
     {
-        if (string.IsNullOrEmpty(puzzleBoxId) || grid == null || grid.GetLength(0) < 1 || grid.GetLength(1) < 1)
+        if (string.IsNullOrEmpty(puzzleBoxId) || grid == null
+            || !AreSavedPuzzleDimensionsValid(grid.GetLength(0), grid.GetLength(1)))
         {
             return;
         }
@@ -634,7 +653,7 @@ public class GameStateManager : MonoBehaviour
         {
             for (int col = 0; col < cols; col++)
             {
-                state.tileValues[row * cols + col] = Mathf.Clamp(grid[row, col], 1, 10);
+                state.tileValues[row * cols + col] = Mathf.Clamp(grid[row, col], 0, 10);
             }
         }
 
@@ -664,8 +683,12 @@ public class GameStateManager : MonoBehaviour
             return false;
         }
 
-        int rows = Mathf.Max(1, state.gridRows);
-        int cols = Mathf.Max(1, state.gridCols);
+        int rows = state.gridRows;
+        int cols = state.gridCols;
+        if (!AreSavedPuzzleDimensionsValid(rows, cols) || state.tileValues == null)
+        {
+            return false;
+        }
         grid = new int[rows, cols];
         for (int row = 0; row < rows; row++)
         {
@@ -673,12 +696,18 @@ public class GameStateManager : MonoBehaviour
             {
                 int index = row * cols + col;
                 grid[row, col] = index < state.tileValues.Length
-                    ? Mathf.Clamp(state.tileValues[index], 1, 10)
+                    ? Mathf.Clamp(state.tileValues[index], 0, 10)
                     : 5;
             }
         }
 
         return true;
+    }
+
+    private static bool AreSavedPuzzleDimensionsValid(int rows, int cols)
+    {
+        return rows > 0 && rows <= MaximumSavedPuzzleDimension
+            && cols > 0 && cols <= MaximumSavedPuzzleDimension;
     }
 
     public bool IsPuzzleBoxSolved(string puzzleBoxId)
@@ -1092,6 +1121,13 @@ public class GameStateManager : MonoBehaviour
 
         resolvedEndingBranch = branch;
         endingTriggered = true;
+        NewGamePlusService ngPlus = NewGamePlusService.Instance;
+        if (ngPlus == null)
+        {
+            GameObject serviceObject = new GameObject("NewGamePlusService");
+            ngPlus = serviceObject.AddComponent<NewGamePlusService>();
+        }
+        ngPlus.RegisterCompletion();
         SaveWorldState();
     }
 
@@ -1207,6 +1243,7 @@ public class GameStateManager : MonoBehaviour
             // Still re-sync: the fields reset above must reach the dialogue
             // act gates even when there was no payload to load.
             StoryProgressionService.Instance?.SyncFromGameStateManager();
+            StoryProgressionService.Instance?.ClearFlagsForDebug();
             return;
         }
 
@@ -1221,14 +1258,14 @@ public class GameStateManager : MonoBehaviour
         pendingBadEndingThresholdEventIslandId = string.IsNullOrEmpty(saveData.pendingBadEndingThresholdEventIslandId)
             ? null
             : IslandThemeRegistry.ResolveIslandId(saveData.pendingBadEndingThresholdEventIslandId);
-        endingTriggered = saveData.endingTriggered;
-        fateFinaleUnlocked = saveData.fateFinaleUnlocked && !endingTriggered;
-
         if (!string.IsNullOrEmpty(saveData.endingBranch)
-            && Enum.TryParse(saveData.endingBranch, true, out EndingBranch parsedEndingBranch))
+            && Enum.TryParse(saveData.endingBranch, true, out EndingBranch parsedEndingBranch)
+            && Enum.IsDefined(typeof(EndingBranch), parsedEndingBranch))
         {
             resolvedEndingBranch = parsedEndingBranch;
         }
+        endingTriggered = saveData.endingTriggered && resolvedEndingBranch != EndingBranch.None;
+        fateFinaleUnlocked = saveData.fateFinaleUnlocked && !endingTriggered;
 
         if (saveData.thresholdOnlyBossVictoryIslandIds != null)
         {
@@ -1296,8 +1333,20 @@ public class GameStateManager : MonoBehaviour
     private bool TryGetLoadableWorldStatePayload(out string payload)
     {
         payload = PlayerPrefs.GetString(WorldStateSaveKey, string.Empty);
+        if (IsFutureWorldStatePayload(payload))
+        {
+            payload = string.Empty;
+            return false;
+        }
         if (TryParseWorldStatePayload(payload, out _))
         {
+            return true;
+        }
+
+        string primaryBackup = PlayerPrefs.GetString(WorldStateBackupKey, string.Empty);
+        if (TryParseWorldStatePayload(primaryBackup, out _))
+        {
+            payload = primaryBackup;
             return true;
         }
 
@@ -1307,20 +1356,21 @@ public class GameStateManager : MonoBehaviour
             return false;
         }
 
-        PlayerPrefs.SetString(WorldStateSaveKey, recoveredPayload);
-        PlayerPrefs.Save();
         payload = recoveredPayload;
-        Debug.Log("[GameStateManager] Recovered the runtime world save from the live-save backup.");
         return true;
+    }
+
+    private static bool IsFutureWorldStatePayload(string payload)
+    {
+        return SaveJsonValidator.TryValidateWorldState(payload, int.MaxValue, out int version)
+            && version > SaveJsonValidator.CurrentSchemaVersion;
     }
 
     private static bool TryParseWorldStatePayload(string payload, out WorldStateSaveData saveData)
     {
         saveData = null;
-        if (string.IsNullOrEmpty(payload)
-            || !payload.Contains("{")
-            || !payload.Contains("}")
-            || !payload.Contains("\"puzzleStates\""))
+        if (!SaveJsonValidator.TryValidateWorldState(payload,
+                SaveJsonValidator.CurrentSchemaVersion, out int schemaVersion))
         {
             return false;
         }
@@ -1328,6 +1378,12 @@ public class GameStateManager : MonoBehaviour
         try
         {
             saveData = JsonUtility.FromJson<WorldStateSaveData>(payload);
+            if (saveData != null)
+            {
+                // Preserve whether this was a legacy payload; field initializers
+                // alone cannot distinguish an absent JSON schema field.
+                saveData.saveSchemaVersion = schemaVersion;
+            }
             return saveData != null;
         }
         catch (Exception)
@@ -1355,7 +1411,7 @@ public class GameStateManager : MonoBehaviour
         }
 
         if (liveSaveService != null && liveSaveService.EnablePersistentSaveData
-            && liveSaveService.TryLoadJson(out string livePayload)
+            && liveSaveService.TryPeekJson(out string livePayload)
             && TryParseWorldStatePayload(livePayload, out _))
         {
             payload = livePayload;
@@ -1368,29 +1424,47 @@ public class GameStateManager : MonoBehaviour
         string serviceKey = liveSaveService != null && liveSaveService.EnablePersistentSaveData
             ? liveSaveService.PlayerPrefsKey
             : "TIDE_WORLD_STATE_V2";
+        string servicePayload = PlayerPrefs.GetString(serviceKey, string.Empty);
+        if (IsFutureWorldStatePayload(servicePayload))
+        {
+            return false;
+        }
+        if (TryParseWorldStatePayload(servicePayload, out _))
+        {
+            payload = servicePayload;
+            return true;
+        }
         string backupPayload = PlayerPrefs.GetString(serviceKey + "_backup", string.Empty);
         if (!TryParseWorldStatePayload(backupPayload, out _))
         {
             return false;
         }
 
-        PlayerPrefs.SetString(serviceKey, backupPayload);
-        PlayerPrefs.Save();
         payload = backupPayload;
-        Debug.Log("[GameStateManager] Recovered the live save from its backup.");
         return true;
     }
 
     public void SaveWorldState()
     {
+        TrySaveWorldState();
+    }
+
+    public bool TrySaveWorldState()
+    {
+        LastWorldSaveSucceeded = false;
         if (!enablePersistentSaveData)
         {
-            return;
+            return false;
         }
 
-        if (isSavingWorldState || isLoadingWorldState)
+        if (isSavingWorldState || isLoadingWorldState || isResolvingCombatOutcome || isTransitioning)
         {
-            return;
+            return false;
+        }
+        if (IsFutureWorldStatePayload(PlayerPrefs.GetString(WorldStateSaveKey, string.Empty)))
+        {
+            Debug.LogWarning("[GameStateManager] Future-schema world save preserved; this version cannot overwrite it.");
+            return false;
         }
 
         isSavingWorldState = true;
@@ -1495,21 +1569,52 @@ public class GameStateManager : MonoBehaviour
             {
                 saveData.dialogueState = DialogueSystem.Instance.CaptureDialogueStateSaveData();
             }
+            if (RelationshipTracker.Instance != null)
+            {
+                saveData.relationshipSnapshot = RelationshipTracker.Instance.CaptureSnapshot();
+            }
+            if (NewGamePlusService.Instance != null)
+            {
+                saveData.newGamePlusSnapshot = NewGamePlusService.Instance.CaptureSnapshot();
+            }
 
             string payload = JsonUtility.ToJson(saveData);
+            if (!TryParseWorldStatePayload(payload, out _))
+            {
+                Debug.LogWarning("[GameStateManager] Invalid runtime save payload rejected before storage.");
+                return false;
+            }
+            string previousPayload = PlayerPrefs.GetString(WorldStateSaveKey, string.Empty);
+            if (!string.Equals(previousPayload, payload, StringComparison.Ordinal)
+                && TryParseWorldStatePayload(previousPayload, out _))
+            {
+                PlayerPrefs.SetString(WorldStateBackupKey, previousPayload);
+            }
             PlayerPrefs.SetString(WorldStateSaveKey, payload);
             PlayerPrefs.Save();
+            if (!string.Equals(PlayerPrefs.GetString(WorldStateSaveKey, string.Empty), payload, StringComparison.Ordinal))
+            {
+                Debug.LogWarning("[GameStateManager] World save verification failed.");
+                return false;
+            }
 
             WorldSaveService liveSaveService = WorldSaveService.Instance;
             if (liveSaveService != null && !liveSaveService.TryWriteJson(payload))
             {
                 Debug.LogWarning("[GameStateManager] Live save mirror failed; the runtime world save remains available.");
             }
+            LastWorldSaveSucceeded = true;
+        }
+        catch (PlayerPrefsException exception)
+        {
+            LastWorldSaveSucceeded = false;
+            Debug.LogWarning($"[GameStateManager] Save storage rejected the write: {exception.Message}");
         }
         finally
         {
             isSavingWorldState = false;
         }
+        return LastWorldSaveSucceeded;
     }
 
     public void LoadWorldState()
@@ -1545,6 +1650,14 @@ public class GameStateManager : MonoBehaviour
 
         try
         {
+            // Loading replaces a run; it must not merge with live progression
+            // or retain a delayed return callback from the previous battle.
+            ResetPendingEncounterFlow();
+            PowerBudgetTracker.Instance?.ResetAllBudgets();
+            HeroProgressionManager.Instance?.ResetProgressionForDebug();
+            PlayerGearInventory.Instance?.ResetInventoryForDebug();
+            PartyManager.Instance?.PartyData?.ResetToDefaults();
+            DialogueSystem.Instance?.ResetDialogueStateForDebug();
             puzzleRuntimeStates.Clear();
             if (saveData.puzzleStates != null)
             {
@@ -1556,23 +1669,31 @@ public class GameStateManager : MonoBehaviour
                         continue;
                     }
 
-                    int legacyRows = entry.gridRows > 0 ? entry.gridRows : 3;
-                    int legacyCols = entry.gridCols > 0 ? entry.gridCols : 3;
+                    int legacyRows = entry.gridRows == 0 ? 3 : entry.gridRows;
+                    int legacyCols = entry.gridCols == 0 ? 3 : entry.gridCols;
+                    bool dimensionsValid = AreSavedPuzzleDimensionsValid(legacyRows, legacyCols);
                     PuzzleRuntimeState state = new PuzzleRuntimeState
                     {
-                        hasGrid = entry.hasGrid,
+                        hasGrid = entry.hasGrid && dimensionsValid,
                         solved = entry.solved,
-                        gridRows = legacyRows,
-                        gridCols = legacyCols,
-                        tileValues = new int[legacyRows * legacyCols]
+                        gridRows = dimensionsValid ? legacyRows : 0,
+                        gridCols = dimensionsValid ? legacyCols : 0,
+                        tileValues = dimensionsValid ? new int[legacyRows * legacyCols] : Array.Empty<int>()
                     };
+
+                    // Missing cells in older snapshots are balanced, not zero
+                    // (zero is interpreted as a sealed/invalid tile).
+                    for (int j = 0; j < state.tileValues.Length; j++)
+                    {
+                        state.tileValues[j] = 5;
+                    }
 
                     if (entry.tileValues != null)
                     {
                         int copyLength = Mathf.Min(state.tileValues.Length, entry.tileValues.Length);
                         for (int j = 0; j < copyLength; j++)
                         {
-                            state.tileValues[j] = Mathf.Clamp(entry.tileValues[j], 1, 10);
+                            state.tileValues[j] = Mathf.Clamp(entry.tileValues[j], 0, 10);
                         }
                     }
 
@@ -1615,9 +1736,10 @@ public class GameStateManager : MonoBehaviour
                 }
             }
 
-            if (IslandRestorationTracker.Instance != null && saveData.restorationSnapshot != null)
+            if (IslandRestorationTracker.Instance != null)
             {
-                IslandRestorationTracker.Instance.ApplySnapshot(saveData.restorationSnapshot);
+                IslandRestorationTracker.Instance.ApplySnapshot(saveData.restorationSnapshot
+                    ?? new IslandRestorationTracker.TrackerSnapshot());
             }
 
             if (HeroProgressionManager.Instance != null && saveData.gearProgression != null)
@@ -1630,20 +1752,22 @@ public class GameStateManager : MonoBehaviour
                 PlayerGearInventory.Instance.ApplyGearInventorySnapshot(saveData.gearInventory);
             }
 
-            if (IslandProgressionManager.Instance != null && saveData.progressionSnapshot != null)
+            if (IslandProgressionManager.Instance != null)
             {
-                IslandProgressionManager.Instance.ApplySnapshot(saveData.progressionSnapshot);
+                IslandProgressionManager.Instance.ApplySnapshot(saveData.progressionSnapshot
+                    ?? new IslandProgressionManager.ProgressionSnapshot
+                    { activeIslandId = IslandThemeRegistry.DefaultIslandId });
             }
 
             ApplyStoryProgressionSaveData(saveData.storyProgression);
             ceremonyIntroCompleted = saveData.ceremonyIntroCompleted;
 
-            if (TideBreakProgressionManager.Instance != null && saveData.tideBreakProgression != null)
+            if (TideBreakProgressionManager.Instance != null)
             {
                 TideBreakProgressionManager.Instance.ApplySaveData(saveData.tideBreakProgression);
             }
 
-            if (AncientTextRevealDirector.Instance != null && saveData.ancientTextReveal != null)
+            if (AncientTextRevealDirector.Instance != null)
             {
                 AncientTextRevealDirector.Instance.ApplySaveData(saveData.ancientTextReveal);
             }
@@ -1662,6 +1786,19 @@ public class GameStateManager : MonoBehaviour
             }
 
             ApplyHubState(saveData.hubState);
+            RelationshipTracker.Instance?.ApplySnapshot(saveData.relationshipSnapshot);
+            NewGamePlusService.Instance?.ApplySnapshot(saveData.newGamePlusSnapshot);
+            if (saveData.newGamePlusSnapshot == null && endingTriggered
+                && NewGamePlusService.Instance != null)
+            {
+                // Older completed saves predate the root NG+ section. Recover
+                // eligibility without adding another account completion.
+                NewGamePlusService.Instance.ApplySnapshot(new NewGamePlusService.RunSnapshot
+                {
+                    completedRuns = Mathf.Max(1, NewGamePlusService.Instance.CompletedRuns),
+                    completedCurrentRun = true
+                });
+            }
 
             if (DialogueSystem.Instance != null && saveData.dialogueState != null)
             {
@@ -1672,10 +1809,38 @@ public class GameStateManager : MonoBehaviour
             // fragment-earned relationship progress in the reveal director.
             AncientTextRevealDirector.Instance?.ReconcileDialogueBonds();
 
+            // Modern root flags are authoritative. Legacy payloads without
+            // root flags can still recover the dialogue effect ledger above.
+            if (saveData.storyProgression != null
+                && (saveData.saveSchemaVersion > 0
+                    || (saveData.storyProgression.flagKeys != null
+                        && saveData.storyProgression.flagKeys.Count > 0)))
+            {
+                StoryProgressionService.Instance?.RestoreFlagsFrom(
+                    saveData.storyProgression.flagKeys, saveData.storyProgression.flagValues);
+            }
+
             PuzzleGuardSpawner guardSpawner = FindFirstObjectByType<PuzzleGuardSpawner>();
             if (guardSpawner != null)
             {
                 guardSpawner.RefreshGuards();
+            }
+
+            // Payload discovery is read-only (also used by title predicates).
+            // Repair storage only during an explicit load; repair failure does
+            // not invalidate the already loaded, verified in-memory payload.
+            if (!TryParseWorldStatePayload(PlayerPrefs.GetString(WorldStateSaveKey, string.Empty), out _)
+                && !IsFutureWorldStatePayload(PlayerPrefs.GetString(WorldStateSaveKey, string.Empty)))
+            {
+                try
+                {
+                    PlayerPrefs.SetString(WorldStateSaveKey, payload);
+                    PlayerPrefs.Save();
+                }
+                catch (PlayerPrefsException exception)
+                {
+                    Debug.LogWarning($"[GameStateManager] Loaded backup but could not repair storage: {exception.Message}");
+                }
             }
         }
         finally
@@ -1722,6 +1887,11 @@ public class GameStateManager : MonoBehaviour
         PuzzleSolved = true;
     }
 
+    public void MarkPuzzleUnsolvedForEntry()
+    {
+        PuzzleSolved = false;
+    }
+
     private static void PlayPuzzleSolvedSting()
     {
         AudioManager audioManager = AudioManager.Instance;
@@ -1738,6 +1908,20 @@ public class GameStateManager : MonoBehaviour
 
     public void OnCombatEnded(bool playerWon, bool playerFled)
     {
+        if (combatOutcomeHandled)
+        {
+            return;
+        }
+
+        combatOutcomeHandled = true;
+        // Flee is never a victory, even if an integration supplies both flags.
+        playerWon = playerWon && !playerFled;
+        isResolvingCombatOutcome = true;
+        bool encounterPreviouslyCompleted = IslandRestorationTracker.Instance != null
+            && !string.IsNullOrEmpty(PendingCombatIslandId)
+            && !string.IsNullOrEmpty(PendingCombatEncounterId)
+            && IslandRestorationTracker.Instance.HasClearedEncounter(
+                PendingCombatIslandId, PendingCombatEncounterId);
         string bossTrackedIslandId = ResolvePendingBossIslandId();
         bool isBossEncounter = !string.IsNullOrEmpty(bossTrackedIslandId);
         bool isFateEncounter = IsFateEncounterId(PendingCombatEncounterId);
@@ -1758,12 +1942,11 @@ public class GameStateManager : MonoBehaviour
             TrackBossVictoryThresholdProgress(bossTrackedIslandId, preBossRestorationPercent);
         }
 
-        // Flow-controlled island encounters record restoration in IslandFlowController.OnEncounterComplete.
-        // Avoid double-counting combat restoration here when controlled by flow controller.
-        bool flowControlsCombatCompletion = HasActiveFlowController;
+        // Record before the return presentation so a reload cannot reopen a
+        // victorious flow encounter. The tracker deduplicates the later flow
+        // callback using the same scoped encounter id.
         if (playerWon
             && !isFateEncounter
-            && !flowControlsCombatCompletion
             && IslandRestorationTracker.Instance != null
             && !string.IsNullOrEmpty(PendingCombatEncounterId)
             && !string.IsNullOrEmpty(PendingCombatIslandId))
@@ -1781,12 +1964,13 @@ public class GameStateManager : MonoBehaviour
             }
         }
 
-        if (playerWon)
+        // Persist the encounter receipt and rewards in the same outcome save.
+        // The flow advances only after the return fade, but reloads must already
+        // know this encounter was won during the victory presentation.
+        if (playerWon && !encounterPreviouslyCompleted)
         {
             GrantBattleRewards();
         }
-
-        SaveWorldState();
 
         if (isFateEncounter)
         {
@@ -1796,22 +1980,25 @@ public class GameStateManager : MonoBehaviour
         else if (playerWon && isCanonicalFinalBossEncounter)
         {
             fateFinaleUnlocked = true;
-            SaveWorldState();
             Debug.Log("[GameStateManager] Final canonical boss defeated. Fate finale will begin after returning to exploration.");
         }
+
+        isResolvingCombatOutcome = false;
+        SaveWorldState();
 
         if (playerFled)
         {
             Debug.Log("[GameStateManager] Player fled combat. No restoration, rewards, or defeat penalties applied.");
         }
 
-        if (HasActiveFlowController)
+        if (isFlowControlledCombat && HasActiveFlowController)
         {
             hasDeferredFlowFromCombatResult = true;
             deferredFlowFromCombatResult = playerWon;
+            deferredFlowCombatFled = playerFled;
         }
 
-        StartCoroutine(ReturnFromCombatAfterDelay(1.5f));
+        combatReturnRoutine = StartCoroutine(ReturnFromCombatAfterDelay(1.5f));
     }
 
     private void GrantBattleRewards()
@@ -1895,6 +2082,7 @@ public class GameStateManager : MonoBehaviour
     private IEnumerator ReturnFromCombatAfterDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
+        combatReturnRoutine = null;
 
         if (isTransitioning)
         {
@@ -1959,22 +2147,26 @@ public class GameStateManager : MonoBehaviour
 
         if (deferredFlowFromCombat)
         {
+            hasBootstrappedFlowForCurrentScene = true;
             deferredFlowFromCombat = false;
             if (HasActiveFlowController && hasDeferredFlowFromCombatResult)
             {
-                FlowController.OnReturnFromCombat(deferredFlowFromCombatResult);
+                FlowController.OnReturnFromCombat(deferredFlowFromCombatResult, deferredFlowCombatFled);
             }
 
             hasDeferredFlowFromCombatResult = false;
             deferredFlowFromCombatResult = false;
+            deferredFlowCombatFled = false;
         }
         else if (deferredFlowFromPuzzle)
         {
+            hasBootstrappedFlowForCurrentScene = true;
             deferredFlowFromPuzzle = false;
             if (HasActiveFlowController)
             {
-                FlowController.OnReturnFromPuzzle();
+                FlowController.OnReturnFromPuzzle(deferredFlowPuzzleSolved);
             }
+            deferredFlowPuzzleSolved = false;
         }
     }
 
@@ -1988,6 +2180,7 @@ public class GameStateManager : MonoBehaviour
         if (scene.name == MainSceneName)
         {
             bool returnedFromPuzzleScene = hasPendingReturnPosition && !hasPendingCombatReturnPosition;
+            bool returnedPuzzleSolved = PuzzleSolved;
 
             EnsureMainSceneRuntimeComponents();
             ApplySolvedPuzzleBoxesInScene();
@@ -2125,6 +2318,7 @@ public class GameStateManager : MonoBehaviour
             else if (HasActiveFlowController && returnedFromPuzzleScene)
             {
                 deferredFlowFromPuzzle = true;
+                deferredFlowPuzzleSolved = returnedPuzzleSolved;
             }
 
             if (endingTriggered)
@@ -2333,6 +2527,38 @@ public class GameStateManager : MonoBehaviour
 
     private void EnsureProgressionManager()
     {
+        // Continue and NG+ restore party slots while the title scene is still
+        // active, before any exploration-scene PartyManager can be created.
+        PartyManager partyManager = PartyManager.Instance;
+        if (partyManager == null)
+        {
+            GameObject partyObject = new GameObject("PartyManager");
+            partyManager = partyObject.AddComponent<PartyManager>();
+        }
+        if (partyManager.PartyData == null)
+        {
+            PartyData authoredParty = Resources.Load<PartyData>("PartyData/DefaultParty");
+            HeroDatabase heroDatabase = Resources.Load<HeroDatabase>("HeroDatabase");
+            if (authoredParty != null && heroDatabase != null)
+            {
+                partyManager.Initialize(Instantiate(authoredParty), heroDatabase);
+            }
+        }
+        if (StoryProgressionService.Instance == null)
+        {
+            GameObject storyObject = new GameObject("StoryProgressionService");
+            storyObject.AddComponent<StoryProgressionService>();
+        }
+        if (RelationshipTracker.Instance == null)
+        {
+            GameObject relationshipObject = new GameObject("RelationshipTracker");
+            relationshipObject.AddComponent<RelationshipTracker>();
+        }
+        if (NewGamePlusService.Instance == null)
+        {
+            GameObject ngPlusObject = new GameObject("NewGamePlusService");
+            ngPlusObject.AddComponent<NewGamePlusService>();
+        }
         if (HeroProgressionManager.Instance == null)
         {
             GameObject managerObject = new GameObject("HeroProgressionManager");
@@ -2501,6 +2727,7 @@ public class GameStateManager : MonoBehaviour
     public void ClearPersistentWorldStateForDebug(bool includeBossDefeatState = true)
     {
         PlayerPrefs.DeleteKey(WorldStateSaveKey);
+        PlayerPrefs.DeleteKey(WorldStateBackupKey);
         if (includeBossDefeatState)
         {
             PlayerPrefs.DeleteKey(FinalBossDefeatsSaveKey);
@@ -2511,6 +2738,7 @@ public class GameStateManager : MonoBehaviour
 
     public void ResetRuntimeWorldStateForDebug()
     {
+        ResetPendingEncounterFlow();
         puzzleRuntimeStates.Clear();
         ancientTextRuntimeStates.Clear();
         completedNarrativeBeatIds.Clear();
@@ -2525,6 +2753,7 @@ public class GameStateManager : MonoBehaviour
         fateFinaleUnlocked = false;
         fateFinaleStartRequested = false;
         ceremonyIntroCompleted = false;
+        ApplyHubState(null);
         minimumRestorationBadEndingRuleMode = MinimumRestorationBadEndingRuleMode.OptionalContentOnly;
         pendingBadEndingThresholdEventIslandId = null;
         observedActiveIslandId = IslandProgressionManager.Instance != null
@@ -2560,6 +2789,44 @@ public class GameStateManager : MonoBehaviour
             StoryProgressionService.Instance.ResetForDebug();
             StoryProgressionService.Instance.SyncFromGameStateManager();
         }
+    }
+
+    private void ResetPendingEncounterFlow()
+    {
+        if (combatReturnRoutine != null)
+        {
+            StopCoroutine(combatReturnRoutine);
+            combatReturnRoutine = null;
+        }
+        FlowController?.ResetForNewGame();
+        isFlowControlledCombat = false;
+        deferredFlowFromCombat = false;
+        hasDeferredFlowFromCombatResult = false;
+        deferredFlowFromCombatResult = false;
+        deferredFlowCombatFled = false;
+        deferredFlowFromPuzzle = false;
+        deferredFlowPuzzleSolved = false;
+        combatOutcomeHandled = true;
+        isResolvingCombatOutcome = false;
+        hasBootstrappedFlowForCurrentScene = false;
+        hasPendingReturnPosition = false;
+        hasPendingCombatReturnPosition = false;
+        hasPendingCameraTransform = false;
+        hasLastKnownExplorationPlayerPosition = false;
+        returnToPuzzleAfterCombat = false;
+        PendingPuzzleData = null;
+        PendingPuzzleLayout = null;
+        PendingPuzzleSealedTile = new Vector2Int(-1, -1);
+        PendingPuzzleIslandId = null;
+        PendingPuzzleEncounterId = null;
+        PendingPuzzleRestorationValue = 0f;
+        PendingEnemyComposition = null;
+        PendingCombatIslandId = null;
+        PendingCombatEncounterId = null;
+        PendingCombatRestorationValue = 0f;
+        pendingBossIslandIdForDefeatTracking = null;
+        pendingSolvedPuzzleBoxId = null;
+        PuzzleSolved = false;
     }
 
     public void ResetPuzzleRuntimeStateForDebug()
@@ -2772,10 +3039,26 @@ public class GameStateManager : MonoBehaviour
             return false;
         }
 
+        if (!IslandThemeRegistry.IsKnownIslandId(destinationIslandId)
+            || !IsFiniteVector(destinationSpawn))
+        {
+            return false;
+        }
+
         string resolvedIslandId = IslandThemeRegistry.ResolveIslandId(destinationIslandId);
         if (string.IsNullOrEmpty(resolvedIslandId))
         {
             return false;
+        }
+
+        if (IslandThemeRegistry.IsHubIslandId(resolvedIslandId))
+        {
+            return TravelToHub(destinationSpawn);
+        }
+        if (IslandProgressionManager.Instance != null
+            && IslandThemeRegistry.IsHubIslandId(IslandProgressionManager.Instance.ActiveIslandId))
+        {
+            return TravelFromHubToIsland(resolvedIslandId, destinationSpawn);
         }
 
         IslandProgressionManager progressionManager = IslandProgressionManager.Instance;
@@ -2813,17 +3096,17 @@ public class GameStateManager : MonoBehaviour
             return false;
         }
 
-        if (IslandThemeRegistry.IsHubIslandId(resolvedIslandId))
-        {
-            FlowController?.PauseForHub();
-        }
+        FlowController?.PauseForHub();
+        progressionManager.RecordIslandReturnPosition(resolvedIslandId, safeSpawn);
 
         pendingReturnPosition = safeSpawn;
         hasPendingReturnPosition = true;
         hasPendingCombatReturnPosition = false;
         pendingBossIslandIdForDefeatTracking = null;
 
-        HandleIslandTravelFlowReset();
+        // Destination flow starts only after the boat fade has completed.
+        // Starting it here races its combat scene load against repositioning.
+        hasBootstrappedFlowForCurrentScene = false;
         SaveWorldState();
         Debug.Log($"[GameStateManager] Travel fade pipeline: '{previousIslandId}' -> '{resolvedIslandId}' at {safeSpawn}.");
 
@@ -2893,7 +3176,8 @@ public class GameStateManager : MonoBehaviour
 
     public bool TravelToHub(Vector3 destinationSpawn)
     {
-        if (isTransitioning)
+        if (isTransitioning || !IsFiniteVector(destinationSpawn)
+            || SceneUtility.GetBuildIndexByScenePath($"Assets/Scenes/{HubSceneName}.unity") < 0)
         {
             return false;
         }
@@ -2938,6 +3222,9 @@ public class GameStateManager : MonoBehaviour
         {
             return false;
         }
+        FlowController?.PauseForHub();
+        progressionManager.RecordIslandReturnPosition(hubIslandId, safeSpawn);
+        RecordHubReturnPosition(safeSpawn);
 
         pendingReturnPosition = safeSpawn;
         hasPendingReturnPosition = true;
@@ -2956,7 +3243,10 @@ public class GameStateManager : MonoBehaviour
 
     public bool TravelFromHubToIsland(string destinationIslandId, Vector3 destinationSpawn)
     {
-        if (isTransitioning)
+        if (isTransitioning || !IsFiniteVector(destinationSpawn)
+            || !IslandThemeRegistry.IsKnownIslandId(destinationIslandId)
+            || IslandThemeRegistry.IsHubIslandId(destinationIslandId)
+            || SceneUtility.GetBuildIndexByScenePath($"Assets/Scenes/{MainSceneName}.unity") < 0)
         {
             return false;
         }
@@ -3008,6 +3298,8 @@ public class GameStateManager : MonoBehaviour
         {
             return false;
         }
+        FlowController?.PauseForHub();
+        progressionManager.RecordIslandReturnPosition(resolvedIslandId, safeSpawn);
 
         pendingReturnPosition = safeSpawn;
         hasPendingReturnPosition = true;
@@ -3027,6 +3319,7 @@ public class GameStateManager : MonoBehaviour
     {
         EnsureFadeCanvas();
         isTransitioning = true;
+        SetPlayerMovementLocked(true);
         yield return FadeCanvas(1f, FadeDuration);
 
         IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
@@ -3056,6 +3349,9 @@ public class GameStateManager : MonoBehaviour
         yield return FadeCanvas(0f, FadeDuration);
         isTransitioning = false;
         hasPendingReturnPosition = false;
+        SetPlayerMovementLocked(endingTriggered);
+        SaveWorldState();
+        HandleIslandTravelFlowReset();
     }
 
     private static string ResolvePuzzleEncounterId(string encounterId, string puzzleBoxId, string islandId)
@@ -3799,78 +4095,163 @@ public class GameStateManager : MonoBehaviour
     /// Mirrors DevCheatService.FullResetAllState but is self-contained so the
     /// title screen does not depend on dev-cheat services.
     /// </summary>
-    public void ResetWorldStateForNewGame()
+    public void ResetWorldStateForNewGame(bool preserveNewGamePlusState = false)
     {
-        FlowController?.ResetForNewGame();
-        ClearPersistentWorldStateForDebug(true);
-        ResetRuntimeWorldStateForDebug();
-        AcceptanceConversation.Instance?.ResetForNewGame();
-        FateEncounterDirector.Instance?.ResetForNewGame();
-
-        IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
-        if (tracker != null)
+        EnsureRestorationTracker();
+        EnsureProgressionManager();
+        EnsureGearInventory();
+        EnsureDialogueSystem();
+        bool previousLoading = isLoadingWorldState;
+        isLoadingWorldState = true;
+        try
         {
-            tracker.ResetAllIslandsForDebug();
-        }
+            FlowController?.ResetForNewGame();
+            if (!preserveNewGamePlusState)
+            {
+                ClearPersistentWorldStateForDebug(true);
+            }
+            ResetRuntimeWorldStateForDebug();
+            AcceptanceConversation.Instance?.ResetForNewGame();
+            FateEncounterDirector.Instance?.ResetForNewGame();
+            AncientTextRevealDirector.Instance?.ResetForDebug();
+            PowerBudgetTracker.Instance?.ResetAllBudgets();
 
-        IslandProgressionManager progression = IslandProgressionManager.Instance;
-        if (progression != null)
+            IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
+            if (tracker != null)
+            {
+                tracker.ResetAllIslandsForDebug();
+            }
+
+            IslandProgressionManager progression = IslandProgressionManager.Instance;
+            if (progression != null)
+            {
+                progression.ResetProgressionForDebug();
+                progression.SetActiveIsland(IslandThemeRegistry.HubIslandId);
+            }
+
+            HeroProgressionManager heroProgression = HeroProgressionManager.Instance;
+            if (heroProgression != null)
+            {
+                heroProgression.ResetProgressionForDebug();
+            }
+
+            TideBreakProgressionManager tideBreakProgression = TideBreakProgressionManager.Instance;
+            if (tideBreakProgression != null)
+            {
+                tideBreakProgression.ResetProgressionForDebug();
+            }
+
+            PlayerGearInventory gearInventory = PlayerGearInventory.Instance;
+            if (gearInventory != null)
+            {
+                gearInventory.ResetInventoryForDebug();
+            }
+
+            // PartyData is a ScriptableObject that outlives the scene, so a new
+            // game would otherwise keep the previous run's active/reserve
+            // composition.
+            PartyManager partyManager = PartyManager.Instance;
+            if (partyManager != null && partyManager.PartyData != null)
+            {
+                partyManager.PartyData.ResetToDefaults();
+            }
+
+            // These managers persist to their own PlayerPrefs keys and are not
+            // covered by ClearPersistentWorldStateForDebug.
+            RelationshipTracker relationship = RelationshipTracker.Instance;
+            if (relationship != null)
+            {
+                relationship.ResetForDebug();
+            }
+
+            NewGamePlusService ngPlus = NewGamePlusService.Instance;
+            if (ngPlus != null && !preserveNewGamePlusState)
+            {
+                ngPlus.ResetForNewRun();
+            }
+
+            EnsureWorldSaveService();
+            WorldSaveService saveService = WorldSaveService.Instance;
+            if (saveService != null && !preserveNewGamePlusState)
+            {
+                saveService.Clear();
+            }
+
+            PlayerPrefs.Save();
+        }
+        finally
         {
-            progression.ResetProgressionForDebug();
+            isLoadingWorldState = previousLoading;
         }
-
-        HeroProgressionManager heroProgression = HeroProgressionManager.Instance;
-        if (heroProgression != null)
-        {
-            heroProgression.ResetProgressionForDebug();
-        }
-
-        TideBreakProgressionManager tideBreakProgression = TideBreakProgressionManager.Instance;
-        if (tideBreakProgression != null)
-        {
-            tideBreakProgression.ResetProgressionForDebug();
-        }
-
-        PlayerGearInventory gearInventory = PlayerGearInventory.Instance;
-        if (gearInventory != null)
-        {
-            gearInventory.ResetInventoryForDebug();
-        }
-
-        // PartyData is a ScriptableObject that outlives the scene, so a new
-        // game would otherwise keep the previous run's active/reserve
-        // composition.
-        PartyManager partyManager = PartyManager.Instance;
-        if (partyManager != null && partyManager.PartyData != null)
-        {
-            partyManager.PartyData.ResetToDefaults();
-        }
-
-        // These managers persist to their own PlayerPrefs keys and are not
-        // covered by ClearPersistentWorldStateForDebug.
-        RelationshipTracker relationship = RelationshipTracker.Instance;
-        if (relationship != null)
-        {
-            relationship.ResetForDebug();
-        }
-
-        NewGamePlusService ngPlus = NewGamePlusService.Instance;
-        if (ngPlus != null)
-        {
-            ngPlus.ResetForDebug();
-        }
-
-        EnsureWorldSaveService();
-        WorldSaveService saveService = WorldSaveService.Instance;
-        if (saveService != null)
-        {
-            saveService.Clear();
-        }
-
-        PlayerPrefs.Save();
         HandleIslandTravelFlowReset();
-        SaveWorldState();
+        if (!preserveNewGamePlusState)
+        {
+            SaveWorldState();
+        }
         Debug.Log("[GameStateManager] New game reset complete.");
+    }
+
+    /// <summary>Begins a completed save's next loop, carrying the party's earned build to a fresh hub run.</summary>
+    public bool StartNewGamePlusFromTitle()
+    {
+        if (isTransitioning || isLoadingWorldState || !enablePersistentSaveData
+            || !TryGetLoadableWorldStatePayload(out string payload)
+            || !TryParseWorldStatePayload(payload, out WorldStateSaveData completedSave)
+            || completedSave.storyProgression == null || !completedSave.storyProgression.endingTriggered
+            || !Enum.TryParse(completedSave.storyProgression.endingBranch, true, out EndingBranch completedBranch)
+            || (completedBranch != EndingBranch.Good && completedBranch != EndingBranch.Bad)
+            || (Application.isPlaying
+                && SceneUtility.GetBuildIndexByScenePath($"Assets/Scenes/{HubSceneName}.unity") < 0))
+        {
+            return false;
+        }
+
+        LoadWorldState();
+        NewGamePlusService ngPlus = NewGamePlusService.Instance;
+        HeroProgressionManager heroes = HeroProgressionManager.Instance;
+        if (ngPlus == null || heroes == null || !ngPlus.CanStartNewGamePlus())
+        {
+            return false;
+        }
+
+        HeroProgressionManager.HeroProgressionSnapshot heroSnapshot = heroes.CaptureHeroProgressionSnapshot();
+        GearProgressionSaveData gearSnapshot = heroes.CaptureGearSnapshot();
+        PlayerGearInventory.GearInventorySaveData inventorySnapshot = PlayerGearInventory.Instance?.CaptureGearInventorySnapshot();
+        HeroProgressionManager.PartyCompositionSnapshot partySnapshot = heroes.CapturePartyCompositionSnapshot();
+        TideBreakProgressionManager.TideBreakSaveData tideBreakSnapshot = TideBreakProgressionManager.Instance?.GetSaveData();
+        bool previousLoading = isLoadingWorldState;
+        isLoadingWorldState = true;
+        try
+        {
+            if (!ngPlus.StartNewGamePlus())
+            {
+                return false;
+            }
+            ResetWorldStateForNewGame(true);
+            heroes.ApplyHeroProgressionSnapshot(heroSnapshot);
+            heroes.ApplyGearSnapshot(gearSnapshot);
+            heroes.ApplyPartyCompositionSnapshot(partySnapshot);
+            PlayerGearInventory.Instance?.ApplyGearInventorySnapshot(inventorySnapshot);
+            TideBreakProgressionManager.Instance?.ApplySaveData(tideBreakSnapshot);
+            heroes.AddCurrency(ngPlus.GetStartingCurrency());
+        }
+        finally
+        {
+            isLoadingWorldState = previousLoading;
+        }
+        if (!TrySaveWorldState())
+        {
+            // The previous completed root was retained through reset. A failed
+            // NG+ save can restore that run instead of erasing its carryover.
+            LoadWorldState();
+            return false;
+        }
+
+        if (Application.isPlaying)
+        {
+            StartCoroutine(TransitionToScene(HubSceneName, GameState.Exploration));
+        }
+        return true;
     }
 
     /// <summary>
@@ -3924,6 +4305,7 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
+        ResetPendingEncounterFlow();
         StartCoroutine(TransitionToScene(TitleSceneName, GameState.Exploration));
     }
 }

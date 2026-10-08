@@ -9,6 +9,7 @@ using UnityEngine.UI;
 /// world state and transitions to the correct scene.
 /// </summary>
 [DisallowMultipleComponent]
+[DefaultExecutionOrder(-50)]
 public class PauseMenuUI : MonoBehaviour
 {
     [Header("Layout")]
@@ -31,11 +32,11 @@ public class PauseMenuUI : MonoBehaviour
     private Canvas canvas;
     private GameObject panelRoot;
     private GameObject confirmRoot;
+    private CanvasGroup menuInputGroup;
     private Text feedbackText;
     private GameObject mobilePauseButton;
     private bool isOpen;
     private bool confirmLoadVisible;
-    private float previousTimeScale = 1f;
 
     private const float FeedbackDuration = 2.5f;
     private float feedbackTimer;
@@ -112,27 +113,14 @@ public class PauseMenuUI : MonoBehaviour
             }
         }
 
-        if (HasSubmenuOpen())
-        {
-            // A submenu (gear/party/settings) is layered on top. Defer to it:
-            // ESC closes the topmost submenu instead of toggling the pause menu
-            // (avoids the double-close race where both handlers fire the same
-            // frame, and keeps ESC from opening pause while a submenu is up).
-            if (Input.GetKeyDown(pauseKey))
-            {
-                CloseTopmostSubmenu();
-            }
-
-            return;
-        }
-
         bool pausePressed = Input.GetKeyDown(pauseKey);
 
         // The P key doubles as PartySetupUI's toggle key. Only treat it as a
         // pause key when no party UI exists in the scene so the two never fight.
-        if (altPauseKey == KeyCode.P && FindFirstObjectByType<PartySetupUI>() == null)
+        if (Input.GetKeyDown(altPauseKey)
+            && (altPauseKey != KeyCode.P || FindFirstObjectByType<PartySetupUI>() == null))
         {
-            pausePressed = pausePressed || Input.GetKeyDown(altPauseKey);
+            pausePressed = true;
         }
 
         GamepadInputManager gamepad = GamepadInputManager.Instance;
@@ -140,6 +128,7 @@ public class PauseMenuUI : MonoBehaviour
         {
             pausePressed = true;
         }
+        bool cancelPressed = gamepad != null && gamepad.IsGamepadConnected && gamepad.BackPressed;
 
         MobileTouchInputManager mobile = MobileTouchInputManager.Instance;
         if (mobile != null && mobile.IsMobilePlatform && mobile.MenuPressed)
@@ -147,8 +136,22 @@ public class PauseMenuUI : MonoBehaviour
             pausePressed = true;
         }
 
-        if (!pausePressed)
+        if (!pausePressed && !cancelPressed)
         {
+            return;
+        }
+
+        // Object searches only happen on input, not on every exploration frame.
+        if (HasSubmenuOpen())
+        {
+            CloseTopmostSubmenu();
+            if (isOpen) MenuNavigationUtility.Select(ResumeButton);
+            return;
+        }
+
+        if (confirmLoadVisible)
+        {
+            OnLoadCancelled();
             return;
         }
 
@@ -156,7 +159,7 @@ public class PauseMenuUI : MonoBehaviour
         {
             CloseMenu();
         }
-        else if (CanTogglePause())
+        else if (pausePressed && CanTogglePause())
         {
             OpenMenu();
         }
@@ -231,13 +234,15 @@ public class PauseMenuUI : MonoBehaviour
         }
 
         EnsureUI();
-        previousTimeScale = Time.timeScale;
         Time.timeScale = 0f;
 
         isOpen = true;
         confirmLoadVisible = false;
         SetOpen(true);
         ShowMobilePauseButton(false);
+        MenuNavigationUtility.ConfigureVertical(ResumeButton, PartyButton, InventoryButton,
+            SaveButton, LoadButton, SettingsButton, QuitToMenuButton);
+        MenuNavigationUtility.Select(ResumeButton);
 
         AudioManager audioManager = AudioManager.Instance;
         if (audioManager != null)
@@ -325,9 +330,9 @@ public class PauseMenuUI : MonoBehaviour
             return;
         }
 
-        gsm.SaveWorldState();
-        SetFeedback("Game saved.");
-        Debug.Log("[PauseMenuUI] World state saved.");
+        bool saved = gsm.TrySaveWorldState();
+        SetFeedback(saved ? "Game saved." : "Could not save. Please try again.");
+        if (saved) Debug.Log("[PauseMenuUI] World state saved.");
     }
 
     public void OnLoadClicked()
@@ -340,10 +345,13 @@ public class PauseMenuUI : MonoBehaviour
         }
 
         confirmLoadVisible = true;
+        if (menuInputGroup != null) menuInputGroup.interactable = false;
         if (confirmRoot != null)
         {
             confirmRoot.SetActive(true);
         }
+        MenuNavigationUtility.ConfigureVertical(ConfirmNoButton, ConfirmYesButton);
+        MenuNavigationUtility.Select(ConfirmNoButton);
 
         Debug.Log("[PauseMenuUI] Load confirmation shown.");
     }
@@ -351,6 +359,7 @@ public class PauseMenuUI : MonoBehaviour
     public void OnLoadConfirmed()
     {
         confirmLoadVisible = false;
+        if (menuInputGroup != null) menuInputGroup.interactable = true;
         if (confirmRoot != null)
         {
             confirmRoot.SetActive(false);
@@ -381,10 +390,12 @@ public class PauseMenuUI : MonoBehaviour
     public void OnLoadCancelled()
     {
         confirmLoadVisible = false;
+        if (menuInputGroup != null) menuInputGroup.interactable = true;
         if (confirmRoot != null)
         {
             confirmRoot.SetActive(false);
         }
+        MenuNavigationUtility.Select(LoadButton);
     }
 
     public void OnSettingsClicked()
@@ -463,6 +474,7 @@ public class PauseMenuUI : MonoBehaviour
         canvas = canvasObject.GetComponent<Canvas>();
 
         panelRoot = new GameObject("PauseMenuPanel", typeof(RectTransform));
+        menuInputGroup = panelRoot.AddComponent<CanvasGroup>();
         panelRoot.transform.SetParent(canvasObject.transform, false);
         RectTransform panelRect = panelRoot.GetComponent<RectTransform>();
         panelRect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -626,6 +638,7 @@ public class PauseMenuUI : MonoBehaviour
 
     private void SetOpen(bool open)
     {
+        if (menuInputGroup != null) menuInputGroup.interactable = true;
         if (panelRoot != null)
         {
             panelRoot.SetActive(open);
@@ -645,7 +658,8 @@ public class PauseMenuUI : MonoBehaviour
             return false;
         }
 
-        return gsm.currentState == GameStateManager.GameState.Exploration && !gsm.IsTransitioning;
+        return gsm.currentState == GameStateManager.GameState.Exploration && !gsm.IsTransitioning
+            && (DialogueSystem.Instance == null || !DialogueSystem.Instance.IsDialogueActive);
     }
 
     private void RestoreTimeIfOpen()

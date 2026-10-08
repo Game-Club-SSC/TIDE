@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -303,3 +304,4 @@ public class IslandBacktrackingManagerTest : MonoBehaviour
         Debug.Log("✓ CanVisitIsland unknown island test passed");
     }
 }
+#endif

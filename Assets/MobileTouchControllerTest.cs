@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -63,3 +64,4 @@ public class MobileTouchControllerTest : MonoBehaviour
         Object.DestroyImmediate(host);
     }
 }
+#endif

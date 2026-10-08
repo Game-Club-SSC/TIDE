@@ -41,6 +41,10 @@ public class DialogueTreeRunner : MonoBehaviour
     private bool isTyping;
     private bool skipRequested;
     private bool waitingForAdvance;
+    private bool waitingForChoice;
+    private bool isCompleted;
+    private int automaticNavigationDepth;
+    private const int MaxAutomaticNavigationDepth = 128;
     private Coroutine typewriterRoutine;
     private IsometricPlayer movementLockedPlayer;
     private bool movementLockSnapshot;
@@ -69,6 +73,9 @@ public class DialogueTreeRunner : MonoBehaviour
         }
 
         tree = dialogueTree;
+        isCompleted = false;
+        waitingForChoice = false;
+        automaticNavigationDepth = 0;
         BuildNodeLookup();
         effectDeliveryIssues.Clear();
 
@@ -194,6 +201,27 @@ public class DialogueTreeRunner : MonoBehaviour
 
     private void ShowNode(DialogueTreeNode node)
     {
+        if (isCompleted)
+        {
+            return;
+        }
+
+        // Silent nodes and failed conditions navigate synchronously. Broken
+        // authored cycles must finish safely instead of overflowing the stack.
+        if (automaticNavigationDepth >= MaxAutomaticNavigationDepth)
+        {
+            Debug.LogError($"[DialogueTreeRunner] Automatic navigation limit reached in tree '{tree.treeId}'. Check silent nodes and condition fallbacks for cycles.");
+            CompleteTree();
+            return;
+        }
+
+        automaticNavigationDepth++;
+        ShowNodeContent(node);
+        automaticNavigationDepth--;
+    }
+
+    private void ShowNodeContent(DialogueTreeNode node)
+    {
         if (node == null)
         {
             CompleteTree();
@@ -201,6 +229,7 @@ public class DialogueTreeRunner : MonoBehaviour
         }
 
         currentNode = node; // set before ApplyEffects so relatedHeroId is available
+        waitingForChoice = false;
 
         // BUGFIX: EvaluateConditions and ApplyEffects are now called BEFORE the
         // empty-text early return. Previously, silent dialogue nodes (no speaker
@@ -218,7 +247,8 @@ public class DialogueTreeRunner : MonoBehaviour
 
         // If the entry has no dialogue text to display, advance without showing UI.
         DialogueSystem.DialogueEntry entry = node.entry;
-        if (string.IsNullOrWhiteSpace(entry.speakerName) && string.IsNullOrWhiteSpace(entry.dialogueText))
+        if (string.IsNullOrWhiteSpace(entry.speakerName) && string.IsNullOrWhiteSpace(entry.dialogueText)
+            && (node.choices == null || node.choices.Length == 0))
         {
             Debug.Log("[DialogueTreeRunner] Node reached with no dialogue text; effects applied, advancing.");
             AdvanceToNextNode();
@@ -337,6 +367,7 @@ public class DialogueTreeRunner : MonoBehaviour
         }
 
         choiceContainer.gameObject.SetActive(true);
+        waitingForChoice = true;
         if (continuePrompt != null) continuePrompt.gameObject.SetActive(false);
 
         float totalHeight = available.Count * ChoiceButtonHeight + (available.Count - 1) * ChoiceButtonSpacing;
@@ -357,6 +388,10 @@ public class DialogueTreeRunner : MonoBehaviour
         for (int i = 0; i < choices.Length; i++)
         {
             DialogueTreeChoice choice = choices[i];
+            if (choice == null)
+            {
+                continue;
+            }
 
             // Bond requirement
             if (choice.requiredBondLevel > 0)
@@ -438,13 +473,28 @@ public class DialogueTreeRunner : MonoBehaviour
 
     private void OnChoiceSelected(DialogueTreeChoice choice)
     {
+        if (isCompleted || !waitingForChoice || choice == null || currentNode == null
+            || currentNode.choices == null || Array.IndexOf(currentNode.choices, choice) < 0)
+        {
+            return;
+        }
+
+        waitingForChoice = false;
         // Apply bond increase from choice
         if (choice.increasesBond && DialogueSystem.Instance != null)
         {
             string heroId = currentNode.entry.relatedHeroId;
             if (!string.IsNullOrEmpty(heroId))
             {
-                DialogueSystem.Instance.IncreaseBond(heroId, "player", choice.bondAmount);
+                // Choice indices occupy negative reward slots, distinct from
+                // node effect indices. Replaying a conversation cannot farm bonds.
+                int choiceIndex = Array.IndexOf(currentNode.choices, choice);
+                DialogueSystem.Instance.ApplyDialogueEffect(new DialogueTreeEffect
+                {
+                    type = DialogueEffectType.IncreaseBond,
+                    targetId = heroId,
+                    intValue = choice.bondAmount
+                }, heroId, tree.treeId, currentNode.nodeId, -choiceIndex - 1);
             }
         }
 
@@ -534,6 +584,10 @@ public class DialogueTreeRunner : MonoBehaviour
         for (int i = 0; i < node.conditions.Length; i++)
         {
             DialogueTreeCondition cond = node.conditions[i];
+            if (cond == null)
+            {
+                return false;
+            }
 
             switch (cond.type)
             {
@@ -600,6 +654,8 @@ public class DialogueTreeRunner : MonoBehaviour
                         return false;
                     }
                     break;
+                default:
+                    return false;
             }
         }
 
@@ -645,6 +701,10 @@ public class DialogueTreeRunner : MonoBehaviour
         for (int i = 0; i < node.effects.Length; i++)
         {
             DialogueTreeEffect effect = node.effects[i];
+            if (effect == null)
+            {
+                continue;
+            }
 
             switch (effect.type)
             {
@@ -721,9 +781,11 @@ public class DialogueTreeRunner : MonoBehaviour
             default: label = "effect"; break;
         }
 
-        string detail = $"{label} '{effect.targetId}' could not be delivered now; it is queued and will be applied on the next save load.";
+        string detail = effect.type == DialogueEffectType.SetFlag
+            ? "Your choice has been saved."
+            : $"Your {label} reward has been saved and will be delivered when available.";
         effectDeliveryIssues.Add(detail);
-        Debug.LogWarning($"[DialogueTreeRunner] {detail}");
+        Debug.LogWarning($"[DialogueTreeRunner] Deferred {label} effect for '{effect.targetId}'; it will be retried on save load.");
     }
 
     // ------------------------------------------------------------------ //
@@ -732,6 +794,13 @@ public class DialogueTreeRunner : MonoBehaviour
 
     private void CompleteTree()
     {
+        if (isCompleted)
+        {
+            return;
+        }
+
+        isCompleted = true;
+        waitingForChoice = false;
         HideChoices();
         HidePanel();
         LockPlayerMovement(false);
@@ -740,6 +809,22 @@ public class DialogueTreeRunner : MonoBehaviour
         OnTreeCompleted?.Invoke(completedTreeId);
 
         Destroy(gameObject, 0.15f);
+    }
+
+    /// <summary>Stops presentation without reporting unfinished dialogue as completed.</summary>
+    public void CancelTree()
+    {
+        isCompleted = true;
+        waitingForChoice = false;
+        waitingForAdvance = false;
+        if (typewriterRoutine != null)
+        {
+            StopCoroutine(typewriterRoutine);
+            typewriterRoutine = null;
+        }
+        HideChoices();
+        HidePanel();
+        RestorePlayerMovement();
     }
 
     private void LockPlayerMovement(bool locked)

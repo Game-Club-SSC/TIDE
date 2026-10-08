@@ -23,6 +23,15 @@ public static class TravelValidationService
         {
             return new ValidationResult(false, "Destination island id is empty.", null);
         }
+        if (!IslandThemeRegistry.IsKnownIslandId(toIslandId))
+        {
+            return new ValidationResult(false, $"Destination '{toIslandId}' is unknown.", null);
+        }
+        toIslandId = IslandThemeRegistry.ResolveIslandId(toIslandId);
+        if (IslandThemeRegistry.IsKnownIslandId(fromIslandId))
+        {
+            fromIslandId = IslandThemeRegistry.ResolveIslandId(fromIslandId);
+        }
 
         // The central hub is always reachable from any island (return travel),
         // independent of unlock progression. The hub boat dock lives in the
@@ -63,6 +72,10 @@ public static class TravelValidationService
 
     public static IReadOnlyList<TeleportAnchor> GetAvailableTravelDestinations(string fromIslandId)
     {
+        if (IslandThemeRegistry.IsKnownIslandId(fromIslandId))
+        {
+            fromIslandId = IslandThemeRegistry.ResolveIslandId(fromIslandId);
+        }
         List<TeleportAnchor> list = new List<TeleportAnchor>();
         if (IslandProgressionManager.Instance == null)
         {

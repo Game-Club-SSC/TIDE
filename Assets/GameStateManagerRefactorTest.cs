@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -65,7 +66,7 @@ public class GameStateManagerRefactorTest : MonoBehaviour
         WorldSaveService service = host.AddComponent<WorldSaveService>();
         try
         {
-            service.TryWriteJson("{\"a\":1}");
+            service.TryWriteJson("{\"puzzleStates\":[]}");
             Assert.IsTrue(service.HasPersistedData, "Should have data after write.");
             service.Clear();
             Assert.IsFalse(service.HasPersistedData, "Should be cleared.");
@@ -182,3 +183,4 @@ public class GameStateManagerRefactorTest : MonoBehaviour
         }
     }
 }
+#endif

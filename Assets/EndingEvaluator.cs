@@ -5,6 +5,7 @@ using UnityEngine;
 [Serializable]
 public sealed class EndingEvaluatorSnapshot
 {
+    public bool hasGameState;
     public bool hasFinalBossDefeats;
     public int finalBossDefeats;
     public int finalBossDefeatThreshold;
@@ -12,6 +13,7 @@ public sealed class EndingEvaluatorSnapshot
     public bool isMinimumRestorationRuleEnabled;
     public float minimumRestorationClearedRatio;
     public float minimumRestorationThresholdRatio;
+    public bool allRequiredIslandsClearedOnlyAtThreshold;
     public List<string> islandsClearedAtThreshold = new List<string>();
     public List<string> islandsProceededAtThreshold = new List<string>();
     public bool onlyRequiresFinalIsland;
@@ -73,7 +75,7 @@ public class EndingEvaluator : MonoBehaviour
 
     public static EndingOutcome EvaluateOutcomeFromSnapshot(EndingEvaluatorSnapshot snapshot)
     {
-        if (snapshot == null)
+        if (snapshot == null || !snapshot.hasGameState)
         {
             return EndingOutcome.Unresolved;
         }
@@ -86,7 +88,7 @@ public class EndingEvaluator : MonoBehaviour
         }
 
         if (snapshot.isMinimumRestorationRuleEnabled
-            && snapshot.minimumRestorationClearedRatio + Mathf.Epsilon < snapshot.minimumRestorationThresholdRatio)
+            && snapshot.allRequiredIslandsClearedOnlyAtThreshold)
         {
             return EndingOutcome.BadEnding;
         }
@@ -108,9 +110,11 @@ public class EndingEvaluator : MonoBehaviour
         {
             return snapshot;
         }
+        snapshot.hasGameState = true;
 
-        snapshot.finalBossDefeats = gameState.GetFinalBossDefeatCount(GetFinalIslandIdOrEmpty(gameState));
-        snapshot.finalBossDefeatThreshold = Mathf.Max(1, gameState.GetConfiguredFinalBossDefeatThreshold());
+        string finalIslandId = GetFinalIslandIdOrEmpty(gameState);
+        snapshot.finalBossDefeats = string.IsNullOrEmpty(finalIslandId) ? 0 : gameState.GetFinalBossDefeatCount(finalIslandId);
+        snapshot.finalBossDefeatThreshold = Mathf.Max(1, gameState.GetConfiguredFinalBossDefeatThreshold(finalIslandId));
         snapshot.hasFinalBossDefeats = snapshot.finalBossDefeats > 0;
 
         GameStateManager.MinimumRestorationBadEndingRuleMode ruleMode = gameState.MinimumRestorationBadEndingRule;
@@ -125,12 +129,18 @@ public class EndingEvaluator : MonoBehaviour
         {
             string islandId = progressionOrder[i];
             bool isFinalIsland = i == progressionOrder.Count - 1;
+            if (ruleMode == GameStateManager.MinimumRestorationBadEndingRuleMode.ProceededAtThreshold && isFinalIsland)
+            {
+                continue;
+            }
             if (requireFinalIslandForBadEnding && !isFinalIsland)
             {
                 continue;
             }
 
-            if (requireOptionalPreBossContent && !HasOptionalPreBossRestorationAvailable(islandId))
+            if (requireOptionalPreBossContent
+                && ruleMode == GameStateManager.MinimumRestorationBadEndingRuleMode.OptionalContentOnly
+                && !HasOptionalPreBossRestorationAvailable(islandId))
             {
                 continue;
             }
@@ -138,8 +148,9 @@ public class EndingEvaluator : MonoBehaviour
             requiredIslandCount++;
             bool isThresholdCleared = IsIslandThresholdCleared(ruleMode, islandId, thresholdOnlyBossVictoryIslandIds, thresholdOnlyProceedIslandIds);
 
-            float ratioForIsland = gameState.GetIslandRestorationPercent(islandId) / 100f;
-            if (ratioForIsland >= snapshot.minimumRestorationThresholdRatio || isThresholdCleared)
+            // Boss completion brings restoration to 100%. Only the persisted
+            // pre-boss/departure history records whether optional work was skipped.
+            if (isThresholdCleared)
             {
                 thresholdClearedRatio += 1f;
             }
@@ -154,6 +165,7 @@ public class EndingEvaluator : MonoBehaviour
         else
         {
             snapshot.minimumRestorationClearedRatio = Mathf.Clamp01(thresholdClearedRatio / (float)requiredIslandCount);
+            snapshot.allRequiredIslandsClearedOnlyAtThreshold = thresholdClearedRatio >= requiredIslandCount;
         }
 
         snapshot.islandsClearedAtThreshold.AddRange(thresholdOnlyBossVictoryIslandIds);

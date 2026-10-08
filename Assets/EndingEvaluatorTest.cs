@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -12,7 +13,7 @@ public class EndingEvaluatorTest : MonoBehaviour
         Debug.Log("=== Starting Ending Evaluator Tests ===");
 
         TestEvaluatorReturnsBadEndingWhenLossesHitThreshold();
-        TestEvaluatorReturnsBadEndingWhenMinimumRestorationRuleFails();
+        TestEvaluatorReturnsBadEndingWhenEveryRequiredIslandWasClearedOnlyAtThreshold();
         TestEvaluatorReturnsGoodEndingWhenAllRulesSatisfied();
         TestEvaluatorHandlesNullGameStateGracefully();
         TestEvaluatorDoesNotFlagBadEndingBelowThreshold();
@@ -53,9 +54,9 @@ public class EndingEvaluatorTest : MonoBehaviour
         Debug.Log("  Loss-threshold bad ending test passed");
     }
 
-    private void TestEvaluatorReturnsBadEndingWhenMinimumRestorationRuleFails()
+    private void TestEvaluatorReturnsBadEndingWhenEveryRequiredIslandWasClearedOnlyAtThreshold()
     {
-        Debug.Log("Testing minimum restoration rule failure returns bad ending...");
+        Debug.Log("Testing minimum-only restoration history returns bad ending...");
 
         try
         {
@@ -64,17 +65,19 @@ public class EndingEvaluatorTest : MonoBehaviour
 
             EndingEvaluatorSnapshot snapshot = new EndingEvaluatorSnapshot
             {
+                hasGameState = true,
                 hasFinalBossDefeats = false,
                 finalBossDefeats = 0,
                 finalBossDefeatThreshold = 4,
                 isMinimumRestorationRuleEnabled = true,
-                minimumRestorationClearedRatio = 0.2f,
+                minimumRestorationClearedRatio = 1f,
+                allRequiredIslandsClearedOnlyAtThreshold = true,
                 minimumRestorationThresholdRatio = 0.75f
             };
 
             EndingOutcome outcome = EndingEvaluator.EvaluateOutcomeFromSnapshot(snapshot);
             Assert.AreEqual(EndingOutcome.BadEnding, outcome,
-                "Evaluator should return BadEnding when cleared ratio is below the minimum threshold.");
+                "Evaluator should return BadEnding when every required island was cleared only at the minimum.");
         }
         finally
         {
@@ -95,6 +98,7 @@ public class EndingEvaluatorTest : MonoBehaviour
 
             EndingEvaluatorSnapshot snapshot = new EndingEvaluatorSnapshot
             {
+                hasGameState = true,
                 hasFinalBossDefeats = false,
                 finalBossDefeats = 0,
                 finalBossDefeatThreshold = 4,
@@ -129,8 +133,8 @@ public class EndingEvaluatorTest : MonoBehaviour
             Assert.AreEqual(0, snapshot.finalBossDefeats, "Null manager should produce empty snapshot.");
 
             EndingOutcome outcome = evaluator.EvaluateOutcome(null);
-            Assert.AreEqual(EndingOutcome.GoodEnding, outcome,
-                "Null manager with no recorded defeats should default to GoodEnding.");
+            Assert.AreEqual(EndingOutcome.Unresolved, outcome,
+                "A missing manager cannot establish an ending outcome.");
         }
         finally
         {
@@ -239,3 +243,5 @@ public class EndingEvaluatorTest : MonoBehaviour
         }
     }
 }
+
+#endif

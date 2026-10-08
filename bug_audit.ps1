@@ -3,7 +3,8 @@
 # comparers, missing null guards before property access, state mutations
 # before early returns, etc.
 
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = "Stop"
+Set-Location -LiteralPath $PSScriptRoot
 $script:bugChecks = New-Object System.Collections.Generic.List[object]
 $script:fail = 0
 $script:pass = 0
@@ -45,12 +46,12 @@ Bug-Check "HeroProgressionManager.cs" "AddCurrency persists" $addPersists ""
 Bug-Check "HeroProgressionManager.cs" "TrySpendCurrency persists" $spendPersists ""
 Bug-Check "HeroProgressionManager.cs" "SetCurrency persists" $setPersists ""
 
-# ==================== 3. BattleManager: turn registration reset on StartBattle ====================
+# ==================== 3. BattleManager: prune registration on StartBattle ====================
 $bm = Get-Content "Assets/BattleManager.cs" -Raw
-$resetOnStart = $bm -match 'case BattlePhase\.StartBattle:[\s\S]{0,300}ResetTurnRegistration'
-$resetMethod = $bm -match 'private void ResetTurnRegistration[\s\S]{0,200}unitRegistrationOrder\.Clear'
-Bug-Check "BattleManager.cs" "StartBattle resets turn registration" $resetOnStart ""
-Bug-Check "BattleManager.cs" "ResetTurnRegistration clears unitRegistrationOrder" $resetMethod ""
+$pruneOnStart = $bm -match 'case BattlePhase\.StartBattle:\s*PruneTurnRegistration\(\)'
+$pruneMethod = $bm -match 'private void PruneTurnRegistration\([\s\S]*?unitRegistrationOrder\.Remove'
+Bug-Check "BattleManager.cs" "StartBattle prunes stale registration while preserving live tie order" $pruneOnStart ""
+Bug-Check "BattleManager.cs" "PruneTurnRegistration removes detached units" $pruneMethod "Actual behavior exercised by CombatReadinessRegressionTest."
 
 # ==================== 4. BattleManager: BuildTurnQueueFromLivingUnits caches speeds ====================
 $cacheUsed = $bm -match 'BuildTurnQueueFromLivingUnits[\s\S]{0,2000}effectiveSpeeds'
@@ -97,7 +98,8 @@ $createInRuntime = @(Get-ChildItem "Assets\*.cs" -ErrorAction SilentlyContinue |
     $_.Name -notmatch 'Test\.cs$' -and
     $_.Name -notmatch 'TestSuite\.cs$' -and
     $_.Name -notmatch 'VerificationTest\.cs$' -and
-    $_.Name -ne 'RegressionCheckHelpers.cs'
+    # Explicit verification runners create disposable test fixtures.
+    $_.Name -notin @('RegressionCheckHelpers.cs', 'AdversarialCombatChallengerRunner.cs')
 } | Where-Object {
     (Get-Content $_.FullName -Raw) -match 'ScriptableObject\.CreateInstance'
 })

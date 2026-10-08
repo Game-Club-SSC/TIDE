@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -455,6 +456,49 @@ public class UIWiringVerificationTest
     }
 
     [Test]
+    public void TitleNavigationSkipsUnavailableContinue()
+    {
+        GameObject managerObject = new GameObject("GameStateManager_NavigationTest");
+        spawnedObjects.Add(managerObject);
+        GameStateManager manager = AddGameStateManagerTo(managerObject);
+        manager.ClearPersistentWorldStateForDebug(true);
+        GameObject titleObject = new GameObject("Title_NavigationTest");
+        spawnedObjects.Add(titleObject);
+        TitleScreenUI title = titleObject.AddComponent<TitleScreenUI>();
+        title.RefreshContinueButton();
+        Assert.IsFalse(title.ContinueButton.interactable);
+        Assert.AreSame(title.SettingsButton, title.NewGameButton.navigation.selectOnDown,
+            "Keyboard/gamepad focus must skip unavailable save actions.");
+        manager.SaveWorldState();
+        title.RefreshContinueButton();
+        Assert.AreSame(title.ContinueButton, title.NewGameButton.navigation.selectOnDown);
+    }
+
+    [Test]
+    public void PauseLoadConfirmationBlocksUnderlyingMenuAndRestoresFocus()
+    {
+        GameObject managerObject = new GameObject("GameStateManager_ConfirmFocusTest");
+        spawnedObjects.Add(managerObject);
+        GameStateManager manager = AddGameStateManagerTo(managerObject);
+        manager.SaveWorldState();
+        GameObject pauseObject = new GameObject("Pause_ConfirmFocusTest");
+        spawnedObjects.Add(pauseObject);
+        PauseMenuUI pause = pauseObject.AddComponent<PauseMenuUI>();
+        pause.OpenMenu();
+        pause.OnLoadClicked();
+        CanvasGroup group = pause.LoadButton.GetComponentInParent<CanvasGroup>();
+        Assert.IsNotNull(group);
+        Assert.IsFalse(group.interactable, "Confirmation must block actions behind the modal.");
+        Assert.AreSame(pause.ConfirmNoButton.gameObject,
+            UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject);
+        pause.OnLoadCancelled();
+        Assert.IsTrue(group.interactable);
+        Assert.AreSame(pause.LoadButton.gameObject,
+            UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject);
+        Assert.IsTrue(pause.IsOpen, "Cancelling load keeps the pause menu open.");
+    }
+
+    [Test]
     public void PauseSettingsActionOpensAudioSettings()
     {
         GameObject managerObject = new GameObject("GameStateManager_PauseSettingsTest");
@@ -626,3 +670,4 @@ public class UIWiringVerificationTest
         return hero;
     }
 }
+#endif

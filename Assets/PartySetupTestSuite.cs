@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using NUnit.Framework;
 
@@ -210,3 +211,4 @@ public class PartySetupTestSuite
         }
     }
 }
+#endif

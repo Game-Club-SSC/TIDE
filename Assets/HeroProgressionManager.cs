@@ -423,7 +423,7 @@ public class HeroProgressionManager : MonoBehaviour
         float reserveMultiplier = levelingConfig != null
             ? levelingConfig.reserveXpMultiplier
             : 0.5f;
-        int reserveGearXp = Mathf.RoundToInt(xpAmount * reserveMultiplier);
+        int reserveGearXp = CalculateReserveXp(xpAmount, reserveMultiplier);
 
         if (activeHeroes != null)
         {
@@ -670,7 +670,9 @@ public class HeroProgressionManager : MonoBehaviour
 
         if (state.level >= levelingConfig.maxLevel)
         {
-            return false;
+            // An already-capped hero consumed this reward successfully. A
+            // durable dialogue ledger must not retry it in a later run.
+            return true;
         }
 
         long accumulatedXp = (long)Mathf.Max(0, state.currentXp) + xpAmount;
@@ -734,7 +736,7 @@ public class HeroProgressionManager : MonoBehaviour
 
         EnsureHero(CosmeticCurrencyHeroId);
         HeroProgressionState state = heroStates[CosmeticCurrencyHeroId];
-        state.currentXp += amount;
+        state.currentXp = (int)Math.Min(int.MaxValue, (long)Mathf.Max(0, state.currentXp) + amount);
         state.level = 1;
         OnCosmeticXpChanged?.Invoke(state.currentXp);
     }
@@ -814,16 +816,26 @@ public class HeroProgressionManager : MonoBehaviour
             return;
         }
 
+        NewGamePlusService ngPlus = NewGamePlusService.Instance;
+        DifficultyModeService difficulty = DifficultyModeService.Instance;
+        double xpMultiplier = (ngPlus != null ? ngPlus.GetXpMultiplier() : 1f)
+            * (double)(difficulty != null ? difficulty.GetXpMultiplier() : 1f);
+        if (double.IsNaN(xpMultiplier) || double.IsInfinity(xpMultiplier) || xpMultiplier < 0d)
+        {
+            xpMultiplier = 1d;
+        }
+        totalXp = (int)Math.Min(int.MaxValue, Math.Round(totalXp * xpMultiplier));
+
         if (enableCosmeticProgressionEconomy)
         {
             GrantCosmeticXp(totalXp);
         }
 
-        float currencyMult = DifficultyModeService.Instance != null ? DifficultyModeService.Instance.GetCurrencyMultiplier() : 1f;
-        AddCurrency(Mathf.RoundToInt(Mathf.Max(0, totalXp / 2) * currencyMult));
+        int currencyMult = difficulty != null ? difficulty.GetCurrencyMultiplier() : 1;
+        AddCurrency((int)Math.Min(int.MaxValue, (long)Mathf.Max(0, totalXp / 2) * Mathf.Max(0, currencyMult)));
 
-        int reserveXp = Mathf.RoundToInt(totalXp * levelingConfig.reserveXpMultiplier);
-        int reserveGearXp = Mathf.RoundToInt(gearXpPerBattleWin * levelingConfig.reserveXpMultiplier);
+        int reserveXp = CalculateReserveXp(totalXp, levelingConfig.reserveXpMultiplier);
+        int reserveGearXp = CalculateReserveXp(gearXpPerBattleWin, levelingConfig.reserveXpMultiplier);
 
         HashSet<string> rewardedHeroIds = new HashSet<string>(StringComparer.Ordinal);
 
@@ -856,6 +868,13 @@ public class HeroProgressionManager : MonoBehaviour
         }
     }
 
+    private static int CalculateReserveXp(int xpAmount, float configuredMultiplier)
+    {
+        if (xpAmount <= 0 || float.IsNaN(configuredMultiplier) || float.IsInfinity(configuredMultiplier)) return 0;
+        double multiplier = Math.Max(0d, Math.Min(1d, configuredMultiplier));
+        return (int)Math.Min(int.MaxValue, Math.Round(xpAmount * multiplier));
+    }
+
     public void AddCurrency(int amount)
     {
         if (amount <= 0)
@@ -863,7 +882,7 @@ public class HeroProgressionManager : MonoBehaviour
             return;
         }
 
-        currency += amount;
+        currency = (int)Math.Min(int.MaxValue, (long)Mathf.Max(0, currency) + amount);
         OnCurrencyChanged?.Invoke(currency);
         PersistCurrency();
     }
@@ -916,16 +935,6 @@ public class HeroProgressionManager : MonoBehaviour
             currency = currency
         };
 
-        foreach (GearInstance instance in allGearInstances.Values)
-        {
-            if (instance == null || string.IsNullOrEmpty(instance.setId))
-            {
-                continue;
-            }
-
-            snapshot.instances.Add(instance.ToSaveData());
-        }
-
         foreach (KeyValuePair<string, HeroProgressionState> pair in heroStates)
         {
             HeroProgressionState state = pair.Value;
@@ -955,6 +964,16 @@ public class HeroProgressionManager : MonoBehaviour
 
             snapshot.heroIds.Add(pair.Key);
             snapshot.equippedInstanceIds.Add(state.equippedGearInstanceId);
+        }
+
+        // Legacy equipped-set migration above may create an instance. Capture
+        // inventory after migration so the saved equipment reference resolves.
+        foreach (GearInstance instance in allGearInstances.Values)
+        {
+            if (instance != null && !string.IsNullOrEmpty(instance.setId))
+            {
+                snapshot.instances.Add(instance.ToSaveData());
+            }
         }
 
         return snapshot;
@@ -995,6 +1014,8 @@ public class HeroProgressionManager : MonoBehaviour
 
         if (snapshot.heroIds != null && snapshot.equippedInstanceIds != null)
         {
+            HashSet<string> assignedInstances = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<string> assignedHeroes = new HashSet<string>(StringComparer.Ordinal);
             int count = Mathf.Min(snapshot.heroIds.Count, snapshot.equippedInstanceIds.Count);
             for (int i = 0; i < count; i++)
             {
@@ -1006,10 +1027,12 @@ public class HeroProgressionManager : MonoBehaviour
                 }
 
                 GearInstance equipped = GetGearInstance(instanceId);
-                if (equipped == null)
+                if (equipped == null || assignedInstances.Contains(instanceId) || assignedHeroes.Contains(heroId))
                 {
                     continue;
                 }
+                assignedInstances.Add(instanceId);
+                assignedHeroes.Add(heroId);
 
                 EnsureHero(heroId);
                 HeroProgressionState state = heroStates[heroId];
@@ -1302,117 +1325,109 @@ public class HeroProgressionManager : MonoBehaviour
     {
         PartyCompositionSnapshot snapshot = new PartyCompositionSnapshot();
         PartyManager partyManager = PartyManager.Instance;
-        if (partyManager == null || partyManager.PartyData == null)
-        {
-            return snapshot;
-        }
-
-        HeroData[] active = partyManager.GetActiveParty();
-        HeroData[] reserve = partyManager.GetReserveParty();
-        AppendHeroIds(active, snapshot.activeHeroIds);
-        AppendHeroIds(reserve, snapshot.reserveHeroIds);
+        if (partyManager == null || partyManager.PartyData == null) return snapshot;
+        AppendHeroIds(partyManager.GetActiveParty(), snapshot.activeHeroIds);
+        AppendHeroIds(partyManager.GetReserveParty(), snapshot.reserveHeroIds);
         return snapshot;
     }
 
     public void ApplyPartyCompositionSnapshot(PartyCompositionSnapshot snapshot)
     {
-        if (snapshot == null)
-        {
-            return;
-        }
-
+        if (snapshot == null) return;
         PartyManager partyManager = PartyManager.Instance;
-        if (partyManager == null || partyManager.PartyData == null)
-        {
-            return;
-        }
+        if (partyManager == null || partyManager.PartyData == null) return;
 
         PartyData partyData = partyManager.PartyData;
-        partyData.activeSlots = ResolveHeroDataSlots(snapshot.activeHeroIds, partyData.activeSlots.Length, partyData.activeSlots);
-        partyData.reserveSlots = ResolveHeroDataSlots(snapshot.reserveHeroIds, partyData.reserveSlots.Length, partyData.reserveSlots);
+        partyData.EnsureSlotLayout();
+        int activeCount = PartyData.ActiveSlotCount;
+        int reserveCount = PartyData.ReserveSlotCount;
+        HeroData[] fallback = new HeroData[activeCount + reserveCount];
+        Array.Copy(partyData.activeSlots, 0, fallback, 0, activeCount);
+        Array.Copy(partyData.reserveSlots, 0, fallback, activeCount, reserveCount);
+
+        // Resolve both rosters together so a stale-id fallback cannot duplicate
+        // a hero which the save places in another active or reserve slot.
+        List<string> savedIds = new List<string>(fallback.Length);
+        AppendSavedSlots(snapshot.activeHeroIds, partyData.activeSlots, activeCount, savedIds);
+        AppendSavedSlots(snapshot.reserveHeroIds, partyData.reserveSlots, reserveCount, savedIds);
+        HeroData[] restored = ResolveHeroDataSlots(savedIds, fallback.Length, fallback);
+        partyData.activeSlots = new HeroData[activeCount];
+        partyData.reserveSlots = new HeroData[reserveCount];
+        Array.Copy(restored, 0, partyData.activeSlots, 0, activeCount);
+        Array.Copy(restored, activeCount, partyData.reserveSlots, 0, reserveCount);
     }
 
     private static void AppendHeroIds(HeroData[] heroes, List<string> target)
     {
-        if (heroes == null)
-        {
-            return;
-        }
-
+        if (heroes == null || target == null) return;
         for (int i = 0; i < heroes.Length; i++)
         {
-            if (heroes[i] != null && !string.IsNullOrEmpty(heroes[i].heroId))
-            {
-                target.Add(heroes[i].heroId);
-            }
+            // Empty markers retain interior holes instead of shifting every
+            // later hero left. Older compact lists still restore at the start.
+            target.Add(heroes[i] != null ? heroes[i].heroId ?? string.Empty : string.Empty);
+        }
+    }
+
+    private static void AppendSavedSlots(List<string> ids, HeroData[] fallback, int count, List<string> target)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            string id = ids == null
+                ? (fallback[i] != null ? fallback[i].heroId : string.Empty)
+                : i < ids.Count ? ids[i] : string.Empty;
+            target.Add(id ?? string.Empty);
         }
     }
 
     private static HeroData[] ResolveHeroDataSlots(List<string> ids, int slotLimit, HeroData[] fallback)
     {
         int length = Mathf.Max(0, slotLimit);
-        if (ids != null && ids.Count > 0)
-        {
-            length = Mathf.Min(length == 0 ? ids.Count : length, ids.Count);
-        }
-        else if (fallback != null)
-        {
-            length = Mathf.Min(length == 0 ? fallback.Length : length, fallback.Length);
-            HeroData[] existing = new HeroData[length];
-            for (int i = 0; i < length; i++)
-            {
-                existing[i] = fallback[i];
-            }
-            return existing;
-        }
-
         HeroData[] slots = new HeroData[length];
-        if (ids == null)
-        {
-            // No saved ids at all: keep the live party as-is rather than
-            // emptying it.
-            for (int i = 0; i < length && i < fallback.Length; i++)
-            {
-                slots[i] = fallback[i];
-            }
+        bool[] needsFallback = new bool[length];
+        HashSet<string> claimed = new HashSet<string>(StringComparer.Ordinal);
 
-            return slots;
-        }
-
+        // Claim all resolvable saved heroes first. A fallback for an earlier
+        // unknown id may not steal a hero which resolves in a later slot.
         for (int i = 0; i < length; i++)
         {
-            string id = ids[i];
-            if (string.IsNullOrEmpty(id))
-            {
-                // The save records a compact list of non-empty slots, so a
-                // short list legitimately means "this slot was empty". Seed
-                // from the live party so an unresolvable id cannot silently
-                // shrink the active party below its minimum, but do NOT seed
-                // past the ids the save actually recorded: that would
-                // resurrect a hero the player benched.
-                if (i < fallback.Length)
-                {
-                    slots[i] = fallback[i];
-                }
-
-                continue;
-            }
-
+            string id = ids != null
+                ? (i < ids.Count ? ids[i] : string.Empty)
+                : (fallback != null && i < fallback.Length && fallback[i] != null ? fallback[i].heroId : string.Empty);
+            if (string.IsNullOrEmpty(id)) continue;
             HeroData hero = HeroDatabase.FindHeroById(id);
-            if (hero != null)
+            if (hero != null && !string.IsNullOrEmpty(hero.heroId) && claimed.Add(hero.heroId))
             {
                 slots[i] = hero;
             }
             else
             {
-                Debug.LogWarning($"[HeroProgressionManager] Saved party id '{id}' could not be resolved; keeping the existing slot.");
-                if (i < fallback.Length)
-                {
-                    slots[i] = fallback[i];
-                }
+                needsFallback[i] = true;
             }
         }
 
+        for (int i = 0; i < length; i++)
+        {
+            if (!needsFallback[i] || fallback == null) continue;
+            HeroData preferred = i < fallback.Length ? fallback[i] : null;
+            if (TryClaimFallback(preferred, claimed))
+            {
+                slots[i] = preferred;
+                continue;
+            }
+            for (int candidate = 0; candidate < fallback.Length; candidate++)
+            {
+                if (TryClaimFallback(fallback[candidate], claimed))
+                {
+                    slots[i] = fallback[candidate];
+                    break;
+                }
+            }
+        }
         return slots;
+    }
+
+    private static bool TryClaimFallback(HeroData hero, HashSet<string> claimed)
+    {
+        return hero != null && !string.IsNullOrEmpty(hero.heroId) && claimed.Add(hero.heroId);
     }
 }

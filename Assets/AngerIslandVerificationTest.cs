@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -110,3 +111,4 @@ public class AngerIslandVerificationTest : MonoBehaviour
             $"Anger scene file should exist at Assets/{SceneRelativePath}.");
     }
 }
+#endif

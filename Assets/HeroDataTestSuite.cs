@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -230,3 +231,4 @@ public class HeroDataTestSuite
         Object.DestroyImmediate(testObject);
     }
 }
+#endif

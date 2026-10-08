@@ -14,6 +14,9 @@ Drizzle support.
 npm install
 npm run dev
 npm run build
+npm run typecheck
+npm test
+npm run lint
 ```
 
 This starter does not use `wrangler.jsonc`.

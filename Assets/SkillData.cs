@@ -50,8 +50,19 @@ public class SkillData : ScriptableObject
     {
         return !string.IsNullOrEmpty(skillName)
             && mpCost >= 0
-            && damageMultiplier >= 0f
-            && restoreCasterPercentOfDamage >= 0f
-            && healMultiplier >= 0f;
+            && IsFiniteNonNegative(damageMultiplier)
+            && IsFiniteNonNegative(restoreCasterPercentOfDamage)
+            && IsFiniteNonNegative(healMultiplier)
+            && (int)target >= (int)SkillTarget.SingleEnemy && (int)target <= (int)SkillTarget.AllAllies
+            && (int)element >= (int)CombatUnit.Element.None && (int)element <= (int)CombatUnit.Element.Space
+            && (int)appliedEffectType >= (int)StatusEffectType.None && (int)appliedEffectType <= (int)StatusEffectType.AccuracyBuff
+            && IsFiniteNonNegative(effectMagnitude)
+            && currencyStealAmount >= 0
+            && (appliedEffectType == StatusEffectType.None || effectDuration != 0);
+    }
+
+    private static bool IsFiniteNonNegative(float value)
+    {
+        return !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
     }
 }

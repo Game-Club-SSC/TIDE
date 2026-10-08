@@ -1,5 +1,7 @@
-# Runtime simulation - mirror what the actual Unity test would do
-# by reading the code and checking its semantic correctness
+# Source contract checks and deterministic arithmetic examples.
+# This script does not execute Unity gameplay or substitute for Play Mode.
+$ErrorActionPreference = "Stop"
+Set-Location -LiteralPath $PSScriptRoot
 
 $script:runtimeChecks = New-Object System.Collections.Generic.List[object]
 
@@ -17,9 +19,9 @@ function Runtime-Check {
 #   - baseSpeed = 20, apply Slow(3, 0.5f)
 #   - expects GetEffectiveSpeed() == 10
 $cu = Get-Content "Assets/CombatUnit.cs" -Raw
-$speedPattern = '(?ms)public int GetEffectiveSpeed\(\).*?return\s+Mathf\.Max\(1,\s*Mathf\.RoundToInt\(speed\s*\*\s*\(1f\s*-\s*Mathf\.Clamp01\(largestSlow\)\)\)'
+$speedPattern = '(?ms)public int GetEffectiveSpeed\(\).*?return\s+Mathf\.Max\(1,\s*CombatMath\.RoundToNonNegativeInt\(speed\s*\*\s*\(1f\s*-\s*Mathf\.Clamp01\(largestSlow\)\)\)'
 $speedOk = $cu -match $speedPattern
-Runtime-Check "Sloth/Slow/GetEffectiveSpeed applies Slow magnitude" $speedOk "method body matches: return Mathf.Max(1, Mathf.RoundToInt(speed * (1f - Mathf.Clamp01(largestSlow))))"
+Runtime-Check "Sloth/Slow/GetEffectiveSpeed applies Slow magnitude" $speedOk "method body matches: return Mathf.Max(1, CombatMath.RoundToNonNegativeInt(speed * (1f - Mathf.Clamp01(largestSlow))))"
 # Simulate: speed 20, magnitude 0.5 -> 20 * 0.5 = 10
 $testSpeed = 20
 $testMag = 0.5
@@ -102,20 +104,27 @@ Get-ChildItem -Path "Assets/Resources" -Recurse -Filter "*.meta" -ErrorAction Si
 }
 
 $islands = @(
-    @{ id = "island_lust";     file = "island_lust" }
-    @{ id = "island_gluttony"; file = "island_gluttony" }
-    @{ id = "island_greed";    file = "island_greed" }
-    @{ id = "island_sloth";    file = "island_desire" }
-    @{ id = "island_wrath";    file = "island_anger" }
-    @{ id = "island_envy";     file = "island_envy" }
-    @{ id = "island_pride";    file = "island_ego" }
+    @{ id = "island_lust"; file = "island_lust" }
+    @{ id = "island_greed"; file = "island_greed" }
+    @{ id = "island_desire"; file = "island_desire" }
+    @{ id = "island_anger"; file = "island_anger" }
+    @{ id = "island_envy"; file = "island_envy" }
+    @{ id = "island_ego"; file = "island_ego" }
 )
 
 foreach ($island in $islands) {
-    $cfg = Get-Content "Assets/Resources/Islands/$($island.file).asset" -Raw
+    $cfgPath = "Assets/Resources/Islands/$($island.file).asset"
+    if (-not (Test-Path $cfgPath)) {
+        Runtime-Check "$($island.id)/config exists" $false "missing=$cfgPath"
+        continue
+    }
+    $cfg = Get-Content $cfgPath -Raw
     $entryTexts = $cfg -split '(?m)(?=^\s*-\s+encounterId:)'
     $entries = @()
     foreach ($t in $entryTexts) { if ($t -match 'encounterId:') { $entries += ,$t } }
+
+    Runtime-Check "$($island.id)/exact nine encounter definitions" ($entries.Count -eq 9) "count=$($entries.Count)"
+    if ($entries.Count -ne 9) { continue }
 
     # Verify all combat encounter EncounterConfig GUIDs resolve
     $missingEnc = @()
@@ -127,7 +136,7 @@ foreach ($island in $islands) {
             if (-not $resourceMap.ContainsKey($guid)) {
                 $missingEnc += $guid
             }
-        }
+        } else { $missingEnc += "missing reference at $j" }
     }
     Runtime-Check "$($island.id)/all 4 combat EncounterConfig GUIDs resolve" ($missingEnc.Count -eq 0) "missing=$($missingEnc -join ',')"
 
@@ -141,13 +150,14 @@ foreach ($island in $islands) {
             if (-not $resourceMap.ContainsKey($guid)) {
                 $missingPuz += $guid
             }
-        }
+        } else { $missingPuz += "missing reference at $j" }
     }
     Runtime-Check "$($island.id)/all 4 puzzle PuzzleData GUIDs resolve" ($missingPuz.Count -eq 0) "missing=$($missingPuz -join ',')"
 
     # Verify boss EncounterConfig GUID resolves
     $bossEntry = $entries[8]
     $bm = [regex]::Match($bossEntry, 'encounterConfig:\s*\{fileID: 11400000, guid:\s+([a-f0-9]{32})')
+    Runtime-Check "$($island.id)/boss reference present" $bm.Success ""
     if ($bm.Success) {
         $bossGuid = $bm.Groups[1].Value
         $bossOk = $resourceMap.ContainsKey($bossGuid)
@@ -165,7 +175,7 @@ foreach ($island in $islands) {
 # ==================== Final report ====================
 Write-Host ""
 Write-Host "================================================================"
-Write-Host "RUNTIME SIMULATION SUMMARY"
+Write-Host "SOURCE CONTRACT SUMMARY"
 Write-Host "================================================================"
 $pass = ($script:runtimeChecks | Where-Object { $_.Ok }).Count
 $fail = ($script:runtimeChecks | Where-Object { -not $_.Ok }).Count
@@ -181,6 +191,6 @@ if ($fail -gt 0) {
     }
     exit 1
 } else {
-    Write-Host "ALL RUNTIME SIMULATION CHECKS PASSED"
+    Write-Host "ALL SOURCE CONTRACT CHECKS PASSED (Unity runtime not executed)"
     exit 0
 }

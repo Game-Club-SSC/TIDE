@@ -42,12 +42,22 @@ public class DialogueTrigger : MonoBehaviour
     private float playerEnteredRangeAt;
     private bool hasPlayed;
     private bool dialoguePending;
+    private DialogueSystem activeSystem;
+    private string activeTreeId;
+    private List<DialogueSystem.DialogueEntry> activeEntries;
 
     /// <summary>Fired when this trigger's dialogue completes (useful for quest systems).</summary>
     public event Action OnDialogueFinished;
 
     private void Update()
     {
+        // Cancellation does not fire a completion callback. Allow an unseen
+        // one-shot conversation to retry after reset or a scene transition.
+        if (dialoguePending && (activeSystem == null || !activeSystem.IsDialogueActive))
+        {
+            ReleaseDialogueSubscription();
+            dialoguePending = false;
+        }
         if (!playerInRange || dialoguePending)
         {
             return;
@@ -117,9 +127,14 @@ public class DialogueTrigger : MonoBehaviour
         // Prefer branching tree if assigned
         if (dialogueTree != null && dialogueTree.rootNode != null)
         {
+            activeSystem = sys;
+            activeTreeId = dialogueTree.treeId;
             sys.OnDialogueTreeCompleted += HandleTreeDialogueCompleted;
-            sys.StartDialogueTree(dialogueTree);
-            hasPlayed = true;
+            if (!sys.StartDialogueTree(dialogueTree))
+            {
+                ReleaseDialogueSubscription();
+                dialoguePending = false;
+            }
             return;
         }
 
@@ -129,18 +144,19 @@ public class DialogueTrigger : MonoBehaviour
             return;
         }
 
+        activeSystem = sys;
+        activeEntries = dialogueEntries;
         sys.OnDialogueCompleted += HandleDialogueCompleted;
         sys.ShowDialogue(dialogueEntries);
-        hasPlayed = true;
     }
 
     private void HandleDialogueCompleted(List<DialogueSystem.DialogueEntry> _)
     {
-        DialogueSystem sys = DialogueSystem.Instance;
-        if (sys != null)
+        if (!dialoguePending || !ReferenceEquals(_, activeEntries))
         {
-            sys.OnDialogueCompleted -= HandleDialogueCompleted;
+            return;
         }
+        ReleaseDialogueSubscription();
 
         if (awardBondOnCompletion)
         {
@@ -148,18 +164,20 @@ public class DialogueTrigger : MonoBehaviour
         }
 
         dialoguePending = false;
+        hasPlayed = true;
         OnDialogueFinished?.Invoke();
     }
 
     private void HandleTreeDialogueCompleted(string treeId)
     {
-        DialogueSystem sys = DialogueSystem.Instance;
-        if (sys != null)
+        if (!dialoguePending || !string.Equals(treeId, activeTreeId, StringComparison.Ordinal))
         {
-            sys.OnDialogueTreeCompleted -= HandleTreeDialogueCompleted;
+            return;
         }
+        ReleaseDialogueSubscription();
 
         dialoguePending = false;
+        hasPlayed = true;
         OnDialogueFinished?.Invoke();
     }
 
@@ -173,17 +191,17 @@ public class DialogueTrigger : MonoBehaviour
 
         // Collect unique related hero IDs from the dialogue entries
         HashSet<string> heroes = new HashSet<string>(StringComparer.Ordinal);
+        List<string> heroList = new List<string>();
         for (int i = 0; i < dialogueEntries.Count; i++)
         {
             DialogueSystem.DialogueEntry entry = dialogueEntries[i];
-            if (!string.IsNullOrEmpty(entry.relatedHeroId))
+            if (!string.IsNullOrEmpty(entry.relatedHeroId) && heroes.Add(entry.relatedHeroId))
             {
-                heroes.Add(entry.relatedHeroId);
+                heroList.Add(entry.relatedHeroId);
             }
         }
 
         // If we have at least 2 distinct heroes, bond the first pair
-        List<string> heroList = new List<string>(heroes);
         if (heroList.Count >= 2)
         {
             sys.IncreaseBond(heroList[0], heroList[1], bondAmount);
@@ -264,11 +282,18 @@ public class DialogueTrigger : MonoBehaviour
 
     private void OnDestroy()
     {
-        DialogueSystem sys = DialogueSystem.Instance;
-        if (sys != null)
+        ReleaseDialogueSubscription();
+    }
+
+    private void ReleaseDialogueSubscription()
+    {
+        if (activeSystem != null)
         {
-            sys.OnDialogueTreeCompleted -= HandleTreeDialogueCompleted;
-            sys.OnDialogueCompleted -= HandleDialogueCompleted;
+            activeSystem.OnDialogueTreeCompleted -= HandleTreeDialogueCompleted;
+            activeSystem.OnDialogueCompleted -= HandleDialogueCompleted;
         }
+        activeSystem = null;
+        activeTreeId = null;
+        activeEntries = null;
     }
 }

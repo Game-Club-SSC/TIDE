@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -82,3 +83,4 @@ public class EnemySpriteContentValidationTest : MonoBehaviour
         Debug.Log("Enemy overworld sprites validated for all 5 elements.");
     }
 }
+#endif

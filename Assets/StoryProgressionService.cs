@@ -71,6 +71,7 @@ public class StoryProgressionService : MonoBehaviour
 
     public void SetCurrentAct(StoryAct act)
     {
+        act = (StoryAct)Mathf.Clamp((int)act, (int)StoryAct.None, (int)StoryAct.ActIII);
         if (currentAct == act)
         {
             return;
@@ -87,6 +88,10 @@ public class StoryProgressionService : MonoBehaviour
 
     public void SetEndingBranch(EndingBranch branch)
     {
+        if (!Enum.IsDefined(typeof(EndingBranch), branch))
+        {
+            return;
+        }
         if (endingBranch == branch)
         {
             return;
@@ -206,14 +211,15 @@ public class StoryProgressionService : MonoBehaviour
     {
         if (snapshot == null)
         {
+            ResetForDebug();
             return;
         }
 
-        currentAct = (StoryAct)snapshot.currentAct;
-        highestActReached = (StoryAct)snapshot.highestActReached;
-        endingTriggered = snapshot.endingTriggered;
+        currentAct = (StoryAct)Mathf.Clamp(snapshot.currentAct, (int)StoryAct.None, (int)StoryAct.ActIII);
+        highestActReached = (StoryAct)Mathf.Clamp(Mathf.Max(snapshot.highestActReached, (int)currentAct), (int)StoryAct.None, (int)StoryAct.ActIII);
 
-        if (Enum.TryParse(snapshot.endingBranch, out EndingBranch parsed))
+        if (Enum.TryParse(snapshot.endingBranch, out EndingBranch parsed)
+            && Enum.IsDefined(typeof(EndingBranch), parsed))
         {
             endingBranch = parsed;
         }
@@ -221,6 +227,7 @@ public class StoryProgressionService : MonoBehaviour
         {
             endingBranch = EndingBranch.None;
         }
+        endingTriggered = snapshot.endingTriggered && endingBranch != EndingBranch.None;
 
         storyFlags.Clear();
         if (snapshot.flagKeys != null && snapshot.flagValues != null)
@@ -247,10 +254,7 @@ public class StoryProgressionService : MonoBehaviour
         }
 
         currentAct = (StoryAct)(int)gsm.CurrentStoryAct;
-        if ((int)currentAct > (int)highestActReached)
-        {
-            highestActReached = currentAct;
-        }
+        highestActReached = (StoryAct)Mathf.Max((int)gsm.HighestStoryActReached, (int)currentAct);
 
         endingBranch = (EndingBranch)(int)gsm.ResolvedEndingBranch;
         endingTriggered = gsm.IsEndingTriggered;

@@ -65,6 +65,7 @@ public class CombatUnit : MonoBehaviour
     // Unit state
     [Header("Unit State")]
     [SerializeField] protected string unitName = "Combat Unit";
+    [SerializeField] private string heroId = string.Empty;
     [SerializeField] protected UnitType unitType = UnitType.Ally;
     [SerializeField] protected bool isAlive = true;
     [SerializeField] protected bool isDefending = false;
@@ -92,6 +93,7 @@ public class CombatUnit : MonoBehaviour
     internal int DebugSpeed { set => speed = value; }
 
     private List<StatusEffect> activeEffects = new List<StatusEffect>();
+    private readonly List<StatusEffect> turnStartEffects = new List<StatusEffect>();
     public IReadOnlyList<StatusEffect> ActiveEffects => activeEffects.AsReadOnly();
 
     /// <summary>
@@ -172,6 +174,7 @@ public class CombatUnit : MonoBehaviour
     }
     public bool IsAlive => isAlive;
     public string UnitName { get => unitName; set => unitName = value; }
+    public string HeroId { get => heroId; set => heroId = value ?? string.Empty; }
     public UnitType Type
     {
         get => unitType;
@@ -202,7 +205,12 @@ public class CombatUnit : MonoBehaviour
     /// Whether this unit is currently stunned (skips its next turn).
     /// Set during ProcessTurnStartEffects when a Stun effect is active.
     /// </summary>
-    public bool IsStunned { get; private set; }
+    private bool stunnedThisTurn;
+    public bool IsStunned
+    {
+        get => stunnedThisTurn || activeEffects.Exists(effect => effect != null && effect.IsValid() && effect.Type == StatusEffectType.Stun);
+        private set => stunnedThisTurn = value;
+    }
 
     /// <summary>
     /// Whether this unit is currently taunted, forcing it to target a specific enemy.
@@ -248,7 +256,7 @@ public class CombatUnit : MonoBehaviour
 
     public bool CanUseSkill(SkillData skill)
     {
-        return isAlive && skill != null && skill.mpCost >= 0 && mp >= skill.mpCost;
+        return isAlive && skill != null && skill.IsValid() && mp >= skill.mpCost;
     }
 
     public void SetSkills(SkillData[] newSkills)
@@ -304,10 +312,10 @@ public class CombatUnit : MonoBehaviour
         int modifiedDamage = damage;
         if (isDefending)
         {
-            modifiedDamage = Mathf.RoundToInt(modifiedDamage * GameConstants.DefendMultiplier);
+            modifiedDamage = CombatMath.RoundToNonNegativeInt(modifiedDamage * GameConstants.DefendMultiplier);
         }
         float defenseMod = GetDefenseModifier();
-        int effectiveDefense = Mathf.Max(0, Mathf.RoundToInt(defense * (1f + defenseMod)));
+        int effectiveDefense = Mathf.Max(0, CombatMath.RoundToNonNegativeInt(defense * (1f + defenseMod)));
         int actualDamage = Mathf.Max(1, modifiedDamage - effectiveDefense);
 
         // Shield absorbs damage before HP is reduced
@@ -315,7 +323,7 @@ public class CombatUnit : MonoBehaviour
         {
             float shieldAbsorb = Mathf.Min(shieldHp, actualDamage);
             shieldHp -= shieldAbsorb;
-            int absorbed = Mathf.CeilToInt(shieldAbsorb);
+            int absorbed = CombatMath.RoundToNonNegativeInt(Math.Ceiling(shieldAbsorb));
             actualDamage = Mathf.Max(0, actualDamage - absorbed);
             Debug.Log($"[CombatUnit] {unitName}'s shield absorbed {absorbed} damage. Shield HP: {shieldHp:F0}");
         }
@@ -373,19 +381,23 @@ public class CombatUnit : MonoBehaviour
 
     public void ApplyStatusEffect(StatusEffect effect)
     {
-        if (effect == null) return;
+        if (!isAlive || effect == null || !effect.IsValid()) return;
         // If effect of same type already exists, refresh duration to the NEWER one (more recent).
-        StatusEffect existing = activeEffects.Find(e => e.Type == effect.Type);
+        StatusEffect existing = activeEffects.Find(e => e != null && e.Type == effect.Type);
+        StatusEffect ownedEffect = new StatusEffect(effect.Type, effect.Duration,
+            effect.Magnitude, effect.SourceName, effect.Stacks);
         if (existing != null)
         {
-            existing.Duration = effect.Duration;
-            existing.Magnitude = effect.Magnitude;
-            existing.SourceName = effect.SourceName;
-            Debug.Log($"[CombatUnit] {unitName} refreshed {effect.Type} effect from {effect.SourceName}. Duration: {existing.Duration}");
+            // Replacing the instance also keeps a mid-turn refresh out of the
+            // start-of-turn expiry snapshot, so it retains its full duration.
+            activeEffects[activeEffects.IndexOf(existing)] = ownedEffect;
+            Debug.Log($"[CombatUnit] {unitName} refreshed {effect.Type} effect from {effect.SourceName}. Duration: {ownedEffect.Duration}");
         }
         else
         {
-            activeEffects.Add(effect);
+            // A status instance belongs to one unit. Shared AoE input must not
+            // make one recipient's tick shorten another recipient's duration.
+            activeEffects.Add(ownedEffect);
             Debug.Log($"[CombatUnit] {unitName} gained {effect.Type} effect from {effect.SourceName}. Duration: {effect.Duration}, Magnitude: {effect.Magnitude}");
         }
 
@@ -395,22 +407,26 @@ public class CombatUnit : MonoBehaviour
             // stacking. Never shrink an active shield on refresh, though: a
             // weaker re-application mid-fight would silently delete the
             // remaining buffer.
-            ShieldHp = Mathf.Max(ShieldHp, effect.Magnitude * maxHp);
+            ShieldHp = Mathf.Max(ShieldHp, (float)Math.Min(int.MaxValue, (double)effect.Magnitude * maxHp));
             Debug.Log($"[CombatUnit] {unitName}'s shield HP set to {ShieldHp:F0} ({ShieldHp / maxHp:P0} of MaxHP).");
         }
     }
 
     public void ProcessTurnStartEffects()
     {
+        // Direct callers may begin another turn without the battle runner.
+        // Finish the previous turn first so each duration advances once.
+        ProcessTurnEndEffects();
         // Reset stun flag at the start of processing; it will be re-set if Stun is active
         IsStunned = false;
+        turnStartEffects.AddRange(activeEffects);
 
         // Process effects at start of turn
         for (int i = activeEffects.Count - 1; i >= 0; i--)
         {
             StatusEffect effect = activeEffects[i];
 
-            if (effect == null)
+            if (effect == null || !effect.IsValid())
             {
                 activeEffects.RemoveAt(i);
                 continue;
@@ -420,7 +436,7 @@ public class CombatUnit : MonoBehaviour
             {
                 case StatusEffectType.Poison:
                 {
-                    int poisonDamage = Mathf.Max(1, (int)effect.Magnitude);
+                    int poisonDamage = CombatMath.RoundToNonNegativeInt(effect.Magnitude, 1);
                     TakeDamage(poisonDamage);
                     Debug.Log($"[CombatUnit] {unitName} took {poisonDamage} poison damage from {effect.SourceName}.");
                     break;
@@ -428,14 +444,14 @@ public class CombatUnit : MonoBehaviour
                 case StatusEffectType.Burn:
                 {
                     // Burn deals 1.5x the magnitude as damage (higher than poison)
-                    int burnDamage = Mathf.Max(1, Mathf.RoundToInt(effect.Magnitude * 1.5f));
+                    int burnDamage = Mathf.Max(1, CombatMath.RoundToNonNegativeInt(effect.Magnitude * 1.5f));
                     TakeDamage(burnDamage);
                     Debug.Log($"[CombatUnit] {unitName} took {burnDamage} burn damage from {effect.SourceName}.");
                     break;
                 }
                 case StatusEffectType.Regeneration:
                 {
-                    int healAmount = Mathf.Max(1, (int)effect.Magnitude);
+                    int healAmount = CombatMath.RoundToNonNegativeInt(effect.Magnitude, 1);
                     Heal(healAmount);
                     Debug.Log($"[CombatUnit] {unitName} regenerated {healAmount} HP from {effect.SourceName}.");
                     break;
@@ -443,7 +459,6 @@ public class CombatUnit : MonoBehaviour
                 case StatusEffectType.Stun:
                 {
                     IsStunned = true;
-                    SkipTurnThisRound = true;
                     Debug.Log($"[CombatUnit] {unitName} is stunned by {effect.SourceName} and will skip their turn.");
                     break;
                 }
@@ -456,18 +471,33 @@ public class CombatUnit : MonoBehaviour
                     break;
             }
 
-            effect.Tick();
-            if (effect.Duration == 0)
-            {
-                Debug.Log($"[CombatUnit] {unitName}'s {effect.Type} effect expired.");
-                activeEffects.RemoveAt(i);
-
-                if (effect.Type == StatusEffectType.Shield && !HasActiveShieldEffect())
-                {
-                    shieldHp = 0f;
-                }
-            }
+            // Buffs and control effects remain active through this action.
+            // Decrementing/removing here erased one-turn buffs and drowsy
+            // before the action could use them.
+            if (!isAlive) break;
         }
+
+        RefreshTauntState();
+    }
+
+    public void ProcessTurnEndEffects()
+    {
+        if (turnStartEffects.Count == 0) return;
+        for (int i = 0; i < turnStartEffects.Count; i++)
+        {
+            StatusEffect effect = turnStartEffects[i];
+            if (effect == null || !activeEffects.Contains(effect)) continue;
+            effect.Tick();
+            if (effect.Duration == 0) activeEffects.Remove(effect);
+        }
+        turnStartEffects.Clear();
+        IsStunned = false;
+        if (!HasActiveShieldEffect()) shieldHp = 0f;
+        RefreshTauntState();
+    }
+
+    private void RefreshTauntState()
+    {
 
         // Update taunt state: only clear tauntedBy if no active Taunt effect remains.
         // tauntedBy is set externally via SetTaunter; we preserve it as long as a
@@ -527,6 +557,7 @@ public class CombatUnit : MonoBehaviour
         float total = 0f;
         foreach (StatusEffect effect in activeEffects)
         {
+            if (effect == null) continue;
             if (effect.Type == StatusEffectType.BuffAttack)
                 total += effect.Magnitude;
             else if (effect.Type == StatusEffectType.DebuffAttack)
@@ -542,6 +573,7 @@ public class CombatUnit : MonoBehaviour
         float total = 0f;
         foreach (StatusEffect effect in activeEffects)
         {
+            if (effect == null) continue;
             if (effect.Type == StatusEffectType.BuffDefense)
                 total += effect.Magnitude;
             else if (effect.Type == StatusEffectType.DebuffDefense)
@@ -568,6 +600,7 @@ public class CombatUnit : MonoBehaviour
         float total = 0f;
         foreach (StatusEffect effect in activeEffects)
         {
+            if (effect == null) continue;
             if (effect.Type == StatusEffectType.AccuracyBuff)
                 total += effect.Magnitude;
             else if (effect.Type == StatusEffectType.AccuracyDown)
@@ -587,7 +620,7 @@ public class CombatUnit : MonoBehaviour
                 largestSlow = effect.Magnitude;
             }
         }
-        return Mathf.Max(1, Mathf.RoundToInt(speed * (1f - Mathf.Clamp01(largestSlow))));
+        return Mathf.Max(1, CombatMath.RoundToNonNegativeInt(speed * (1f - Mathf.Clamp01(largestSlow))));
     }
 
     public bool ShouldSkipTurn()
@@ -610,6 +643,7 @@ public class CombatUnit : MonoBehaviour
     public void ClearAllStatusEffects()
     {
         activeEffects.Clear();
+        turnStartEffects.Clear();
         IsStunned = false;
         tauntedBy = null;
         shieldHp = 0f;
@@ -700,6 +734,7 @@ public class CombatUnit : MonoBehaviour
         isAlive = true;
         ClearAllStatusEffects();
         isDefending = false;
+        SkipTurnThisRound = false;
         Debug.Log($"[CombatUnit] {unitName} was revived with {hp}/{maxHp} HP.");
     }
 
@@ -716,6 +751,9 @@ public class CombatUnit : MonoBehaviour
 
         isAlive = false;
         hp = 0; // Ensure HP doesn't go negative
+        isDefending = false;
+        SkipTurnThisRound = false;
+        ClearAllStatusEffects();
         Debug.Log($"[CombatUnit] {unitName} has been defeated!");
     }
 

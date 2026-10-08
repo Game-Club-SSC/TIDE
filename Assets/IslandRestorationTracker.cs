@@ -102,7 +102,7 @@ public class IslandRestorationTracker : MonoBehaviour
             return false;
         }
 
-        float previous = state.TotalContribution;
+        bool previouslyRestored = state.IsIslandRestored;
         bool isBossEncounter = IsConfiguredBossEncounter(islandId, encounterId);
         state.RecordCompletion(encounterId, type, value, isBossEncounter);
 
@@ -116,7 +116,7 @@ public class IslandRestorationTracker : MonoBehaviour
         {
             OnRestorationChanged?.Invoke(islandId, state.RestorationPercent);
 
-            if (state.IsIslandRestored && previous < 1f)
+            if (state.IsIslandRestored && !previouslyRestored)
             {
                 Debug.Log($"[IslandRestorationTracker] Island '{islandId}' fully restored!");
                 OnIslandRestored?.Invoke(islandId);
@@ -297,6 +297,11 @@ public class IslandRestorationTracker : MonoBehaviour
                 {
                     continue;
                 }
+                if (!IslandThemeRegistry.IsKnownIslandId(stateSnapshot.islandId))
+                {
+                    Debug.LogWarning($"[IslandRestorationTracker] Skipping snapshot with unknown island id '{stateSnapshot.islandId}'.");
+                    continue;
+                }
 
                 string scopedIslandId = ResolveIslandId(stateSnapshot.islandId);
                 if (string.IsNullOrEmpty(scopedIslandId))
@@ -314,8 +319,10 @@ public class IslandRestorationTracker : MonoBehaviour
 
         // Emit refresh events so that gates, HUD, and restoration visuals
         // pick up the restored state. Preserve the caller's suppression flag.
-        bool previousSuppression = suppressEvents;
-        suppressEvents = false;
+        if (suppressEvents)
+        {
+            return;
+        }
         foreach (KeyValuePair<string, IslandRestorationState> pair in islandStates)
         {
             OnRestorationChanged?.Invoke(pair.Key, pair.Value.RestorationPercent);
@@ -324,7 +331,6 @@ public class IslandRestorationTracker : MonoBehaviour
                 OnIslandRestored?.Invoke(pair.Key);
             }
         }
-        suppressEvents = previousSuppression;
     }
 
     private IslandRestorationState GetOrCreateState(string islandId)

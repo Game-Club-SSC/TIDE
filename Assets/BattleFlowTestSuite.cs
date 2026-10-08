@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || TIDE_COMBAT_HARNESS
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -1153,6 +1154,7 @@ public class BattleFlowTestSuite
         shield.damageMultiplier = 1f;
         try
         {
+            manager.Momentum.ShiftTowardPlayer(1f);
             InvokePrivate(manager, "ResolveTideBreak", caster, allyTarget, shield);
 
             Assert.IsTrue(HasStatusEffect(allyTarget, StatusEffectType.Shield), "SingleAlly Tide Break should grant a shield to the requested ally.");
@@ -1187,6 +1189,7 @@ public class BattleFlowTestSuite
         rain.damageMultiplier = 1f;
         try
         {
+            manager.Momentum.ShiftTowardPlayer(1f);
             InvokePrivate(manager, "ResolveTideBreak", caster, null, rain);
 
             Assert.Greater(caster.HP, 30, "AllAllies Tide Break should heal the caster.");
@@ -1264,9 +1267,11 @@ public class BattleFlowTestSuite
         unit.ApplyStatusEffect(new StatusEffect(StatusEffectType.BuffAttack, 2, 0.2f, "Test"));
 
         unit.ProcessTurnStartEffects();
-        Assert.AreEqual(1, unit.ActiveEffects[0].Duration, "Effect duration should tick down once per turn start.");
+        unit.ProcessTurnEndEffects();
+        Assert.AreEqual(1, unit.ActiveEffects[0].Duration, "Effect duration should tick down once per completed turn.");
 
         unit.ProcessTurnStartEffects();
+        unit.ProcessTurnEndEffects();
         Assert.AreEqual(0, unit.ActiveEffects.Count, "Effect should expire when its duration reaches zero.");
         Assert.AreEqual(0f, unit.GetAttackModifier(), 0.0001f, "An expired buff must no longer modify attack.");
     }
@@ -1351,3 +1356,5 @@ public class BattleFlowTestSuite
         return field.GetValue(target);
     }
 }
+
+#endif

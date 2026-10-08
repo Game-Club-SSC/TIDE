@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: puzzle_anger_p4
   m_EditorClassIdentifier:
   tileValues:
-  - 9
+  - 10
   - 3
   - 8
   - 2

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -95,3 +96,4 @@ public class PerformanceBudgetMonitorTest : MonoBehaviour
         }
     }
 }
+#endif

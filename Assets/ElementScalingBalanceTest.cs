@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -114,3 +115,4 @@ public class ElementScalingBalanceTest : MonoBehaviour
         return 1f;
     }
 }
+#endif

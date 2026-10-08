@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -159,3 +160,4 @@ public class IslandFlowControllerTest : MonoBehaviour
         field.SetValue(target, value);
     }
 }
+#endif

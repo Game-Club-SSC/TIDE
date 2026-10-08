@@ -1,17 +1,20 @@
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 /// <summary>
-/// Singleton that reads gamepad input via UnityEngine.Input and exposes
+/// Singleton that reads gamepad input via the Input System (with a legacy input fallback) and exposes
 /// the same action channels used by IsometricPlayer and UI systems.
 /// Auto-detects gamepad connection and provides button name strings
 /// for HUD prompts (Xbox and PlayStation labels).
 /// </summary>
 [DisallowMultipleComponent]
+[DefaultExecutionOrder(-100)]
 public class GamepadInputManager : MonoBehaviour
 {
-    private const string HorizontalAxis = "Horizontal";
-    private const string VerticalAxis = "Vertical";
-    private const string MouseScrollAxis = "Mouse ScrollWheel";
+    private const string HorizontalAxis = "Gamepad Horizontal";
+    private const string VerticalAxis = "Gamepad Vertical";
 
     public static GamepadInputManager Instance { get; private set; }
 
@@ -53,8 +56,12 @@ public class GamepadInputManager : MonoBehaviour
     public bool IsGamepadConnected { get; private set; }
     public bool IsGamepadActive { get; private set; }
 
-    private bool previousAnyButton;
     private float previousNavigationY;
+#if ENABLE_INPUT_SYSTEM
+    private Gamepad currentGamepad;
+#else
+    private float nextConnectionCheck;
+#endif
 
     // ----- Lifecycle -----
 
@@ -96,32 +103,98 @@ public class GamepadInputManager : MonoBehaviour
     private void DetectGamepadConnection()
     {
         bool wasConnected = IsGamepadConnected;
-        IsGamepadConnected = Input.GetJoystickNames().Length > 0 && !string.IsNullOrEmpty(Input.GetJoystickNames()[0]);
-
-        if (IsGamepadConnected && !wasConnected)
+#if ENABLE_INPUT_SYSTEM
+        currentGamepad = Gamepad.current;
+        IsGamepadConnected = currentGamepad != null;
+#else
+        // GetJoystickNames allocates. Poll hot-plug state at a bounded rate and
+        // inspect every slot: disconnected devices can leave empty first slots.
+        if (Time.unscaledTime >= nextConnectionCheck)
         {
-#if UNITY_EDITOR
-            Debug.Log("[GamepadInputManager] Gamepad connected.");
-#endif
-        }
-        else if (!IsGamepadConnected && wasConnected)
-        {
-#if UNITY_EDITOR
-            Debug.Log("[GamepadInputManager] Gamepad disconnected.");
-#endif
-            IsGamepadActive = false;
-        }
-
-        if (IsGamepadConnected && !IsGamepadActive)
-        {
-            if (Input.anyKey || Mathf.Abs(Input.GetAxisRaw(HorizontalAxis)) > stickDeadZone || Mathf.Abs(Input.GetAxisRaw(VerticalAxis)) > stickDeadZone)
+            nextConnectionCheck = Time.unscaledTime + 0.5f;
+            string[] names = Input.GetJoystickNames();
+            IsGamepadConnected = false;
+            for (int i = 0; i < names.Length; i++)
             {
-                IsGamepadActive = true;
-#if UNITY_EDITOR
-                Debug.Log("[GamepadInputManager] Gamepad input detected -- switching to gamepad prompts.");
-#endif
+                if (!string.IsNullOrEmpty(names[i]))
+                {
+                    IsGamepadConnected = true;
+                    break;
+                }
             }
         }
+#endif
+        if (!IsGamepadConnected)
+        {
+            IsGamepadActive = false;
+        }
+        else if (!IsGamepadActive)
+        {
+            bool buttonUsed = false;
+            for (int i = 0; i <= 7; i++)
+            {
+                buttonUsed |= ReadButton(i, false);
+            }
+            IsGamepadActive = buttonUsed || Mathf.Abs(ReadStick(true)) > stickDeadZone
+                || Mathf.Abs(ReadStick(false)) > stickDeadZone;
+        }
+
+#if UNITY_EDITOR
+        if (wasConnected != IsGamepadConnected)
+        {
+            Debug.Log(IsGamepadConnected
+                ? "[GamepadInputManager] Gamepad connected."
+                : "[GamepadInputManager] Gamepad disconnected.");
+        }
+#endif
+    }
+
+    private float ReadStick(bool horizontal)
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (currentGamepad == null) return 0f;
+        Vector2 stick = currentGamepad.leftStick.ReadValue();
+        return horizontal ? stick.x : stick.y;
+#else
+        return Input.GetAxisRaw(horizontal ? HorizontalAxis : VerticalAxis);
+#endif
+    }
+
+    private float ReadDpad(bool horizontal)
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (currentGamepad == null) return 0f;
+        Vector2 dpad = currentGamepad.dpad.ReadValue();
+        return horizontal ? dpad.x : dpad.y;
+#else
+        return Input.GetAxisRaw(horizontal ? "DPad Horizontal" : "DPad Vertical");
+#endif
+    }
+
+    private bool ReadButton(int index, bool pressedThisFrame)
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (currentGamepad == null) return false;
+        UnityEngine.InputSystem.Controls.ButtonControl button;
+        switch (index)
+        {
+            case 0: button = currentGamepad.buttonSouth; break;
+            case 1: button = currentGamepad.buttonEast; break;
+            case 2: button = currentGamepad.buttonWest; break;
+            case 3: button = currentGamepad.buttonNorth; break;
+            case 4: button = currentGamepad.leftShoulder; break;
+            case 5: button = currentGamepad.rightShoulder; break;
+            case 6: button = currentGamepad.leftStickButton; break;
+            case 7: button = currentGamepad.startButton; break;
+            default: return false;
+        }
+        return pressedThisFrame ? button.wasPressedThisFrame : button.isPressed;
+#else
+        // GetButton takes an InputManager axis name, not a key name. Joystick
+        // KeyCodes work without defining a separate virtual axis per button.
+        KeyCode key = (KeyCode)((int)KeyCode.JoystickButton0 + index);
+        return pressedThisFrame ? Input.GetKeyDown(key) : Input.GetKey(key);
+#endif
     }
 
     // ----- Movement -----
@@ -136,8 +209,8 @@ public class GamepadInputManager : MonoBehaviour
             return;
         }
 
-        float rawH = Input.GetAxisRaw(HorizontalAxis);
-        float rawV = Input.GetAxisRaw(VerticalAxis);
+        float rawH = ReadStick(true);
+        float rawV = ReadStick(false);
 
         MoveH = ApplyDeadZone(rawH);
         MoveV = ApplyDeadZone(rawV);
@@ -146,7 +219,7 @@ public class GamepadInputManager : MonoBehaviour
         // resolves to "joystick button 2" (X/Square, already Dash) and
         // button 4 is LB (already Swap), so aliasing either would fire sprint
         // alongside those actions.
-        SprintHeld = Input.GetButton("joystick button 6");
+        SprintHeld = ReadButton(6, false);
     }
 
     // ----- Exploration Actions -----
@@ -168,12 +241,12 @@ public class GamepadInputManager : MonoBehaviour
             return;
         }
 
-        // One-shot button presses (GetButtonDown for single-frame detection)
-        InteractPressed = Input.GetButtonDown("joystick button 0");   // A / Cross
-        DashPressed = Input.GetButtonDown("joystick button 2");       // X / Square
-        HopPressed = Input.GetButtonDown("joystick button 1");        // B / Circle
-        MenuPressed = Input.GetButtonDown("joystick button 7");       // Start
-        CancelPressed = Input.GetButtonDown("joystick button 1");     // B / Circle (shared with Hop, context-dependent)
+        // One-shot button presses sampled before UI and player consumers update.
+        InteractPressed = ReadButton(0, true);   // A / Cross
+        DashPressed = ReadButton(2, true);       // X / Square
+        HopPressed = ReadButton(1, true);        // B / Circle
+        MenuPressed = ReadButton(7, true);       // Start
+        CancelPressed = ReadButton(1, true);     // B / Circle (shared with Hop, context-dependent)
     }
 
     // ----- Battle Actions -----
@@ -195,12 +268,12 @@ public class GamepadInputManager : MonoBehaviour
             return;
         }
 
-        AttackPressed = Input.GetButtonDown("joystick button 0");     // A / Cross
-        SkillPressed = Input.GetButtonDown("joystick button 2");      // X / Square
-        DefendPressed = Input.GetButtonDown("joystick button 3");     // Y / Triangle
-        FleePressed = Input.GetButtonDown("joystick button 1");       // B / Circle
-        SwapPressed = Input.GetButtonDown("joystick button 4")        // LB
-                      || Input.GetButtonDown("joystick button 5");    // RB
+        AttackPressed = ReadButton(0, true);     // A / Cross
+        SkillPressed = ReadButton(2, true);      // X / Square
+        DefendPressed = ReadButton(3, true);     // Y / Triangle
+        FleePressed = ReadButton(1, true);       // B / Circle
+        SwapPressed = ReadButton(4, true)        // LB
+                      || ReadButton(5, true);    // RB
     }
 
     // ----- UI Navigation -----
@@ -223,12 +296,13 @@ public class GamepadInputManager : MonoBehaviour
             return;
         }
 
-        TabLeftPressed = Input.GetButtonDown("joystick button 4");    // LB
-        TabRightPressed = Input.GetButtonDown("joystick button 5");   // RB
-        ConfirmPressed = Input.GetButtonDown("joystick button 0");    // A / Cross
-        BackPressed = Input.GetButtonDown("joystick button 1");       // B / Circle
+        TabLeftPressed = ReadButton(4, true);    // LB
+        TabRightPressed = ReadButton(5, true);   // RB
+        ConfirmPressed = ReadButton(0, true);    // A / Cross
+        BackPressed = ReadButton(1, true);       // B / Circle
 
-        float navigationY = ApplyDeadZone(Input.GetAxisRaw(VerticalAxis));
+        float dpadY = ReadDpad(false);
+        float navigationY = Mathf.Abs(dpadY) > stickDeadZone ? dpadY : ApplyDeadZone(ReadStick(false));
         NavUpPressed = navigationY > 0f && previousNavigationY <= 0f;
         NavDownPressed = navigationY < 0f && previousNavigationY >= 0f;
         previousNavigationY = navigationY;
@@ -250,7 +324,11 @@ public class GamepadInputManager : MonoBehaviour
 
         // D-Pad horizontal (rising edge only; holding the d-pad would
         // otherwise cycle the index ~60 times per second)
-        float dpadH = Input.GetAxisRaw("DPad Horizontal");
+        float dpadH = ReadDpad(true);
+        if (Mathf.Abs(dpadH) <= stickDeadZone)
+        {
+            dpadH = ReadStick(true);
+        }
         bool dpadActive = Mathf.Abs(dpadH) > stickDeadZone;
         bool dpadPressed = dpadActive && !lastDpadHorizontalActive;
         lastDpadHorizontalActive = dpadActive;
@@ -273,15 +351,16 @@ public class GamepadInputManager : MonoBehaviour
 
     private float ApplyDeadZone(float value)
     {
-        if (Mathf.Abs(value) < stickDeadZone)
+        float deadZone = Mathf.Clamp(stickDeadZone, 0f, 0.9f);
+        if (Mathf.Abs(value) <= deadZone)
         {
             return 0f;
         }
 
         // Rescale so the dead zone edge maps to 0 and full tilt maps to 1
         float sign = Mathf.Sign(value);
-        float range = Mathf.Max(0.0001f, 1f - stickDeadZone);
-        return sign * (Mathf.Abs(value) - stickDeadZone) / range;
+        float range = 1f - deadZone;
+        return sign * Mathf.Clamp01((Mathf.Abs(value) - deadZone) / range);
     }
 
     public void ResetTargetIndex()

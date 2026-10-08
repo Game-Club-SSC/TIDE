@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -383,3 +384,4 @@ public class GearSystemTest : MonoBehaviour
         field.SetValue(target, value);
     }
 }
+#endif

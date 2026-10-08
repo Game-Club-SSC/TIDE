@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -17,98 +18,52 @@ public class SavePersistenceTest : MonoBehaviour
         TestExistingWorldStateSaveSchemaExtendsCleanly();
         TestCorruptWorldStateLoadFailsClosed();
         TestLiveSaveBackupRecoversCorruptRuntimeWorldState();
-        TestSavedEndingResumesAfterContinue();
+        TestSavedEndingStateRestores();
+        TestLiveSaveRejectsMalformedAndFutureSchemas();
+        TestLiveSaveRecoversMissingPrimary();
+        TestCorruptNewGamePlusFailsClosed();
+        TestNewGamePlusRunSnapshotRestoresSavedMode();
 
         Debug.Log("=== All Save Persistence Tests Passed ===");
     }
 
     private void TestPartyCompositionRoundTrip()
     {
-        Debug.Log("Testing party composition round-trip across save/load...");
-
-        GameStateManager sourceManager = null;
-        GameStateManager targetManager = null;
-        GameObject heroDatabaseObject = null;
-
+        GameStateManager manager = null;
+        GameObject partyObject = null;
+        PartyData party = null;
         try
         {
-            sourceManager = CreateIsolatedManager("TestGameStateManager_PartySource");
+            manager = CreateIsolatedManager("TestGameStateManager_PartyRoundTrip");
+            HeroDatabase database = Resources.Load<HeroDatabase>("HeroDatabase");
+            Assert.IsNotNull(database, "Authored hero database must be available for restore resolution.");
+            party = ScriptableObject.CreateInstance<PartyData>();
+            party.activeSlots = new[] { database.GetHero("hero_water"), database.GetHero("hero_fire"), database.GetHero("hero_space") };
+            party.reserveSlots = new[] { database.GetHero("hero_air"), database.GetHero("hero_earth") };
+            foreach (HeroData hero in party.GetAllHeroes()) Assert.IsNotNull(hero);
+            Assert.AreEqual(5, party.GetAllHeroes().Length, "The fixture must contain all five real heroes.");
+            partyObject = new GameObject("TestParty_SaveRoundTrip");
+            PartyManager partyManager = partyObject.AddComponent<PartyManager>();
+            SetAutoPropertyBackingField(typeof(PartyManager), "Instance", partyManager);
+            partyManager.Initialize(party, database);
 
-            HeroDatabase heroDatabase = ScriptableObject.CreateInstance<HeroDatabase>();
-            HeroData[] allHeroes = new HeroData[5];
-            string[] elementIds = { "hero_fire", "hero_water", "hero_earth", "hero_air", "hero_space" };
-            CombatUnit.Element[] elementValues =
-            {
-                CombatUnit.Element.Fire,
-                CombatUnit.Element.Water,
-                CombatUnit.Element.Earth,
-                CombatUnit.Element.Air,
-                CombatUnit.Element.Space
-            };
-            for (int i = 0; i < 5; i++)
-            {
-                HeroData hero = ScriptableObject.CreateInstance<HeroData>();
-                hero.heroId = elementIds[i];
-                hero.displayName = elementIds[i];
-                hero.element = elementValues[i];
-                hero.isMainCharacter = i == 0;
-                hero.baseMaxHP = 100;
-                allHeroes[i] = hero;
-            }
-            heroDatabase.allHeroes = allHeroes;
-            heroDatabaseObject = new GameObject("TestHeroDatabase");
-            heroDatabaseObject.AddComponent<DontDestroyMe>();
+            manager.SaveWorldState();
+            Assert.IsTrue(partyManager.SwapActiveReserve(0, 0), "Fixture mutation must alter the active party.");
+            Assert.AreEqual("hero_air", party.activeSlots[0].heroId);
+            manager.LoadWorldState();
 
-            HeroProgressionManager.PartyCompositionSnapshot sourceSnapshot = null;
-            if (sourceManager.GetComponent<HeroProgressionManager>() != null && HeroProgressionManager.Instance != null)
-            {
-                sourceSnapshot = HeroProgressionManager.Instance.CapturePartyCompositionSnapshot();
-            }
-
-            if (sourceSnapshot == null)
-            {
-                sourceSnapshot = new HeroProgressionManager.PartyCompositionSnapshot();
-            }
-
-            Assert.IsNotNull(sourceSnapshot, "Captured party composition snapshot should not be null.");
-
-            targetManager = CreateIsolatedManager("TestGameStateManager_PartyTarget");
-            if (HeroProgressionManager.Instance != null)
-            {
-                HeroProgressionManager.Instance.ApplyPartyCompositionSnapshot(sourceSnapshot);
-            }
-
-            int expectedActive = sourceSnapshot.activeHeroIds != null ? sourceSnapshot.activeHeroIds.Count : 0;
-            int expectedReserve = sourceSnapshot.reserveHeroIds != null ? sourceSnapshot.reserveHeroIds.Count : 0;
-
-            if (HeroProgressionManager.Instance != null)
-            {
-                HeroProgressionManager.PartyCompositionSnapshot reloadedSnapshot =
-                    HeroProgressionManager.Instance.CapturePartyCompositionSnapshot();
-
-                Assert.AreEqual(expectedActive, reloadedSnapshot.activeHeroIds.Count,
-                    "Active hero slot count should survive the round-trip.");
-                Assert.AreEqual(expectedReserve, reloadedSnapshot.reserveHeroIds.Count,
-                    "Reserve hero slot count should survive the round-trip.");
-            }
+            CollectionAssert.AreEqual(new[] { "hero_water", "hero_fire", "hero_space" },
+                HeroProgressionManager.Instance.CapturePartyCompositionSnapshot().activeHeroIds,
+                "Loading the world save restores every active identity and ordering.");
+            CollectionAssert.AreEqual(new[] { "hero_air", "hero_earth" },
+                HeroProgressionManager.Instance.CapturePartyCompositionSnapshot().reserveHeroIds,
+                "Loading the world save restores every reserve identity and ordering.");
         }
         finally
         {
-            if (sourceManager != null)
-            {
-                DestroyImmediate(sourceManager.gameObject);
-            }
-
-            if (targetManager != null)
-            {
-                DestroyImmediate(targetManager.gameObject);
-            }
-
-            if (heroDatabaseObject != null)
-            {
-                DestroyImmediate(heroDatabaseObject);
-            }
-
+            if (manager != null) DestroyImmediate(manager.gameObject);
+            if (partyObject != null) DestroyImmediate(partyObject);
+            if (party != null) DestroyImmediate(party);
             Cleanup();
         }
     }
@@ -146,9 +101,15 @@ public class SavePersistenceTest : MonoBehaviour
             int reloadedLevel = snapshot.levels[fireIndex];
             Assert.AreEqual(levelAfter, reloadedLevel, "Snapshot should preserve the captured level.");
 
-            progression.ApplyHeroProgressionSnapshot(snapshot);
+            int xpAfter = progression.GetXp("hero_fire");
+            manager.SaveWorldState();
+            progression.ResetProgressionForDebug();
+            Assert.AreEqual(1, progression.GetLevel("hero_fire"), "Fixture reset must erase the gained levels.");
+            manager.LoadWorldState();
             Assert.AreEqual(levelAfter, progression.GetLevel("hero_fire"),
-                "Applying the snapshot should restore the hero level.");
+                "Loading the serialized world snapshot restores the hero level.");
+            Assert.AreEqual(xpAfter, progression.GetXp("hero_fire"),
+                "Loading also restores partial XP toward the next level.");
         }
         finally
         {
@@ -303,15 +264,118 @@ public class SavePersistenceTest : MonoBehaviour
         }
     }
 
-    private void TestSavedEndingResumesAfterContinue()
+    private void TestSavedEndingStateRestores()
     {
-        string gameStatePath = System.IO.Path.Combine(Application.dataPath, "GameStateManager.cs");
-        string source = System.IO.File.ReadAllText(gameStatePath);
+        GameStateManager manager = CreateIsolatedManager("TestGameStateManager_EndingRestore");
+        try
+        {
+            GameStateManager.WorldStateSaveData saved = new GameStateManager.WorldStateSaveData
+            {
+                storyProgression = new GameStateManager.StoryProgressionSaveData
+                {
+                    currentAct = (int)GameStateManager.StoryAct.ActIII,
+                    highestActReached = (int)GameStateManager.StoryAct.ActIII,
+                    endingBranch = GameStateManager.EndingBranch.Good.ToString(),
+                    endingTriggered = true
+                }
+            };
+            PlayerPrefs.SetString("TIDE_WORLD_STATE_V1", JsonUtility.ToJson(saved));
+            PlayerPrefs.Save();
+            manager.LoadWorldState();
+            Assert.IsTrue(manager.IsEndingTriggered, "The ending lock must survive serialized state restoration.");
+            Assert.AreEqual(GameStateManager.EndingBranch.Good, manager.ResolvedEndingBranch);
+            manager.ResetRuntimeWorldStateForDebug();
+            Assert.IsFalse(manager.IsEndingTriggered, "Fixture reset must remove the live ending before reload.");
+            manager.LoadWorldState();
+            Assert.IsTrue(manager.IsEndingTriggered);
+            Assert.AreEqual(GameStateManager.EndingBranch.Good, manager.ResolvedEndingBranch);
+        }
+        finally { DestroyImmediate(manager.gameObject); Cleanup(); }
+    }
 
-        Assert.IsTrue(source.Contains("if (endingTriggered)\n            {\n                SetPlayerMovementLocked(true);\n                PlayEndingSequence(resolvedEndingBranch);"),
-            "A saved ending must resume when Continue restores the main scene.");
-        Assert.IsTrue(source.Contains("SetPlayerMovementLocked(targetState != GameState.Exploration || endingTriggered);"),
-            "The player must stay locked while a resumed ending is playing.");
+    private void TestLiveSaveRejectsMalformedAndFutureSchemas()
+    {
+        Cleanup();
+        GameObject host = new GameObject("TestLiveSave_Validation");
+        WorldSaveService service = host.AddComponent<WorldSaveService>();
+        try
+        {
+            service.Clear();
+            Assert.IsTrue(service.TryWriteJson("{\"puzzleStates\":[]}"));
+            string previous = service.ReadJson();
+            foreach (string invalid in new[]
+            {
+                "{\"puzzleStates\":[}", "{\"puzzleStates\":[]} trailing", "{\"puzzleStates\":null}",
+                "{\"saveSchemaVersion\":2,\"puzzleStates\":[]}",
+                "{\"saveSchemaVersion\":1,\"saveSchemaVersion\":2,\"puzzleStates\":[]}"
+            })
+            {
+                Assert.IsFalse(service.TryWriteJson(invalid), "Malformed and unsupported saves must be rejected.");
+                Assert.AreEqual(previous, service.ReadJson(), "Invalid writes cannot damage the valid generation.");
+            }
+        }
+        finally { service.Clear(); DestroyImmediate(host); Cleanup(); }
+    }
+
+    private void TestLiveSaveRecoversMissingPrimary()
+    {
+        Cleanup();
+        GameObject host = new GameObject("TestLiveSave_OrphanedBackup");
+        WorldSaveService service = host.AddComponent<WorldSaveService>();
+        try
+        {
+            service.Clear();
+            const string valid = "{\"puzzleStates\":[]}";
+            PlayerPrefs.SetString(service.PlayerPrefsKey + "_backup", valid);
+            PlayerPrefs.Save();
+            Assert.IsTrue(service.HasPersistedData, "A surviving backup counts as persisted data.");
+            Assert.IsTrue(service.TryLoadJson(out string restored), "Missing primary recovers from its valid backup.");
+            Assert.AreEqual(valid, restored);
+            Assert.AreEqual(valid, PlayerPrefs.GetString(service.PlayerPrefsKey));
+        }
+        finally { service.Clear(); DestroyImmediate(host); Cleanup(); }
+    }
+
+    private void TestCorruptNewGamePlusFailsClosed()
+    {
+        Cleanup();
+        PlayerPrefs.SetString("NewGamePlusService", "{\"completedRuns\":-5,\"loopIndex\":2147483647,\"isInNewGamePlus\":true}");
+        GameObject host = new GameObject("TestNGPlus_Corrupt");
+        try
+        {
+            NewGamePlusService service = host.AddComponent<NewGamePlusService>();
+            MethodInfo load = typeof(NewGamePlusService).GetMethod("Load", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.DoesNotThrow(() => load.Invoke(service, null), "Damaged NG+ metadata cannot throw during bootstrap.");
+            Assert.AreEqual(0, service.CompletedRuns);
+            Assert.AreEqual(1f, service.GetEnemyStatMultiplier());
+            Assert.IsFalse(service.IsInNewGamePlus);
+        }
+        finally { DestroyImmediate(host); PlayerPrefs.DeleteKey("NewGamePlusService"); PlayerPrefs.Save(); Cleanup(); }
+    }
+
+    private void TestNewGamePlusRunSnapshotRestoresSavedMode()
+    {
+        Cleanup();
+        PlayerPrefs.DeleteKey("NewGamePlusService");
+        GameObject host = new GameObject("TestNGPlus_RunSnapshot");
+        try
+        {
+            NewGamePlusService service = host.AddComponent<NewGamePlusService>();
+            service.ResetForDebug();
+            service.RegisterCompletion();
+            service.RegisterCompletion();
+            Assert.AreEqual(1, service.CompletedRuns, "One run's ending cannot count twice.");
+            NewGamePlusService.RunSnapshot completedNormalRun = service.CaptureSnapshot();
+            Assert.IsTrue(service.StartNewGamePlus());
+            Assert.IsFalse(service.StartNewGamePlus(), "Repeated start cannot skip loops.");
+            service.ApplySnapshot(completedNormalRun);
+            Assert.IsFalse(service.IsInNewGamePlus, "Loading the normal run clears a later NG+ multiplier.");
+            Assert.AreEqual(1f, service.GetEnemyStatMultiplier());
+            Assert.AreEqual(1, service.CompletedRuns, "Account completion history is retained.");
+            service.ApplySnapshot(null);
+            Assert.IsFalse(service.IsInNewGamePlus, "Legacy saves cannot inherit the live run's NG+ mode.");
+        }
+        finally { DestroyImmediate(host); PlayerPrefs.DeleteKey("NewGamePlusService"); PlayerPrefs.Save(); Cleanup(); }
     }
 
     private static GameStateManager CreateIsolatedManager(string managerName)
@@ -322,7 +386,8 @@ public class SavePersistenceTest : MonoBehaviour
 
         GameObject managerObject = new GameObject(managerName);
         GameStateManager manager = managerObject.AddComponent<GameStateManager>();
-        HeroProgressionManager progression = managerObject.AddComponent<HeroProgressionManager>();
+        HeroProgressionManager progression = managerObject.GetComponent<HeroProgressionManager>();
+        if (progression == null) progression = managerObject.AddComponent<HeroProgressionManager>();
         SetAutoPropertyBackingField(typeof(HeroProgressionManager), "Instance", progression);
         return manager;
     }
@@ -338,6 +403,7 @@ public class SavePersistenceTest : MonoBehaviour
 
     private static void Cleanup()
     {
+        if (NewGamePlusService.Instance != null) DestroyImmediate(NewGamePlusService.Instance.gameObject);
         if (GameStateManager.Instance != null)
         {
             DestroyImmediate(GameStateManager.Instance.gameObject);
@@ -384,7 +450,5 @@ public class SavePersistenceTest : MonoBehaviour
         }
     }
 
-    private sealed class DontDestroyMe : MonoBehaviour
-    {
-    }
 }
+#endif

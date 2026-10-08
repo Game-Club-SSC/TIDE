@@ -5,7 +5,7 @@ using UnityEngine.UI;
 /// <summary>
 /// Player-facing title screen (issue #294). Builds a procedural Persona-styled
 /// menu with New Game, Continue, Settings, and Quit. New Game resets the world
-/// state and loads the first island scene; Continue is only enabled while a
+/// state and loads the hub; Continue is only enabled while a
 /// persisted save exists and restores the saved scene after loading; Settings
 /// opens the existing AudioSettingsUI; Quit exits the application.
 /// </summary>
@@ -45,6 +45,7 @@ public class TitleScreenUI : MonoBehaviour
 
     internal Button NewGameButton { get; private set; }
     internal Button ContinueButton { get; private set; }
+    internal Button NewGamePlusButton { get; private set; }
     internal Button SettingsButton { get; private set; }
     internal Button QuitButton { get; private set; }
     internal Button[] ElementButtons { get; private set; } = System.Array.Empty<Button>();
@@ -141,6 +142,7 @@ public class TitleScreenUI : MonoBehaviour
 
         NewGameButton = CreateStackButton(menuStack.transform, "New Game", primaryButtonColor, OnNewGameClicked);
         ContinueButton = CreateStackButton(menuStack.transform, "Continue", continueButtonColor, OnContinueClicked);
+        NewGamePlusButton = CreateStackButton(menuStack.transform, "New Game+", primaryButtonColor, OnNewGamePlusClicked);
         SettingsButton = CreateStackButton(menuStack.transform, "Settings", primaryButtonColor, OnSettingsClicked);
         QuitButton = CreateStackButton(menuStack.transform, "Quit", new Color(0.55f, 0.2f, 0.22f, 0.95f), OnQuitClicked);
         ConfigureMenuNavigation();
@@ -168,23 +170,7 @@ public class TitleScreenUI : MonoBehaviour
 
     private void ConfigureMenuNavigation()
     {
-        Button[] buttons = { NewGameButton, ContinueButton, SettingsButton, QuitButton };
-        for (int i = 0; i < buttons.Length; i++)
-        {
-            Button button = buttons[i];
-            if (button == null)
-            {
-                continue;
-            }
-
-            Navigation navigation = button.navigation;
-            navigation.mode = Navigation.Mode.Explicit;
-            navigation.selectOnUp = buttons[(i + buttons.Length - 1) % buttons.Length];
-            navigation.selectOnDown = buttons[(i + 1) % buttons.Length];
-            navigation.selectOnLeft = null;
-            navigation.selectOnRight = null;
-            button.navigation = navigation;
-        }
+        MenuNavigationUtility.ConfigureVertical(NewGameButton, ContinueButton, NewGamePlusButton, SettingsButton, QuitButton);
     }
 
     private static void SelectButton(Button button)
@@ -234,12 +220,22 @@ public class TitleScreenUI : MonoBehaviour
         ColorBlock colors = ContinueButton.colors;
         colors.disabledColor = disabledButtonColor;
         ContinueButton.colors = colors;
+        NewGamePlusService ngPlus = NewGamePlusService.Instance;
+        bool canStartPlus = hasSave && ngPlus != null && ngPlus.CanStartNewGamePlus();
+        if (NewGamePlusButton != null) NewGamePlusButton.gameObject.SetActive(canStartPlus);
+        if (menuStack != null)
+        {
+            int buttonCount = canStartPlus ? 5 : 4;
+            menuStack.GetComponent<RectTransform>().sizeDelta = new Vector2(buttonWidth,
+                buttonHeight * buttonCount + buttonSpacing * (buttonCount - 1));
+        }
+        ConfigureMenuNavigation();
     }
 
     /// <summary>
     /// True when a save exists that Continue can actually restore through
-    /// GameStateManager. WorldSaveService's V2 envelope is not yet the runtime
-    /// load source, so it must not enable Continue on its own.
+    /// GameStateManager, including its validated backup and V2 recovery paths.
+    /// Availability checks do not repair or otherwise mutate stored saves.
     /// </summary>
     internal bool HasPersistedSave()
     {
@@ -255,6 +251,14 @@ public class TitleScreenUI : MonoBehaviour
         }
 
         ShowElementSelection();
+    }
+
+    private void OnNewGamePlusClicked()
+    {
+        GameStateManager gsm = GameStateManager.Instance;
+        if (gsm == null || isChoosingElement || gsm.IsTransitioning || !gsm.StartNewGamePlusFromTitle()) return;
+        newGameRequested = true;
+        RefreshContinueButton();
     }
 
     private void ShowElementSelection()
@@ -381,7 +385,7 @@ public class TitleScreenUI : MonoBehaviour
 
         if (Application.isPlaying)
         {
-            gsm.ReturnToMainScene();
+            gsm.LoadWorldStateAndRestoreScene();
         }
     }
 

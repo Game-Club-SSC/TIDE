@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.Reflection;
 using NUnit.Framework;
@@ -699,3 +700,5 @@ public class DialogueTreeRunnerTest : MonoBehaviour
         return gear;
     }
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -19,6 +20,28 @@ public class SaveRestoreInvariantTest : MonoBehaviour
     private GameObject serviceObject;
     private GameObject managerObject;
     private List<GameObject> spawned;
+
+    [ContextMenu("Run Save Restore Invariant Tests")]
+    public void RunTests()
+    {
+        System.Action[] tests =
+        {
+            QuestFlagsSurviveTheWorldStateRoundTrip,
+            FlagCopyAndRestoreAreSymmetric,
+            UnresolvedPartyIdKeepsTheExistingHeroInTheSlot,
+            PartyRestoreDoesNotResurrectAnEmptySlot,
+            PartyRestorePreservesInteriorEmptySlots,
+            PartyRestoreKeepsFixedSlotsWhenEverySavedSlotIsEmpty,
+            MissingPartyIdsAndFallbackAreSafe
+        };
+        foreach (System.Action test in tests)
+        {
+            SetUp();
+            try { test(); }
+            finally { TearDown(); }
+        }
+        Debug.Log("[SaveRestoreInvariantTest] All save restore invariant tests passed.");
+    }
 
     [SetUp]
     public void SetUp()
@@ -106,10 +129,9 @@ public class SaveRestoreInvariantTest : MonoBehaviour
     [Test]
     public void UnresolvedPartyIdKeepsTheExistingHeroInTheSlot()
     {
-        // ResolveHeroDataSlots used to build a fresh array and leave any
-        // unresolvable id null, shrinking the active party below 3 on any save
-        // with a stale hero id. This asserts the unresolved slot specifically:
-        // it is the only one the fallback seeding changes.
+        // An unknown id must use an unused authored hero. Copying the old
+        // slot blindly can duplicate hero_fire when a later saved slot also
+        // resolves to hero_fire.
         MethodInfo resolve = typeof(HeroProgressionManager).GetMethod(
             "ResolveHeroDataSlots", BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(resolve, "ResolveHeroDataSlots should exist as a static helper.");
@@ -126,6 +148,10 @@ public class SaveRestoreInvariantTest : MonoBehaviour
         Assert.AreEqual("hero_fire", result[1].heroId, "hero_fire must land in slot 1.");
         Assert.IsNotNull(result[2], "A resolvable id must still be applied to its slot.");
         Assert.AreEqual("hero_water", result[2].heroId, "hero_water must land in slot 2.");
+        Assert.AreNotEqual(result[0].heroId, result[1].heroId,
+            "An unresolved-id fallback cannot duplicate a hero saved in a later slot.");
+        Assert.AreNotEqual(result[0].heroId, result[2].heroId,
+            "Every restored active hero must be unique.");
     }
 
     [Test]
@@ -146,6 +172,40 @@ public class SaveRestoreInvariantTest : MonoBehaviour
         Assert.IsNotNull(result, "The resolved array must not be null.");
         Assert.AreEqual(2, CountNonNull(result),
             "Only the two recorded ids may occupy slots; a slot the save left empty must stay empty.");
+    }
+
+    [Test]
+    public void PartyRestorePreservesInteriorEmptySlots()
+    {
+        MethodInfo resolve = typeof(HeroProgressionManager).GetMethod(
+            "ResolveHeroDataSlots", BindingFlags.Static | BindingFlags.NonPublic);
+        HeroData[] result = (HeroData[])resolve.Invoke(null,
+            new object[] { new List<string> { "hero_fire", string.Empty, "hero_water" }, 3, AuthoredParty() });
+        Assert.AreEqual(3, result.Length, "The active slot layout stays fixed.");
+        Assert.IsNull(result[1], "An explicitly empty middle slot cannot resurrect an authored hero.");
+        Assert.AreEqual("hero_water", result[2].heroId, "A hole cannot move later saved heroes left.");
+    }
+
+    [Test]
+    public void PartyRestoreKeepsFixedSlotsWhenEverySavedSlotIsEmpty()
+    {
+        MethodInfo resolve = typeof(HeroProgressionManager).GetMethod(
+            "ResolveHeroDataSlots", BindingFlags.Static | BindingFlags.NonPublic);
+        HeroData[] result = (HeroData[])resolve.Invoke(null,
+            new object[] { new List<string>(), 3, AuthoredParty() });
+        Assert.AreEqual(3, result.Length);
+        Assert.AreEqual(0, CountNonNull(result), "An explicit empty roster cannot inherit the live party.");
+    }
+
+    [Test]
+    public void MissingPartyIdsAndFallbackAreSafe()
+    {
+        MethodInfo resolve = typeof(HeroProgressionManager).GetMethod(
+            "ResolveHeroDataSlots", BindingFlags.Static | BindingFlags.NonPublic);
+        HeroData[] result = null;
+        Assert.DoesNotThrow(() => result = (HeroData[])resolve.Invoke(null, new object[] { null, 3, null }));
+        Assert.AreEqual(3, result.Length);
+        Assert.AreEqual(0, CountNonNull(result));
     }
 
     /// <summary>
@@ -299,3 +359,4 @@ public class SaveRestoreInvariantTest : MonoBehaviour
         PlayerPrefs.Save();
     }
 }
+#endif

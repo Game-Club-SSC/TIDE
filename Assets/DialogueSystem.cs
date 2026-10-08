@@ -123,6 +123,13 @@ public class DialogueSystem : MonoBehaviour
             return true; // already delivered on an earlier walk of this tree
         }
 
+        // Services can synchronously save or publish callbacks while granting
+        // a reward (currency does both). Reserve its key first so that those
+        // saves and re-entrant dialogue calls already see the replay ledger.
+        if (isOneShot)
+        {
+            grantedRewardKeys.Add(rewardKey);
+        }
         bool applied = TryApplyEffectToServices(effect, heroId);
 
         if (effect.type == DialogueEffectType.SetFlag && !string.IsNullOrEmpty(effect.targetId))
@@ -134,6 +141,7 @@ public class DialogueSystem : MonoBehaviour
 
         if (applied)
         {
+            RemovePendingReward(rewardKey, effect);
             if (isOneShot && !string.IsNullOrEmpty(rewardKey))
             {
                 grantedRewardKeys.Add(rewardKey);
@@ -148,7 +156,11 @@ public class DialogueSystem : MonoBehaviour
         }
         else
         {
-            pendingRewards.Add(new DialoguePendingRewardEntry
+            if (isOneShot)
+            {
+                grantedRewardKeys.Remove(rewardKey);
+            }
+            QueuePendingReward(new DialoguePendingRewardEntry
             {
                 treeId = treeId,
                 nodeId = nodeId,
@@ -161,7 +173,38 @@ public class DialogueSystem : MonoBehaviour
             Debug.LogWarning($"[DialogueSystem] Dialogue effect '{effect.type}' (targetId='{effect.targetId}', intValue={effect.intValue}) could not be applied now; queued as a pending reward (tree '{treeId}', node '{nodeId}', effect {effectIndex}). It will be retried on the next save load.");
         }
 
+        GameStateManager.Instance?.SaveWorldState();
         return applied;
+    }
+
+    private void QueuePendingReward(DialoguePendingRewardEntry entry)
+    {
+        string rewardKey = MakeRewardKey(entry.treeId, entry.nodeId, entry.effectIndex);
+        DialogueTreeEffect effect = new DialogueTreeEffect
+        {
+            type = (DialogueEffectType)entry.effectType,
+            targetId = entry.targetId,
+            intValue = entry.intValue
+        };
+        // Retain one deferred operation when a node is replayed without its
+        // service. A flag's latest value supersedes older writes.
+        RemovePendingReward(rewardKey, effect);
+        pendingRewards.Add(entry);
+    }
+
+    private void RemovePendingReward(string rewardKey, DialogueTreeEffect effect)
+    {
+        for (int i = pendingRewards.Count - 1; i >= 0; i--)
+        {
+            DialoguePendingRewardEntry pending = pendingRewards[i];
+            bool sameFlag = effect.type == DialogueEffectType.SetFlag
+                && pending.effectType == (int)DialogueEffectType.SetFlag
+                && string.Equals(pending.targetId, effect.targetId, StringComparison.Ordinal);
+            if (sameFlag || string.Equals(MakeRewardKey(pending.treeId, pending.nodeId, pending.effectIndex), rewardKey, StringComparison.Ordinal))
+            {
+                pendingRewards.RemoveAt(i);
+            }
+        }
     }
 
     /// <summary>
@@ -317,7 +360,7 @@ public class DialogueSystem : MonoBehaviour
 
     private static bool TryApplyIncreaseBond(DialogueTreeEffect effect)
     {
-        if (string.IsNullOrEmpty(effect.targetId) || effect.intValue <= 0)
+        if (string.IsNullOrEmpty(effect.targetId) || effect.intValue == 0)
         {
             return false;
         }
@@ -329,7 +372,16 @@ public class DialogueSystem : MonoBehaviour
             return false;
         }
 
-        sys.IncreaseBond(effect.targetId, "player", effect.intValue);
+        string[] pair = effect.targetId.Split('|');
+        string heroA = pair[0].Trim();
+        string heroB = pair.Length == 1 ? "player" : pair.Length == 2 ? pair[1].Trim() : null;
+        if (string.IsNullOrEmpty(heroA) || string.IsNullOrEmpty(heroB)
+            || string.Equals(heroA, heroB, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        sys.IncreaseBond(heroA, heroB, effect.intValue);
         return true;
     }
 
@@ -414,7 +466,20 @@ public class DialogueSystem : MonoBehaviour
 
         if (pendingRewards.Count > 0)
         {
-            saveData.pendingRewards = new List<DialoguePendingRewardEntry>(pendingRewards);
+            for (int i = 0; i < pendingRewards.Count; i++)
+            {
+                DialoguePendingRewardEntry entry = pendingRewards[i];
+                saveData.pendingRewards.Add(new DialoguePendingRewardEntry
+                {
+                    treeId = entry.treeId,
+                    nodeId = entry.nodeId,
+                    effectIndex = entry.effectIndex,
+                    effectType = entry.effectType,
+                    targetId = entry.targetId,
+                    intValue = entry.intValue,
+                    heroId = entry.heroId
+                });
+            }
         }
 
         List<string> sortedBondKeys = new List<string>(bondLevels.Keys);
@@ -433,6 +498,7 @@ public class DialogueSystem : MonoBehaviour
     {
         if (saveData == null)
         {
+            ResetDialogueStateForDebug();
             return;
         }
 
@@ -500,6 +566,22 @@ public class DialogueSystem : MonoBehaviour
             }
         }
 
+        // Legacy saves may contain only deferred flag writes. Use their last
+        // write unless the explicit flag ledger already supplies a newer value.
+        HashSet<string> restoredFlagIds = new HashSet<string>(dialogueFlags.Keys, StringComparer.Ordinal);
+        if (saveData.pendingRewards != null)
+        {
+            for (int i = 0; i < saveData.pendingRewards.Count; i++)
+            {
+                DialoguePendingRewardEntry entry = saveData.pendingRewards[i];
+                if (entry != null && entry.effectType == (int)DialogueEffectType.SetFlag
+                    && !string.IsNullOrEmpty(entry.targetId) && !restoredFlagIds.Contains(entry.targetId))
+                {
+                    dialogueFlags[entry.targetId] = entry.intValue != 0;
+                }
+            }
+        }
+
         // Push restored flags into StoryProgressionService (what conditions read).
         if (StoryProgressionService.Instance != null)
         {
@@ -535,6 +617,24 @@ public class DialogueSystem : MonoBehaviour
                     intValue = entry.intValue
                 };
 
+                // Legacy pending writes must not undo the latest flag value
+                // already restored from the durable dialogue ledger.
+                if (effect.type == DialogueEffectType.SetFlag && !string.IsNullOrEmpty(effect.targetId))
+                {
+                    if (dialogueFlags.TryGetValue(effect.targetId, out bool latestValue))
+                    {
+                        effect.intValue = latestValue ? 1 : 0;
+                    }
+                    else
+                    {
+                        dialogueFlags[effect.targetId] = effect.intValue != 0;
+                    }
+                }
+
+                if (isOneShot)
+                {
+                    grantedRewardKeys.Add(rewardKey);
+                }
                 if (TryApplyEffectToServices(effect, entry.heroId))
                 {
                     if (entry.effectType != (int)DialogueEffectType.SetFlag)
@@ -551,8 +651,21 @@ public class DialogueSystem : MonoBehaviour
                 }
                 else
                 {
+                    if (isOneShot)
+                    {
+                        grantedRewardKeys.Remove(rewardKey);
+                    }
                     // Service still missing; keep the entry so the next load retries it.
-                    pendingRewards.Add(entry);
+                    QueuePendingReward(new DialoguePendingRewardEntry
+                    {
+                        treeId = entry.treeId,
+                        nodeId = entry.nodeId,
+                        effectIndex = entry.effectIndex,
+                        effectType = entry.effectType,
+                        targetId = entry.targetId,
+                        intValue = effect.intValue,
+                        heroId = entry.heroId
+                    });
                 }
             }
         }
@@ -562,6 +675,7 @@ public class DialogueSystem : MonoBehaviour
 
     public void ResetDialogueStateForDebug()
     {
+        CancelActiveDialogue();
         dialogueFlags.Clear();
         unlockedTideBreakKeys.Clear();
         grantedRewardKeys.Clear();
@@ -594,7 +708,7 @@ public class DialogueSystem : MonoBehaviour
 
     private void OnDestroy()
     {
-        RestorePlayerMovement();
+        CancelActiveDialogue();
         if (Instance == this)
         {
             SceneManager.sceneLoaded -= HandleSceneLoaded;
@@ -694,7 +808,7 @@ public class DialogueSystem : MonoBehaviour
         int current = 0;
         bondLevels.TryGetValue(key, out current);
 
-        int newValue = Mathf.Clamp(current + amount, 0, MaxBondLevel);
+        int newValue = (int)Math.Max(0L, Math.Min(MaxBondLevel, (long)current + amount));
         bondLevels[key] = newValue;
     }
 
@@ -790,8 +904,12 @@ public class DialogueSystem : MonoBehaviour
     {
         isDialogueActive = false;
         LockPlayerMovement(false);
-        OnDialogueCompleted?.Invoke(pendingEntries);
+        List<DialogueEntry> completedEntries = pendingEntries;
         pendingEntries = null;
+        OnDialogueCompleted?.Invoke(completedEntries);
+        // Completion listeners can award pair bonds or update quests. Persist
+        // after those callbacks so the conversation's outcome survives reload.
+        GameStateManager.Instance?.SaveWorldState();
     }
 
     private void HandleTreeCompleted(string treeId)
@@ -811,6 +929,7 @@ public class DialogueSystem : MonoBehaviour
         isDialogueActive = false;
         LockPlayerMovement(false);
         OnDialogueTreeCompleted?.Invoke(treeId);
+        GameStateManager.Instance?.SaveWorldState();
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode loadMode)
@@ -820,9 +939,26 @@ public class DialogueSystem : MonoBehaviour
             return;
         }
 
+        CancelActiveDialogue();
+        Debug.Log($"[DialogueSystem] Cancelled scene-owned dialogue after loading '{scene.name}'.");
+    }
+
+    private void CancelActiveDialogue()
+    {
         if (activeTreeRunner != null)
         {
             activeTreeRunner.OnTreeCompleted -= HandleTreeCompleted;
+            activeTreeRunner.CancelTree();
+        }
+
+        if (activeTreeRunnerObj != null)
+        {
+            Destroy(activeTreeRunnerObj);
+        }
+
+        if (activeUI != null && isDialogueActive && activeTreeRunner == null)
+        {
+            activeUI.CancelSequence();
         }
 
         activeTreeRunner = null;
@@ -831,7 +967,6 @@ public class DialogueSystem : MonoBehaviour
         pendingEntries = null;
         isDialogueActive = false;
         RestorePlayerMovement();
-        Debug.Log($"[DialogueSystem] Cancelled scene-owned dialogue after loading '{scene.name}'.");
     }
 
     private DialogueUI EnsureDialogueUI()

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || TIDE_COMBAT_HARNESS
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -83,6 +84,7 @@ public class AdversarialCombatChallengerRunner : MonoBehaviour
             enemyPlannedActions[enemy] = new PlannedAction(CombatActionType.Attack, enemy, ally);
 
             InvokePrivate(bm, "BeginActionExecutionPhase");
+            InvokePrivate(bm, "HandleActionExecution");
 
             Assert.IsFalse(enemy.IsAlive, "Enemy should be dead after lethal clash.");
             Assert.AreEqual(0, enemy.HP, "Enemy HP should be 0.");
@@ -120,6 +122,7 @@ public class AdversarialCombatChallengerRunner : MonoBehaviour
             enemyPlannedActions[enemy] = new PlannedAction(CombatActionType.Attack, enemy, ally);
 
             InvokePrivate(bm, "BeginActionExecutionPhase");
+            InvokePrivate(bm, "HandleActionExecution");
 
             Assert.IsFalse(ally.IsAlive, "Ally should be dead after lethal clash.");
             Assert.AreEqual(0, ally.HP, "Ally HP should be 0.");
@@ -178,7 +181,14 @@ public class AdversarialCombatChallengerRunner : MonoBehaviour
             Assert.IsTrue(clashedUnits.Contains(ally1), "Ally1 must be in clashedUnits.");
             Assert.IsTrue(clashedUnits.Contains(enemy1), "Enemy1 must be in clashedUnits.");
 
-            // Verify Pair 2 ALSO resolved sequentially:
+            // Slower Pair 2 waits for its speed slot after the QTE resumes.
+            Assert.IsFalse(clashedUnits.Contains(ally2), "A QTE callback must not advance a slower clash ahead of the turn queue.");
+            SetPrivateField(bm, "actionStepTimer", 0f);
+            InvokePrivate(bm, "HandleActionExecution"); // already-clashed Ally1
+            SetPrivateField(bm, "actionStepTimer", 0f);
+            InvokePrivate(bm, "HandleActionExecution"); // already-clashed Enemy1
+            SetPrivateField(bm, "actionStepTimer", 0f);
+            InvokePrivate(bm, "HandleActionExecution"); // Ally2's speed slot
             Assert.IsTrue(clashedUnits.Contains(ally2), "Ally2 must be in clashedUnits after sequential resolution.");
             Assert.IsTrue(clashedUnits.Contains(enemy2), "Enemy2 must be in clashedUnits after sequential resolution.");
 
@@ -596,3 +606,4 @@ public class AdversarialCombatChallengerRunner : MonoBehaviour
         return field.GetValue(target);
     }
 }
+#endif

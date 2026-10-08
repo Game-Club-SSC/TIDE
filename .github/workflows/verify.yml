@@ -14,10 +14,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  phone-security:
-    name: Phone security harness
+  source-verification:
+    name: Gameplay source and asset verification
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -26,4 +26,29 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Run checks
-        run: dotnet run --project Verification/PhoneSecurityHarness/PhoneSecurityHarness.csproj --configuration Release
+        run: bash scripts/verify.sh
+
+  promotional-site:
+    name: Promotional site build, types, and rendering
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: promo-site
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: promo-site/package-lock.json
+      - name: Restore dependencies
+        run: npm ci
+      - name: Check types
+        run: npm run typecheck
+      - name: Build and test rendering
+        run: npm test
+      - name: Lint
+        run: npm run lint

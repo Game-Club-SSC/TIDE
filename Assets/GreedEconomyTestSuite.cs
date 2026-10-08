@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -46,3 +47,4 @@ public class GreedEconomyTestSuite : MonoBehaviour
         Debug.Log("[GreedEconomyTestSuite] TestCurrencyStealReducesCurrency PASS");
     }
 }
+#endif

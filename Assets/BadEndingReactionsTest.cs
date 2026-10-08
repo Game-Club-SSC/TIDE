@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -305,3 +306,4 @@ public class BadEndingReactionsTest : MonoBehaviour
         Debug.Log("✓ GetRandomLine test passed");
     }
 }
+#endif

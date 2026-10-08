@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -374,3 +375,4 @@ public class NarrativeSystemsTest : MonoBehaviour
         Assert.GreaterOrEqual(NarrativeBeatsData.GetAllBeats().Count, 5, "Should return at least 5 beat definitions.");
     }
 }
+#endif

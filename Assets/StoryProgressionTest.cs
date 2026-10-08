@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -253,18 +254,18 @@ public class StoryProgressionTest : MonoBehaviour
             IReadOnlyList<string> progressionOrder = IslandThemeRegistry.ProgressionOrder;
             for (int i = 0; i < progressionOrder.Count; i++)
             {
-                TrackBossVictoryAtThreshold(manager, progressionOrder[i], IslandRestorationTracker.DefaultBossUnlockThresholdPercent);
+                TrackBossVictoryAtThreshold(manager, progressionOrder[i], IslandRestorationTracker.DefaultBossUnlockThresholdPercent + 1f);
             }
 
             EndingEvaluatorSnapshot snapshot = evaluator.BuildSnapshot(manager);
             Assert.IsFalse(snapshot.hasFinalBossDefeats,
                 "Good path should not record any final boss defeats.");
-            Assert.GreaterOrEqual(snapshot.minimumRestorationClearedRatio, snapshot.minimumRestorationThresholdRatio,
-                "Tracking boss victories at threshold for every island should clear the minimum restoration rule.");
+            Assert.IsFalse(snapshot.allRequiredIslandsClearedOnlyAtThreshold,
+                "Completing optional restoration must avoid the all-minimum-only bad-ending rule.");
 
             EndingOutcome outcome = EndingEvaluator.EvaluateOutcomeFromSnapshot(snapshot);
             Assert.AreEqual(EndingOutcome.GoodEnding, outcome,
-                "Good-ending path with all islands threshold-cleared should evaluate to GoodEnding.");
+                "Completing restoration beyond the minimum should evaluate to GoodEnding.");
         }
         finally
         {
@@ -467,3 +468,4 @@ public class StoryProgressionTest : MonoBehaviour
         }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || TIDE_COMBAT_HARNESS
 using NUnit.Framework;
 using UnityEngine;
 
@@ -161,6 +162,7 @@ public class CombatBalanceInvariantTest : MonoBehaviour
             unit.ApplyStatusEffect(new StatusEffect(StatusEffectType.Poison, 1, 0.5f, "expiring"));
             Assert.AreEqual(2, unit.ActiveEffects.Count, "Setup: both effects should be present.");
             unit.ProcessTurnStartEffects();
+            unit.ProcessTurnEndEffects();
             Assert.AreEqual(1, unit.ActiveEffects.Count,
                 "The one-turn effect should have expired, leaving only the permanent one.");
         }
@@ -218,3 +220,5 @@ public class CombatBalanceInvariantTest : MonoBehaviour
         }
     }
 }
+
+#endif

@@ -89,6 +89,12 @@ public class EnemyComposition
                 return configuredCount;
             }
 
+            if (names == null || elements == null || attackModifiers == null
+                || defenseModifiers == null || maxHpModifiers == null)
+            {
+                return 0;
+            }
+
             return Math.Min(Math.Min(Math.Min(Math.Min(names.Length, elements.Length), attackModifiers.Length), defenseModifiers.Length), maxHpModifiers.Length);
         }
     }
@@ -101,6 +107,11 @@ public class EnemyComposition
         }
 
         return index >= 0
+            && names != null
+            && elements != null
+            && attackModifiers != null
+            && defenseModifiers != null
+            && maxHpModifiers != null
             && index < names.Length
             && index < elements.Length
             && index < attackModifiers.Length
@@ -163,11 +174,11 @@ public class EnemyComposition
     {
         return new EnemyComposition
         {
-            names = names,
-            elements = elements,
-            attackModifiers = atkMods,
-            defenseModifiers = defMods,
-            maxHpModifiers = hpMods
+            names = names ?? Array.Empty<string>(),
+            elements = elements ?? Array.Empty<CombatUnit.Element>(),
+            attackModifiers = atkMods ?? Array.Empty<int>(),
+            defenseModifiers = defMods ?? Array.Empty<int>(),
+            maxHpModifiers = hpMods ?? Array.Empty<int>()
         };
     }
 

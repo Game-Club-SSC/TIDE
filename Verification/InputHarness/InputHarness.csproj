@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <DefineConstants>$(DefineConstants);$(GamepadDefines)</DefineConstants>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/GamepadInputManager.cs" Link="Product/GamepadInputManager.cs" />
+    <Compile Include="../../Assets/MenuNavigationUtility.cs" Link="Product/MenuNavigationUtility.cs" />
+  </ItemGroup>
+</Project>

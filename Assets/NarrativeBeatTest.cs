@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -123,3 +124,4 @@ public class NarrativeBeatTest : MonoBehaviour
         }
     }
 }
+#endif

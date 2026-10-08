@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -184,3 +185,4 @@ public class RestorationThresholdGateTest : MonoBehaviour
         field.SetValue(target, value);
     }
 }
+#endif

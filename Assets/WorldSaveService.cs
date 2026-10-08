@@ -6,18 +6,18 @@ public class WorldSaveService : MonoBehaviour
 {
     public static WorldSaveService Instance { get; private set; }
 
-    [SerializeField] private string playerPrefsKey = "TIDE_WORLD_STATE_V2";
+    [SerializeField] private string playerPrefsKey = DefaultPlayerPrefsKey;
     [SerializeField] private bool enablePersistentSaveData = true;
-    [SerializeField] private int saveSchemaVersion = 1;
+    [SerializeField] private int saveSchemaVersion = SaveJsonValidator.CurrentSchemaVersion;
     [SerializeField] private int maxRetryAttempts = 2;
 
+    private const string DefaultPlayerPrefsKey = "TIDE_WORLD_STATE_V2";
     private const string BackupKeySuffix = "_backup";
-    private const string VersionFieldName = "\"saveSchemaVersion\"";
 
-    public string PlayerPrefsKey => playerPrefsKey;
+    public string PlayerPrefsKey => string.IsNullOrWhiteSpace(playerPrefsKey) ? DefaultPlayerPrefsKey : playerPrefsKey;
     public bool EnablePersistentSaveData => enablePersistentSaveData;
-    public bool HasPersistedData => PlayerPrefs.HasKey(playerPrefsKey);
-    public int SaveSchemaVersion => saveSchemaVersion;
+    public bool HasPersistedData => PlayerPrefs.HasKey(PlayerPrefsKey) || PlayerPrefs.HasKey(PlayerPrefsKey + BackupKeySuffix);
+    public int SaveSchemaVersion => Mathf.Clamp(saveSchemaVersion, 1, SaveJsonValidator.CurrentSchemaVersion);
 
     public event Action<string> OnSavePersisted;
     public event Action<string> OnSaveLoaded;
@@ -38,193 +38,140 @@ public class WorldSaveService : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (Instance == this)
-        {
-            Instance = null;
-        }
+        if (Instance == this) Instance = null;
     }
 
     public bool TryWriteJson(string json)
     {
-        if (!enablePersistentSaveData)
+        if (!enablePersistentSaveData || !ValidateSaveJson(json, out int sourceVersion)) return false;
+
+        string existing = PlayerPrefs.GetString(PlayerPrefsKey, string.Empty);
+        if (SaveJsonValidator.TryValidateWorldState(existing, int.MaxValue, out int existingVersion)
+            && existingVersion > SaveSchemaVersion)
         {
+            Debug.LogWarning("[WorldSaveService] A newer save schema is present; preserving it.");
+            OnSaveFailed?.Invoke(PlayerPrefsKey);
             return false;
         }
 
-        if (string.IsNullOrEmpty(json))
+        string versionedJson = sourceVersion == 0 ? InjectSchemaVersion(json) : json;
+        string backupKey = PlayerPrefsKey + BackupKeySuffix;
+
+        // Preserve the previous validated generation once, before touching the
+        // primary. Retries must never copy an unverified write over the backup,
+        // and identical autosaves must retain the previous distinct generation.
+        string previousBackup = PlayerPrefs.GetString(backupKey, string.Empty);
+        bool needsBackup = !string.Equals(existing, versionedJson, StringComparison.Ordinal)
+            || !ValidateSaveJson(previousBackup, out _);
+        if (ValidateSaveJson(existing, out _) && needsBackup && !TryStore(backupKey, existing))
         {
+            OnSaveFailed?.Invoke(PlayerPrefsKey);
             return false;
         }
 
-        string versionedJson = InjectSchemaVersion(json);
-
-        for (int attempt = 0; attempt <= maxRetryAttempts; attempt++)
+        int retryCount = Mathf.Clamp(maxRetryAttempts, 0, 5);
+        for (int attempt = 0; attempt <= retryCount; attempt++)
         {
-            if (TryWriteJsonInternal(versionedJson))
+            if (TryStore(PlayerPrefsKey, versionedJson))
             {
+                OnSavePersisted?.Invoke(PlayerPrefsKey);
                 return true;
             }
-
-            Debug.LogWarning($"[WorldSaveService] Save attempt {attempt + 1} failed, retrying...");
+            Debug.LogWarning($"[WorldSaveService] Save attempt {attempt + 1} failed.");
         }
 
-        string backupKey = playerPrefsKey + BackupKeySuffix;
-        if (PlayerPrefs.HasKey(backupKey))
+        string backup = PlayerPrefs.GetString(backupKey, string.Empty);
+        if (ValidateSaveJson(backup, out _))
         {
-            Debug.Log("[WorldSaveService] Restoring backup after write failure.");
-            string backup = PlayerPrefs.GetString(backupKey, string.Empty);
-            if (!string.IsNullOrEmpty(backup))
+            if (!TryStore(PlayerPrefsKey, backup))
             {
-                PlayerPrefs.SetString(playerPrefsKey, backup);
-                PlayerPrefs.Save();
+                Debug.LogWarning("[WorldSaveService] Primary repair failed; the validated backup remains available.");
             }
         }
-
-        OnSaveFailed?.Invoke(playerPrefsKey);
+        OnSaveFailed?.Invoke(PlayerPrefsKey);
         return false;
-    }
-
-    private bool TryWriteJsonInternal(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            Debug.LogError("[WorldSaveService] Cannot write null or empty JSON");
-            return false;
-        }
-
-        if (PlayerPrefs.HasKey(playerPrefsKey))
-        {
-            string backupKey = playerPrefsKey + BackupKeySuffix;
-            string existing = PlayerPrefs.GetString(playerPrefsKey, string.Empty);
-            if (!string.IsNullOrEmpty(existing))
-            {
-                PlayerPrefs.SetString(backupKey, existing);
-            }
-        }
-
-        PlayerPrefs.SetString(playerPrefsKey, json);
-        PlayerPrefs.Save();
-
-        string verify = PlayerPrefs.GetString(playerPrefsKey, string.Empty);
-        if (!string.Equals(verify, json, System.StringComparison.Ordinal))
-        {
-            Debug.LogWarning("[WorldSaveService] Write verification failed — saved data does not match input.");
-            return false;
-        }
-
-        OnSavePersisted?.Invoke(playerPrefsKey);
-        return true;
     }
 
     public string ReadJson()
     {
-        if (!HasPersistedData)
-        {
-            return null;
-        }
+        return enablePersistentSaveData ? PlayerPrefs.GetString(PlayerPrefsKey, string.Empty) : null;
+    }
 
-        return PlayerPrefs.GetString(playerPrefsKey, string.Empty);
+    /// <summary>Checks for a usable generation without repairing storage or emitting load events.</summary>
+    public bool TryPeekJson(out string json)
+    {
+        json = null;
+        if (!enablePersistentSaveData) return false;
+        string primary = PlayerPrefs.GetString(PlayerPrefsKey, string.Empty);
+        if (ValidateSaveJson(primary, out _))
+        {
+            json = primary;
+            return true;
+        }
+        string backup = PlayerPrefs.GetString(PlayerPrefsKey + BackupKeySuffix, string.Empty);
+        if (!ValidateSaveJson(backup, out _)) return false;
+        json = backup;
+        return true;
     }
 
     public bool TryLoadJson(out string json)
     {
-        json = ReadJson();
-        if (string.IsNullOrEmpty(json))
+        if (!TryPeekJson(out json)) return false;
+        string primary = PlayerPrefs.GetString(PlayerPrefsKey, string.Empty);
+        if (!string.Equals(primary, json, StringComparison.Ordinal))
         {
-            return false;
-        }
-
-        if (!ValidateSaveJson(json))
-        {
-            Debug.LogWarning("[WorldSaveService] Save data failed validation. Attempting backup restore.");
-            string backupKey = playerPrefsKey + BackupKeySuffix;
-            if (PlayerPrefs.HasKey(backupKey))
+            // Missing/empty primaries recover too, but an older build may not
+            // overwrite a newer schema while loading a supported older backup.
+            bool futureSchema = SaveJsonValidator.TryValidateWorldState(primary, int.MaxValue, out int version)
+                && version > SaveSchemaVersion;
+            if (!futureSchema && !TryStore(PlayerPrefsKey, json))
             {
-                string backup = PlayerPrefs.GetString(backupKey, string.Empty);
-                if (!string.IsNullOrEmpty(backup) && ValidateSaveJson(backup))
-                {
-                    json = backup;
-                    PlayerPrefs.SetString(playerPrefsKey, backup);
-                    PlayerPrefs.Save();
-                    Debug.Log("[WorldSaveService] Restored valid backup.");
-                }
-                else
-                {
-                    Debug.LogError("[WorldSaveService] Backup also invalid. Save data may be corrupted.");
-                    return false;
-                }
+                Debug.LogWarning("[WorldSaveService] Loaded the backup; primary repair could not be persisted.");
             }
-            else
-            {
-                Debug.LogError("[WorldSaveService] No backup available. Save data may be corrupted.");
-                return false;
-            }
+            Debug.Log("[WorldSaveService] Loaded the validated backup.");
         }
-
-        OnSaveLoaded?.Invoke(playerPrefsKey);
+        OnSaveLoaded?.Invoke(PlayerPrefsKey);
         return true;
     }
 
     public void Clear()
     {
-        bool removedData = false;
-        if (PlayerPrefs.HasKey(playerPrefsKey))
-        {
-            PlayerPrefs.DeleteKey(playerPrefsKey);
-            removedData = true;
-        }
+        string backupKey = PlayerPrefsKey + BackupKeySuffix;
+        bool removedData = PlayerPrefs.HasKey(PlayerPrefsKey) || PlayerPrefs.HasKey(backupKey);
+        if (!removedData) return;
+        PlayerPrefs.DeleteKey(PlayerPrefsKey);
+        PlayerPrefs.DeleteKey(backupKey);
+        PlayerPrefs.Save();
+        OnSaveCleared?.Invoke();
+    }
 
-        string backupKey = playerPrefsKey + BackupKeySuffix;
-        if (PlayerPrefs.HasKey(backupKey))
-        {
-            PlayerPrefs.DeleteKey(backupKey);
-            removedData = true;
-        }
+    public void SetPersistentSaveEnabled(bool enabled) { enablePersistentSaveData = enabled; }
 
-        if (removedData)
+    private bool ValidateSaveJson(string json, out int version)
+    {
+        return SaveJsonValidator.TryValidateWorldState(json, SaveSchemaVersion, out version);
+    }
+
+    private bool TryStore(string key, string json)
+    {
+        // PlayerPrefs.SetString can throw when the platform storage quota is
+        // exhausted. This is an external storage boundary, not gameplay logic.
+        try
         {
+            PlayerPrefs.SetString(key, json);
             PlayerPrefs.Save();
-            OnSaveCleared?.Invoke();
+            return string.Equals(PlayerPrefs.GetString(key, string.Empty), json, StringComparison.Ordinal);
         }
-    }
-
-    public void SetPersistentSaveEnabled(bool enabled)
-    {
-        enablePersistentSaveData = enabled;
-    }
-
-    private bool ValidateSaveJson(string json)
-    {
-        if (string.IsNullOrEmpty(json))
+        catch (PlayerPrefsException exception)
         {
+            Debug.LogWarning($"[WorldSaveService] Save storage rejected the write: {exception.Message}");
             return false;
         }
-
-        if (!json.Contains("{") || !json.Contains("}"))
-        {
-            return false;
-        }
-
-        if (!json.Contains("\"puzzleStates\""))
-        {
-            return false;
-        }
-
-        return true;
     }
 
     private string InjectSchemaVersion(string json)
     {
-        if (string.IsNullOrEmpty(json) || !json.StartsWith("{"))
-        {
-            return json;
-        }
-
-        if (json.Contains(VersionFieldName))
-        {
-            return json;
-        }
-
-        return "{\"saveSchemaVersion\":" + saveSchemaVersion + "," + json.Substring(1);
+        string trimmed = json.Trim();
+        return "{\"saveSchemaVersion\":" + SaveSchemaVersion + "," + trimmed.Substring(1);
     }
 }

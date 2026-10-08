@@ -366,6 +366,11 @@ public class CombatSceneBootstrap : MonoBehaviour
             string encounterId = GameStateManager.Instance.PendingCombatEncounterId;
             bool boss = IsBossEncounter(encounterId);
             battleManager.ConfigureEnvyContext(combatIslandId == "island_envy", boss);
+            IslandConfig islandConfig = IslandThemeRegistry.GetConfig(combatIslandId);
+            if (islandConfig != null && Enum.TryParse(islandConfig.viceName, true, out ViceType viceType))
+            {
+                battleManager.ConfigureViceAI(viceType);
+            }
             currentEncounterIsBoss = ShouldUseIslandBossPresentation(encounterId);
             currentBossSlotIndex = currentEncounterIsBoss
                 ? FuturisticSpriteLibrary.GetBossSlotIndexForIsland(combatIslandId)
@@ -464,9 +469,9 @@ public class CombatSceneBootstrap : MonoBehaviour
                     {
                         unit.UnitName = enemyComposition.names[i];
                         unit.ElementType = enemyComposition.elements[i];
-                        unit.Attack += enemyComposition.attackModifiers[i];
-                        unit.Defense += enemyComposition.defenseModifiers[i];
-                        unit.MaxHP = Mathf.Max(1, unit.MaxHP + enemyComposition.maxHpModifiers[i]);
+                        unit.Attack = CombatMath.RoundToNonNegativeInt((double)unit.Attack + enemyComposition.attackModifiers[i], 1);
+                        unit.Defense = CombatMath.RoundToNonNegativeInt((double)unit.Defense + enemyComposition.defenseModifiers[i]);
+                        unit.MaxHP = CombatMath.RoundToNonNegativeInt((double)unit.MaxHP + enemyComposition.maxHpModifiers[i], 1);
                         unit.HP = unit.MaxHP;
                     }
                     else
@@ -490,9 +495,16 @@ public class CombatSceneBootstrap : MonoBehaviour
                                 break;
                         }
 
-                        unit.Defense += i;
-                        unit.MaxHP += i * 10;
+                        unit.Defense = CombatMath.RoundToNonNegativeInt((double)unit.Defense + i);
+                        unit.MaxHP = CombatMath.RoundToNonNegativeInt((double)unit.MaxHP + i * 10, 1);
                         unit.HP = unit.MaxHP;
+                    }
+
+                    if (enemyData == null)
+                    {
+                        // Each object is newly instantiated; apply NG+ once
+                        // after legacy encounter modifiers, leaving XP untouched.
+                        EnemyCombatStatScaler.ScaleSpawnedUnit(unit, ResolveNewGamePlusEnemyMultiplier());
                     }
 
                     SetUnitColor(unitObject, themedEnemyColor);
@@ -825,6 +837,8 @@ public class CombatSceneBootstrap : MonoBehaviour
 
     private void ApplyHeroToUnit(CombatUnit unit, HeroData hero)
     {
+        if (unit == null || hero == null) return;
+        unit.HeroId = hero.heroId;
         if (PartyManager.Instance != null)
         {
             PartyManager.Instance.ApplyHeroToUnit(unit, hero);
@@ -915,21 +929,7 @@ public class CombatSceneBootstrap : MonoBehaviour
 
         float islandTierMultiplier = ResolveIslandTierMultiplier();
 
-        unit.UnitName = enemyData.displayName;
-        unit.ElementType = enemyData.element;
-        unit.MaxHP = Mathf.Max(1, Mathf.RoundToInt(enemyData.baseMaxHP * islandTierMultiplier));
-        unit.HP = unit.MaxHP;
-        unit.MaxMP = Mathf.Max(0, Mathf.RoundToInt(enemyData.baseMaxMP * islandTierMultiplier));
-        unit.MP = unit.MaxMP;
-        unit.Attack = Mathf.Max(1, Mathf.RoundToInt(enemyData.baseAttack * islandTierMultiplier));
-        unit.Defense = Mathf.Max(0, Mathf.RoundToInt(enemyData.baseDefense * islandTierMultiplier));
-        unit.Speed = Mathf.Max(1, Mathf.RoundToInt(enemyData.baseSpeed * islandTierMultiplier));
-        unit.CritRate = Mathf.Clamp01(enemyData.baseCritRate);
-        unit.CritDamage = Mathf.Max(1f, enemyData.baseCritDamage);
-
-        unit.SetSkills(enemyData.skills);
-
-        unit.XpReward = Mathf.Max(1, Mathf.RoundToInt(enemyData.xpReward * islandTierMultiplier));
+        EnemyCombatStatScaler.ApplyEnemyData(unit, enemyData, islandTierMultiplier, ResolveNewGamePlusEnemyMultiplier());
 
         if (useSpriteBattleVisuals)
         {
@@ -940,6 +940,11 @@ public class CombatSceneBootstrap : MonoBehaviour
         }
 
         Debug.Log($"[CombatSceneBootstrap] Applied enemy data '{enemyData.displayName}' ({unit.ElementType}, {unit.XpReward} XP, tier x{islandTierMultiplier:F2}) to unit.");
+    }
+
+    private static float ResolveNewGamePlusEnemyMultiplier()
+    {
+        return NewGamePlusService.Instance != null ? NewGamePlusService.Instance.GetEnemyStatMultiplier() : 1f;
     }
 
     private static float ResolveIslandTierMultiplier()

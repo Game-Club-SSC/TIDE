@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 
@@ -45,3 +46,4 @@ public class TideBreakDataTest
     }
 
 }
+#endif

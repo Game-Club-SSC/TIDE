@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -78,3 +79,4 @@ public class AmbientAudioValidationTest : MonoBehaviour
         Debug.Log("Ambient volume configuration validated.");
     }
 }
+#endif

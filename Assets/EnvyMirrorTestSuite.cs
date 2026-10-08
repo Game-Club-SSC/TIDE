@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using NUnit.Framework;
 
@@ -85,3 +86,4 @@ public class EnvyMirrorTestSuite : MonoBehaviour
         Debug.Log("[EnvyMirrorTestSuite] TestCovetWithNullSkillDoesNotThrow PASSED.");
     }
 }
+#endif

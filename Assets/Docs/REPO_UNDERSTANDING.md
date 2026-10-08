@@ -387,7 +387,13 @@ Assets/
 
 ---
 
-## 16. Development Status (as of latest commits)
+## 16. Historical Development Status
+
+This inventory predates the current integration work. For the verified state,
+source-test limits, and remaining production work as of 2026-10-08, see
+`PRODUCTION_READINESS_2026-10-08.md`. Boat travel, persistent narrative services,
+and procedural audio now have implementations; authored content and real Unity
+journey verification remain incomplete.
 
 ### Completed
 - ✅ Grid movement & puzzle board UI

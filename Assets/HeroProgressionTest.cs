@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -408,3 +409,4 @@ public class HeroProgressionTest : MonoBehaviour
         return unit;
     }
 }
+#endif

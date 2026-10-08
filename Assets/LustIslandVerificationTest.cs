@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -114,3 +115,4 @@ public class LustIslandVerificationTest : MonoBehaviour
             $"Lust scene file should exist at Assets/{SceneRelativePath}.");
     }
 }
+#endif

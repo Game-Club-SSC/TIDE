@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings><Nullable>disable</Nullable><RollForward>Major</RollForward>
+    <DefineConstants>TIDE_COMBAT_HARNESS</DefineConstants>
+    <NoWarn>CS0414;CS0649</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/BattleManager.cs" Link="Production/BattleManager.cs" />
+    <Compile Include="../../Assets/CombatUnit.cs" Link="Production/CombatUnit.cs" />
+    <Compile Include="../../Assets/ElementMatchup.cs" Link="Production/ElementMatchup.cs" />
+    <Compile Include="../../Assets/StatusEffect.cs" Link="Production/StatusEffect.cs" />
+    <Compile Include="../../Assets/MomentumState.cs" Link="Production/MomentumState.cs" />
+    <Compile Include="../../Assets/SkillData.cs" Link="Production/SkillData.cs" />
+    <Compile Include="../../Assets/TideBreakData.cs" Link="Production/TideBreakData.cs" />
+    <Compile Include="../../Assets/TideBreakAbility.cs" Link="Production/TideBreakAbility.cs" />
+    <Compile Include="../../Assets/BalanceConfig.cs" Link="Production/BalanceConfig.cs" />
+    <Compile Include="../../Assets/ViceAIProfile.cs" Link="Production/ViceAIProfile.cs" />
+    <Compile Include="../../Assets/CombatMath.cs" Link="Production/CombatMath.cs" />
+    <Compile Include="../../Assets/EnemyData.cs" Link="Production/EnemyData.cs" />
+    <Compile Include="../../Assets/EnemyCombatStatScaler.cs" Link="Production/EnemyCombatStatScaler.cs" />
+    <Compile Include="../../Assets/DifficultyModeService.cs" Link="Production/DifficultyModeService.cs" />
+    <Compile Include="../../Assets/AdversarialCombatChallengerRunner.cs" Link="Tests/AdversarialCombatChallengerRunner.cs" />
+    <Compile Include="../../Assets/ElementMatchupTest.cs" Link="Tests/ElementMatchupTest.cs" />
+    <Compile Include="../../Assets/GameConstants.cs" Link="Production/GameConstants.cs" />
+    <Compile Include="../../Assets/BattleFlowTestSuite.cs" Link="Tests/BattleFlowTestSuite.cs" />
+    <Compile Include="../../Assets/CombatUnitTestSuite.cs" Link="Tests/CombatUnitTestSuite.cs" />
+    <Compile Include="../../Assets/TideBreakTargetingTest.cs" Link="Tests/TideBreakTargetingTest.cs" />
+    <Compile Include="../../Assets/CombatReadinessRegressionTest.cs" Link="Tests/CombatReadinessRegressionTest.cs" />
+  </ItemGroup>
+</Project>

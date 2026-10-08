@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -93,3 +94,4 @@ public class GearSetFactoryTest : MonoBehaviour
         Assert.AreEqual(CombatUnit.Element.None, defaultNone.element, "Default for None should be universal.");
     }
 }
+#endif

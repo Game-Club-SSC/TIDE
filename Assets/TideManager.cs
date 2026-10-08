@@ -44,6 +44,8 @@ public class TideManager : MonoBehaviour
     [Header("Greed Consumption")]
     [SerializeField] private bool enableConsumption;
     [SerializeField] private int consumptionAmount = 1;
+    private bool enableGreedEconomy;
+    private int coinTileYield = 2;
 
     [Header("Sealed Tile Combat")]
     [SerializeField] private string fallbackSealedTileEncounterId = "encounter_imp_trio";
@@ -83,6 +85,9 @@ public class TideManager : MonoBehaviour
     private TideTile hoveredTile;
     private TideTile carryingSource;
     private int carriedAmount;
+    private int[,] carriedMoveStartValues;
+    private readonly List<int[,]> undoHistory = new List<int[,]>();
+    private const int MaximumUndoMoves = 32;
     private int requestedTakeAmount;
     private bool puzzleSolved;
     private bool isStartingSealedTileCombat;
@@ -171,7 +176,14 @@ public class TideManager : MonoBehaviour
             for (int col = 0; col < gridCols; col++)
             {
                 TideTile tile = activeTiles[row, col];
-                grid[row, col] = tile != null ? tile.CurrentTideValue : puzzleValues[row, col];
+                grid[row, col] = sealedTiles[row, col] ? 0
+                    : (tile != null ? tile.CurrentTideValue : puzzleValues[row, col]);
+                // Saves have no carried bundle section. Capture the last completed
+                // move so disabling or saving mid-pickup cannot delete Tide.
+                if (tile != null && tile == carryingSource && carriedAmount > 0)
+                {
+                    grid[row, col] += carriedAmount;
+                }
             }
         }
 
@@ -203,6 +215,15 @@ public class TideManager : MonoBehaviour
             return;
         }
 
+        if (layout.GetLength(0) > PuzzleData.MaximumGridDimension
+            || layout.GetLength(1) > PuzzleData.MaximumGridDimension)
+        {
+            Debug.LogWarning("[TideManager] Layout exceeds supported board dimensions.");
+            return;
+        }
+
+        ClearMoveHistory();
+
         gridRows = layout.GetLength(0);
         gridCols = layout.GetLength(1);
         activeTiles = new TideTile[gridRows, gridCols];
@@ -214,8 +235,11 @@ public class TideManager : MonoBehaviour
         lockedEncounterId = string.Empty;
         lockedEncounterIslandId = puzzleIslandId;
         winCondition = new PuzzleWinCondition();
+        instabilityThreshold = GameConstants.InstabilityThreshold;
         enableConsumption = false;
         consumptionAmount = 1;
+        enableGreedEconomy = false;
+        coinTileYield = 2;
 
         for (int row = 0; row < gridRows; row++)
         {
@@ -258,6 +282,7 @@ public class TideManager : MonoBehaviour
         }
 
         gridRows = dimensions.y;
+        ClearMoveHistory();
         gridCols = dimensions.x;
         activeTiles = new TideTile[gridRows, gridCols];
         uiTileViews = new UiTileView[gridRows, gridCols];
@@ -267,6 +292,8 @@ public class TideManager : MonoBehaviour
         instabilityThreshold = Mathf.Max(0, data.instabilityThreshold);
         enableConsumption = data.enableConsumption;
         consumptionAmount = Mathf.Max(1, data.consumptionAmount);
+        enableGreedEconomy = data.enableGreedEconomy;
+        coinTileYield = Mathf.Clamp(data.coinTileYield, 1, 10);
         lockedPosition = data.lockedPosition;
         lockedEncounterId = data.lockedTileEncounterId;
         lockedEncounterIslandId = data.lockedTileIslandId;
@@ -277,6 +304,7 @@ public class TideManager : MonoBehaviour
         }
 
         sealedTiles = data.GetSealedMap();
+        RestoreClearedSealedTiles();
         if (data.HasLockedTile)
         {
             bool lockedCleared = IsLockedEncounterCleared();
@@ -298,6 +326,42 @@ public class TideManager : MonoBehaviour
         }
 
         HasActiveBoard = true;
+    }
+
+    private void RestoreClearedSealedTiles()
+    {
+        IslandRestorationTracker tracker = IslandRestorationTracker.Instance;
+        string islandScope = GetPuzzleIslandIdForLookup();
+        if (tracker == null || string.IsNullOrEmpty(islandScope))
+        {
+            return;
+        }
+
+        for (int row = 0; row < gridRows; row++)
+        {
+            for (int col = 0; col < gridCols; col++)
+            {
+                Vector2Int position = new Vector2Int(col, row);
+                if (sealedTiles[row, col]
+                    && tracker.HasClearedEncounter(islandScope, GetSealedTileEncounterId(position)))
+                {
+                    sealedTiles[row, col] = false;
+                    if (puzzleValues[row, col] == 0)
+                    {
+                        puzzleValues[row, col] = 5;
+                    }
+                }
+            }
+        }
+    }
+
+    private void ClearMoveHistory()
+    {
+        puzzleSolved = false;
+        carryingSource = null;
+        carriedAmount = 0;
+        carriedMoveStartValues = null;
+        undoHistory.Clear();
     }
 
     private bool IsLockedEncounterCleared()
@@ -365,8 +429,13 @@ public class TideManager : MonoBehaviour
             InitializePuzzle(puzzleValues, sealedPosition);
         }
 
-        GenerateBoard();
         StoreInitialValues();
+        if (GameStateManager.Instance != null
+            && GameStateManager.Instance.TryGetPuzzleRuntimeGrid(GameStateManager.Instance.PendingPuzzleBoxId, out int[,] runtimeGrid, out _))
+        {
+            ApplyRuntimeLayout(runtimeGrid);
+        }
+        GenerateBoard();
         UpdateTileVisuals();
         isStartingSealedTileCombat = false;
 
@@ -374,6 +443,7 @@ public class TideManager : MonoBehaviour
         {
             GameStateManager.Instance.EnterPuzzle();
         }
+        EvaluatePuzzleCompletion();
     }
 
     private void ApplyIslandVisualTheme(string islandId)
@@ -434,15 +504,16 @@ public class TideManager : MonoBehaviour
             InitializePuzzle(puzzleValues, sealedPosition);
         }
 
+        StoreInitialValues();
         if (overlayRuntimeLayout != null)
         {
             ApplyRuntimeLayout(overlayRuntimeLayout);
         }
 
         GenerateBoard();
-        StoreInitialValues();
         UpdateTileVisuals();
         isStartingSealedTileCombat = false;
+        EvaluatePuzzleCompletion();
     }
 
     private void OnDestroy()
@@ -462,7 +533,7 @@ public class TideManager : MonoBehaviour
             return;
         }
 
-        if (isClosingBoardUi)
+        if (isClosingBoardUi || isStartingSealedTileCombat || overlayClosing)
         {
             return;
         }
@@ -873,7 +944,7 @@ public class TideManager : MonoBehaviour
 
     public void ResetPuzzle()
     {
-        if (puzzleSolved || initialPuzzleValues == null)
+        if (puzzleSolved || initialPuzzleValues == null || isStartingSealedTileCombat || overlayClosing || isClosingBoardUi)
         {
             return;
         }
@@ -906,6 +977,8 @@ public class TideManager : MonoBehaviour
         }
 
         UpdateUiHeader();
+        undoHistory.Clear();
+        SaveCurrentRuntimeState();
         OnPuzzleReset?.Invoke();
     }
 
@@ -918,7 +991,56 @@ public class TideManager : MonoBehaviour
 
         carryingSource = null;
         carriedAmount = 0;
+        carriedMoveStartValues = null;
         OnCarriedAmountChanged?.Invoke();
+    }
+
+    public void UndoLastMove()
+    {
+        if (puzzleSolved || isStartingSealedTileCombat || overlayClosing || isClosingBoardUi)
+        {
+            return;
+        }
+
+        if (IsCarrying)
+        {
+            CancelCarriedTide();
+            UpdateTileVisuals();
+            return;
+        }
+
+        if (undoHistory.Count == 0)
+        {
+            return;
+        }
+
+        int lastIndex = undoHistory.Count - 1;
+        int[,] previousGrid = undoHistory[lastIndex];
+        undoHistory.RemoveAt(lastIndex);
+        for (int row = 0; row < gridRows; row++)
+        {
+            for (int col = 0; col < gridCols; col++)
+            {
+                TideTile tile = activeTiles[row, col];
+                if (tile != null && !tile.IsSealed)
+                {
+                    tile.CurrentTideValue = previousGrid[row, col];
+                }
+            }
+        }
+        UpdateTileVisuals();
+        SaveCurrentRuntimeState();
+        OnCarriedAmountChanged?.Invoke();
+    }
+
+    private void SaveCurrentRuntimeState()
+    {
+        GameStateManager gameState = GameStateManager.Instance;
+        if (gameState != null && HasActiveBoard)
+        {
+            string puzzleBoxId = overlayMode ? overlayPuzzleBoxId : gameState.PendingPuzzleBoxId;
+            gameState.SavePuzzleRuntimeState(puzzleBoxId, CaptureCurrentGrid(), puzzleSolved);
+        }
     }
 
     private Vector3 GetWorldPosition(int row, int col)
@@ -978,6 +1100,7 @@ public class TideManager : MonoBehaviour
             return;
         }
 
+        carriedMoveStartValues = CaptureCurrentGrid();
         carryingSource = hoveredTile;
         carriedAmount = takeAmount;
         carryingSource.ApplyTake(carriedAmount);
@@ -1078,6 +1201,7 @@ public class TideManager : MonoBehaviour
         }
 
         GameStateManager.Instance.PendingEnemyComposition = EnemyComposition.FromEncounterConfig(encounterConfig);
+        GameStateManager.Instance.SavePuzzleRuntimeState(GameStateManager.Instance.PendingPuzzleBoxId, CaptureCurrentGrid(), false);
         isStartingSealedTileCombat = true;
         Debug.Log($"[TideManager] Sealed tile combat started at {tilePosition} using encounter '{encounterConfig.encounterId}'.");
         GameStateManager.Instance.EnterCombatSceneFromPuzzle(islandScope, completionEncounterId, sealedTileCombatRestorationValue);
@@ -1102,7 +1226,7 @@ public class TideManager : MonoBehaviour
             EventSystem.current?.SetSelectedGameObject(null);
         }
 
-        if (puzzleSolved)
+        if (puzzleSolved || overlayClosing || isClosingBoardUi || isStartingSealedTileCombat)
         {
             UpdateTileVisuals();
             return;
@@ -1127,14 +1251,15 @@ public class TideManager : MonoBehaviour
             return lockedEncounterId;
         }
 
-        return $"sealed_{tilePosition.x}_{tilePosition.y}_guard";
+        return BuildLegacyLockedEncounterId(tilePosition);
     }
 
     private string BuildLegacyLockedEncounterId(Vector2Int tilePosition)
     {
-        if (GameStateManager.Instance != null && !string.IsNullOrEmpty(GameStateManager.Instance.PendingPuzzleEncounterId))
+        string encounterScope = overlayMode ? overlayEncounterId : GameStateManager.Instance?.PendingPuzzleEncounterId;
+        if (!string.IsNullOrEmpty(encounterScope))
         {
-            return $"{GameStateManager.Instance.PendingPuzzleEncounterId}_sealed_{tilePosition.x}_{tilePosition.y}_guard";
+            return $"{encounterScope}_sealed_{tilePosition.x}_{tilePosition.y}_guard";
         }
 
         return $"sealed_{tilePosition.x}_{tilePosition.y}_guard";
@@ -1196,6 +1321,15 @@ public class TideManager : MonoBehaviour
             return;
         }
 
+        if (carriedMoveStartValues != null)
+        {
+            if (undoHistory.Count >= MaximumUndoMoves)
+            {
+                undoHistory.RemoveAt(0);
+            }
+            undoHistory.Add(carriedMoveStartValues);
+        }
+        carriedMoveStartValues = null;
         hoveredTile.ApplyPlace(carriedAmount);
         ApplyConsumption(hoveredTile);
         ApplyGreedCoinYield(hoveredTile);
@@ -1210,6 +1344,10 @@ public class TideManager : MonoBehaviour
         OnCarriedAmountChanged?.Invoke();
         ApplyInstabilityDecay();
         EvaluatePuzzleCompletion();
+        if (!puzzleSolved)
+        {
+            SaveCurrentRuntimeState();
+        }
     }
 
     private void ApplyConsumption(TideTile destinationTile)
@@ -1229,13 +1367,7 @@ public class TideManager : MonoBehaviour
             return;
         }
 
-        PuzzleData puzzleData = overlayPuzzleData;
-        if (puzzleData == null && GameStateManager.Instance != null)
-        {
-            puzzleData = GameStateManager.Instance.PendingPuzzleData;
-        }
-
-        if (puzzleData == null || !puzzleData.enableGreedEconomy)
+        if (!enableGreedEconomy)
         {
             return;
         }
@@ -1265,7 +1397,7 @@ public class TideManager : MonoBehaviour
                 continue;
             }
 
-            int newValue = Mathf.Min(10, neighbor.CurrentTideValue + puzzleData.coinTileYield);
+            int newValue = Mathf.Min(10, neighbor.CurrentTideValue + coinTileYield);
             int delta = newValue - neighbor.CurrentTideValue;
             if (delta > 0)
             {
@@ -1319,21 +1451,11 @@ public class TideManager : MonoBehaviour
 
     private void EvaluatePuzzleCompletion()
     {
-        int[,] grid = new int[gridRows, gridCols];
-        for (int row = 0; row < gridRows; row++)
+        if (puzzleSolved || !HasActiveBoard || winCondition == null)
         {
-            for (int col = 0; col < gridCols; col++)
-            {
-                TideTile tile = activeTiles[row, col];
-                if (tile == null)
-                {
-                    grid[row, col] = puzzleValues[row, col];
-                    continue;
-                }
-
-                grid[row, col] = tile.CurrentTideValue;
-            }
+            return;
         }
+        int[,] grid = CaptureCurrentGrid();
 
         if (!winCondition.IsMet(grid, sealedTiles))
         {
@@ -1356,6 +1478,7 @@ public class TideManager : MonoBehaviour
             }
 
             GameStateManager.Instance.MarkPuzzleSolved();
+            GameStateManager.Instance.SavePuzzleRuntimeState(GameStateManager.Instance.PendingPuzzleBoxId, grid, true);
             StartCoroutine(FlashAllTilesComplete());
             StartCoroutine(ReturnToMainSceneAfterDelay());
         }
@@ -1674,7 +1797,15 @@ public class TideManager : MonoBehaviour
         {
             for (int col = 0; col < gridCols; col++)
             {
-                puzzleValues[row, col] = Mathf.Clamp(runtimeGrid[row, col], 1, 10);
+                if (!sealedTiles[row, col])
+                {
+                    // A previously sealed slot keeps its authored Tide after
+                    // unlocking. A zero authored slot was normalized to five.
+                    if (runtimeGrid[row, col] != 0)
+                    {
+                        puzzleValues[row, col] = Mathf.Clamp(runtimeGrid[row, col], 1, 10);
+                    }
+                }
             }
         }
     }

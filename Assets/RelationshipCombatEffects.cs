@@ -176,7 +176,11 @@ public static class RelationshipCombatEffects
                     continue;
                 }
 
-                totalBond += dialogue.GetBondLevel(a.UnitName, b.UnitName);
+                // Display names are localized/presentation values. Authored
+                // relationships and save keys use stable hero identities.
+                string heroA = !string.IsNullOrEmpty(a.HeroId) ? a.HeroId : a.UnitName;
+                string heroB = !string.IsNullOrEmpty(b.HeroId) ? b.HeroId : b.UnitName;
+                totalBond += dialogue.GetBondLevel(heroA, heroB);
                 pairCount++;
             }
         }

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -158,3 +159,4 @@ public class GameSystemsTest : MonoBehaviour
         LocalizationService.SetLanguage(LocalizationService.Language.English);
     }
 }
+#endif

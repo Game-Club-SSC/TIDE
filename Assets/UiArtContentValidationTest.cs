@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -82,3 +83,4 @@ public class UiArtContentValidationTest : MonoBehaviour
         Debug.Log("Button construction validated.");
     }
 }
+#endif

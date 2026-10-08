@@ -79,12 +79,16 @@ TIDE is a **system-rich playable prototype in active development**, not a finish
 
 | Order | Island | Production identity |
 | ---: | --- | --- |
-| 1 | Gluttony | Consumption and excess |
+| 1 | Lust | Attachment and temptation |
 | 2 | Greed | Avarice, value, and temptation |
-| 3 | Sloth | Apathy, delay, and diminished agency |
-| 4 | Wrath | Rage, escalation, and loss of restraint |
+| 3 | Desire | Longing and diminished agency |
+| 4 | Anger | Rage, escalation, and loss of restraint |
 | 5 | Envy | Reflection, comparison, and stolen strengths |
-| 6 | Pride | Isolation, superiority, and relationship pressure |
+| 6 | Ego | Isolation, superiority, and relationship pressure |
+
+The starting hub is separate. Gluttony, Sloth, Wrath, and Pride remain compatibility
+aliases for old data, not additional corrupted islands. `Game Design Document V2 FINAL.md`
+is canonical; the order above follows the shipped registry.
 
 ## Open and test
 
@@ -120,7 +124,7 @@ Critical regression commands:
 
 - `PostDeferralVerticalSliceRegressionRunner` → **Run Post-Deferral Vertical Slice Regression Matrix**
 - `IslandContentVerificationTest` → **Run Island Content Verification**
-- `GluttonyIslandVerificationTest` → **Run Gluttony Island Verification**
+- `LustIslandVerificationTest` → **Run Lust Island Verification**
 - `RestorationTrackerTest` → **Run Restoration Tracker Tests**
 - `BossEncounterGateTest` → **Run Boss Encounter Gate Tests**
 - `RestorationThresholdGateTest` → **Run Restoration Threshold Gate Tests**
@@ -131,6 +135,17 @@ Critical regression commands:
 - `GearProgressionTest` → **Run All Gear Progression Tests**
 
 Repository checks live in `scripts/validate.ps1`, `scripts/bug_audit.ps1`, and `scripts/runtime_sim.ps1`. Unity compile/import and hands-on Play Mode testing remain authoritative.
+
+With .NET SDK 8 and PowerShell 7 installed, run `bash scripts/verify.sh` for the
+actual-source gameplay harnesses, both input configurations, C# syntax/player
+dependency checks, scene/asset references, and all three PowerShell checks.
+The harnesses use explicit Unity/service adapters and cannot prove Unity API
+binding, import, lifecycle timing, rendering, or player builds. `runtime_sim.ps1`
+checks source contracts; it does not run the game.
+
+The production-readiness changes, verification results, remaining content gaps,
+and Editor test plan are recorded in
+[Assets/Docs/PRODUCTION_READINESS_2026-10-08.md](Assets/Docs/PRODUCTION_READINESS_2026-10-08.md).
 
 ## Repository map
 

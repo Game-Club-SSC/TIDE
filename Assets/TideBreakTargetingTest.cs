@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || TIDE_COMBAT_HARNESS
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -5,9 +6,8 @@ using UnityEngine;
 /// <summary>
 /// Behavioural coverage for Tide Break target resolution.
 ///
-/// The targetType branches in ResolveTideBreak derived the affected side from
-/// the actor, so "AllEnemies" fired at the actor's own team and the ally
-/// support branches healed or shielded the enemy squad. Three of the five
+/// AllEnemies must resolve to the opposing faction. Enemy support Tide Break
+/// data uses the established hostile fallback. Three of the five
 /// shipped Tide Break assets are authored AllEnemies, and enemies can reach
 /// the Tide Break action whenever the enemy momentum gauge is full, so this
 /// was reachable in ordinary play.
@@ -57,10 +57,9 @@ public class TideBreakTargetingTest : MonoBehaviour
     }
 
     [Test]
-    public void EnemyAllEnemiesTideBreakNeverHitsThePlayerParty()
+    public void EnemyAllEnemiesTideBreakHitsOnlyThePlayerParty()
     {
-        // The defect: targetTypeUnit was actor-side derived, so an enemy
-        // casting an AllEnemies ability resolved to the player's team.
+        // AllEnemies is relative to the caster, for both factions.
         BattleManager battle = CreateBattleManager();
         CombatUnit enemy = CreateUnit("EnemyImp", CombatUnit.UnitType.Enemy, 120, 30, 10, CombatUnit.Element.Fire);
         CombatUnit player = CreateUnit("HeroFire", CombatUnit.UnitType.Ally, 200, 25, 15, CombatUnit.Element.Water);
@@ -70,12 +69,13 @@ public class TideBreakTargetingTest : MonoBehaviour
         int playerHpBefore = player.HP;
         int enemyHpBefore = enemy.HP;
 
+        battle.Momentum.ShiftTowardEnemy(1f);
         InvokeResolveTideBreak(battle, enemy, player, allEnemies);
 
-        Assert.AreEqual(playerHpBefore, player.HP,
-            "An enemy AllEnemies Tide Break must never damage the player's party.");
-        Assert.Less(enemy.HP, enemyHpBefore,
-            "The enemy Tide Break should have damaged the opposing team, not itself.");
+        Assert.Less(player.HP, playerHpBefore,
+            "An enemy AllEnemies Tide Break must damage the opposing player party.");
+        Assert.AreEqual(enemyHpBefore, enemy.HP,
+            "The enemy Tide Break must never damage its own team.");
     }
 
     [Test]
@@ -93,6 +93,7 @@ public class TideBreakTargetingTest : MonoBehaviour
         int woundedAllyHpBefore = enemyAlly.HP;
         int playerHpBefore = player.HP;
 
+        battle.Momentum.ShiftTowardEnemy(1f);
         InvokeResolveTideBreak(battle, enemy, player, allAllies);
 
         Assert.AreEqual(woundedAllyHpBefore, enemyAlly.HP,
@@ -113,6 +114,7 @@ public class TideBreakTargetingTest : MonoBehaviour
 
         int playerHpBefore = player.HP;
 
+        battle.Momentum.ShiftTowardEnemy(1f);
         InvokeResolveTideBreak(battle, enemy, enemyAlly, singleAlly);
 
         Assert.AreEqual(0f, enemyAlly.ShieldHp, 0.001f,
@@ -243,3 +245,5 @@ public class TideBreakTargetingTest : MonoBehaviour
         }
     }
 }
+
+#endif

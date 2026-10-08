@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using NUnit.Framework;
 
@@ -114,3 +115,4 @@ public class EnemyDataTestSuite
         Assert.AreEqual(1, comp.Count, "Count should only include configured enemy slots.");
     }
 }
+#endif

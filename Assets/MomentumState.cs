@@ -22,24 +22,24 @@ public class MomentumState
 
     public void SetShiftAmounts(float strong, float weakRatio, float neutralRatio)
     {
-        strongShiftAmount = Mathf.Max(0f, strong);
-        weakShiftRatio = Mathf.Clamp01(weakRatio);
-        neutralShiftRatio = Mathf.Clamp01(neutralRatio);
+        strongShiftAmount = SanitizeAmount(strong);
+        weakShiftRatio = Mathf.Clamp01(SanitizeAmount(weakRatio));
+        neutralShiftRatio = Mathf.Clamp01(SanitizeAmount(neutralRatio));
     }
 
-    public void SetCritShift(float amount) => critShiftAmount = Mathf.Max(0f, amount);
-    public void SetHealShift(float amount) => healShiftAmount = Mathf.Max(0f, amount);
-    public void SetTideBreakShift(float amount) => tideBreakShiftAmount = Mathf.Max(0f, amount);
+    public void SetCritShift(float amount) => critShiftAmount = SanitizeAmount(amount);
+    public void SetHealShift(float amount) => healShiftAmount = SanitizeAmount(amount);
+    public void SetTideBreakShift(float amount) => tideBreakShiftAmount = SanitizeAmount(amount);
 
     public void ShiftTowardPlayer(float amount)
     {
-        momentum = Mathf.Clamp(momentum + Mathf.Max(0f, amount), MinValue, MaxValue);
+        momentum = Mathf.Clamp(momentum + SanitizeAmount(amount), MinValue, MaxValue);
         OnMomentumChanged?.Invoke(momentum);
     }
 
     public void ShiftTowardEnemy(float amount)
     {
-        momentum = Mathf.Clamp(momentum - Mathf.Max(0f, amount), MinValue, MaxValue);
+        momentum = Mathf.Clamp(momentum - SanitizeAmount(amount), MinValue, MaxValue);
         OnMomentumChanged?.Invoke(momentum);
     }
 
@@ -144,5 +144,10 @@ public class MomentumState
     {
         momentum = 0f;
         OnMomentumChanged?.Invoke(momentum);
+    }
+
+    private static float SanitizeAmount(float amount)
+    {
+        return float.IsNaN(amount) || float.IsInfinity(amount) ? 0f : Mathf.Max(0f, amount);
     }
 }

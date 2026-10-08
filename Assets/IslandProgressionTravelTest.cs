@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -444,3 +445,4 @@ public class IslandProgressionTravelTest : MonoBehaviour
         return progression;
     }
 }
+#endif

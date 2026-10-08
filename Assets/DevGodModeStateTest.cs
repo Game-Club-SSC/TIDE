@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -157,3 +158,4 @@ public class DevGodModeStateTest : MonoBehaviour
         return progression;
     }
 }
+#endif

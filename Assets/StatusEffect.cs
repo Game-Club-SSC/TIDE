@@ -158,6 +158,11 @@ public class StatusEffect
     {
         // Duration < 0 means permanent (see Tick), so only a zero-length
         // effect is spent. BattleHud applies the same rule.
-        return Type != StatusEffectType.None && Duration != 0;
+        return (int)Type > (int)StatusEffectType.None
+            && (int)Type <= (int)StatusEffectType.AccuracyBuff
+            && Duration != 0
+            && !float.IsNaN(Magnitude)
+            && !float.IsInfinity(Magnitude)
+            && Magnitude >= 0f;
     }
 }

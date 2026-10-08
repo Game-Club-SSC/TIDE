@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -89,3 +90,4 @@ public class UIUXPolishTest : MonoBehaviour
         Debug.Log("Element indicators exist: PASS");
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -1011,3 +1012,4 @@ public class TideMovementTest
 
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using NUnit.Framework;
 
@@ -66,3 +67,4 @@ public class DesireStatusEffectTestSuite : MonoBehaviour
         Debug.Log("[DesireStatusEffectTestSuite] TestNoEffectMeansBaseSpeed PASSED.");
     }
 }
+#endif

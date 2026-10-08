@@ -16,7 +16,7 @@ public class PuzzleWinCondition
 
     public bool IsMet(int[,] grid, Vector2Int sealedPosition)
     {
-        if (grid == null)
+        if (grid == null || !IsValid())
         {
             return false;
         }
@@ -32,7 +32,7 @@ public class PuzzleWinCondition
 
     public bool IsMet(int[,] grid, bool[,] sealedTiles)
     {
-        if (grid == null)
+        if (grid == null || !IsValid())
         {
             return false;
         }
@@ -86,11 +86,20 @@ public class PuzzleWinCondition
         return position.x >= 0 && position.x < cols
             && position.y >= 0 && position.y < rows;
     }
+
+    public bool IsValid()
+    {
+        return targetValue >= 1 && targetValue <= 10
+            && (type == WinConditionType.AllEqualToTarget
+                || (type == WinConditionType.PercentageAtTarget
+                    && requiredPercent > 0f && requiredPercent <= 1f));
+    }
 }
 
 [CreateAssetMenu(fileName = "New Puzzle", menuName = "TIDE/Puzzle Data")]
 public class PuzzleData : ScriptableObject
 {
+    public const int MaximumGridDimension = 256;
     [Header("Grid Dimensions")]
     [Tooltip("Number of columns in the puzzle grid.")]
     public int gridCols = 4;
@@ -178,7 +187,7 @@ public class PuzzleData : ScriptableObject
         int resolvedRows = dimensions.y;
         int resolvedCols = dimensions.x;
         long cellCount = (long)resolvedRows * resolvedCols;
-        if (resolvedRows <= 0 || resolvedCols <= 0 || cellCount > int.MaxValue)
+        if (!HasSupportedDimensions(dimensions))
         {
             Debug.LogWarning($"[PuzzleData] Invalid grid dimensions ({resolvedCols}x{resolvedRows}). Returning an empty sealed map.");
             return new bool[0, 0];
@@ -224,7 +233,7 @@ public class PuzzleData : ScriptableObject
         int resolvedRows = dimensions.y;
         int resolvedCols = dimensions.x;
         long cellCount = (long)resolvedRows * resolvedCols;
-        if (resolvedRows <= 0 || resolvedCols <= 0 || cellCount > int.MaxValue)
+        if (!HasSupportedDimensions(dimensions))
         {
             Debug.LogWarning($"[PuzzleData] Invalid grid dimensions ({resolvedCols}x{resolvedRows}). Returning an empty grid.");
             return new int[0, 0];
@@ -282,13 +291,37 @@ public class PuzzleData : ScriptableObject
     public bool IsValid()
     {
         Vector2Int dimensions = GetResolvedGridDimensions();
-        if (dimensions.x <= 0 || dimensions.y <= 0 || tileValues == null)
+        if (!HasSupportedDimensions(dimensions) || tileValues == null
+            || winCondition == null || !winCondition.IsValid())
         {
             return false;
         }
 
         long expectedValues = (long)dimensions.x * dimensions.y;
-        return expectedValues <= int.MaxValue && tileValues.LongLength >= expectedValues;
+        if (tileValues.LongLength != expectedValues)
+        {
+            return false;
+        }
+
+        bool[,] map = GetSealedMap();
+        for (int row = 0; row < dimensions.y; row++)
+        {
+            for (int col = 0; col < dimensions.x; col++)
+            {
+                if (!map[row, col])
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasSupportedDimensions(Vector2Int dimensions)
+    {
+        return dimensions.x > 0 && dimensions.y > 0
+            && dimensions.x <= MaximumGridDimension && dimensions.y <= MaximumGridDimension;
     }
 
     private bool HasImplicitSealedSlot()

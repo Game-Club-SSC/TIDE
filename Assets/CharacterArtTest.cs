@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -111,3 +112,4 @@ public class CharacterArtTest : MonoBehaviour
         Debug.Log("Element color mapping: PASS");
     }
 }
+#endif

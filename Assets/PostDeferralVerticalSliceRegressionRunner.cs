@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -86,6 +87,14 @@ public class PostDeferralVerticalSliceRegressionRunner : MonoBehaviour
             RunContextMenuSuite<GreedEconomyTestSuite>(nameof(GreedEconomyTestSuite.RunTests)));
         RunStep("VSR-019", "PuzzleScene.unity", "Puzzle win condition evaluation", "PuzzleWinConditionTest.RunTests", () =>
             RunContextMenuSuite<PuzzleWinConditionTest>(nameof(PuzzleWinConditionTest.RunTests)));
+        RunStep("VSR-020", "CombatScene.unity", "Combat turns, costs, targeting, terminal results", "CombatReadinessRegressionTest.RunTests", () =>
+            RunContextMenuSuite<CombatReadinessRegressionTest>(nameof(CombatReadinessRegressionTest.RunTests)));
+        RunStep("VSR-021", "level_1.unity", "Journey save schema, bounds and migration", "JourneySafetyRegressionTest.RunTests", () =>
+            RunContextMenuSuite<JourneySafetyRegressionTest>(nameof(JourneySafetyRegressionTest.RunTests)));
+        RunStep("VSR-022", "level_1.unity", "Party persistence invariants", "SaveRestoreInvariantTest.RunTests", () =>
+            RunContextMenuSuite<SaveRestoreInvariantTest>(nameof(SaveRestoreInvariantTest.RunTests)));
+        RunStep("VSR-023", "level_1.unity", "Narrative replay and cancellation", "NarrativeReplayVerificationTest.RunTests", () =>
+            RunContextMenuSuite<NarrativeReplayVerificationTest>(nameof(NarrativeReplayVerificationTest.RunTests)));
 
         latestReport = BuildReport();
         Debug.Log(latestReport);
@@ -183,3 +192,4 @@ public class PostDeferralVerticalSliceRegressionRunner : MonoBehaviour
         return exception;
     }
 }
+#endif

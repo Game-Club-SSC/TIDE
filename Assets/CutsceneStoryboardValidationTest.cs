@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -75,3 +76,4 @@ public class CutsceneStoryboardValidationTest : MonoBehaviour
         Debug.Log("Fate encounter director validated: philosophical dialogue, Fate boss encounter.");
     }
 }
+#endif

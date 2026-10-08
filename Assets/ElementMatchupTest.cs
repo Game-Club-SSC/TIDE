@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || TIDE_COMBAT_HARNESS
 using NUnit.Framework;
 using UnityEngine;
 
@@ -149,3 +150,4 @@ public class ElementMatchupTest : MonoBehaviour
             "Malformed defender elements must not create an artificial advantage.");
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -79,3 +80,4 @@ public class PartySwapServiceTest : MonoBehaviour
         Assert.IsNotNull(reserves, "Reserves list should not be null.");
     }
 }
+#endif

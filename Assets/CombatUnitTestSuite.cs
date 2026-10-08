@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || TIDE_COMBAT_HARNESS
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -312,3 +313,5 @@ public class CombatUnitTestSuite
         return tideBreak;
     }
 }
+
+#endif

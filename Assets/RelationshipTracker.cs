@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-internal class RelationshipAffinityData
+public sealed class RelationshipAffinitySnapshot
 {
     public List<string> heroIds = new List<string>();
     public List<int> affinities = new List<int>();
@@ -96,7 +96,7 @@ public class RelationshipTracker : MonoBehaviour
         }
 
         int current = GetAffinity(heroId);
-        SetAffinity(heroId, current + delta);
+        SetAffinity(heroId, (int)Math.Max(0L, Math.Min(100L, (long)current + delta)));
     }
 
     public RelationshipTier GetRelationshipTier(string heroId)
@@ -131,7 +131,39 @@ public class RelationshipTracker : MonoBehaviour
 
     public IReadOnlyDictionary<string, int> Snapshot()
     {
-        return affinityByHeroId;
+        return new Dictionary<string, int>(affinityByHeroId, StringComparer.Ordinal);
+    }
+
+    public RelationshipAffinitySnapshot CaptureSnapshot()
+    {
+        RelationshipAffinitySnapshot snapshot = new RelationshipAffinitySnapshot();
+        List<string> ids = new List<string>(affinityByHeroId.Keys);
+        ids.Sort(StringComparer.Ordinal);
+        for (int i = 0; i < ids.Count; i++)
+        {
+            snapshot.heroIds.Add(ids[i]);
+            snapshot.affinities.Add(Mathf.Clamp(affinityByHeroId[ids[i]], 0, 100));
+        }
+        return snapshot;
+    }
+
+    /// <summary>Replaces affinity from the authoritative world save without writing a sidecar during load.</summary>
+    public void ApplySnapshot(RelationshipAffinitySnapshot snapshot)
+    {
+        affinityByHeroId.Clear();
+        if (snapshot == null || snapshot.heroIds == null || snapshot.affinities == null)
+        {
+            return;
+        }
+
+        int count = Mathf.Min(snapshot.heroIds.Count, snapshot.affinities.Count);
+        for (int i = 0; i < count; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(snapshot.heroIds[i]))
+            {
+                affinityByHeroId[snapshot.heroIds[i]] = Mathf.Clamp(snapshot.affinities[i], 0, 100);
+            }
+        }
     }
 
     public void ResetForDebug()
@@ -142,17 +174,15 @@ public class RelationshipTracker : MonoBehaviour
 
     private void OnDisable()
     {
-        SaveAffinityToPrefs();
+        if (Instance == this)
+        {
+            SaveAffinityToPrefs();
+        }
     }
 
     private void SaveAffinityToPrefs()
     {
-        RelationshipAffinityData data = new RelationshipAffinityData();
-        foreach (var kvp in affinityByHeroId)
-        {
-            data.heroIds.Add(kvp.Key);
-            data.affinities.Add(kvp.Value);
-        }
+        RelationshipAffinitySnapshot data = CaptureSnapshot();
         string json = JsonUtility.ToJson(data);
         PlayerPrefs.SetString(AffinityPlayerPrefsKey, json);
         PlayerPrefs.Save();
@@ -172,21 +202,32 @@ public class RelationshipTracker : MonoBehaviour
             return;
         }
 
-        RelationshipAffinityData data = JsonUtility.FromJson<RelationshipAffinityData>(json);
+        if (!SaveJsonValidator.TryReadObject(json, out Dictionary<string, SaveJsonValidator.Field> fields)
+            || !fields.TryGetValue("heroIds", out SaveJsonValidator.Field heroIds) || heroIds.Kind != '['
+            || !fields.TryGetValue("affinities", out SaveJsonValidator.Field affinities) || affinities.Kind != '[')
+        {
+            Debug.LogWarning("[RelationshipTracker] Ignored invalid legacy affinity save data.");
+            return;
+        }
+
+        RelationshipAffinitySnapshot data;
+        // External persisted data can be valid JSON but have incompatible
+        // member types. Keep this exception boundary at the deserializer.
+        try
+        {
+            data = JsonUtility.FromJson<RelationshipAffinitySnapshot>(json);
+        }
+        catch (ArgumentException)
+        {
+            Debug.LogWarning("[RelationshipTracker] Ignored incompatible legacy affinity save data.");
+            return;
+        }
         if (data == null || data.heroIds == null || data.affinities == null)
         {
             return;
         }
 
-        affinityByHeroId.Clear();
-        int count = Mathf.Min(data.heroIds.Count, data.affinities.Count);
-        for (int i = 0; i < count; i++)
-        {
-            if (!string.IsNullOrEmpty(data.heroIds[i]))
-            {
-                affinityByHeroId[data.heroIds[i]] = data.affinities[i];
-            }
-        }
+        ApplySnapshot(data);
 
         Debug.Log($"[RelationshipTracker] Restored {affinityByHeroId.Count} affinity entries from PlayerPrefs.");
     }

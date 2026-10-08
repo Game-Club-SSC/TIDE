@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -235,3 +236,4 @@ public class BossIntroDirectorTest : MonoBehaviour
         Debug.Log("✓ Skip key defaults to Space test passed");
     }
 }
+#endif

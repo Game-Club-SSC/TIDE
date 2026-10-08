@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/SaveJsonValidator.cs" Link="Product/SaveJsonValidator.cs" />
+    <Compile Include="../../Assets/WorldSaveService.cs" Link="Product/WorldSaveService.cs" />
+    <Compile Include="../../Assets/NewGamePlusService.cs" Link="Product/NewGamePlusService.cs" />
+  </ItemGroup>
+</Project>

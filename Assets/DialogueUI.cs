@@ -86,6 +86,22 @@ public class DialogueUI : MonoBehaviour
         staleCallback?.Invoke();
     }
 
+    /// <summary>Stops the sequence without completing a cancelled conversation.</summary>
+    public void CancelSequence()
+    {
+        if (typewriterRoutine != null)
+        {
+            StopCoroutine(typewriterRoutine);
+            typewriterRoutine = null;
+        }
+
+        onCompleteCallback = null;
+        currentEntries = null;
+        isTyping = false;
+        skipRequested = false;
+        HidePanel();
+    }
+
     // ------------------------------------------------------------------ //
     //  Update (advance / skip)
     // ------------------------------------------------------------------ //
@@ -173,9 +189,10 @@ public class DialogueUI : MonoBehaviour
         if (currentIndex >= currentEntries.Count)
         {
             HidePanel();
-            onCompleteCallback?.Invoke();
+            Action completed = onCompleteCallback;
             onCompleteCallback = null;
             currentEntries = null;
+            completed?.Invoke();
             return;
         }
 

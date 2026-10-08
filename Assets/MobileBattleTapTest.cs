@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -434,3 +435,4 @@ public class MobileBattleTapTest : MonoBehaviour
         }
     }
 }
+#endif

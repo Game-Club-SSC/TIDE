@@ -1,58 +1,47 @@
-# Static Island Validation
+# Offline source and island validation
 
-Three PowerShell scripts in the repo root that mirror the assertions of the Unity
-verification tests (`IslandContentVerificationTest`, the 5 per-island
-`XxxIslandVerificationTest` classes, and the 3 signature-mechanic test suites
-`SlothStatusEffectTestSuite`, `EnvyMirrorTestSuite`, `GreedEconomyTestSuite`)
-and a fourth script that audits the C# code for known bug patterns.
+Run all checks with .NET SDK 8 and PowerShell 7 installed:
 
-These exist so AI agents (and humans) can audit the vertical slice data layer
-and code health without booting Unity:
-
-```
-powershell -ExecutionPolicy Bypass -File validate.ps1
-powershell -ExecutionPolicy Bypass -File runtime_sim.ps1
-powershell -ExecutionPolicy Bypass -File bug_audit.ps1
+```sh
+bash scripts/verify.sh
 ```
 
-The 318 individual checks cover:
+Individual PowerShell entry points are available from any working directory:
 
-- **VSR-001 (`IslandContentVerificationTest`)** — 7 island configs present, 9
-  encounters per island in the right order, restoration sums to 1.0, boss at
-  0.25, distinct vice colors, unique boss EncounterConfigs, puzzle variation
-  (>= 2 distinct puzzles with both `AllEqualToTarget` and
-  `PercentageAtTarget`), ancient text per vice, scene file per island.
-- **VSR-010 (`GluttonyIslandVerificationTest`)** — boss enemy is "The Devourer"
-  with a lifesteal skill (`restoreCasterPercentOfDamage > 0`); at least 3
-  Gluttony puzzles enable consumption.
-- **VSR-011 through VSR-015** (Greed/Sloth/Wrath/Envy/Pride) — 5 combat + 4
-  puzzle encounters per island, boss is the 9th encounter, scene file exists,
-  per-island progression (Pride is the final island).
-- **VSR-016 (`SlothStatusEffectTestSuite`)** — `StatusEffectType.Slow` and
-  `Drowsy` enum values, `CombatUnit.GetEffectiveSpeed` returns
-  `speed * (1 - max(Slow))`, `CombatUnit.ShouldSkipTurn` returns true when
-  Drowsy magnitude >= 1.0.
-- **VSR-017 (`EnvyMirrorTestSuite`)** — `BattleManager.EnableEnvyMirror`,
-  `lastAttacker`, `lastPlayerSkill`, `isBossEncounter`, `ComputeEnemyAction`
-  all present; mirror branch copies `lastAttacker.ElementType`; covet branch
-  null-guards `lastPlayerSkill`.
-- **VSR-018 (`GreedEconomyTestSuite`)** — `PuzzleData.coinTileYield = 2`
-  default, `enableGreedEconomy` field, `HeroProgressionManager.Currency` /
-  `SetCurrency` / `TrySpendCurrency`, `SkillData.currencyStealAmount` field.
-- All combat encounter `EncounterConfig` GUIDs resolve to real
-  `Resources/Encounters/*.asset` files.
-- All puzzle `PuzzleData` GUIDs resolve to real `Resources/Puzzles/*.asset`
-  files.
-- Every island's boss `EncounterConfig` resolves and references at least one
-  enemy.
-- C# bug-pattern audit: HeroProgressionManager currency persistence
-  (`PersistCurrency` helper present and called from all three mutators),
-  BattleManager turn-queue determinism (registration order reset at
-  StartBattle, sort compares cached values), EnemyTrigger
-  PendingEnemyComposition not leaked across flow controller early-return,
-  singleton ownership released in OnDestroy, and `ScriptableObject.CreateInstance`
-  is only used in test fixtures or the one intentional runtime bootstrap
-  (`AncientTextSceneBootstrap`).
+```sh
+pwsh -NoProfile -File scripts/validate.ps1
+pwsh -NoProfile -File scripts/bug_audit.ps1
+pwsh -NoProfile -File scripts/runtime_sim.ps1
+```
 
-If any script reports a failure, fix the underlying data (or the code) rather
-than editing the assertion — the assertions mirror the Unity test code.
+These wrappers invoke the root implementations and propagate failure exit codes.
+
+`validate.ps1` checks the canonical six corrupted islands (Lust, Greed, Desire,
+Anger, Envy, Ego), separates the hub, resolves encounter/puzzle/scene references,
+checks nine encounter slots per island and restoration budgets, and verifies
+legacy aliases. Greed divides its preboss budget equally between combat and
+puzzles; the other islands use 0.50 combat and 0.25 puzzles. All have 0.75 before
+the boss and a 0.25 boss bucket. Lore IDs must use the authored vice prefix.
+
+`bug_audit.ps1` checks selected known source invariants: currency persistence,
+turn-order registration pruning and cached deterministic sort values, stale
+encounter composition cleanup, singleton release, and explicitly allowed
+runtime ScriptableObject factories. It is a narrow source-pattern audit, not
+an exhaustive correctness proof.
+
+`runtime_sim.ps1` checks source contracts and canonical asset structure. Despite
+its historical filename, it does not simulate runtime scenes or invoke Unity.
+
+The .NET harnesses link shipped gameplay sources against explicit engine/service
+adapters. SceneIntegration parses all C# sources under five Editor/player/input
+configurations and validates scene/YAML references. See the harness READMEs and
+`PRODUCTION_READINESS_2026-10-08.md` for coverage, counts, and limitations.
+
+The old Gluttony/Sloth/Wrath/Pride names are compatibility aliases. They must not
+replace the GDD V2 roster or become a seventh corrupted island. There is no
+`GluttonyIslandVerificationTest` in the current canonical test set; use
+`LustIslandVerificationTest` and retain the legacy puzzle-asset checks.
+
+Unity 6000.3.7f1 import, semantic compilation, package GUID resolution, Play Mode,
+ContextMenu/Test Runner execution, and player builds remain separate required
+checks. Offline success does not establish a release-ready game.

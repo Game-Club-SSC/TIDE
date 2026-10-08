@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -497,3 +498,4 @@ public class PowerBudgetTrackerTest : MonoBehaviour
         Debug.Log("✓ Snapshot test passed");
     }
 }
+#endif

@@ -32,6 +32,9 @@ public class NarrativeBeatDirector : MonoBehaviour
     private bool introQueued;
     private Vector3 explorationStartPosition;
     private bool hasExplorationStartPosition;
+    private string pendingBeatId;
+    private string pendingTreeId;
+    private DialogueSystem pendingDialogueSystem;
 
     private void OnEnable()
     {
@@ -40,6 +43,7 @@ public class NarrativeBeatDirector : MonoBehaviour
 
     public void ResetForDebug()
     {
+        ClearPendingDialogue();
         hasExplorationStartPosition = false;
         CacheExplorationStartPosition();
         introTimer = Mathf.Max(0.2f, introDelaySeconds);
@@ -51,6 +55,11 @@ public class NarrativeBeatDirector : MonoBehaviour
         }
 
         beatCooldownTimer = 0f;
+    }
+
+    private void OnDisable()
+    {
+        ClearPendingDialogue();
     }
 
     public bool ForceShowGoodEndingBeatForDebug()
@@ -80,6 +89,12 @@ public class NarrativeBeatDirector : MonoBehaviour
         {
             return;
         }
+
+        if (pendingDialogueSystem != null && pendingDialogueSystem.IsDialogueActive)
+        {
+            return;
+        }
+        ClearPendingDialogue();
 
         if (beatCooldownTimer > 0f)
         {
@@ -158,11 +173,12 @@ public class NarrativeBeatDirector : MonoBehaviour
             return false;
         }
 
-        bool newlyCompleted = gsm.MarkNarrativeBeatCompleted(beatId);
-        if (!newlyCompleted)
+        if (gsm.IsNarrativeBeatCompleted(beatId)
+            || (DialogueSystem.Instance != null && DialogueSystem.Instance.IsDialogueActive))
         {
             return false;
         }
+        ClearPendingDialogue();
 
         gsm.RegisterAncientText(beatId, title, body);
         gsm.DiscoverAncientText(beatId);
@@ -184,6 +200,7 @@ public class NarrativeBeatDirector : MonoBehaviour
             if (logUi != null)
             {
                 logUi.ShowEntry(beatId, title, body, true);
+                gsm.MarkNarrativeBeatCompleted(beatId);
             }
         }
 
@@ -238,12 +255,42 @@ public class NarrativeBeatDirector : MonoBehaviour
             DialogueTree tree = treeFactory();
             if (tree != null && tree.rootNode != null)
             {
-                DialogueSystem.Instance.StartDialogueTree(tree);
-                return true;
+                pendingBeatId = beatId;
+                pendingTreeId = tree.treeId;
+                pendingDialogueSystem = DialogueSystem.Instance;
+                pendingDialogueSystem.OnDialogueTreeCompleted += HandleLinkedDialogueCompleted;
+                if (pendingDialogueSystem.StartDialogueTree(tree))
+                {
+                    return true;
+                }
+                ClearPendingDialogue();
             }
         }
 
         return false;
+    }
+
+    private void HandleLinkedDialogueCompleted(string treeId)
+    {
+        if (!string.Equals(treeId, pendingTreeId, System.StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        string completedBeatId = pendingBeatId;
+        ClearPendingDialogue();
+        GameStateManager.Instance?.MarkNarrativeBeatCompleted(completedBeatId);
+    }
+
+    private void ClearPendingDialogue()
+    {
+        if (pendingDialogueSystem != null)
+        {
+            pendingDialogueSystem.OnDialogueTreeCompleted -= HandleLinkedDialogueCompleted;
+        }
+        pendingDialogueSystem = null;
+        pendingBeatId = null;
+        pendingTreeId = null;
     }
 
     /// <summary>

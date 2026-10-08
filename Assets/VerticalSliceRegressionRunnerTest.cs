@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -256,3 +257,4 @@ public class VerticalSliceRegressionRunnerTest : MonoBehaviour
         Assert.IsTrue(DevCheatFeatureFlags.LogicOk(), "Flags should be queryable.");
     }
 }
+#endif

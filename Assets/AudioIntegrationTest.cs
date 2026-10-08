@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -94,3 +95,4 @@ public class AudioIntegrationTest : MonoBehaviour
         Debug.Log($"Audio cue resolution: exploration={explorationClip.length:F1}s, combat={combatClip.length:F1}s, puzzle={puzzleClip.length:F1}s");
     }
 }
+#endif

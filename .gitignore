@@ -4,6 +4,7 @@
 #
 # Local tooling (do not commit)
 venv/
+/work/
 commits_per_day.txt
 .commandcode/
 .agents/
@@ -49,8 +50,7 @@ ORIGINAL_REQUEST.md
 ExportedObj/
 .consulo/
 *.csproj
-!Verification/PhoneSecurityHarness/PhoneSecurityHarness.csproj
-!Verification/PuzzleIslandHarness/PuzzleIslandHarness.csproj
+!Verification/**/*.csproj
 *.unityproj
 *.sln
 *.suo

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -79,3 +80,4 @@ public class BoatTravelTest : MonoBehaviour
         Debug.Log("IslandBoatInteractable exists: PASS");
     }
 }
+#endif

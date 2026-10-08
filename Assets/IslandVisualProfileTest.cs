@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -52,3 +53,4 @@ public class IslandVisualProfileTest : MonoBehaviour
         Debug.Log("[IslandVisualProfileTest] TestGetDefaultCoversAllSixIslands passed.");
     }
 }
+#endif

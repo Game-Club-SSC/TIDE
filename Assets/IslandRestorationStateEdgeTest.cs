@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -126,11 +127,11 @@ public class IslandRestorationStateEdgeTest : MonoBehaviour
 
         Assert.AreEqual(0.5f, state.CombatContribution, 0.001f,
             "Loaded ordinary combat should be clamped to the 50% GDD cap.");
-        Assert.AreEqual(0.4f, state.BossContribution, 0.001f,
-            "Legacy over-cap combat should migrate into the boss bucket without losing progress.");
+        Assert.AreEqual(0.1f, state.BossContribution, 0.001f,
+            "An explicit boss bucket must be preserved without migrating ordinary combat overflow a second time.");
         Assert.AreEqual(0f, state.PuzzleContribution, 0.001f,
             "Non-finite puzzle contribution should be discarded.");
-        Assert.AreEqual(0.9f, state.TotalContribution, 0.001f,
+        Assert.AreEqual(0.6f, state.TotalContribution, 0.001f,
             "Snapshot totals should be recomputed from sanitized category values.");
         Assert.AreEqual(0, state.CombatEncountersCompleted,
             "Negative encounter counts should clamp to zero.");
@@ -138,3 +139,4 @@ public class IslandRestorationStateEdgeTest : MonoBehaviour
             "Negative encounter counts should clamp to zero.");
     }
 }
+#endif

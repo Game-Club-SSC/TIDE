@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -139,3 +140,4 @@ public class AcceptanceConversationTest : MonoBehaviour
         return entries;
     }
 }
+#endif

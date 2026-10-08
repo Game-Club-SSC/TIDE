@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[DisallowMultipleComponent]
 public class IslandFlowController : MonoBehaviour
 {
     [SerializeField] private IslandConfig islandConfig;
@@ -86,6 +87,11 @@ public class IslandFlowController : MonoBehaviour
             Debug.LogError("[IslandFlowController] Cannot start island flow with null config.");
             return;
         }
+        if (isActive && awaitingEncounterResolution)
+        {
+            Debug.LogWarning("[IslandFlowController] Cannot replace an encounter awaiting resolution.");
+            return;
+        }
 
         ResolveTrackerReference();
         if (tracker == null)
@@ -147,6 +153,11 @@ public class IslandFlowController : MonoBehaviour
         }
 
         EncounterDefinition encounter = islandConfig.encounters[currentEncounterIndex];
+        if (encounter == null)
+        {
+            AbortFlowAfterFatalError();
+            return;
+        }
         string encounterId = GetEncounterId(encounter, currentEncounterIndex);
         bool recorded = tracker.RecordEncounterCompletion(activeIslandId, encounterId, encounter.type, encounter.restorationValue);
 
@@ -169,20 +180,42 @@ public class IslandFlowController : MonoBehaviour
         LoadCurrentEncounter();
     }
 
-    public void OnReturnFromPuzzle()
+    public void OnReturnFromPuzzle(bool solved)
     {
-        if (!isActive || !awaitingEncounterResolution)
+        if (!isActive || !awaitingEncounterResolution
+            || islandConfig == null || islandConfig.encounters == null
+            || currentEncounterIndex >= islandConfig.encounters.Length
+            || islandConfig.encounters[currentEncounterIndex] == null
+            || islandConfig.encounters[currentEncounterIndex].type != EncounterType.Puzzle)
         {
+            return;
+        }
+
+        if (!solved)
+        {
+            // Keep its completion id and restoration available. The player
+            // has returned to exploration and may revisit the puzzle later.
+            PauseForHub();
             return;
         }
 
         OnEncounterComplete();
     }
 
-    public void OnReturnFromCombat(bool playerWon)
+    public void OnReturnFromCombat(bool playerWon, bool playerFled = false)
     {
-        if (!isActive || !awaitingEncounterResolution)
+        if (!isActive || !awaitingEncounterResolution
+            || islandConfig == null || islandConfig.encounters == null
+            || currentEncounterIndex >= islandConfig.encounters.Length
+            || islandConfig.encounters[currentEncounterIndex] == null
+            || islandConfig.encounters[currentEncounterIndex].type != EncounterType.Combat)
         {
+            return;
+        }
+
+        if (playerFled)
+        {
+            PauseForHub();
             return;
         }
 
@@ -219,6 +252,12 @@ public class IslandFlowController : MonoBehaviour
     public void PauseForHub()
     {
         ReleasePreBossDialogueCallback();
+        if (!string.IsNullOrEmpty(budgetConsumedEncounterId))
+        {
+            // Pausing abandons an uncleared encounter's reservation. Reopening
+            // it later will reserve again, so return the point now.
+            PowerBudgetTracker.Instance?.RefundBudget(activeIslandId, 1f);
+        }
         isActive = false;
         awaitingEncounterResolution = false;
         budgetConsumedEncounterId = null;
@@ -228,6 +267,7 @@ public class IslandFlowController : MonoBehaviour
 
     public void AbortFlowAfterFatalError()
     {
+        ReleasePreBossDialogueCallback();
         isActive = false;
         awaitingEncounterResolution = false;
         activeIslandId = string.Empty;
@@ -486,22 +526,26 @@ public class IslandFlowController : MonoBehaviour
 
     private void LoadPuzzleEncounter(EncounterDefinition encounter)
     {
+        GameStateManager gameState = GameStateManager.Instance;
+        if (gameState == null || !gameState.CanEnterPuzzle() || encounter == null
+            || encounter.puzzleData == null)
+        {
+            awaitingEncounterResolution = false;
+            Debug.LogWarning("[IslandFlowController] Puzzle entry is unavailable or lacks puzzle data.");
+            return;
+        }
+
+        string encounterId = GetEncounterId(encounter, currentEncounterIndex);
         awaitingEncounterResolution = true;
-
-        if (encounter.puzzleData != null && GameStateManager.Instance != null)
-        {
-            GameStateManager.Instance.PendingPuzzleData = encounter.puzzleData;
-            GameStateManager.Instance.PendingPuzzleIslandId = IslandId;
-            GameStateManager.Instance.PendingPuzzleEncounterId = encounter.encounterId;
-            GameStateManager.Instance.PendingPuzzleRestorationValue = encounter.restorationValue;
-        }
-
-        if (GameStateManager.Instance != null)
-        {
-            IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
-            Vector3 returnPos = player != null ? player.transform.position : Vector3.zero;
-            GameStateManager.Instance.EnterPuzzleSceneForced(returnPos);
-        }
+        gameState.PendingPuzzleData = encounter.puzzleData;
+        gameState.PendingPuzzleLayout = null;
+        gameState.PendingPuzzleIslandId = IslandId;
+        gameState.PendingPuzzleEncounterId = encounterId;
+        gameState.PendingPuzzleRestorationValue = encounter.restorationValue;
+        gameState.MarkPuzzleUnsolvedForEntry();
+        IsometricPlayer player = FindFirstObjectByType<IsometricPlayer>();
+        Vector3 returnPos = player != null ? player.transform.position : Vector3.zero;
+        gameState.EnterPuzzleScene(returnPos, $"__flow_puzzle__::{IslandId}::{encounterId}");
     }
 
     private void OnIslandComplete()

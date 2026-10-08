@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -95,3 +96,4 @@ public class BgmContentValidationTest : MonoBehaviour
         Debug.Log("Stinger tracks validated: 6 stingers.");
     }
 }
+#endif

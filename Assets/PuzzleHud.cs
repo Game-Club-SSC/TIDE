@@ -56,6 +56,11 @@ public class PuzzleHud : MonoBehaviour
         {
             OnResetPressed();
         }
+
+        if (tideManager != null && Input.GetKeyDown(KeyCode.Z))
+        {
+            tideManager.UndoLastMove();
+        }
     }
 
     private void TryFindTideManager()
@@ -116,7 +121,7 @@ public class PuzzleHud : MonoBehaviour
 
         if (tideManager.UsesUiBoard)
         {
-            hintLabel.text += " | T to reset";
+            hintLabel.text += " | T to reset | Z to undo/cancel";
         }
     }
 

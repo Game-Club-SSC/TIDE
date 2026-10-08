@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -334,3 +335,4 @@ public class PlayerGearInventoryTestSuite
         field.SetValue(manager, gearSets);
     }
 }
+#endif

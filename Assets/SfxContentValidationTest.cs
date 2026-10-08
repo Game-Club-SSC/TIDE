@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -103,3 +104,4 @@ public class SfxContentValidationTest : MonoBehaviour
         Debug.Log("UI SFX validated: 9 sounds.");
     }
 }
+#endif

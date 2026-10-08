@@ -19,6 +19,10 @@ public class NewGamePlusService : MonoBehaviour
     public int LoopIndex { get; private set; }
     public int CompletedRuns { get; private set; }
 
+    private const string SaveKey = "NewGamePlusService";
+    private const float MaximumStatMultiplier = 1000f;
+    private bool completedCurrentRun;
+
     private void OnEnable()
     {
         if (Instance != null && Instance != this)
@@ -42,12 +46,14 @@ public class NewGamePlusService : MonoBehaviour
 
     public bool CanStartNewGamePlus()
     {
-        return CompletedRuns >= minCompletedRuns;
+        return CompletedRuns >= Mathf.Max(1, minCompletedRuns) && completedCurrentRun;
     }
 
     public void RegisterCompletion()
     {
-        CompletedRuns++;
+        if (completedCurrentRun) return;
+        completedCurrentRun = true;
+        if (CompletedRuns < int.MaxValue) CompletedRuns++;
         Save();
         Debug.Log($"[NewGamePlusService] Registered completion #{CompletedRuns}.");
     }
@@ -60,7 +66,8 @@ public class NewGamePlusService : MonoBehaviour
         }
 
         IsInNewGamePlus = true;
-        LoopIndex++;
+        completedCurrentRun = false;
+        if (LoopIndex < int.MaxValue) LoopIndex++;
         Save();
         OnNewGamePlusStarted?.Invoke(LoopIndex);
         Debug.Log($"[NewGamePlusService] Starting NG+ loop {LoopIndex}.");
@@ -81,17 +88,17 @@ public class NewGamePlusService : MonoBehaviour
 
     public float GetEnemyStatMultiplier()
     {
-        return IsInNewGamePlus ? Mathf.Pow(ngPlusEnemyMultiplier, LoopIndex) : 1f;
+        return GetBoundedMultiplier(ngPlusEnemyMultiplier);
     }
 
     public float GetXpMultiplier()
     {
-        return IsInNewGamePlus ? Mathf.Pow(ngPlusXpMultiplier, LoopIndex) : 1f;
+        return GetBoundedMultiplier(ngPlusXpMultiplier);
     }
 
     public int GetStartingCurrency()
     {
-        return IsInNewGamePlus ? startingCurrency * LoopIndex : 0;
+        return IsInNewGamePlus ? (int)Math.Min(int.MaxValue, (long)Mathf.Max(0, startingCurrency) * LoopIndex) : 0;
     }
 
     public IReadOnlyList<string> GetCarryOverHeroIds()
@@ -107,6 +114,7 @@ public class NewGamePlusService : MonoBehaviour
         }
 
         HeroData[] active = PartyManager.Instance.GetActiveParty();
+        if (active == null) return Array.Empty<string>();
         List<string> ids = new List<string>(active.Length);
         for (int i = 0; i < active.Length; i++)
         {
@@ -118,12 +126,64 @@ public class NewGamePlusService : MonoBehaviour
         return ids;
     }
 
-    public void ResetForDebug()
+    [Serializable]
+    public sealed class RunSnapshot
+    {
+        public int completedRuns;
+        public int loopIndex;
+        public bool isInNewGamePlus;
+        public bool completedCurrentRun;
+    }
+
+    public RunSnapshot CaptureSnapshot()
+    {
+        return new RunSnapshot
+        {
+            completedRuns = CompletedRuns,
+            loopIndex = LoopIndex,
+            isInNewGamePlus = IsInNewGamePlus,
+            completedCurrentRun = completedCurrentRun
+        };
+    }
+
+    /// <summary>Restores the saved run without rewriting account completion history.</summary>
+    public void ApplySnapshot(RunSnapshot snapshot)
+    {
+        LoopIndex = 0;
+        IsInNewGamePlus = false;
+        completedCurrentRun = false;
+        if (snapshot == null || snapshot.completedRuns < 0) return;
+        int runs = Mathf.Max(CompletedRuns, snapshot.completedRuns);
+        if (snapshot.loopIndex < 0 || snapshot.loopIndex > runs
+            || (snapshot.isInNewGamePlus && snapshot.loopIndex == 0)
+            || (snapshot.completedCurrentRun && runs == 0)) return;
+        CompletedRuns = runs;
+        LoopIndex = snapshot.loopIndex;
+        IsInNewGamePlus = snapshot.isInNewGamePlus;
+        completedCurrentRun = snapshot.completedCurrentRun;
+    }
+
+    /// <summary>Starts a normal run while retaining the account's completed-run history.</summary>
+    public void ResetForNewRun()
     {
         IsInNewGamePlus = false;
         LoopIndex = 0;
-        CompletedRuns = 0;
+        completedCurrentRun = false;
         Save();
+    }
+
+    public void ResetForDebug()
+    {
+        CompletedRuns = 0;
+        ResetForNewRun();
+    }
+
+    private float GetBoundedMultiplier(float configuredMultiplier)
+    {
+        if (!IsInNewGamePlus) return 1f;
+        float multiplier = float.IsNaN(configuredMultiplier) || float.IsInfinity(configuredMultiplier)
+            ? 1f : Mathf.Clamp(configuredMultiplier, 1f, MaximumStatMultiplier);
+        return (float)Math.Min(MaximumStatMultiplier, Math.Pow(multiplier, LoopIndex));
     }
 
     private void Save()
@@ -132,25 +192,56 @@ public class NewGamePlusService : MonoBehaviour
         {
             completedRuns = CompletedRuns,
             loopIndex = LoopIndex,
-            isInNewGamePlus = IsInNewGamePlus
+            isInNewGamePlus = IsInNewGamePlus,
+            completedCurrentRun = completedCurrentRun
         };
         string json = JsonUtility.ToJson(data);
-        PlayerPrefs.SetString("NewGamePlusService", json);
-        PlayerPrefs.Save();
+        try
+        {
+            PlayerPrefs.SetString(SaveKey, json);
+            PlayerPrefs.Save();
+        }
+        catch (PlayerPrefsException exception)
+        {
+            Debug.LogWarning($"[NewGamePlusService] Save storage rejected the write: {exception.Message}");
+        }
     }
 
     private void Load()
     {
-        if (!PlayerPrefs.HasKey("NewGamePlusService"))
+        // Reset first: re-enabling a persistent component must not retain the
+        // previous session's values when its save has been removed or damaged.
+        CompletedRuns = 0;
+        LoopIndex = 0;
+        IsInNewGamePlus = false;
+        completedCurrentRun = false;
+        if (!PlayerPrefs.HasKey(SaveKey)) return;
+
+        string json = PlayerPrefs.GetString(SaveKey, string.Empty);
+        if (!SaveJsonValidator.TryReadObject(json, out Dictionary<string, SaveJsonValidator.Field> fields)
+            || !fields.TryGetValue("completedRuns", out SaveJsonValidator.Field runsField)
+            || !runsField.TryGetInt(out int runs) || runs < 0
+            || !fields.TryGetValue("loopIndex", out SaveJsonValidator.Field loopField)
+            || !loopField.TryGetInt(out int loop) || loop < 0 || loop > runs
+            || !fields.TryGetValue("isInNewGamePlus", out SaveJsonValidator.Field activeField)
+            || !activeField.TryGetBool(out bool active) || (active && loop == 0))
         {
+            Debug.LogWarning("[NewGamePlusService] Invalid save ignored; starting with normal-run defaults.");
             return;
         }
 
-        string json = PlayerPrefs.GetString("NewGamePlusService");
-        NgPlusSaveData data = JsonUtility.FromJson<NgPlusSaveData>(json);
-        CompletedRuns = data.completedRuns;
-        LoopIndex = data.loopIndex;
-        IsInNewGamePlus = data.isInNewGamePlus;
+        bool completed = !active && runs > 0; // Legacy normal-run completions can unlock NG+.
+        if (fields.TryGetValue("completedCurrentRun", out SaveJsonValidator.Field completionField)
+            && (!completionField.TryGetBool(out completed) || (completed && runs == 0)))
+        {
+            Debug.LogWarning("[NewGamePlusService] Invalid completion state ignored.");
+            return;
+        }
+
+        CompletedRuns = runs;
+        LoopIndex = loop;
+        IsInNewGamePlus = active;
+        completedCurrentRun = completed;
     }
 
     [System.Serializable]
@@ -159,5 +250,6 @@ public class NewGamePlusService : MonoBehaviour
         public int completedRuns;
         public int loopIndex;
         public bool isInNewGamePlus;
+        public bool completedCurrentRun;
     }
 }

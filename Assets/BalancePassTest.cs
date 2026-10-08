@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 
@@ -131,3 +132,4 @@ public class BalancePassTest : MonoBehaviour
         Debug.Log("Leveling config balance: PASS");
     }
 }
+#endif

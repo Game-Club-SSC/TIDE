@@ -21,7 +21,7 @@ MonoBehaviour:
   - 4
   - 7
   - 2
-  - 8
+  - 9
   sealedPosition: {x: -1, y: -1}
   lockedPosition: {x: -1, y: -1}
   lockedTileEncounterId: 
@@ -30,6 +30,6 @@ MonoBehaviour:
     type: 0
     targetValue: 5
     requiredPercent: 1
-  instabilityThreshold: 2
+  instabilityThreshold: 3
   enableConsumption: 1
   consumptionAmount: 1
